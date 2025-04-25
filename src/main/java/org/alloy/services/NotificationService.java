@@ -42,40 +42,30 @@ public class NotificationService {
     }
 
     public Notification createNotification(Notification notification) {
-        // Validate required fields
         if (notification.getUserId() == null) {
             throw new IllegalArgumentException("User ID is required");
         }
-        if (notification.getTitle() == null || notification.getTitle().trim().isEmpty()) {
-            throw new IllegalArgumentException("Title is required");
+        if (notification.getSubject() == null || notification.getSubject().trim().isEmpty()) {
+            throw new IllegalArgumentException("Subject is required");
         }
-        if (notification.getMessage() == null || notification.getMessage().trim().isEmpty()) {
-            throw new IllegalArgumentException("Message is required");
-        }
-        if (notification.getType() == null || notification.getType().trim().isEmpty()) {
-            throw new IllegalArgumentException("Type is required");
+        if (notification.getContent() == null || notification.getContent().trim().isEmpty()) {
+            throw new IllegalArgumentException("Content is required");
         }
 
-        // Set creation date and read status
         notification.setDateCreated(LocalDateTime.now());
         notification.setIsRead(false);
-
         return notificationRepository.save(notification);
     }
 
     public Notification updateNotification(Notification notification) {
-        // Validate ID
         if (notification.getId() == null) {
-            throw new IllegalArgumentException("ID is required for update");
+            throw new IllegalArgumentException("Notification ID is required");
         }
 
-        // Check if notification exists
         Notification existingNotification = notificationRepository.findById(notification.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
 
-        // Preserve creation date
         notification.setDateCreated(existingNotification.getDateCreated());
-
         return notificationRepository.save(notification);
     }
 
@@ -85,14 +75,13 @@ public class NotificationService {
 
         notification.setIsRead(true);
         notification.setDateRead(LocalDateTime.now());
-
         return notificationRepository.save(notification);
     }
 
     public void markAllNotificationsAsRead(Integer userId) {
         List<Notification> notifications = notificationRepository.findByUserIdAndIsReadFalse(userId);
-
         LocalDateTime now = LocalDateTime.now();
+
         for (Notification notification : notifications) {
             notification.setIsRead(true);
             notification.setDateRead(now);
@@ -109,7 +98,10 @@ public class NotificationService {
     }
 
     public void deleteAllNotifications(Integer userId) {
-        List<Notification> notifications = notificationRepository.findByUserId(userId);
-        notificationRepository.deleteAll(notifications);
+        notificationRepository.deleteByUserId(userId);
+    }
+
+    public void cleanupOldNotifications(LocalDateTime date) {
+        notificationRepository.deleteByDateCreatedBefore(date);
     }
 }

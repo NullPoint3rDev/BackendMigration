@@ -42,7 +42,6 @@ public class InboxMessageService {
     }
 
     public InboxMessage createInboxMessage(InboxMessage message) {
-        // Validate required fields
         if (message.getUserId() == null) {
             throw new IllegalArgumentException("User ID is required");
         }
@@ -52,47 +51,37 @@ public class InboxMessageService {
         if (message.getContent() == null || message.getContent().trim().isEmpty()) {
             throw new IllegalArgumentException("Content is required");
         }
-        if (message.getType() == null || message.getType().trim().isEmpty()) {
-            throw new IllegalArgumentException("Type is required");
-        }
 
-        // Set creation date and read status
         message.setDateCreated(LocalDateTime.now());
         message.setIsRead(false);
-
         return inboxMessageRepository.save(message);
     }
 
     public InboxMessage updateInboxMessage(InboxMessage message) {
-        // Validate ID
         if (message.getId() == null) {
-            throw new IllegalArgumentException("ID is required for update");
+            throw new IllegalArgumentException("Message ID is required");
         }
 
-        // Check if message exists
         InboxMessage existingMessage = inboxMessageRepository.findById(message.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Inbox message not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Message not found"));
 
-        // Preserve creation date
         message.setDateCreated(existingMessage.getDateCreated());
-
         return inboxMessageRepository.save(message);
     }
 
     public InboxMessage markInboxMessageAsRead(Integer id) {
         InboxMessage message = inboxMessageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Inbox message not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Message not found"));
 
         message.setIsRead(true);
         message.setDateRead(LocalDateTime.now());
-
         return inboxMessageRepository.save(message);
     }
 
     public void markAllInboxMessagesAsRead(Integer userId) {
         List<InboxMessage> messages = inboxMessageRepository.findByUserIdAndIsReadFalse(userId);
-
         LocalDateTime now = LocalDateTime.now();
+
         for (InboxMessage message : messages) {
             message.setIsRead(true);
             message.setDateRead(now);
@@ -103,13 +92,12 @@ public class InboxMessageService {
 
     public void deleteInboxMessage(Integer id) {
         if (!inboxMessageRepository.existsById(id)) {
-            throw new IllegalArgumentException("Inbox message not found");
+            throw new IllegalArgumentException("Message not found");
         }
         inboxMessageRepository.deleteById(id);
     }
 
     public void deleteAllInboxMessages(Integer userId) {
-        List<InboxMessage> messages = inboxMessageRepository.findByUserId(userId);
-        inboxMessageRepository.deleteAll(messages);
+        inboxMessageRepository.deleteByUserId(userId);
     }
 }

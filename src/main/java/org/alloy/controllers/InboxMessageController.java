@@ -22,8 +22,7 @@ public class InboxMessageController {
 
     @GetMapping
     public ResponseEntity<List<InboxMessage>> getAllInboxMessages() {
-        List<InboxMessage> messages = inboxMessageService.getAllInboxMessages();
-        return ResponseEntity.ok(messages);
+        return ResponseEntity.ok(inboxMessageService.getAllInboxMessages());
     }
 
     @GetMapping("/{id}")
@@ -35,29 +34,25 @@ public class InboxMessageController {
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<InboxMessage>> getInboxMessagesByUserId(@PathVariable Integer userId) {
-        List<InboxMessage> messages = inboxMessageService.getInboxMessagesByUserId(userId);
-        return ResponseEntity.ok(messages);
+        return ResponseEntity.ok(inboxMessageService.getInboxMessagesByUserId(userId));
     }
 
     @GetMapping("/user/{userId}/unread")
     public ResponseEntity<List<InboxMessage>> getUnreadInboxMessagesByUserId(@PathVariable Integer userId) {
-        List<InboxMessage> messages = inboxMessageService.getUnreadInboxMessagesByUserId(userId);
-        return ResponseEntity.ok(messages);
+        return ResponseEntity.ok(inboxMessageService.getUnreadInboxMessagesByUserId(userId));
     }
 
     @GetMapping("/user/{userId}/type/{type}")
     public ResponseEntity<List<InboxMessage>> getInboxMessagesByUserIdAndType(
             @PathVariable Integer userId,
             @PathVariable String type) {
-        List<InboxMessage> messages = inboxMessageService.getInboxMessagesByUserIdAndType(userId, type);
-        return ResponseEntity.ok(messages);
+        return ResponseEntity.ok(inboxMessageService.getInboxMessagesByUserIdAndType(userId, type));
     }
 
     @PostMapping
     public ResponseEntity<InboxMessage> createInboxMessage(@RequestBody InboxMessage message) {
         try {
-            InboxMessage createdMessage = inboxMessageService.createInboxMessage(message);
-            return new ResponseEntity<>(createdMessage, HttpStatus.CREATED);
+            return ResponseEntity.ok(inboxMessageService.createInboxMessage(message));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
@@ -67,8 +62,7 @@ public class InboxMessageController {
     public ResponseEntity<InboxMessage> updateInboxMessage(@PathVariable Integer id, @RequestBody InboxMessage message) {
         try {
             message.setId(id);
-            InboxMessage updatedMessage = inboxMessageService.updateInboxMessage(message);
-            return ResponseEntity.ok(updatedMessage);
+            return ResponseEntity.ok(inboxMessageService.updateInboxMessage(message));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -77,8 +71,7 @@ public class InboxMessageController {
     @PutMapping("/{id}/read")
     public ResponseEntity<InboxMessage> markInboxMessageAsRead(@PathVariable Integer id) {
         try {
-            InboxMessage updatedMessage = inboxMessageService.markInboxMessageAsRead(id);
-            return ResponseEntity.ok(updatedMessage);
+            return ResponseEntity.ok(inboxMessageService.markInboxMessageAsRead(id));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -86,19 +79,15 @@ public class InboxMessageController {
 
     @PutMapping("/user/{userId}/read-all")
     public ResponseEntity<Void> markAllInboxMessagesAsRead(@PathVariable Integer userId) {
-        try {
-            inboxMessageService.markAllInboxMessagesAsRead(userId);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        inboxMessageService.markAllInboxMessagesAsRead(userId);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInboxMessage(@PathVariable Integer id) {
         try {
             inboxMessageService.deleteInboxMessage(id);
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -106,11 +95,7 @@ public class InboxMessageController {
 
     @DeleteMapping("/user/{userId}")
     public ResponseEntity<Void> deleteAllInboxMessages(@PathVariable Integer userId) {
-        try {
-            inboxMessageService.deleteAllInboxMessages(userId);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        inboxMessageService.deleteAllInboxMessages(userId);
+        return ResponseEntity.ok().build();
     }
 }
