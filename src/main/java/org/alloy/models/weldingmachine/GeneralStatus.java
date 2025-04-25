@@ -1,4 +1,4 @@
-package org.alloy.models;
+package org.alloy.models.weldingmachine;
 
 public enum GeneralStatus {
     Active,
