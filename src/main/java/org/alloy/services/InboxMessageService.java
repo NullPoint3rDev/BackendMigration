@@ -29,27 +29,31 @@ public class InboxMessageService {
         return inboxMessageRepository.findById(id);
     }
 
-    public List<InboxMessage> getInboxMessagesByUserId(Integer userId) {
-        return inboxMessageRepository.findByUserId(userId);
+    public List<InboxMessage> getMessagesByUserAccountId(Integer userAccountId) {
+        return inboxMessageRepository.findByUserAccountId(userAccountId);
     }
 
-    public List<InboxMessage> getUnreadInboxMessagesByUserId(Integer userId) {
-        return inboxMessageRepository.findByUserIdAndIsReadFalse(userId);
+    public List<InboxMessage> getUnreadMessagesByUserAccountId(Integer userAccountId) {
+        return inboxMessageRepository.findUnreadMessagesByUserAccountIdOrderByDateCreatedDesc(userAccountId);
     }
 
-    public List<InboxMessage> getInboxMessagesByUserIdAndType(Integer userId, String type) {
-        return inboxMessageRepository.findByUserIdAndType(userId, type);
+    public List<InboxMessage> getMessagesByUserAccountIdAndType(Integer userAccountId, String type) {
+        return inboxMessageRepository.findMessagesByUserAccountIdAndTypeOrderByDateCreatedDesc(userAccountId, type);
+    }
+
+    public long countUnreadMessagesByUserAccountId(Integer userAccountId) {
+        return inboxMessageRepository.countUnreadMessagesByUserAccountId(userAccountId);
     }
 
     public InboxMessage createInboxMessage(InboxMessage message) {
-        if (message.getUserId() == null) {
-            throw new IllegalArgumentException("User ID is required");
+        if (message.getUserAccountId() == null) {
+            throw new IllegalArgumentException("User Account ID is required");
         }
         if (message.getSubject() == null || message.getSubject().trim().isEmpty()) {
             throw new IllegalArgumentException("Subject is required");
         }
-        if (message.getContent() == null || message.getContent().trim().isEmpty()) {
-            throw new IllegalArgumentException("Content is required");
+        if (message.getMessage() == null || message.getMessage().trim().isEmpty()) {
+            throw new IllegalArgumentException("Message content is required");
         }
 
         message.setDateCreated(LocalDateTime.now());
@@ -78,8 +82,8 @@ public class InboxMessageService {
         return inboxMessageRepository.save(message);
     }
 
-    public void markAllInboxMessagesAsRead(Integer userId) {
-        List<InboxMessage> messages = inboxMessageRepository.findByUserIdAndIsReadFalse(userId);
+    public void markAllInboxMessagesAsRead(Integer userAccountId) {
+        List<InboxMessage> messages = inboxMessageRepository.findByUserAccountIdAndIsReadFalse(userAccountId);
         LocalDateTime now = LocalDateTime.now();
 
         for (InboxMessage message : messages) {
@@ -97,7 +101,7 @@ public class InboxMessageService {
         inboxMessageRepository.deleteById(id);
     }
 
-    public void deleteAllInboxMessages(Integer userId) {
-        inboxMessageRepository.deleteByUserId(userId);
+    public void deleteMessagesByUserAccountId(Integer userAccountId) {
+        inboxMessageRepository.deleteByUserAccountId(userAccountId);
     }
 }

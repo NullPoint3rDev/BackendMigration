@@ -11,22 +11,22 @@ import java.util.List;
 @Repository
 public interface InboxMessageRepository extends JpaRepository<InboxMessage, Integer> {
 
-    List<InboxMessage> findByUserId(Integer userId);
+    List<InboxMessage> findByUserAccountId(Integer userAccountId);
 
-    List<InboxMessage> findByUserIdAndIsReadFalse(Integer userId);
+    List<InboxMessage> findByUserAccountIdAndIsReadFalse(Integer userAccountId);
 
-    List<InboxMessage> findByUserIdAndType(Integer userId, String type);
+    List<InboxMessage> findByUserAccountIdAndType(Integer userAccountId, String type);
 
-    @Query("SELECT m FROM InboxMessage m WHERE m.userId = :userId AND m.isRead = false ORDER BY m.dateCreated DESC")
-    List<InboxMessage> findUnreadMessagesByUserIdOrderByDateCreatedDesc(@Param("userId") Integer userId);
+    @Query("SELECT m FROM InboxMessage m WHERE m.userAccountId = :userAccountId AND m.isRead = false ORDER BY m.dateCreated DESC")
+    List<InboxMessage> findUnreadMessagesByUserAccountIdOrderByDateCreatedDesc(@Param("userAccountId") Integer userAccountId);
 
-    @Query("SELECT m FROM InboxMessage m WHERE m.userId = :userId AND m.type = :type ORDER BY m.dateCreated DESC")
-    List<InboxMessage> findMessagesByUserIdAndTypeOrderByDateCreatedDesc(
-            @Param("userId") Integer userId,
+    @Query("SELECT m FROM InboxMessage m WHERE m.userAccountId = :userAccountId AND m.type = :type ORDER BY m.dateCreated DESC")
+    List<InboxMessage> findMessagesByUserAccountIdAndTypeOrderByDateCreatedDesc(
+            @Param("userAccountId") Integer userAccountId,
             @Param("type") String type);
 
-    @Query("SELECT COUNT(m) FROM InboxMessage m WHERE m.userId = :userId AND m.isRead = false")
-    long countUnreadMessagesByUserId(@Param("userId") Integer userId);
+    @Query("SELECT COUNT(m) FROM InboxMessage m WHERE m.userAccountId = :userAccountId AND m.isRead = false")
+    long countUnreadMessagesByUserAccountId(@Param("userAccountId") Integer userAccountId);
 
-    void deleteByUserId(Integer userId);
+    void deleteByUserAccountId(Integer userAccountId);
 }

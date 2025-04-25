@@ -29,8 +29,8 @@ public class UserTokenService {
         return userTokenRepository.findById(id);
     }
 
-    public List<UserToken> getUserTokensByUserId(Integer userId) {
-        return userTokenRepository.findByUserId(userId);
+    public List<UserToken> getUserTokensByUserId(Integer userAccountId) {
+        return userTokenRepository.findByUserAccountId(userAccountId);
     }
 
     public Optional<UserToken> getUserTokenByToken(String token) {
@@ -38,18 +38,18 @@ public class UserTokenService {
     }
 
     public UserToken createUserToken(UserToken userToken) {
-        if (userToken.getUserId() == null) {
-            throw new IllegalArgumentException("User ID is required");
+        if (userToken.getUserAccountId() == null) {
+            throw new IllegalArgumentException("User Account ID is required");
         }
-        if (userToken.getToken() == null || userToken.getToken().trim().isEmpty()) {
+        if (userToken.getToken() == null) {
             throw new IllegalArgumentException("Token is required");
         }
-        if (userToken.getExpirationDate() == null) {
+        if (userToken.getDateExpired() == null) {
             throw new IllegalArgumentException("Expiration date is required");
         }
 
         // Check if token already exists
-        if (userTokenRepository.findByToken(userToken.getToken()).isPresent()) {
+        if (userTokenRepository.findByToken(userToken.getToken().toString()).isPresent()) {
             throw new IllegalArgumentException("Token already exists");
         }
 
@@ -61,13 +61,13 @@ public class UserTokenService {
         if (userToken.getId() == null) {
             throw new IllegalArgumentException("Token ID is required");
         }
-        if (userToken.getUserId() == null) {
-            throw new IllegalArgumentException("User ID is required");
+        if (userToken.getUserAccountId() == null) {
+            throw new IllegalArgumentException("User Account ID is required");
         }
-        if (userToken.getToken() == null || userToken.getToken().trim().isEmpty()) {
+        if (userToken.getToken() == null) {
             throw new IllegalArgumentException("Token is required");
         }
-        if (userToken.getExpirationDate() == null) {
+        if (userToken.getDateExpired() == null) {
             throw new IllegalArgumentException("Expiration date is required");
         }
 
@@ -77,7 +77,7 @@ public class UserTokenService {
         }
 
         // Check if new token value is already used by another token
-        Optional<UserToken> existingToken = userTokenRepository.findByToken(userToken.getToken());
+        Optional<UserToken> existingToken = userTokenRepository.findByToken(userToken.getToken().toString());
         if (existingToken.isPresent() && !existingToken.get().getId().equals(userToken.getId())) {
             throw new IllegalArgumentException("Token already exists");
         }
@@ -92,11 +92,11 @@ public class UserTokenService {
         userTokenRepository.deleteById(id);
     }
 
-    public void deleteAllUserTokens(Integer userId) {
-        userTokenRepository.deleteByUserId(userId);
+    public void deleteAllUserTokens(Integer userAccountId) {
+        userTokenRepository.deleteByUserAccountId(userAccountId);
     }
 
     public void deleteExpiredTokens() {
-        userTokenRepository.deleteByExpirationDateBefore(LocalDateTime.now());
+        userTokenRepository.deleteByDateExpiredBefore(LocalDateTime.now());
     }
 }

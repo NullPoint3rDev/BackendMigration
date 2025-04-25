@@ -1,6 +1,6 @@
 package org.alloy.models.taskrequests;
 
-import com.welding.models.utils.Repeating;
+import org.alloy.models.utils.Repeating;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;

@@ -15,14 +15,18 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
 
     List<WeldingMachine> findByOrganizationUnitId(Integer organizationUnitId);
 
-    List<WeldingMachine> findByWeldingMachineTypeId(Integer weldingMachineTypeId);
+    List<WeldingMachine> findByWeldingMachineTypeId(Integer typeId);
 
     Optional<WeldingMachine> findByMac(String mac);
 
     Optional<WeldingMachine> findBySerialNumber(String serialNumber);
 
-    @Query("SELECT wm FROM WeldingMachine wm WHERE wm.organizationUnitId = :organizationUnitId AND (wm.name LIKE %:searchTerm% OR wm.serialNumber LIKE %:searchTerm% OR wm.mac LIKE %:searchTerm%)")
-    List<WeldingMachine> searchWeldingMachines(@Param("organizationUnitId") Integer organizationUnitId, @Param("searchTerm") String searchTerm);
+    @Query("SELECT w FROM WeldingMachine w WHERE w.organizationUnitId = :organizationUnitId AND " +
+            "(LOWER(w.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(w.serialNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(w.inventoryNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    List<WeldingMachine> searchWeldingMachines(@Param("organizationUnitId") Integer organizationUnitId,
+                                               @Param("searchTerm") String searchTerm);
 
     @Query("SELECT wm FROM WeldingMachine wm WHERE wm.id IN :ids")
     List<WeldingMachine> findByIds(@Param("ids") List<Integer> ids);

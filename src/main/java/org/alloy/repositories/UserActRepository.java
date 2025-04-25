@@ -12,31 +12,31 @@ import java.util.List;
 @Repository
 public interface UserActRepository extends JpaRepository<UserAct, Integer> {
 
-    List<UserAct> findByUserId(Integer userId);
+    List<UserAct> findByUserAccountId(Integer userAccountId);
 
-    List<UserAct> findByUserIdAndType(Integer userId, String type);
+    List<UserAct> findByUserAccountIdAndType(Integer userAccountId, String type);
 
-    @Query("SELECT u FROM UserAct u WHERE u.userId = :userId AND u.dateCreated BETWEEN :startDate AND :endDate ORDER BY u.dateCreated DESC")
-    List<UserAct> findUserActsByUserIdAndDateRange(
-            @Param("userId") Integer userId,
+    @Query("SELECT ua FROM UserAct ua WHERE ua.userAccountId = :userAccountId AND ua.dateCreated BETWEEN :startDate AND :endDate")
+    List<UserAct> findUserActsByUserAccountIdAndDateRange(
+            @Param("userAccountId") Integer userAccountId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT u FROM UserAct u WHERE u.userId = :userId AND u.type = :type AND u.dateCreated BETWEEN :startDate AND :endDate ORDER BY u.dateCreated DESC")
-    List<UserAct> findUserActsByUserIdAndTypeAndDateRange(
-            @Param("userId") Integer userId,
+    @Query("SELECT ua FROM UserAct ua WHERE ua.userAccountId = :userAccountId AND ua.type = :type AND ua.dateCreated BETWEEN :startDate AND :endDate")
+    List<UserAct> findUserActsByUserAccountIdAndTypeAndDateRange(
+            @Param("userAccountId") Integer userAccountId,
             @Param("type") String type,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT COUNT(u) FROM UserAct u WHERE u.userId = :userId AND u.type = :type AND u.dateCreated BETWEEN :startDate AND :endDate")
-    long countUserActsByUserIdAndTypeAndDateRange(
-            @Param("userId") Integer userId,
+    @Query("SELECT COUNT(ua) FROM UserAct ua WHERE ua.userAccountId = :userAccountId AND ua.type = :type AND ua.dateCreated BETWEEN :startDate AND :endDate")
+    long countUserActsByUserAccountIdAndTypeAndDateRange(
+            @Param("userAccountId") Integer userAccountId,
             @Param("type") String type,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
-    void deleteByUserId(Integer userId);
+    void deleteByUserAccountId(Integer userAccountId);
 
     void deleteByDateCreatedBefore(LocalDateTime date);
 }

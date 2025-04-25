@@ -1,7 +1,12 @@
 package org.alloy.services;
 
 import org.alloy.models.entities.WeldingMachine;
+import org.alloy.models.entities.WeldingMachineType;
+import org.alloy.models.entities.OrganizationUnit;
+import org.alloy.models.GeneralStatus;
 import org.alloy.repositories.WeldingMachineRepository;
+import org.alloy.repositories.WeldingMachineTypeRepository;
+import org.alloy.repositories.OrganizationUnitRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,10 +20,16 @@ import java.util.Optional;
 public class WeldingMachineService {
 
     private final WeldingMachineRepository weldingMachineRepository;
+    private final WeldingMachineTypeRepository weldingMachineTypeRepository;
+    private final OrganizationUnitRepository organizationUnitRepository;
 
     @Autowired
-    public WeldingMachineService(WeldingMachineRepository weldingMachineRepository) {
+    public WeldingMachineService(WeldingMachineRepository weldingMachineRepository,
+                                 WeldingMachineTypeRepository weldingMachineTypeRepository,
+                                 OrganizationUnitRepository organizationUnitRepository) {
         this.weldingMachineRepository = weldingMachineRepository;
+        this.weldingMachineTypeRepository = weldingMachineTypeRepository;
+        this.organizationUnitRepository = organizationUnitRepository;
     }
 
     public List<WeldingMachine> getAllWeldingMachines() {
@@ -33,19 +44,19 @@ public class WeldingMachineService {
         return weldingMachineRepository.findBySerialNumber(serialNumber);
     }
 
-    public List<WeldingMachine> getWeldingMachinesByOrganizationId(Integer organizationId) {
-        return weldingMachineRepository.findByOrganizationId(organizationId);
+    public List<WeldingMachine> getWeldingMachinesByOrganizationId(Integer organizationUnitId) {
+        return weldingMachineRepository.findByOrganizationUnitId(organizationUnitId);
     }
 
     public List<WeldingMachine> getWeldingMachinesByTypeId(Integer typeId) {
-        return weldingMachineRepository.findByTypeId(typeId);
+        return weldingMachineRepository.findByWeldingMachineTypeId(typeId);
     }
 
-    public List<WeldingMachine> searchWeldingMachines(Integer organizationId, String searchTerm) {
+    public List<WeldingMachine> searchWeldingMachines(Integer organizationUnitId, String searchTerm) {
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
-            return getWeldingMachinesByOrganizationId(organizationId);
+            return getWeldingMachinesByOrganizationId(organizationUnitId);
         }
-        return weldingMachineRepository.searchWeldingMachines(organizationId, searchTerm.trim());
+        return weldingMachineRepository.searchWeldingMachines(organizationUnitId, searchTerm.trim());
     }
 
     public WeldingMachine createWeldingMachine(WeldingMachine weldingMachine) {
@@ -53,10 +64,10 @@ public class WeldingMachineService {
         if (weldingMachine.getSerialNumber() == null || weldingMachine.getSerialNumber().trim().isEmpty()) {
             throw new IllegalArgumentException("Serial number is required");
         }
-        if (weldingMachine.getOrganizationId() == null) {
-            throw new IllegalArgumentException("Organization ID is required");
+        if (weldingMachine.getOrganizationUnitId() == null) {
+            throw new IllegalArgumentException("Organization Unit ID is required");
         }
-        if (weldingMachine.getTypeId() == null) {
+        if (weldingMachine.getWeldingMachineTypeId() == null) {
             throw new IllegalArgumentException("Type ID is required");
         }
 
@@ -65,9 +76,17 @@ public class WeldingMachineService {
             throw new IllegalArgumentException("A welding machine with this serial number already exists");
         }
 
+        // Verify that the referenced entities exist
+        WeldingMachineType type = weldingMachineTypeRepository.findById(weldingMachine.getWeldingMachineTypeId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid welding machine type ID"));
+        OrganizationUnit orgUnit = organizationUnitRepository.findById(weldingMachine.getOrganizationUnitId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid organization unit ID"));
+
         // Set creation date and status
         weldingMachine.setDateCreated(LocalDateTime.now());
-        weldingMachine.setStatus("Active");
+        weldingMachine.setStatus(GeneralStatus.Active);
+        weldingMachine.setWeldingMachineType(type);
+        weldingMachine.setOrganizationUnit(orgUnit);
 
         return weldingMachineRepository.save(weldingMachine);
     }
@@ -89,6 +108,18 @@ public class WeldingMachineService {
             }
         }
 
+        // Verify that the referenced entities exist
+        if (weldingMachine.getWeldingMachineTypeId() != null) {
+            WeldingMachineType type = weldingMachineTypeRepository.findById(weldingMachine.getWeldingMachineTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid welding machine type ID"));
+            weldingMachine.setWeldingMachineType(type);
+        }
+        if (weldingMachine.getOrganizationUnitId() != null) {
+            OrganizationUnit orgUnit = organizationUnitRepository.findById(weldingMachine.getOrganizationUnitId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid organization unit ID"));
+            weldingMachine.setOrganizationUnit(orgUnit);
+        }
+
         // Preserve creation date
         weldingMachine.setDateCreated(existingMachine.getDateCreated());
 
@@ -99,7 +130,7 @@ public class WeldingMachineService {
         WeldingMachine weldingMachine = weldingMachineRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Welding machine not found"));
 
-        weldingMachine.setStatus("Deleted");
+        weldingMachine.setStatus(GeneralStatus.Deleted);
         weldingMachineRepository.save(weldingMachine);
     }
 

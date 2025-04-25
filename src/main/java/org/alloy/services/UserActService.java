@@ -29,31 +29,31 @@ public class UserActService {
         return userActRepository.findById(id);
     }
 
-    public List<UserAct> getUserActsByUserId(Integer userId) {
-        return userActRepository.findByUserId(userId);
+    public List<UserAct> getUserActsByUserId(Integer userAccountId) {
+        return userActRepository.findByUserAccountId(userAccountId);
     }
 
-    public List<UserAct> getUserActsByUserIdAndType(Integer userId, String type) {
-        return userActRepository.findByUserIdAndType(userId, type);
+    public List<UserAct> getUserActsByUserIdAndType(Integer userAccountId, String type) {
+        return userActRepository.findByUserAccountIdAndType(userAccountId, type);
     }
 
-    public List<UserAct> getUserActsByUserIdAndDateRange(Integer userId, LocalDateTime startDate, LocalDateTime endDate) {
-        return userActRepository.findUserActsByUserIdAndDateRange(userId, startDate, endDate);
+    public List<UserAct> getUserActsByUserIdAndDateRange(Integer userAccountId, LocalDateTime startDate, LocalDateTime endDate) {
+        return userActRepository.findUserActsByUserAccountIdAndDateRange(userAccountId, startDate, endDate);
     }
 
     public List<UserAct> getUserActsByUserIdAndTypeAndDateRange(
-            Integer userId, String type, LocalDateTime startDate, LocalDateTime endDate) {
-        return userActRepository.findUserActsByUserIdAndTypeAndDateRange(userId, type, startDate, endDate);
+            Integer userAccountId, String type, LocalDateTime startDate, LocalDateTime endDate) {
+        return userActRepository.findUserActsByUserAccountIdAndTypeAndDateRange(userAccountId, type, startDate, endDate);
     }
 
     public long countUserActsByUserIdAndTypeAndDateRange(
-            Integer userId, String type, LocalDateTime startDate, LocalDateTime endDate) {
-        return userActRepository.countUserActsByUserIdAndTypeAndDateRange(userId, type, startDate, endDate);
+            Integer userAccountId, String type, LocalDateTime startDate, LocalDateTime endDate) {
+        return userActRepository.countUserActsByUserAccountIdAndTypeAndDateRange(userAccountId, type, startDate, endDate);
     }
 
     public UserAct createUserAct(UserAct userAct) {
-        if (userAct.getUserId() == null) {
-            throw new IllegalArgumentException("User ID is required");
+        if (userAct.getUserAccountId() == null) {
+            throw new IllegalArgumentException("User Account ID is required");
         }
         if (userAct.getType() == null || userAct.getType().trim().isEmpty()) {
             throw new IllegalArgumentException("Type is required");
@@ -85,8 +85,8 @@ public class UserActService {
         userActRepository.deleteById(id);
     }
 
-    public void deleteAllUserActs(Integer userId) {
-        userActRepository.deleteByUserId(userId);
+    public void deleteAllUserActs(Integer userAccountId) {
+        userActRepository.deleteByUserAccountId(userAccountId);
     }
 
     public void cleanupOldUserActs(LocalDateTime date) {

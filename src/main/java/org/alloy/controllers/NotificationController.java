@@ -33,24 +33,26 @@ public class NotificationController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Notification>> getNotificationsByUserId(@PathVariable Integer userId) {
-        List<Notification> notifications = notificationService.getNotificationsByUserId(userId);
-        return ResponseEntity.ok(notifications);
+    @GetMapping("/user/{userAccountId}")
+    public ResponseEntity<List<Notification>> getNotificationsByUserAccountId(@PathVariable Integer userAccountId) {
+        return ResponseEntity.ok(notificationService.getNotificationsByUserAccountId(userAccountId));
     }
 
-    @GetMapping("/user/{userId}/unread")
-    public ResponseEntity<List<Notification>> getUnreadNotificationsByUserId(@PathVariable Integer userId) {
-        List<Notification> notifications = notificationService.getUnreadNotificationsByUserId(userId);
-        return ResponseEntity.ok(notifications);
+    @GetMapping("/user/{userAccountId}/unread")
+    public ResponseEntity<List<Notification>> getUnreadNotificationsByUserAccountId(@PathVariable Integer userAccountId) {
+        return ResponseEntity.ok(notificationService.getUnreadNotificationsByUserAccountId(userAccountId));
     }
 
-    @GetMapping("/user/{userId}/type/{type}")
-    public ResponseEntity<List<Notification>> getNotificationsByUserIdAndType(
-            @PathVariable Integer userId,
+    @GetMapping("/user/{userAccountId}/type/{type}")
+    public ResponseEntity<List<Notification>> getNotificationsByUserAccountIdAndType(
+            @PathVariable Integer userAccountId,
             @PathVariable String type) {
-        List<Notification> notifications = notificationService.getNotificationsByUserIdAndType(userId, type);
-        return ResponseEntity.ok(notifications);
+        return ResponseEntity.ok(notificationService.getNotificationsByUserAccountIdAndType(userAccountId, type));
+    }
+
+    @GetMapping("/user/{userAccountId}/unread/count")
+    public ResponseEntity<Long> countUnreadNotificationsByUserAccountId(@PathVariable Integer userAccountId) {
+        return ResponseEntity.ok(notificationService.countUnreadNotificationsByUserAccountId(userAccountId));
     }
 
     @PostMapping
@@ -84,10 +86,10 @@ public class NotificationController {
         }
     }
 
-    @PutMapping("/user/{userId}/read-all")
-    public ResponseEntity<Void> markAllNotificationsAsRead(@PathVariable Integer userId) {
+    @PutMapping("/user/{userAccountId}/read-all")
+    public ResponseEntity<Void> markAllNotificationsAsRead(@PathVariable Integer userAccountId) {
         try {
-            notificationService.markAllNotificationsAsRead(userId);
+            notificationService.markAllNotificationsAsRead(userAccountId);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -104,13 +106,9 @@ public class NotificationController {
         }
     }
 
-    @DeleteMapping("/user/{userId}")
-    public ResponseEntity<Void> deleteAllNotifications(@PathVariable Integer userId) {
-        try {
-            notificationService.deleteAllNotifications(userId);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+    @DeleteMapping("/user/{userAccountId}")
+    public ResponseEntity<Void> deleteNotificationsByUserAccountId(@PathVariable Integer userAccountId) {
+        notificationService.deleteNotificationsByUserAccountId(userAccountId);
+        return ResponseEntity.ok().build();
     }
 }

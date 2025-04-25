@@ -32,21 +32,26 @@ public class InboxMessageController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<InboxMessage>> getInboxMessagesByUserId(@PathVariable Integer userId) {
-        return ResponseEntity.ok(inboxMessageService.getInboxMessagesByUserId(userId));
+    @GetMapping("/user/{userAccountId}")
+    public ResponseEntity<List<InboxMessage>> getMessagesByUserAccountId(@PathVariable Integer userAccountId) {
+        return ResponseEntity.ok(inboxMessageService.getMessagesByUserAccountId(userAccountId));
     }
 
-    @GetMapping("/user/{userId}/unread")
-    public ResponseEntity<List<InboxMessage>> getUnreadInboxMessagesByUserId(@PathVariable Integer userId) {
-        return ResponseEntity.ok(inboxMessageService.getUnreadInboxMessagesByUserId(userId));
+    @GetMapping("/user/{userAccountId}/unread")
+    public ResponseEntity<List<InboxMessage>> getUnreadMessagesByUserAccountId(@PathVariable Integer userAccountId) {
+        return ResponseEntity.ok(inboxMessageService.getUnreadMessagesByUserAccountId(userAccountId));
     }
 
-    @GetMapping("/user/{userId}/type/{type}")
-    public ResponseEntity<List<InboxMessage>> getInboxMessagesByUserIdAndType(
-            @PathVariable Integer userId,
+    @GetMapping("/user/{userAccountId}/type/{type}")
+    public ResponseEntity<List<InboxMessage>> getMessagesByUserAccountIdAndType(
+            @PathVariable Integer userAccountId,
             @PathVariable String type) {
-        return ResponseEntity.ok(inboxMessageService.getInboxMessagesByUserIdAndType(userId, type));
+        return ResponseEntity.ok(inboxMessageService.getMessagesByUserAccountIdAndType(userAccountId, type));
+    }
+
+    @GetMapping("/user/{userAccountId}/unread/count")
+    public ResponseEntity<Long> countUnreadMessagesByUserAccountId(@PathVariable Integer userAccountId) {
+        return ResponseEntity.ok(inboxMessageService.countUnreadMessagesByUserAccountId(userAccountId));
     }
 
     @PostMapping
@@ -77,9 +82,9 @@ public class InboxMessageController {
         }
     }
 
-    @PutMapping("/user/{userId}/read-all")
-    public ResponseEntity<Void> markAllInboxMessagesAsRead(@PathVariable Integer userId) {
-        inboxMessageService.markAllInboxMessagesAsRead(userId);
+    @PutMapping("/user/{userAccountId}/read-all")
+    public ResponseEntity<Void> markAllInboxMessagesAsRead(@PathVariable Integer userAccountId) {
+        inboxMessageService.markAllInboxMessagesAsRead(userAccountId);
         return ResponseEntity.ok().build();
     }
 
@@ -93,9 +98,9 @@ public class InboxMessageController {
         }
     }
 
-    @DeleteMapping("/user/{userId}")
-    public ResponseEntity<Void> deleteAllInboxMessages(@PathVariable Integer userId) {
-        inboxMessageService.deleteAllInboxMessages(userId);
+    @DeleteMapping("/user/{userAccountId}")
+    public ResponseEntity<Void> deleteMessagesByUserAccountId(@PathVariable Integer userAccountId) {
+        inboxMessageService.deleteMessagesByUserAccountId(userAccountId);
         return ResponseEntity.ok().build();
     }
 }

@@ -12,27 +12,30 @@ import java.util.List;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Integer> {
 
-    List<Notification> findByUserId(Integer userId);
+    List<Notification> findByUserAccountId(Integer userAccountId);
 
-    List<Notification> findByUserIdAndIsReadFalse(Integer userId);
+    List<Notification> findByUserAccountIdAndIsReadFalse(Integer userAccountId);
 
-    List<Notification> findByUserIdAndType(Integer userId, String type);
+    List<Notification> findByUserAccountIdAndType(Integer userAccountId, String type);
 
-    @Query("SELECT n FROM Notification n WHERE n.userId = :userId AND n.isRead = false ORDER BY n.dateCreated DESC")
-    List<Notification> findUnreadNotificationsByUserIdOrderByDateCreatedDesc(@Param("userId") Integer userId);
+    @Query("SELECT n FROM Notification n WHERE n.userAccountId = :userAccountId AND n.isRead = false ORDER BY n.dateCreated DESC")
+    List<Notification> findUnreadNotificationsByUserAccountIdOrderByDateCreatedDesc(@Param("userAccountId") Integer userAccountId);
 
-    @Query("SELECT n FROM Notification n WHERE n.userId = :userId AND n.type = :type ORDER BY n.dateCreated DESC")
-    List<Notification> findNotificationsByUserIdAndTypeOrderByDateCreatedDesc(
-            @Param("userId") Integer userId,
+    @Query("SELECT n FROM Notification n WHERE n.userAccountId = :userAccountId AND n.type = :type ORDER BY n.dateCreated DESC")
+    List<Notification> findNotificationsByUserAccountIdAndTypeOrderByDateCreatedDesc(
+            @Param("userAccountId") Integer userAccountId,
             @Param("type") String type);
 
-    @Query("SELECT COUNT(n) FROM Notification n WHERE n.userId = :userId AND n.isRead = false")
-    long countUnreadNotificationsByUserId(@Param("userId") Integer userId);
+    @Query("SELECT COUNT(n) FROM Notification n WHERE n.userAccountId = :userAccountId AND n.isRead = false")
+    long countUnreadNotificationsByUserAccountId(@Param("userAccountId") Integer userAccountId);
 
     @Query("SELECT n FROM Notification n WHERE n.dateCreated < :date AND n.isRead = true")
     List<Notification> findOldReadNotifications(@Param("date") LocalDateTime date);
 
-    void deleteByUserId(Integer userId);
+    @Query("SELECT COUNT(n) FROM Notification n WHERE n.userAccountId = :userAccountId AND n.isRead = false")
+    long countByUserAccountIdAndIsReadFalse(@Param("userAccountId") Integer userAccountId);
+
+    void deleteByUserAccountId(Integer userAccountId);
 
     void deleteByDateCreatedBefore(LocalDateTime date);
 }

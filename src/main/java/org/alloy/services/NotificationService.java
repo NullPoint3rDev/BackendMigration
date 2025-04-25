@@ -29,27 +29,27 @@ public class NotificationService {
         return notificationRepository.findById(id);
     }
 
-    public List<Notification> getNotificationsByUserId(Integer userId) {
-        return notificationRepository.findByUserId(userId);
+    public List<Notification> getNotificationsByUserAccountId(Integer userAccountId) {
+        return notificationRepository.findByUserAccountId(userAccountId);
     }
 
-    public List<Notification> getUnreadNotificationsByUserId(Integer userId) {
-        return notificationRepository.findByUserIdAndIsReadFalse(userId);
+    public List<Notification> getUnreadNotificationsByUserAccountId(Integer userAccountId) {
+        return notificationRepository.findByUserAccountIdAndIsReadFalse(userAccountId);
     }
 
-    public List<Notification> getNotificationsByUserIdAndType(Integer userId, String type) {
-        return notificationRepository.findByUserIdAndType(userId, type);
+    public List<Notification> getNotificationsByUserAccountIdAndType(Integer userAccountId, String type) {
+        return notificationRepository.findByUserAccountIdAndType(userAccountId, type);
     }
 
     public Notification createNotification(Notification notification) {
-        if (notification.getUserId() == null) {
-            throw new IllegalArgumentException("User ID is required");
+        if (notification.getUserAccountId() == null) {
+            throw new IllegalArgumentException("User Account ID is required");
         }
-        if (notification.getSubject() == null || notification.getSubject().trim().isEmpty()) {
-            throw new IllegalArgumentException("Subject is required");
+        if (notification.getTitle() == null || notification.getTitle().trim().isEmpty()) {
+            throw new IllegalArgumentException("Title is required");
         }
-        if (notification.getContent() == null || notification.getContent().trim().isEmpty()) {
-            throw new IllegalArgumentException("Content is required");
+        if (notification.getMessage() == null || notification.getMessage().trim().isEmpty()) {
+            throw new IllegalArgumentException("Message is required");
         }
 
         notification.setDateCreated(LocalDateTime.now());
@@ -78,8 +78,8 @@ public class NotificationService {
         return notificationRepository.save(notification);
     }
 
-    public void markAllNotificationsAsRead(Integer userId) {
-        List<Notification> notifications = notificationRepository.findByUserIdAndIsReadFalse(userId);
+    public void markAllNotificationsAsRead(Integer userAccountId) {
+        List<Notification> notifications = notificationRepository.findByUserAccountIdAndIsReadFalse(userAccountId);
         LocalDateTime now = LocalDateTime.now();
 
         for (Notification notification : notifications) {
@@ -97,11 +97,15 @@ public class NotificationService {
         notificationRepository.deleteById(id);
     }
 
-    public void deleteAllNotifications(Integer userId) {
-        notificationRepository.deleteByUserId(userId);
+    public void deleteNotificationsByUserAccountId(Integer userAccountId) {
+        notificationRepository.deleteByUserAccountId(userAccountId);
     }
 
     public void cleanupOldNotifications(LocalDateTime date) {
         notificationRepository.deleteByDateCreatedBefore(date);
+    }
+
+    public long countUnreadNotificationsByUserAccountId(Integer userAccountId) {
+        return notificationRepository.countByUserAccountIdAndIsReadFalse(userAccountId);
     }
 }

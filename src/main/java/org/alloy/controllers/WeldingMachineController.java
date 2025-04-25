@@ -40,9 +40,9 @@ public class WeldingMachineController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/organization/{organizationId}")
-    public ResponseEntity<List<WeldingMachine>> getWeldingMachinesByOrganizationId(@PathVariable Integer organizationId) {
-        List<WeldingMachine> weldingMachines = weldingMachineService.getWeldingMachinesByOrganizationId(organizationId);
+    @GetMapping("/organization/{organizationUnitId}")
+    public ResponseEntity<List<WeldingMachine>> getWeldingMachinesByOrganizationId(@PathVariable Integer organizationUnitId) {
+        List<WeldingMachine> weldingMachines = weldingMachineService.getWeldingMachinesByOrganizationId(organizationUnitId);
         return ResponseEntity.ok(weldingMachines);
     }
 
@@ -54,9 +54,9 @@ public class WeldingMachineController {
 
     @GetMapping("/search")
     public ResponseEntity<List<WeldingMachine>> searchWeldingMachines(
-            @RequestParam Integer organizationId,
+            @RequestParam Integer organizationUnitId,
             @RequestParam(required = false) String searchTerm) {
-        List<WeldingMachine> weldingMachines = weldingMachineService.searchWeldingMachines(organizationId, searchTerm);
+        List<WeldingMachine> weldingMachines = weldingMachineService.searchWeldingMachines(organizationUnitId, searchTerm);
         return ResponseEntity.ok(weldingMachines);
     }
 

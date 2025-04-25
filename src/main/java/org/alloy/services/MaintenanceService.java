@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.models.entities.Maintenance;
+import org.alloy.models.GeneralStatus;
 import org.alloy.repositories.MaintenanceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -49,14 +50,14 @@ public class MaintenanceService {
         if (maintenance.getDescription() == null || maintenance.getDescription().trim().isEmpty()) {
             throw new IllegalArgumentException("Description is required");
         }
-        if (maintenance.getMaintenanceType() == null || maintenance.getMaintenanceType().trim().isEmpty()) {
+        if (maintenance.getType() == null || maintenance.getType().trim().isEmpty()) {
             throw new IllegalArgumentException("Maintenance type is required");
         }
 
         // Set creation date and status
         maintenance.setDateCreated(LocalDateTime.now());
-        if (maintenance.getStatus() == null || maintenance.getStatus().trim().isEmpty()) {
-            maintenance.setStatus("Scheduled");
+        if (maintenance.getStatus() == null) {
+            maintenance.setStatus(GeneralStatus.Active);
         }
 
         return maintenanceRepository.save(maintenance);

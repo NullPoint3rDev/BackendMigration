@@ -13,17 +13,17 @@ import java.util.Optional;
 @Repository
 public interface UserTokenRepository extends JpaRepository<UserToken, Integer> {
 
-    List<UserToken> findByUserId(Integer userId);
+    List<UserToken> findByUserAccountId(Integer userAccountId);
 
     Optional<UserToken> findByToken(String token);
 
-    void deleteByUserId(Integer userId);
+    void deleteByUserAccountId(Integer userAccountId);
 
-    void deleteByExpirationDateBefore(LocalDateTime date);
+    void deleteByDateExpiredBefore(LocalDateTime date);
 
-    @Query("SELECT t FROM UserToken t WHERE t.userId = :userId AND t.expirationDate > :currentDate")
-    List<UserToken> findValidTokensByUserId(@Param("userId") Integer userId, @Param("currentDate") LocalDateTime currentDate);
+    @Query("SELECT t FROM UserToken t WHERE t.userAccountId = :userAccountId AND t.dateExpired > :currentDate")
+    List<UserToken> findValidTokensByUserAccountId(@Param("userAccountId") Integer userAccountId, @Param("currentDate") LocalDateTime currentDate);
 
-    @Query("SELECT COUNT(t) FROM UserToken t WHERE t.userId = :userId AND t.expirationDate > :currentDate")
-    long countValidTokensByUserId(@Param("userId") Integer userId, @Param("currentDate") LocalDateTime currentDate);
+    @Query("SELECT COUNT(t) FROM UserToken t WHERE t.userAccountId = :userAccountId AND t.dateExpired > :currentDate")
+    long countValidTokensByUserAccountId(@Param("userAccountId") Integer userAccountId, @Param("currentDate") LocalDateTime currentDate);
 }
