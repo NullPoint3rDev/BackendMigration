@@ -24,19 +24,19 @@ public class WeldingMachineParameterValueService {
         return parameterValueRepository.findAll();
     }
 
-    public Optional<WeldingMachineParameterValue> getParameterValueById(Integer id) {
+    public Optional<WeldingMachineParameterValue> getParameterValueById(Long id) {
         return parameterValueRepository.findById(id);
     }
 
-    public List<WeldingMachineParameterValue> getParameterValuesByStateId(Integer stateId) {
+    public List<WeldingMachineParameterValue> getParameterValuesByStateId(Long stateId) {
         return parameterValueRepository.findByWeldingMachineStateId(stateId);
     }
 
-    public Optional<WeldingMachineParameterValue> getParameterValueByStateIdAndPropertyCode(Integer stateId, String propertyCode) {
+    public Optional<WeldingMachineParameterValue> getParameterValueByStateIdAndPropertyCode(Long stateId, String propertyCode) {
         return parameterValueRepository.findByWeldingMachineStateIdAndPropertyCode(stateId, propertyCode);
     }
 
-    public List<WeldingMachineParameterValue> getExceededParameterValues(Integer stateId) {
+    public List<WeldingMachineParameterValue> getExceededParameterValues(Long stateId) {
         return parameterValueRepository.findByWeldingMachineStateIdAndLimitsExceededTrue(stateId);
     }
 
@@ -94,14 +94,14 @@ public class WeldingMachineParameterValueService {
         return parameterValueRepository.save(value);
     }
 
-    public void deleteParameterValue(Integer id) {
+    public void deleteParameterValue(Long id) {
         if (!parameterValueRepository.existsById(id)) {
             throw new IllegalArgumentException("Parameter value not found");
         }
         parameterValueRepository.deleteById(id);
     }
 
-    public void deleteAllParameterValues(Integer stateId) {
+    public void deleteAllParameterValues(Long stateId) {
         List<WeldingMachineParameterValue> values = parameterValueRepository.findByWeldingMachineStateId(stateId);
         parameterValueRepository.deleteAll(values);
     }

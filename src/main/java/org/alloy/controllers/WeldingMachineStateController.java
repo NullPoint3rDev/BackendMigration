@@ -1,6 +1,7 @@
 package org.alloy.controllers;
 
 import org.alloy.models.entities.WeldingMachineState;
+import org.alloy.models.WeldingMachineStatus;
 import org.alloy.services.WeldingMachineStateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -27,20 +28,20 @@ public class WeldingMachineStateController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<WeldingMachineState> getWeldingMachineStateById(@PathVariable Integer id) {
+    public ResponseEntity<WeldingMachineState> getWeldingMachineStateById(@PathVariable Long id) {
         return weldingMachineStateService.getWeldingMachineStateById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/machine/{machineId}")
-    public ResponseEntity<List<WeldingMachineState>> getWeldingMachineStatesByMachineId(@PathVariable Integer machineId) {
+    public ResponseEntity<List<WeldingMachineState>> getWeldingMachineStatesByMachineId(@PathVariable Long machineId) {
         List<WeldingMachineState> states = weldingMachineStateService.getWeldingMachineStatesByMachineId(machineId);
         return ResponseEntity.ok(states);
     }
 
     @GetMapping("/machine/{machineId}/latest")
-    public ResponseEntity<WeldingMachineState> getLatestWeldingMachineState(@PathVariable Integer machineId) {
+    public ResponseEntity<WeldingMachineState> getLatestWeldingMachineState(@PathVariable Long machineId) {
         return weldingMachineStateService.getLatestWeldingMachineState(machineId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -48,8 +49,8 @@ public class WeldingMachineStateController {
 
     @GetMapping("/machine/{machineId}/status/{status}")
     public ResponseEntity<List<WeldingMachineState>> getWeldingMachineStatesByStatus(
-            @PathVariable Integer machineId,
-            @PathVariable String status) {
+            @PathVariable Long machineId,
+            @PathVariable WeldingMachineStatus status) {
         List<WeldingMachineState> states = weldingMachineStateService.getWeldingMachineStatesByStatus(machineId, status);
         return ResponseEntity.ok(states);
     }
@@ -65,7 +66,7 @@ public class WeldingMachineStateController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<WeldingMachineState> updateWeldingMachineState(@PathVariable Integer id, @RequestBody WeldingMachineState state) {
+    public ResponseEntity<WeldingMachineState> updateWeldingMachineState(@PathVariable Long id, @RequestBody WeldingMachineState state) {
         try {
             state.setId(id);
             WeldingMachineState updatedState = weldingMachineStateService.updateWeldingMachineState(state);
@@ -76,7 +77,7 @@ public class WeldingMachineStateController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWeldingMachineState(@PathVariable Integer id) {
+    public ResponseEntity<Void> deleteWeldingMachineState(@PathVariable Long id) {
         try {
             weldingMachineStateService.deleteWeldingMachineState(id);
             return ResponseEntity.noContent().build();
@@ -86,7 +87,7 @@ public class WeldingMachineStateController {
     }
 
     @DeleteMapping("/machine/{machineId}")
-    public ResponseEntity<Void> deleteAllWeldingMachineStates(@PathVariable Integer machineId) {
+    public ResponseEntity<Void> deleteAllWeldingMachineStates(@PathVariable Long machineId) {
         try {
             weldingMachineStateService.deleteAllWeldingMachineStates(machineId);
             return ResponseEntity.noContent().build();

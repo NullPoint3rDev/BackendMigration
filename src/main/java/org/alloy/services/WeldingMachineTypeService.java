@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.models.entities.WeldingMachineType;
+import org.alloy.models.GeneralStatus;
 import org.alloy.repositories.WeldingMachineTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,7 @@ public class WeldingMachineTypeService {
         return weldingMachineTypeRepository.findByName(name);
     }
 
-    public List<WeldingMachineType> getWeldingMachineTypesByStatus(String status) {
+    public List<WeldingMachineType> getWeldingMachineTypesByStatus(GeneralStatus status) {
         return weldingMachineTypeRepository.findByStatus(status);
     }
 
@@ -57,8 +58,8 @@ public class WeldingMachineTypeService {
 
         // Set creation date and status
         type.setDateCreated(LocalDateTime.now());
-        if (type.getStatus() == null || type.getStatus().trim().isEmpty()) {
-            type.setStatus("Active");
+        if (type.getStatus() == null) {
+            type.setStatus(GeneralStatus.Active);
         }
 
         return weldingMachineTypeRepository.save(type);
@@ -91,7 +92,7 @@ public class WeldingMachineTypeService {
         WeldingMachineType type = weldingMachineTypeRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Welding machine type not found"));
 
-        type.setStatus("Deleted");
+        type.setStatus(GeneralStatus.Deleted);
         weldingMachineTypeRepository.save(type);
     }
 

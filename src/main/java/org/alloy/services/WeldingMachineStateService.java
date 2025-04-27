@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.models.entities.WeldingMachineState;
+import org.alloy.models.WeldingMachineStatus;
 import org.alloy.repositories.WeldingMachineStateRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,20 +26,20 @@ public class WeldingMachineStateService {
         return weldingMachineStateRepository.findAll();
     }
 
-    public Optional<WeldingMachineState> getWeldingMachineStateById(Integer id) {
+    public Optional<WeldingMachineState> getWeldingMachineStateById(Long id) {
         return weldingMachineStateRepository.findById(id);
     }
 
-    public List<WeldingMachineState> getWeldingMachineStatesByMachineId(Integer machineId) {
+    public List<WeldingMachineState> getWeldingMachineStatesByMachineId(Long machineId) {
         return weldingMachineStateRepository.findByWeldingMachineId(machineId);
     }
 
-    public Optional<WeldingMachineState> getLatestWeldingMachineState(Integer machineId) {
+    public Optional<WeldingMachineState> getLatestWeldingMachineState(Long machineId) {
         return weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(machineId);
     }
 
-    public List<WeldingMachineState> getWeldingMachineStatesByStatus(Integer machineId, String status) {
-        return weldingMachineStateRepository.findByWeldingMachineIdAndStatus(machineId, status);
+    public List<WeldingMachineState> getWeldingMachineStatesByStatus(Long machineId, WeldingMachineStatus status) {
+        return weldingMachineStateRepository.findByWeldingMachineIdAndWeldingMachineStatus(machineId, status);
     }
 
     public WeldingMachineState createWeldingMachineState(WeldingMachineState state) {
@@ -46,7 +47,7 @@ public class WeldingMachineStateService {
         if (state.getWeldingMachineId() == null) {
             throw new IllegalArgumentException("Welding machine ID is required");
         }
-        if (state.getStatus() == null || state.getStatus().trim().isEmpty()) {
+        if (state.getWeldingMachineStatus() == null) {
             throw new IllegalArgumentException("Status is required");
         }
 
@@ -72,14 +73,14 @@ public class WeldingMachineStateService {
         return weldingMachineStateRepository.save(state);
     }
 
-    public void deleteWeldingMachineState(Integer id) {
+    public void deleteWeldingMachineState(Long id) {
         if (!weldingMachineStateRepository.existsById(id)) {
             throw new IllegalArgumentException("Welding machine state not found");
         }
         weldingMachineStateRepository.deleteById(id);
     }
 
-    public void deleteAllWeldingMachineStates(Integer machineId) {
+    public void deleteAllWeldingMachineStates(Long machineId) {
         List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineId(machineId);
         weldingMachineStateRepository.deleteAll(states);
     }

@@ -98,20 +98,21 @@ public class ProgramControlsBuilder {
         Arrays.stream(property.getEnums()).forEach(e -> {
             String key = e.getValue();
             String value = e.getDescription();
+            String lookupValue = value;
 
             // Lookup for property description
-            value = Arrays.stream(configuration.getInbound().getBody())
-                    .filter(p -> p.getPropertyCode().equals(value))
+            String description = Arrays.stream(configuration.getInbound().getBody())
+                    .filter(p -> p.getPropertyCode().equals(lookupValue))
                     .findFirst()
                     .map(MessageProperty::getDescription)
                     .orElseGet(() -> Arrays.stream(configuration.getPropertyLimits().getLimits())
-                            .filter(l -> l.getPropertyCode().equals(value))
+                            .filter(l -> l.getPropertyCode().equals(lookupValue))
                             .findFirst()
                             .map(PropertyLimit::getDescription)
                             .orElse(value));
 
             if (key != null && !key.isEmpty() && !item.getOptions().containsKey(key)) {
-                item.getOptions().put(key, value);
+                item.getOptions().put(key, description);
             }
         });
 

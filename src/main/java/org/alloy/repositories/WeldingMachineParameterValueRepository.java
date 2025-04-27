@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface WeldingMachineParameterValueRepository extends JpaRepository<WeldingMachineParameterValue, Long> {
@@ -15,16 +16,12 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
 
     List<WeldingMachineParameterValue> findByPropertyCode(String propertyCode);
 
-    @Query("SELECT wmpv FROM WeldingMachineParameterValue wmpv WHERE wmpv.weldingMachineStateId = :stateId AND wmpv.propertyCode = :propertyCode")
-    WeldingMachineParameterValue findByStateIdAndPropertyCode(
-            @Param("stateId") Long stateId,
-            @Param("propertyCode") String propertyCode);
+    Optional<WeldingMachineParameterValue> findByWeldingMachineStateIdAndPropertyCode(Long stateId, String propertyCode);
+
+    List<WeldingMachineParameterValue> findByWeldingMachineStateIdAndLimitsExceededTrue(Long stateId);
 
     @Query("SELECT wmpv FROM WeldingMachineParameterValue wmpv WHERE wmpv.weldingMachineStateId IN :stateIds AND wmpv.propertyCode = :propertyCode")
     List<WeldingMachineParameterValue> findByStateIdsAndPropertyCode(
             @Param("stateIds") List<Long> stateIds,
             @Param("propertyCode") String propertyCode);
-
-    @Query("SELECT wmpv FROM WeldingMachineParameterValue wmpv WHERE wmpv.weldingMachineStateId = :stateId AND wmpv.limitsExceeded = true")
-    List<WeldingMachineParameterValue> findParametersWithExceededLimits(@Param("stateId") Long stateId);
 }

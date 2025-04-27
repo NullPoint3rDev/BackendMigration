@@ -27,21 +27,21 @@ public class WeldingMachineParameterValueController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<WeldingMachineParameterValue> getParameterValueById(@PathVariable Integer id) {
+    public ResponseEntity<WeldingMachineParameterValue> getParameterValueById(@PathVariable Long id) {
         return parameterValueService.getParameterValueById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/state/{stateId}")
-    public ResponseEntity<List<WeldingMachineParameterValue>> getParameterValuesByStateId(@PathVariable Integer stateId) {
+    public ResponseEntity<List<WeldingMachineParameterValue>> getParameterValuesByStateId(@PathVariable Long stateId) {
         List<WeldingMachineParameterValue> values = parameterValueService.getParameterValuesByStateId(stateId);
         return ResponseEntity.ok(values);
     }
 
     @GetMapping("/state/{stateId}/property/{propertyCode}")
     public ResponseEntity<WeldingMachineParameterValue> getParameterValueByStateIdAndPropertyCode(
-            @PathVariable Integer stateId,
+            @PathVariable Long stateId,
             @PathVariable String propertyCode) {
         return parameterValueService.getParameterValueByStateIdAndPropertyCode(stateId, propertyCode)
                 .map(ResponseEntity::ok)
@@ -49,7 +49,7 @@ public class WeldingMachineParameterValueController {
     }
 
     @GetMapping("/state/{stateId}/exceeded")
-    public ResponseEntity<List<WeldingMachineParameterValue>> getExceededParameterValues(@PathVariable Integer stateId) {
+    public ResponseEntity<List<WeldingMachineParameterValue>> getExceededParameterValues(@PathVariable Long stateId) {
         List<WeldingMachineParameterValue> values = parameterValueService.getExceededParameterValues(stateId);
         return ResponseEntity.ok(values);
     }
@@ -65,7 +65,7 @@ public class WeldingMachineParameterValueController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<WeldingMachineParameterValue> updateParameterValue(@PathVariable Integer id, @RequestBody WeldingMachineParameterValue value) {
+    public ResponseEntity<WeldingMachineParameterValue> updateParameterValue(@PathVariable Long id, @RequestBody WeldingMachineParameterValue value) {
         try {
             value.setId(id);
             WeldingMachineParameterValue updatedValue = parameterValueService.updateParameterValue(value);
@@ -76,7 +76,7 @@ public class WeldingMachineParameterValueController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteParameterValue(@PathVariable Integer id) {
+    public ResponseEntity<Void> deleteParameterValue(@PathVariable Long id) {
         try {
             parameterValueService.deleteParameterValue(id);
             return ResponseEntity.noContent().build();
@@ -86,7 +86,7 @@ public class WeldingMachineParameterValueController {
     }
 
     @DeleteMapping("/state/{stateId}")
-    public ResponseEntity<Void> deleteAllParameterValues(@PathVariable Integer stateId) {
+    public ResponseEntity<Void> deleteAllParameterValues(@PathVariable Long stateId) {
         try {
             parameterValueService.deleteAllParameterValues(stateId);
             return ResponseEntity.noContent().build();

@@ -1,6 +1,7 @@
 package org.alloy.controllers;
 
 import org.alloy.models.entities.WeldingMachineType;
+import org.alloy.models.GeneralStatus;
 import org.alloy.services.WeldingMachineTypeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -42,8 +43,13 @@ public class WeldingMachineTypeController {
 
     @GetMapping("/status/{status}")
     public ResponseEntity<List<WeldingMachineType>> getWeldingMachineTypesByStatus(@PathVariable String status) {
-        List<WeldingMachineType> types = weldingMachineTypeService.getWeldingMachineTypesByStatus(status);
-        return ResponseEntity.ok(types);
+        try {
+            GeneralStatus generalStatus = GeneralStatus.valueOf(status);
+            List<WeldingMachineType> types = weldingMachineTypeService.getWeldingMachineTypesByStatus(generalStatus);
+            return ResponseEntity.ok(types);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @GetMapping("/search")
