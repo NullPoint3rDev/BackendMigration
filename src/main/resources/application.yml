@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/welding
+    url: jdbc:postgresql://10.88.190.5:8082/weldtelecom
     username: postgres
-    password: postgres
+    password: 1900AscotPkwy
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

@@ -2,8 +2,10 @@ package org.alloy.models.configuration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import org.springframework.stereotype.Component;
 
 @Data
+@Component
 public class WeldingMachineTypeConfiguration {
     private Settings settings;
     private PropertyLimits propertyLimits;

@@ -82,6 +82,10 @@ public class WeldingMachineState {
     @JoinColumn(name = "WeldingMachineID", insertable = false, updatable = false)
     private WeldingMachine weldingMachine;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "WeldingLimitProgramID", insertable = false, updatable = false)
+    private WeldingLimitProgram weldingLimitProgram;
+
     @OneToMany(mappedBy = "weldingMachineState", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WeldingMachineParameterValue> parameterValues = new ArrayList<>();
 }

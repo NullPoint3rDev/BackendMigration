@@ -45,6 +45,9 @@ public class InboxMessage {
     @Column(name = "DateDeleted")
     private LocalDateTime dateDeleted;
 
+    @Column(name = "Type")
+    private String type;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserAccountID", insertable = false, updatable = false)
     private UserAccount userAccount;
