@@ -24,3 +24,7 @@ logging:
     org.alloy: DEBUG
     org.springframework.web: INFO
     org.hibernate: INFO
+
+app:
+  jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
+  jwtExpirationInMs: 86400000 # 24 hours in milliseconds
