@@ -3,6 +3,8 @@ package org.alloy.services;
 import org.alloy.models.entities.Translation;
 import org.alloy.repositories.TranslationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,8 +15,8 @@ public class TranslationService {
     @Autowired
     private TranslationRepository translationRepository;
 
-    public List<Translation> findAll() {
-        return translationRepository.findAll();
+    public Page<Translation> findAll(Pageable pageable) {
+        return translationRepository.findAll(pageable);
     }
 
     public Optional<Translation> findById(Integer id) {

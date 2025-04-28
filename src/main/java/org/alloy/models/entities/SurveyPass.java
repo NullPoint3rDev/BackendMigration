@@ -45,4 +45,8 @@ public class SurveyPass {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserAccountID", insertable = false, updatable = false)
     private UserAccount userAccount;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "SurveyID", nullable = false)
+    private Survey survey;
 }

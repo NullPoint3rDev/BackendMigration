@@ -3,10 +3,10 @@ package org.alloy.controllers;
 import org.alloy.models.entities.Translation;
 import org.alloy.services.TranslationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/translations")
@@ -15,8 +15,8 @@ public class TranslationController {
     private TranslationService translationService;
 
     @GetMapping
-    public List<Translation> getAll() {
-        return translationService.findAll();
+    public Page<Translation> getAll(Pageable pageable) {
+        return translationService.findAll(pageable);
     }
 
     @GetMapping("/{id}")
