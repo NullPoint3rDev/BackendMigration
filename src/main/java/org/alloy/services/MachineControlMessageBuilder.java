@@ -45,7 +45,7 @@ public class MachineControlMessageBuilder {
 
     private String calculateCRC8(Map<String, String> message) {
         // Implementation of CRC8 calculation
-        // This is a placeholder - implement the actual CRC8 algorithm based on your requirements
+        // This is a placeholder - implement the actual CRC8 algorithm based on requirements
         byte crc = 0;
         for (Map.Entry<String, String> entry : message.entrySet()) {
             if (!PropertyCodes.CRC8.equals(entry.getKey())) {
