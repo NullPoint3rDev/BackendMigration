@@ -11,11 +11,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 
 import java.util.ArrayList;
+import javax.sql.DataSource;
 
 @TestConfiguration
 @EnableAutoConfiguration(exclude = {
@@ -58,14 +59,16 @@ public class TestConfig {
     public UserDetailsService userDetailsService() {
         UserDetails user = User.builder()
                 .username("test")
-                .password(passwordEncoder().encode("test"))
+                .password("test")
                 .roles("USER")
                 .build();
         return new InMemoryUserDetailsManager(new ArrayList<>(java.util.Arrays.asList(user)));
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public DataSource dataSource() {
+        return new EmbeddedDatabaseBuilder()
+                .setType(EmbeddedDatabaseType.H2)
+                .build();
     }
 } 
