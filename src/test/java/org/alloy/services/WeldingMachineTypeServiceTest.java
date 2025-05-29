@@ -236,9 +236,10 @@ public class WeldingMachineTypeServiceTest {
     @Test
     void updateWeldingMachineType_WithValidData_ShouldUpdateType() {
         // Подготавливаем тестовые данные
-        when(weldingMachineTypeRepository.findById(testWeldingMachineType.getId())).thenReturn(Optional.of(testWeldingMachineType));
-        when(weldingMachineTypeRepository.findByName(testWeldingMachineType.getName())).thenReturn(Optional.of(testWeldingMachineType));
-        when(weldingMachineTypeRepository.save(any(WeldingMachineType.class))).thenReturn(testWeldingMachineType);
+        when(weldingMachineTypeRepository.findById(testWeldingMachineType.getId()))
+            .thenReturn(Optional.of(testWeldingMachineType));
+        when(weldingMachineTypeRepository.save(any(WeldingMachineType.class)))
+            .thenReturn(testWeldingMachineType);
 
         // Вызываем тестируемый метод
         WeldingMachineType result = weldingMachineTypeService.updateWeldingMachineType(testWeldingMachineType);
@@ -250,8 +251,39 @@ public class WeldingMachineTypeServiceTest {
         
         // Проверяем, что методы репозитория были вызваны
         verify(weldingMachineTypeRepository, times(1)).findById(testWeldingMachineType.getId());
-        verify(weldingMachineTypeRepository, times(1)).findByName(testWeldingMachineType.getName());
         verify(weldingMachineTypeRepository, times(1)).save(testWeldingMachineType);
+    }
+
+    /**
+     * Тест обновления типа сварочной машины с новым именем
+     * Проверяет корректность обновления существующего типа с новым именем
+     */
+    @Test
+    void updateWeldingMachineType_WithNewName_ShouldCheckNameConflict() {
+        // Подготавливаем тестовые данные
+        WeldingMachineType existingType = new WeldingMachineType();
+        existingType.setId(1);
+        existingType.setName("Old Name");
+        
+        WeldingMachineType updatedType = new WeldingMachineType();
+        updatedType.setId(1);
+        updatedType.setName("New Name");
+
+        when(weldingMachineTypeRepository.findById(1)).thenReturn(Optional.of(existingType));
+        when(weldingMachineTypeRepository.findByName("New Name")).thenReturn(Optional.empty());
+        when(weldingMachineTypeRepository.save(any(WeldingMachineType.class))).thenReturn(updatedType);
+
+        // Вызываем тестируемый метод
+        WeldingMachineType result = weldingMachineTypeService.updateWeldingMachineType(updatedType);
+
+        // Проверяем результаты
+        assertNotNull(result, "Обновленный тип не должен быть null");
+        assertEquals(updatedType.getName(), result.getName(), "Название должно быть обновлено");
+        
+        // Проверяем, что методы репозитория были вызваны
+        verify(weldingMachineTypeRepository, times(1)).findById(1);
+        verify(weldingMachineTypeRepository, times(1)).findByName("New Name");
+        verify(weldingMachineTypeRepository, times(1)).save(updatedType);
     }
 
     /**
