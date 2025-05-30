@@ -11,7 +11,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class MachineControlMessageBuilder {
+public class MachineControlMessageBuilderService {
     private final WeldingMachineTypeConfiguration configuration;
 
     public Map<String, String> buildControlMessage(Map<String, ProgramControlItemValue> values) {

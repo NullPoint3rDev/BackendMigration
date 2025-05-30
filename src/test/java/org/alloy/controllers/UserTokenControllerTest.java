@@ -144,14 +144,14 @@ public class UserTokenControllerTest {
      */
     @Test
     void getTokenByTokenString_WhenTokenExists_ShouldReturnToken() throws Exception {
-        String tokenString = testUserToken.getToken().toString();
-        when(userTokenService.getUserTokenByToken(tokenString)).thenReturn(Optional.of(testUserToken));
+        UUID token = testUserToken.getToken();
+        when(userTokenService.getUserTokenByToken(token)).thenReturn(Optional.of(testUserToken));
 
-        mockMvc.perform(get("/api/tokens/token/" + tokenString))
+        mockMvc.perform(get("/api/tokens/token/" + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value(tokenString));
+                .andExpect(jsonPath("$.token").value(token.toString()));
 
-        verify(userTokenService).getUserTokenByToken(tokenString);
+        verify(userTokenService).getUserTokenByToken(token);
     }
 
     /**
@@ -159,7 +159,7 @@ public class UserTokenControllerTest {
      */
     @Test
     void getTokenByTokenString_WhenTokenDoesNotExist_ShouldReturnNotFound() throws Exception {
-        String nonExistentToken = UUID.randomUUID().toString();
+        UUID nonExistentToken = UUID.randomUUID();
         when(userTokenService.getUserTokenByToken(nonExistentToken)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/tokens/token/" + nonExistentToken))

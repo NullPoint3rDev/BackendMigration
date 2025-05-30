@@ -9,13 +9,14 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface UserTokenRepository extends JpaRepository<UserToken, Integer> {
 
     List<UserToken> findByUserAccountId(Integer userAccountId);
 
-    Optional<UserToken> findByToken(String token);
+    Optional<UserToken> findByToken(UUID token);
 
     void deleteByUserAccountId(Integer userAccountId);
 

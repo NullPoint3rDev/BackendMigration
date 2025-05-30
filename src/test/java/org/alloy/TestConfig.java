@@ -16,9 +16,14 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 
-import java.util.ArrayList;
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
+import java.util.ArrayList;
+import java.util.Properties;
 
 @TestConfiguration
 @EnableAutoConfiguration(exclude = {
@@ -46,12 +51,12 @@ public class TestConfig {
     @MockBean private SurveyQuestionRepository surveyQuestionRepository;
     @MockBean private SurveyRepository surveyRepository;
     @MockBean private TranslationRepository translationRepository;
-    @MockBean private UserAccountRepository userAccountRepository;
-    @MockBean private UserActRepository userActRepository;
-    @MockBean private UserPermissionRepository userPermissionRepository;
-    @MockBean private UserRepository userRepository;
-    @MockBean private UserRolePermissionRepository userRolePermissionRepository;
-    @MockBean private UserTokenRepository userTokenRepository;
+    private UserAccountRepository userAccountRepository;
+    private UserActRepository userActRepository;
+    private UserPermissionRepository userPermissionRepository;
+    private UserRepository userRepository;
+    private UserRolePermissionRepository userRolePermissionRepository;
+    private UserTokenRepository userTokenRepository;
     @MockBean private WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
     @MockBean private WeldingMachineRepository weldingMachineRepository;
     @MockBean private WeldingMachineStateRepository weldingMachineStateRepository;
@@ -72,6 +77,35 @@ public class TestConfig {
         return new EmbeddedDatabaseBuilder()
                 .setType(EmbeddedDatabaseType.H2)
                 .build();
+    }
+
+    @Bean
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource dataSource) {
+        LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
+        em.setDataSource(dataSource);
+        em.setPackagesToScan("org.alloy.models", "org.alloy.models.entities");
+
+        HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+        vendorAdapter.setGenerateDdl(true);
+        vendorAdapter.setShowSql(true);
+        em.setJpaVendorAdapter(vendorAdapter);
+
+        Properties properties = new Properties();
+        properties.setProperty("hibernate.hbm2ddl.auto", "create-drop");
+        properties.setProperty("hibernate.dialect", "org.hibernate.dialect.H2Dialect");
+        properties.setProperty("hibernate.show_sql", "true");
+        properties.setProperty("hibernate.format_sql", "true");
+        properties.setProperty("hibernate.physical_naming_strategy", "org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl");
+        em.setJpaProperties(properties);
+
+        return em;
+    }
+
+    @Bean
+    public JpaTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {
+        JpaTransactionManager transactionManager = new JpaTransactionManager();
+        transactionManager.setEntityManagerFactory(entityManagerFactory);
+        return transactionManager;
     }
 
     @Bean

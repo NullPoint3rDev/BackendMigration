@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -33,7 +34,7 @@ public class UserTokenService {
         return userTokenRepository.findByUserAccountId(userAccountId);
     }
 
-    public Optional<UserToken> getUserTokenByToken(String token) {
+    public Optional<UserToken> getUserTokenByToken(UUID token) {
         return userTokenRepository.findByToken(token);
     }
 
@@ -49,7 +50,7 @@ public class UserTokenService {
         }
 
         // Check if token already exists
-        if (userTokenRepository.findByToken(userToken.getToken().toString()).isPresent()) {
+        if (userTokenRepository.findByToken(userToken.getToken()).isPresent()) {
             throw new IllegalArgumentException("Token already exists");
         }
 
@@ -77,7 +78,7 @@ public class UserTokenService {
         }
 
         // Check if new token value is already used by another token
-        Optional<UserToken> existingToken = userTokenRepository.findByToken(userToken.getToken().toString());
+        Optional<UserToken> existingToken = userTokenRepository.findByToken(userToken.getToken());
         if (existingToken.isPresent() && !existingToken.get().getId().equals(userToken.getId())) {
             throw new IllegalArgumentException("Token already exists");
         }

@@ -6,6 +6,7 @@ import org.alloy.models.entities.UserPermission;
 import org.alloy.models.entities.UserRole;
 import org.alloy.models.entities.UserRolePermission;
 import org.alloy.services.UserRolePermissionService;
+import org.alloy.services.UserRolePermissionServiceTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

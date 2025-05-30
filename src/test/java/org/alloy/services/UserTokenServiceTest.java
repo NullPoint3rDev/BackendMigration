@@ -121,17 +121,17 @@ public class UserTokenServiceTest {
     @Test
     void getUserTokenByToken_WhenExists_ShouldReturnToken() {
         // Подготавливаем тестовые данные
-        when(userTokenRepository.findByToken(testToken.toString())).thenReturn(Optional.of(testUserToken));
+        when(userTokenRepository.findByToken(testToken)).thenReturn(Optional.of(testUserToken));
 
         // Вызываем тестируемый метод
-        Optional<UserToken> result = userTokenService.getUserTokenByToken(testToken.toString());
+        Optional<UserToken> result = userTokenService.getUserTokenByToken(testToken);
 
         // Проверяем результаты
         assertTrue(result.isPresent(), "Результат должен содержать токен");
         assertEquals(testToken, result.get().getToken(), "Значение токена должно совпадать");
         
         // Проверяем, что метод репозитория был вызван ровно один раз
-        verify(userTokenRepository, times(1)).findByToken(testToken.toString());
+        verify(userTokenRepository, times(1)).findByToken(testToken);
     }
 
     /**
@@ -141,7 +141,7 @@ public class UserTokenServiceTest {
     @Test
     void createUserToken_WithValidData_ShouldCreateToken() {
         // Подготавливаем тестовые данные
-        when(userTokenRepository.findByToken(testToken.toString())).thenReturn(Optional.empty());
+        when(userTokenRepository.findByToken(testToken)).thenReturn(Optional.empty());
         when(userTokenRepository.save(any(UserToken.class))).thenReturn(testUserToken);
 
         // Вызываем тестируемый метод
@@ -154,7 +154,7 @@ public class UserTokenServiceTest {
         assertNotNull(result.getDateCreated(), "Дата создания должна быть установлена");
         
         // Проверяем, что методы репозитория были вызваны
-        verify(userTokenRepository, times(1)).findByToken(testToken.toString());
+        verify(userTokenRepository, times(1)).findByToken(testToken);
         verify(userTokenRepository, times(1)).save(testUserToken);
     }
 
@@ -165,7 +165,7 @@ public class UserTokenServiceTest {
     @Test
     void createUserToken_WithExistingToken_ShouldThrowException() {
         // Подготавливаем тестовые данные
-        when(userTokenRepository.findByToken(testToken.toString())).thenReturn(Optional.of(testUserToken));
+        when(userTokenRepository.findByToken(testToken)).thenReturn(Optional.of(testUserToken));
 
         // Проверяем, что вызов метода вызывает исключение
         assertThrows(IllegalArgumentException.class, () -> {
@@ -181,7 +181,7 @@ public class UserTokenServiceTest {
     void updateUserToken_WithValidData_ShouldUpdateToken() {
         // Подготавливаем тестовые данные
         when(userTokenRepository.existsById(1)).thenReturn(true);
-        when(userTokenRepository.findByToken(testToken.toString())).thenReturn(Optional.empty());
+        when(userTokenRepository.findByToken(testToken)).thenReturn(Optional.empty());
         when(userTokenRepository.save(any(UserToken.class))).thenReturn(testUserToken);
 
         // Вызываем тестируемый метод
@@ -194,7 +194,7 @@ public class UserTokenServiceTest {
         
         // Проверяем, что методы репозитория были вызваны
         verify(userTokenRepository, times(1)).existsById(1);
-        verify(userTokenRepository, times(1)).findByToken(testToken.toString());
+        verify(userTokenRepository, times(1)).findByToken(testToken);
         verify(userTokenRepository, times(1)).save(testUserToken);
     }
 
