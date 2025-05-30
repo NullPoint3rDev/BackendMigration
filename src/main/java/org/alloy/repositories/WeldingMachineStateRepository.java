@@ -14,18 +14,18 @@ import java.util.Optional;
 @Repository
 public interface WeldingMachineStateRepository extends JpaRepository<WeldingMachineState, Long> {
 
-    List<WeldingMachineState> findByWeldingMachineId(Long weldingMachineId);
+    List<WeldingMachineState> findByWeldingMachineId(Integer weldingMachineId);
 
-    Optional<WeldingMachineState> findTopByWeldingMachineIdOrderByDateCreatedDesc(Long weldingMachineId);
+    Optional<WeldingMachineState> findTopByWeldingMachineIdOrderByDateCreatedDesc(Integer weldingMachineId);
 
-    List<WeldingMachineState> findByWeldingMachineIdAndWeldingMachineStatus(Long weldingMachineId, WeldingMachineStatus status);
+    List<WeldingMachineState> findByWeldingMachineIdAndWeldingMachineStatus(Integer weldingMachineId, WeldingMachineStatus status);
 
     @Query("SELECT wms FROM WeldingMachineState wms WHERE wms.weldingMachineId = :weldingMachineId AND wms.dateCreated BETWEEN :startDate AND :endDate ORDER BY wms.dateCreated DESC")
     List<WeldingMachineState> findByWeldingMachineIdAndDateRange(
-            @Param("weldingMachineId") Long weldingMachineId,
+            @Param("weldingMachineId") Integer weldingMachineId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
     @Query("SELECT wms FROM WeldingMachineState wms WHERE wms.weldingMachineId = :weldingMachineId AND wms.limitsExceeded = true ORDER BY wms.dateCreated DESC")
-    List<WeldingMachineState> findStatesWithExceededLimits(@Param("weldingMachineId") Long weldingMachineId);
+    List<WeldingMachineState> findStatesWithExceededLimits(@Param("weldingMachineId") Integer weldingMachineId);
 }

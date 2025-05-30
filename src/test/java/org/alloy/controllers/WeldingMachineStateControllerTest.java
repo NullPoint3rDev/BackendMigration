@@ -120,7 +120,7 @@ public class WeldingMachineStateControllerTest {
     @Test
     void getWeldingMachineStatesByMachineId_ShouldReturnListOfStates() throws Exception {
         List<WeldingMachineState> states = Arrays.asList(testState);
-        when(weldingMachineStateService.getWeldingMachineStatesByMachineId(1L)).thenReturn(states);
+        when(weldingMachineStateService.getWeldingMachineStatesByMachineId(1)).thenReturn(states);
 
         mockMvc.perform(get("/api/welding-machine-states/machine/1"))
                 .andExpect(status().isOk())
@@ -134,7 +134,7 @@ public class WeldingMachineStateControllerTest {
      */
     @Test
     void getLatestWeldingMachineState_WhenExists_ShouldReturnState() throws Exception {
-        when(weldingMachineStateService.getLatestWeldingMachineState(1L)).thenReturn(Optional.of(testState));
+        when(weldingMachineStateService.getLatestWeldingMachineState(1)).thenReturn(Optional.of(testState));
 
         mockMvc.perform(get("/api/welding-machine-states/machine/1/latest"))
                 .andExpect(status().isOk())
@@ -149,7 +149,7 @@ public class WeldingMachineStateControllerTest {
     @Test
     void getWeldingMachineStatesByStatus_ShouldReturnListOfStates() throws Exception {
         List<WeldingMachineState> states = Arrays.asList(testState);
-        when(weldingMachineStateService.getWeldingMachineStatesByStatus(1L, WeldingMachineStatus.Online))
+        when(weldingMachineStateService.getWeldingMachineStatesByStatus(1, WeldingMachineStatus.Online))
                 .thenReturn(states);
 
         mockMvc.perform(get("/api/welding-machine-states/machine/1/status/Online"))
@@ -212,11 +212,11 @@ public class WeldingMachineStateControllerTest {
      */
     @Test
     void deleteAllWeldingMachineStates_ShouldReturnNoContent() throws Exception {
-        doNothing().when(weldingMachineStateService).deleteAllWeldingMachineStates(1L);
+        doNothing().when(weldingMachineStateService).deleteAllWeldingMachineStates(1);
 
         mockMvc.perform(delete("/api/welding-machine-states/machine/1"))
                 .andExpect(status().isNoContent());
 
-        verify(weldingMachineStateService, times(1)).deleteAllWeldingMachineStates(1L);
+        verify(weldingMachineStateService, times(1)).deleteAllWeldingMachineStates(1);
     }
 }

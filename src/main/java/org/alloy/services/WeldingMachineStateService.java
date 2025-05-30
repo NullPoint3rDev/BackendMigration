@@ -30,15 +30,15 @@ public class WeldingMachineStateService {
         return weldingMachineStateRepository.findById(id);
     }
 
-    public List<WeldingMachineState> getWeldingMachineStatesByMachineId(Long machineId) {
+    public List<WeldingMachineState> getWeldingMachineStatesByMachineId(Integer machineId) {
         return weldingMachineStateRepository.findByWeldingMachineId(machineId);
     }
 
-    public Optional<WeldingMachineState> getLatestWeldingMachineState(Long machineId) {
+    public Optional<WeldingMachineState> getLatestWeldingMachineState(Integer machineId) {
         return weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(machineId);
     }
 
-    public List<WeldingMachineState> getWeldingMachineStatesByStatus(Long machineId, WeldingMachineStatus status) {
+    public List<WeldingMachineState> getWeldingMachineStatesByStatus(Integer machineId, WeldingMachineStatus status) {
         return weldingMachineStateRepository.findByWeldingMachineIdAndWeldingMachineStatus(machineId, status);
     }
 
@@ -80,7 +80,7 @@ public class WeldingMachineStateService {
         weldingMachineStateRepository.deleteById(id);
     }
 
-    public void deleteAllWeldingMachineStates(Long machineId) {
+    public void deleteAllWeldingMachineStates(Integer machineId) {
         List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineId(machineId);
         weldingMachineStateRepository.deleteAll(states);
     }

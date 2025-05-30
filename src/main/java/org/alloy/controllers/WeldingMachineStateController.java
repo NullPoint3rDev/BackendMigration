@@ -35,13 +35,13 @@ public class WeldingMachineStateController {
     }
 
     @GetMapping("/machine/{machineId}")
-    public ResponseEntity<List<WeldingMachineState>> getWeldingMachineStatesByMachineId(@PathVariable Long machineId) {
+    public ResponseEntity<List<WeldingMachineState>> getWeldingMachineStatesByMachineId(@PathVariable Integer machineId) {
         List<WeldingMachineState> states = weldingMachineStateService.getWeldingMachineStatesByMachineId(machineId);
         return ResponseEntity.ok(states);
     }
 
     @GetMapping("/machine/{machineId}/latest")
-    public ResponseEntity<WeldingMachineState> getLatestWeldingMachineState(@PathVariable Long machineId) {
+    public ResponseEntity<WeldingMachineState> getLatestWeldingMachineState(@PathVariable Integer machineId) {
         return weldingMachineStateService.getLatestWeldingMachineState(machineId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -49,7 +49,7 @@ public class WeldingMachineStateController {
 
     @GetMapping("/machine/{machineId}/status/{status}")
     public ResponseEntity<List<WeldingMachineState>> getWeldingMachineStatesByStatus(
-            @PathVariable Long machineId,
+            @PathVariable Integer machineId,
             @PathVariable WeldingMachineStatus status) {
         List<WeldingMachineState> states = weldingMachineStateService.getWeldingMachineStatesByStatus(machineId, status);
         return ResponseEntity.ok(states);
@@ -87,7 +87,7 @@ public class WeldingMachineStateController {
     }
 
     @DeleteMapping("/machine/{machineId}")
-    public ResponseEntity<Void> deleteAllWeldingMachineStates(@PathVariable Long machineId) {
+    public ResponseEntity<Void> deleteAllWeldingMachineStates(@PathVariable Integer machineId) {
         try {
             weldingMachineStateService.deleteAllWeldingMachineStates(machineId);
             return ResponseEntity.noContent().build();

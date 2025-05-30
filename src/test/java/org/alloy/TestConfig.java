@@ -57,7 +57,6 @@ public class TestConfig {
     @MockBean private UserRolePermissionRepository userRolePermissionRepository;
     @MockBean private UserTokenRepository userTokenRepository;
     @MockBean private WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
-    @MockBean private WeldingMachineStateRepository weldingMachineStateRepository;
 
     @Bean
     public UserDetailsService userDetailsService() {

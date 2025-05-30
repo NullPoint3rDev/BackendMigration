@@ -97,10 +97,10 @@ public class WeldingMachineStateServiceTest {
     void getWeldingMachineStatesByMachineId_ShouldReturnStates() {
         // Подготавливаем тестовые данные
         List<WeldingMachineState> expectedStates = Arrays.asList(testState);
-        when(weldingMachineStateRepository.findByWeldingMachineId(1L)).thenReturn(expectedStates);
+        when(weldingMachineStateRepository.findByWeldingMachineId(1)).thenReturn(expectedStates);
 
         // Вызываем тестируемый метод
-        List<WeldingMachineState> result = weldingMachineStateService.getWeldingMachineStatesByMachineId(1L);
+        List<WeldingMachineState> result = weldingMachineStateService.getWeldingMachineStatesByMachineId(1);
 
         // Проверяем результаты
         assertNotNull(result, "Список состояний не должен быть null");
@@ -108,7 +108,7 @@ public class WeldingMachineStateServiceTest {
         assertEquals(testState.getWeldingMachineId(), result.get(0).getWeldingMachineId(), "ID сварочной машины должен совпадать");
         
         // Проверяем, что метод репозитория был вызван ровно один раз
-        verify(weldingMachineStateRepository, times(1)).findByWeldingMachineId(1L);
+        verify(weldingMachineStateRepository, times(1)).findByWeldingMachineId(1);
     }
 
     /**
@@ -118,11 +118,11 @@ public class WeldingMachineStateServiceTest {
     @Test
     void getLatestWeldingMachineState_ShouldReturnLatestState() {
         // Подготавливаем тестовые данные
-        when(weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(1L))
+        when(weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(1))
                 .thenReturn(Optional.of(testState));
 
         // Вызываем тестируемый метод
-        Optional<WeldingMachineState> result = weldingMachineStateService.getLatestWeldingMachineState(1L);
+        Optional<WeldingMachineState> result = weldingMachineStateService.getLatestWeldingMachineState(1);
 
         // Проверяем результаты
         assertTrue(result.isPresent(), "Результат должен содержать состояние");
@@ -131,7 +131,7 @@ public class WeldingMachineStateServiceTest {
         
         // Проверяем, что метод репозитория был вызван ровно один раз
         verify(weldingMachineStateRepository, times(1))
-                .findTopByWeldingMachineIdOrderByDateCreatedDesc(1L);
+                .findTopByWeldingMachineIdOrderByDateCreatedDesc(1);
     }
 
     /**
@@ -142,12 +142,12 @@ public class WeldingMachineStateServiceTest {
     void getWeldingMachineStatesByStatus_ShouldReturnStates() {
         // Подготавливаем тестовые данные
         List<WeldingMachineState> expectedStates = Arrays.asList(testState);
-        when(weldingMachineStateRepository.findByWeldingMachineIdAndWeldingMachineStatus(1L, WeldingMachineStatus.Online))
+        when(weldingMachineStateRepository.findByWeldingMachineIdAndWeldingMachineStatus(1, WeldingMachineStatus.Online))
                 .thenReturn(expectedStates);
 
         // Вызываем тестируемый метод
         List<WeldingMachineState> result = weldingMachineStateService
-                .getWeldingMachineStatesByStatus(1L, WeldingMachineStatus.Online);
+                .getWeldingMachineStatesByStatus(1, WeldingMachineStatus.Online);
 
         // Проверяем результаты
         assertNotNull(result, "Список состояний не должен быть null");
@@ -156,7 +156,7 @@ public class WeldingMachineStateServiceTest {
         
         // Проверяем, что метод репозитория был вызван ровно один раз
         verify(weldingMachineStateRepository, times(1))
-                .findByWeldingMachineIdAndWeldingMachineStatus(1L, WeldingMachineStatus.Online);
+                .findByWeldingMachineIdAndWeldingMachineStatus(1, WeldingMachineStatus.Online);
     }
 
     /**
@@ -304,13 +304,13 @@ public class WeldingMachineStateServiceTest {
     void deleteAllWeldingMachineStates_ShouldDeleteAllStates() {
         // Подготавливаем тестовые данные
         List<WeldingMachineState> states = Arrays.asList(testState);
-        when(weldingMachineStateRepository.findByWeldingMachineId(1L)).thenReturn(states);
+        when(weldingMachineStateRepository.findByWeldingMachineId(1)).thenReturn(states);
 
         // Вызываем тестируемый метод
-        weldingMachineStateService.deleteAllWeldingMachineStates(1L);
+        weldingMachineStateService.deleteAllWeldingMachineStates(1);
 
         // Проверяем, что методы репозитория были вызваны
-        verify(weldingMachineStateRepository, times(1)).findByWeldingMachineId(1L);
+        verify(weldingMachineStateRepository, times(1)).findByWeldingMachineId(1);
         verify(weldingMachineStateRepository, times(1)).deleteAll(states);
     }
 }
