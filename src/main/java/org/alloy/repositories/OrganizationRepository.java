@@ -1,6 +1,7 @@
 package org.alloy.repositories;
 
 import org.alloy.models.entities.Organization;
+import org.alloy.models.GeneralStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,7 +15,7 @@ public interface OrganizationRepository extends JpaRepository<Organization, Inte
 
     Optional<Organization> findByName(String name);
 
-    List<Organization> findByStatus(String status);
+    List<Organization> findByStatus(GeneralStatus status);
 
     @Query("SELECT o FROM Organization o WHERE o.name LIKE %:searchTerm% OR o.description LIKE %:searchTerm%")
     List<Organization> searchOrganizations(@Param("searchTerm") String searchTerm);

@@ -33,7 +33,7 @@ public class OrganizationService {
     }
 
     public List<Organization> getOrganizationsByStatus(GeneralStatus status) {
-        return organizationRepository.findByStatus(status.name());
+        return organizationRepository.findByStatus(status);
     }
 
     public List<Organization> searchOrganizations(String searchTerm) {

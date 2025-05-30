@@ -128,7 +128,7 @@ public class OrganizationServiceTest {
     void getOrganizationsByStatus_ShouldReturnFilteredOrganizations() {
         // Подготовка данных
         List<Organization> expectedOrganizations = Arrays.asList(testOrganization);
-        when(organizationRepository.findByStatus(GeneralStatus.Active.name())).thenReturn(expectedOrganizations);
+        when(organizationRepository.findByStatus(GeneralStatus.Active)).thenReturn(expectedOrganizations);
 
         // Выполнение теста
         List<Organization> actualOrganizations = organizationService.getOrganizationsByStatus(GeneralStatus.Active);
@@ -139,7 +139,7 @@ public class OrganizationServiceTest {
         assertEquals(GeneralStatus.Active, actualOrganizations.get(0).getStatus());
 
         // Проверка вызова метода репозитория
-        verify(organizationRepository, times(1)).findByStatus(GeneralStatus.Active.name());
+        verify(organizationRepository, times(1)).findByStatus(GeneralStatus.Active);
     }
 
     /**
