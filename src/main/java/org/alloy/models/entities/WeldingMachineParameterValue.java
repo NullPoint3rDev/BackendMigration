@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "WeldingMachineParameterValue1")
+@Table(name = "welding_machine_parameter_value")
 @Data
 @NoArgsConstructor
 public class WeldingMachineParameterValue {

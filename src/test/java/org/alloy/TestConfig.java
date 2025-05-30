@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
@@ -35,7 +36,7 @@ public class TestConfig {
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
 
-    // Mock all repositories
+    // Mock all repositories except those needed for WeldingMachineRepositoryTest
     @MockBean private AlertRepository alertRepository;
     @MockBean private DumpRepository dumpRepository;
     @MockBean private EmailTemplateRepository emailTemplateRepository;
@@ -43,24 +44,20 @@ public class TestConfig {
     @MockBean private InboxNotificationRepository inboxNotificationRepository;
     @MockBean private MaintenanceRepository maintenanceRepository;
     @MockBean private NotificationRepository notificationRepository;
-    @MockBean private OrganizationRepository organizationRepository;
-    @MockBean private OrganizationUnitRepository organizationUnitRepository;
     @MockBean private QueuePushEventRepository queuePushEventRepository;
     @MockBean private QueueTaskRepository queueTaskRepository;
     @MockBean private SurveyPassQuestionRepository surveyPassQuestionRepository;
     @MockBean private SurveyQuestionRepository surveyQuestionRepository;
     @MockBean private SurveyRepository surveyRepository;
     @MockBean private TranslationRepository translationRepository;
-    private UserAccountRepository userAccountRepository;
-    private UserActRepository userActRepository;
-    private UserPermissionRepository userPermissionRepository;
-    private UserRepository userRepository;
-    private UserRolePermissionRepository userRolePermissionRepository;
-    private UserTokenRepository userTokenRepository;
+    @MockBean private UserAccountRepository userAccountRepository;
+    @MockBean private UserActRepository userActRepository;
+    @MockBean private UserPermissionRepository userPermissionRepository;
+    @MockBean private UserRepository userRepository;
+    @MockBean private UserRolePermissionRepository userRolePermissionRepository;
+    @MockBean private UserTokenRepository userTokenRepository;
     @MockBean private WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
-    @MockBean private WeldingMachineRepository weldingMachineRepository;
     @MockBean private WeldingMachineStateRepository weldingMachineStateRepository;
-    @MockBean private WeldingMachineTypeRepository weldingMachineTypeRepository;
 
     @Bean
     public UserDetailsService userDetailsService() {
