@@ -1,5 +1,13 @@
 package org.alloy.controllers;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.security.AccountLockedException;
 import org.alloy.security.AuthenticationService;
@@ -16,6 +24,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "API для аутентификации и управления сессиями пользователей")
 public class AuthController {
 
     private final AuthenticationService authenticationService;
@@ -24,8 +33,40 @@ public class AuthController {
         this.authenticationService = authenticationService;
     }
 
+    @Operation(
+        summary = "Аутентификация пользователя",
+        description = "Выполняет вход пользователя в систему и возвращает JWT токен и ID сессии. " +
+                     "При неудачной попытке входа увеличивает счетчик неудачных попыток. " +
+                     "После определенного количества неудачных попыток аккаунт блокируется."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Успешная аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = LoginResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Неверные учетные данные",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Аккаунт заблокирован",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+    public ResponseEntity<?> authenticateUser(
+        @Parameter(description = "Данные для входа", required = true)
+        @Valid @RequestBody LoginRequest loginRequest,
+        
+        @Parameter(description = "HTTP запрос для получения IP адреса и User-Agent")
+        HttpServletRequest request
+    ) {
         try {
             AuthenticationService.AuthenticationResponse response = authenticationService.authenticate(
                     loginRequest.getUsername(), loginRequest.getPassword(), request);
@@ -48,11 +89,39 @@ public class AuthController {
         }
     }
 
+    @Operation(
+        summary = "Выход из системы",
+        description = "Выполняет выход пользователя из системы, инвалидируя текущий JWT токен. " +
+                     "Требуется действительный JWT токен в заголовке Authorization."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Успешный выход из системы",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = LogoutResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Недействительный токен",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Внутренняя ошибка сервера",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    @SecurityRequirement(name = "JWT")
     @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser(@RequestHeader("Authorization") String token) {
+    public ResponseEntity<?> logoutUser(
+        @Parameter(description = "JWT токен в формате 'Bearer {token}'", required = true)
+        @RequestHeader("Authorization") String token
+    ) {
         try {
-            // Extract the token from the Authorization header
-            String jwt = token.substring(7); // Remove "Bearer " prefix
+            String jwt = token.substring(7);
             authenticationService.logout(jwt);
             return ResponseEntity.ok().body(Map.of("message", "Logged out successfully"));
         } catch (Exception e) {
@@ -61,8 +130,30 @@ public class AuthController {
         }
     }
 
+    @Operation(
+        summary = "Проверка пароля",
+        description = "Проверяет соответствие пароля требованиям безопасности. " +
+                     "Проверяет длину, наличие специальных символов, цифр и букв разного регистра."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Пароль соответствует требованиям",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = PasswordValidationResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Пароль не соответствует требованиям",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = PasswordValidationErrorResponse.class))
+        )
+    })
     @PostMapping("/validate-password")
-    public ResponseEntity<?> validatePassword(@RequestBody PasswordValidationRequest request) {
+    public ResponseEntity<?> validatePassword(
+        @Parameter(description = "Пароль для проверки", required = true)
+        @RequestBody PasswordValidationRequest request
+    ) {
         try {
             authenticationService.validatePassword(request.getPassword());
             return ResponseEntity.ok().body(Map.of("message", "Password is valid"));
@@ -75,8 +166,12 @@ public class AuthController {
         }
     }
 
+    @Schema(description = "Запрос на аутентификацию")
     public static class LoginRequest {
+        @Schema(description = "Имя пользователя", example = "john.doe", required = true)
         private String username;
+
+        @Schema(description = "Пароль пользователя", example = "StrongP@ssw0rd", required = true)
         private String password;
 
         public String getUsername() {
@@ -96,7 +191,9 @@ public class AuthController {
         }
     }
 
+    @Schema(description = "Запрос на проверку пароля")
     public static class PasswordValidationRequest {
+        @Schema(description = "Пароль для проверки", example = "StrongP@ssw0rd", required = true)
         private String password;
 
         public String getPassword() {
@@ -106,5 +203,47 @@ public class AuthController {
         public void setPassword(String password) {
             this.password = password;
         }
+    }
+
+    @Schema(description = "Ответ при успешной аутентификации")
+    public static class LoginResponse {
+        @Schema(description = "JWT токен для аутентификации", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+        private String token;
+
+        @Schema(description = "Уникальный идентификатор сессии", example = "550e8400-e29b-41d4-a716-446655440000")
+        private String sessionId;
+    }
+
+    @Schema(description = "Ответ при успешном выходе из системы")
+    public static class LogoutResponse {
+        @Schema(description = "Сообщение об успешном выходе", example = "Logged out successfully")
+        private String message;
+    }
+
+    @Schema(description = "Ответ при ошибке")
+    public static class ErrorResponse {
+        @Schema(description = "Тип ошибки", example = "Authentication Failed")
+        private String error;
+
+        @Schema(description = "Сообщение об ошибке", example = "Invalid username or password")
+        private String message;
+    }
+
+    @Schema(description = "Ответ при ошибке валидации пароля")
+    public static class PasswordValidationErrorResponse {
+        @Schema(description = "Тип ошибки", example = "Password Validation Failed")
+        private String error;
+
+        @Schema(description = "Общее сообщение об ошибке", example = "Password does not meet security requirements")
+        private String message;
+
+        @Schema(description = "Список конкретных ошибок валидации", example = "[\"Password must be at least 8 characters long\", \"Password must contain at least one uppercase letter\"]")
+        private List<String> validationErrors;
+    }
+
+    @Schema(description = "Ответ при успешной валидации пароля")
+    public static class PasswordValidationResponse {
+        @Schema(description = "Сообщение об успешной валидации", example = "Password is valid")
+        private String message;
     }
 } 
