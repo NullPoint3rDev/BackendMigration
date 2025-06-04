@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://10.88.190.5:8082/weldtelecom
+    url: jdbc:postgresql://192.168.10.137:5432/weldtelecom
     username: postgres
     password: 1900AscotPkwy
     driver-class-name: org.postgresql.Driver
@@ -27,4 +27,4 @@ logging:
 
 app:
   jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
-  jwtExpirationInMs: 86400000 # 24 hours in milliseconds
+  jwtExpirationInMs: 43200000 # 12 hours in milliseconds

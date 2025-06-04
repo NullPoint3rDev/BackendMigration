@@ -14,7 +14,6 @@ public class WeldingMachineParameterValue {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID")
     private Long id;
-
     @Column(name = "WeldingMachineStateID", nullable = false)
     private Long weldingMachineStateId;
 
