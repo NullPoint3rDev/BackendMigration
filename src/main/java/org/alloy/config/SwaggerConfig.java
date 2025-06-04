@@ -16,9 +16,9 @@ public class SwaggerConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Welding Management System API")
+                        .title("WeldTelecom 2.0")
                         .description("API для системы управления сварочным оборудованием")
-                        .version("1.0")
+                        .version("0.1-Beta")
                         .license(new License().name("Apache 2.0").url("http://springdoc.org")))
                 .addSecurityItem(new SecurityRequirement().addList("JWT"))
                 .components(new Components()
