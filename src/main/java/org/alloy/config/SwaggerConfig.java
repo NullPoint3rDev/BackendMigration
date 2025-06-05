@@ -18,7 +18,7 @@ public class SwaggerConfig {
                 .info(new Info()
                         .title("WeldTelecom 2.0")
                         .description("API для системы управления сварочным оборудованием")
-                        .version("0.1-Beta")
+                        .version("0.2-Beta")
                         .license(new License().name("Apache 2.0").url("http://springdoc.org")))
                 .addSecurityItem(new SecurityRequirement().addList("JWT"))
                 .components(new Components()

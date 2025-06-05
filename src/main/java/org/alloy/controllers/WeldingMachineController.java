@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.services.WeldingMachineService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/welding-machines")
-@Tag(name = "Welding Machine", description = "API для управления сварочными машинами")
+@Tag(name = "Welding Machines", description = "API для управления сварочными машинами. " +
+    "Позволяет создавать, просматривать, обновлять и удалять сварочные машины в системе. " +
+    "Каждая сварочная машина имеет уникальный идентификатор, серийный номер, тип и привязку к подразделению. " +
+    "API поддерживает поиск машин по различным параметрам и управление их состоянием.")
+@SecurityRequirement(name = "JWT")
 public class WeldingMachineController {
 
     private final WeldingMachineService weldingMachineService;
@@ -28,12 +33,38 @@ public class WeldingMachineController {
         this.weldingMachineService = weldingMachineService;
     }
 
-    @Operation(summary = "Получить все сварочные машины")
+    @Operation(
+        summary = "Получить все сварочные машины",
+        description = "Возвращает список всех сварочных машин в системе. " +
+                     "Каждая машина содержит полную информацию о своем состоянии, " +
+                     "типе, подразделении и других параметрах. " +
+                     "Список может быть использован для общего обзора и управления машинами."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Список сварочных машин успешно получен",
+        @ApiResponse(
+            responseCode = "200",
+            description = "Список сварочных машин успешно получен",
             content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = WeldingMachine.class))),
-        @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
+                schema = @Schema(implementation = WeldingMachine.class, type = "array"))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для доступа к списку сварочных машин",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Внутренняя ошибка сервера",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping
     public ResponseEntity<List<WeldingMachine>> getAllWeldingMachines() {
@@ -41,88 +72,248 @@ public class WeldingMachineController {
         return ResponseEntity.ok(weldingMachines);
     }
 
-    @Operation(summary = "Получить сварочную машину по ID")
+    @Operation(
+        summary = "Получить сварочную машину по ID",
+        description = "Возвращает сварочную машину по её уникальному идентификатору. " +
+                     "Если машина не найдена, возвращается 404 ошибка. " +
+                     "Машина содержит полную информацию о своем состоянии и параметрах."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Сварочная машина найдена",
+        @ApiResponse(
+            responseCode = "200",
+            description = "Сварочная машина успешно найдена",
             content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = WeldingMachine.class))),
-        @ApiResponse(responseCode = "404", description = "Сварочная машина не найдена")
+                schema = @Schema(implementation = WeldingMachine.class))
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Сварочная машина не найдена",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для доступа к сварочной машине",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/{id}")
     public ResponseEntity<WeldingMachine> getWeldingMachineById(
-            @Parameter(description = "ID сварочной машины") @PathVariable Integer id) {
+        @Parameter(description = "ID сварочной машины", required = true, example = "1")
+        @PathVariable Integer id
+    ) {
         return weldingMachineService.getWeldingMachineById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @Operation(summary = "Получить сварочную машину по серийному номеру")
+    @Operation(
+        summary = "Получить сварочную машину по серийному номеру",
+        description = "Возвращает сварочную машину по её уникальному серийному номеру. " +
+                     "Если машина не найдена, возвращается 404 ошибка. " +
+                     "Этот метод часто используется для идентификации машины по её физическому номеру."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Сварочная машина найдена",
+        @ApiResponse(
+            responseCode = "200",
+            description = "Сварочная машина успешно найдена",
             content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = WeldingMachine.class))),
-        @ApiResponse(responseCode = "404", description = "Сварочная машина не найдена")
+                schema = @Schema(implementation = WeldingMachine.class))
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Сварочная машина не найдена",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для доступа к сварочной машине",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/serial-number/{serialNumber}")
     public ResponseEntity<WeldingMachine> getWeldingMachineBySerialNumber(
-            @Parameter(description = "Серийный номер сварочной машины") @PathVariable String serialNumber) {
+        @Parameter(description = "Серийный номер сварочной машины", required = true, example = "SN123456")
+        @PathVariable String serialNumber
+    ) {
         return weldingMachineService.getWeldingMachineBySerialNumber(serialNumber)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @Operation(summary = "Получить сварочные машины по ID подразделения")
+    @Operation(
+        summary = "Получить сварочные машины по ID подразделения",
+        description = "Возвращает список всех сварочных машин, привязанных к указанному подразделению. " +
+                     "Этот метод используется для получения списка машин в конкретном подразделении " +
+                     "или для проверки распределения машин по подразделениям."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Список сварочных машин успешно получен",
+        @ApiResponse(
+            responseCode = "200",
+            description = "Список сварочных машин успешно получен",
             content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = WeldingMachine.class))),
-        @ApiResponse(responseCode = "404", description = "Подразделение не найдено")
+                schema = @Schema(implementation = WeldingMachine.class, type = "array"))
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Подразделение не найдено",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для доступа к списку сварочных машин",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/organization/{organizationUnitId}")
     public ResponseEntity<List<WeldingMachine>> getWeldingMachinesByOrganizationId(
-            @Parameter(description = "ID подразделения") @PathVariable Integer organizationUnitId) {
+        @Parameter(description = "ID подразделения", required = true, example = "1")
+        @PathVariable Integer organizationUnitId
+    ) {
         List<WeldingMachine> weldingMachines = weldingMachineService.getWeldingMachinesByOrganizationId(organizationUnitId);
         return ResponseEntity.ok(weldingMachines);
     }
 
-    @Operation(summary = "Получить сварочные машины по ID типа")
+    @Operation(
+        summary = "Получить сварочные машины по ID типа",
+        description = "Возвращает список всех сварочных машин определенного типа. " +
+                     "Этот метод используется для получения списка машин с одинаковыми " +
+                     "характеристиками или для анализа распределения машин по типам."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Список сварочных машин успешно получен",
+        @ApiResponse(
+            responseCode = "200",
+            description = "Список сварочных машин успешно получен",
             content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = WeldingMachine.class))),
-        @ApiResponse(responseCode = "404", description = "Тип сварочной машины не найден")
+                schema = @Schema(implementation = WeldingMachine.class, type = "array"))
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Тип сварочной машины не найден",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для доступа к списку сварочных машин",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/type/{typeId}")
     public ResponseEntity<List<WeldingMachine>> getWeldingMachinesByTypeId(
-            @Parameter(description = "ID типа сварочной машины") @PathVariable Integer typeId) {
+        @Parameter(description = "ID типа сварочной машины", required = true, example = "1")
+        @PathVariable Integer typeId
+    ) {
         List<WeldingMachine> weldingMachines = weldingMachineService.getWeldingMachinesByTypeId(typeId);
         return ResponseEntity.ok(weldingMachines);
     }
 
-    @Operation(summary = "Поиск сварочных машин")
+    @Operation(
+        summary = "Поиск сварочных машин",
+        description = "Выполняет поиск сварочных машин по заданным критериям. " +
+                     "Поиск может осуществляться по подразделению и дополнительному " +
+                     "поисковому запросу. Результаты могут быть отфильтрованы по различным параметрам."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Результаты поиска успешно получены",
+        @ApiResponse(
+            responseCode = "200",
+            description = "Результаты поиска успешно получены",
             content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = WeldingMachine.class)))
+                schema = @Schema(implementation = WeldingMachine.class, type = "array"))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для поиска сварочных машин",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @GetMapping("/search")
     public ResponseEntity<List<WeldingMachine>> searchWeldingMachines(
-            @Parameter(description = "ID подразделения") @RequestParam Integer organizationUnitId,
-            @Parameter(description = "Поисковый запрос") @RequestParam(required = false) String searchTerm) {
+        @Parameter(description = "ID подразделения", required = true, example = "1")
+        @RequestParam Integer organizationUnitId,
+        
+        @Parameter(description = "Поисковый запрос", required = false, example = "SN123")
+        @RequestParam(required = false) String searchTerm
+    ) {
         List<WeldingMachine> weldingMachines = weldingMachineService.searchWeldingMachines(organizationUnitId, searchTerm);
         return ResponseEntity.ok(weldingMachines);
     }
 
-    @Operation(summary = "Создать новую сварочную машину")
+    @Operation(
+        summary = "Создать новую сварочную машину",
+        description = "Создает новую сварочную машину в системе. " +
+                     "Машина должна содержать информацию о типе, подразделении, " +
+                     "серийном номере и других параметрах. " +
+                     "При создании проверяется уникальность серийного номера."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "201", description = "Сварочная машина успешно создана",
+        @ApiResponse(
+            responseCode = "201",
+            description = "Сварочная машина успешно создана",
             content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = WeldingMachine.class))),
-        @ApiResponse(responseCode = "400", description = "Неверные данные сварочной машины")
+                schema = @Schema(implementation = WeldingMachine.class))
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Неверные данные сварочной машины",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для создания сварочной машины",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PostMapping
     public ResponseEntity<WeldingMachine> createWeldingMachine(
-            @Parameter(description = "Данные сварочной машины") @RequestBody WeldingMachine weldingMachine) {
+        @Parameter(description = "Данные сварочной машины", required = true)
+        @RequestBody WeldingMachine weldingMachine
+    ) {
         try {
             WeldingMachine createdWeldingMachine = weldingMachineService.createWeldingMachine(weldingMachine);
             return new ResponseEntity<>(createdWeldingMachine, HttpStatus.CREATED);
@@ -131,18 +322,52 @@ public class WeldingMachineController {
         }
     }
 
-    @Operation(summary = "Обновить существующую сварочную машину")
+    @Operation(
+        summary = "Обновить существующую сварочную машину",
+        description = "Обновляет информацию о существующей сварочной машине. " +
+                     "Можно изменить тип, подразделение, состояние и другие параметры. " +
+                     "Если машина не найдена, возвращается 404 ошибка."
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Сварочная машина успешно обновлена",
+        @ApiResponse(
+            responseCode = "200",
+            description = "Сварочная машина успешно обновлена",
             content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = WeldingMachine.class))),
-        @ApiResponse(responseCode = "404", description = "Сварочная машина не найдена"),
-        @ApiResponse(responseCode = "400", description = "Неверные данные сварочной машины")
+                schema = @Schema(implementation = WeldingMachine.class))
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Сварочная машина не найдена",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Неверные данные сварочной машины",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для обновления сварочной машины",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     @PutMapping("/{id}")
     public ResponseEntity<WeldingMachine> updateWeldingMachine(
-            @Parameter(description = "ID сварочной машины") @PathVariable Integer id,
-            @Parameter(description = "Данные сварочной машины") @RequestBody WeldingMachine weldingMachine) {
+        @Parameter(description = "ID сварочной машины", required = true, example = "1")
+        @PathVariable Integer id,
+        
+        @Parameter(description = "Обновленные данные сварочной машины", required = true)
+        @RequestBody WeldingMachine weldingMachine
+    ) {
         try {
             weldingMachine.setId(id);
             WeldingMachine updatedWeldingMachine = weldingMachineService.updateWeldingMachine(weldingMachine);
@@ -152,8 +377,41 @@ public class WeldingMachineController {
         }
     }
 
+    @Operation(
+        summary = "Удалить сварочную машину (мягкое удаление)",
+        description = "Выполняет мягкое удаление сварочной машины по её ID. " +
+                     "Машина помечается как удаленная, но остается в базе данных. " +
+                     "Если машина не найдена, возвращается 404 ошибка."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "204",
+            description = "Сварочная машина успешно удалена"
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Сварочная машина не найдена",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для удаления сварочной машины",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWeldingMachine(@PathVariable Integer id) {
+    public ResponseEntity<Void> deleteWeldingMachine(
+        @Parameter(description = "ID сварочной машины", required = true, example = "1")
+        @PathVariable Integer id
+    ) {
         try {
             weldingMachineService.deleteWeldingMachine(id);
             return ResponseEntity.noContent().build();
@@ -162,13 +420,72 @@ public class WeldingMachineController {
         }
     }
 
+    @Operation(
+        summary = "Удалить сварочную машину (жесткое удаление)",
+        description = "Выполняет полное удаление сварочной машины из базы данных. " +
+                     "Этот метод следует использовать с осторожностью, так как " +
+                     "удаленные данные невозможно восстановить. " +
+                     "Если машина не найдена, возвращается 404 ошибка."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "204",
+            description = "Сварочная машина успешно удалена"
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Сварочная машина не найдена",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Недостаточно прав для жесткого удаления сварочной машины",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
     @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDeleteWeldingMachine(@PathVariable Integer id) {
+    public ResponseEntity<Void> hardDeleteWeldingMachine(
+        @Parameter(description = "ID сварочной машины", required = true, example = "1")
+        @PathVariable Integer id
+    ) {
         try {
             weldingMachineService.hardDeleteWeldingMachine(id);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Schema(description = "Модель ответа с ошибкой")
+    public static class ErrorResponse {
+        @Schema(description = "Тип ошибки", example = "Not Found")
+        private String error;
+
+        @Schema(description = "Сообщение об ошибке", example = "Welding machine with id 1 not found")
+        private String message;
+
+        public String getError() {
+            return error;
+        }
+
+        public void setError(String error) {
+            this.error = error;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
         }
     }
 }
