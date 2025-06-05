@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.HashMap;
@@ -27,10 +28,20 @@ import java.util.Map;
 @Tag(name = "Authentication", description = "API для аутентификации и управления сессиями пользователей")
 public class AuthController {
 
+    @PostConstruct
+    public void init() {
+        System.out.println("AuthController initialized!");
+    }
     private final AuthenticationService authenticationService;
 
     public AuthController(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
+    }
+
+    @GetMapping("/ping")
+    public String ping() {
+        System.out.println("PING CALLED");
+        return "pong";
     }
 
     @Operation(
@@ -67,6 +78,7 @@ public class AuthController {
         @Parameter(description = "HTTP запрос для получения IP адреса и User-Agent")
         HttpServletRequest request
     ) {
+        System.out.println("LOGIN ENDPOINT CALLED");
         try {
             AuthenticationService.AuthenticationResponse response = authenticationService.authenticate(
                     loginRequest.getUsername(), loginRequest.getPassword(), request);
