@@ -166,6 +166,50 @@ public class AuthController {
         }
     }
 
+    @Operation(
+        summary = "Регистрация нового пользователя",
+        description = "Создает нового пользователя в системе. " +
+                     "Проверяет уникальность имени пользователя и соответствие пароля требованиям безопасности."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "201",
+            description = "Пользователь успешно зарегистрирован",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = RegisterResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Неверные данные для регистрации",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(
+        @Parameter(description = "Данные для регистрации", required = true)
+        @Valid @RequestBody RegisterRequest registerRequest
+    ) {
+        try {
+            UserAccount user = authenticationService.register(
+                registerRequest.getUsername(),
+                registerRequest.getPassword(),
+                registerRequest.getEmail()
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "User registered successfully");
+            response.put("userId", user.getId());
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            Map<String, String> errorMap = new HashMap<>();
+            errorMap.put("error", "Registration Failed");
+            errorMap.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorMap);
+        }
+    }
+
     @Schema(description = "Запрос на аутентификацию")
     public static class LoginRequest {
         @Schema(description = "Имя пользователя", example = "john.doe", required = true)
@@ -245,5 +289,66 @@ public class AuthController {
     public static class PasswordValidationResponse {
         @Schema(description = "Сообщение об успешной валидации", example = "Password is valid")
         private String message;
+    }
+
+    @Schema(description = "Запрос на регистрацию")
+    public static class RegisterRequest {
+        @Schema(description = "Имя пользователя", example = "john.doe", required = true)
+        private String username;
+
+        @Schema(description = "Пароль пользователя", example = "StrongP@ssw0rd", required = true)
+        private String password;
+
+        @Schema(description = "Email пользователя", example = "john.doe@example.com", required = true)
+        private String email;
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+    }
+
+    @Schema(description = "Ответ при успешной регистрации")
+    public static class RegisterResponse {
+        @Schema(description = "Сообщение об успешной регистрации", example = "User registered successfully")
+        private String message;
+
+        @Schema(description = "ID созданного пользователя", example = "1")
+        private Long userId;
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public Long getUserId() {
+            return userId;
+        }
+
+        public void setUserId(Long userId) {
+            this.userId = userId;
+        }
     }
 } 
