@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/inbox-messages")
+@RequestMapping("/inbox-messages")
 @Tag(name = "Inbox Messages", description = "API для управления входящими сообщениями пользователей. " +
     "Позволяет создавать, просматривать, обновлять и удалять сообщения в личном кабинете пользователя. " +
     "Поддерживает работу с непрочитанными сообщениями и фильтрацию по типам.")

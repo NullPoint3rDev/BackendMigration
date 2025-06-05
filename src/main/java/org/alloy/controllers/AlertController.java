@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/alerts")
+@RequestMapping("/alerts")
 @Tag(name = "Alerts", description = "API для управления оповещениями системы")
 @SecurityRequirement(name = "JWT")
 public class AlertController {

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/maintenance")
+@RequestMapping("/maintenance")
 @Tag(name = "Maintenance", description = "API для управления записями технического обслуживания сварочного оборудования. " +
     "Позволяет создавать, просматривать, обновлять и удалять записи о техническом обслуживании, " +
     "а также получать информацию о статусе обслуживания конкретных машин.")

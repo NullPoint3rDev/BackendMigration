@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/email-templates")
+@RequestMapping("/email-templates")
 @Tag(name = "Email Templates", description = "API для управления шаблонами электронных писем. " +
     "Позволяет создавать, просматривать, обновлять и удалять шаблоны писем, " +
     "которые используются для автоматической отправки уведомлений пользователям системы.")

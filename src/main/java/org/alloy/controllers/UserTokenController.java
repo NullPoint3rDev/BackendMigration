@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/tokens")
+@RequestMapping("/tokens")
 @Tag(name = "User Tokens", description = "API для управления токенами пользователей. " +
     "Позволяет создавать, просматривать, обновлять и удалять токены пользователей в системе. " +
     "Токены используются для аутентификации и авторизации пользователей. " +

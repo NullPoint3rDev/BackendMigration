@@ -17,7 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/translations")
+@RequestMapping("/translations")
 @Tag(name = "Translations", description = "API для управления переводами в системе. " +
     "Позволяет создавать, просматривать, обновлять и удалять переводы текстов " +
     "для различных языков. Поддерживает пагинацию для эффективной работы с большими " +

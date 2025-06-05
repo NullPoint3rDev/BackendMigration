@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/user-permissions")
+@RequestMapping("/user-permissions")
 @Tag(name = "User Permissions", description = "API для управления правами пользователей. " +
     "Позволяет создавать, просматривать, обновлять и удалять права пользователей в системе. " +
     "Права пользователей определяют уровень доступа к различным функциям и ресурсам системы. " +

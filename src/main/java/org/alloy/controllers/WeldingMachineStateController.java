@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/welding-machine-states")
+@RequestMapping("/welding-machine-states")
 @Tag(name = "Welding Machine States", description = "API для управления состояниями сварочных машин. " +
     "Позволяет создавать, просматривать, обновлять и удалять состояния сварочных машин. " +
     "Каждое состояние содержит информацию о текущем статусе машины, времени изменения состояния " +

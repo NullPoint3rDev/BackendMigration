@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/dumps")
+@RequestMapping("/dumps")
 @Tag(name = "Dump Management", description = "API для управления дампами системы")
 @SecurityRequirement(name = "JWT")
 public class DumpController {

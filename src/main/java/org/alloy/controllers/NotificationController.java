@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/notifications")
+@RequestMapping("/notifications")
 @Tag(name = "Notifications", description = "API для управления уведомлениями пользователей. " +
     "Позволяет создавать, просматривать, обновлять и удалять уведомления, " +
     "а также управлять статусом их прочтения. Поддерживает различные типы уведомлений " +

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/organization-units")
+@RequestMapping("/organization-units")
 @Tag(name = "Organization Units", description = "API для управления подразделениями организаций. " +
     "Позволяет создавать, просматривать, обновлять и удалять подразделения, " +
     "а также выполнять поиск по различным параметрам. Поддерживает иерархическую структуру " +

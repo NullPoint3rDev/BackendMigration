@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/organizations")
+@RequestMapping("/organizations")
 @Tag(name = "Organizations", description = "API для управления организациями в системе. " +
     "Позволяет создавать, просматривать, обновлять и удалять организации, " +
     "а также выполнять поиск по различным параметрам. Поддерживает как мягкое, " +

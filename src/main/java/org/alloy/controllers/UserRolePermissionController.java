@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/user-role-permissions")
+@RequestMapping("/user-role-permissions")
 @Tag(name = "User Role Permissions", description = "API для управления связями между ролями и правами пользователей. " +
     "Позволяет создавать, просматривать, обновлять и удалять связи между ролями и правами в системе. " +
     "Каждая связь определяет, какие права имеет определенная роль пользователя. " +

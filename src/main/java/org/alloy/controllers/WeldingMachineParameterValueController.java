@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/welding-machine-parameters")
+@RequestMapping("/welding-machine-parameters")
 @Tag(name = "Welding Machine Parameters", description = "API для управления параметрами сварочных машин. " +
     "Позволяет создавать, просматривать, обновлять и удалять значения параметров сварочных машин. " +
     "Каждый параметр имеет уникальный идентификатор, связан с состоянием машины и содержит информацию " +

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/queue-tasks")
+@RequestMapping("/queue-tasks")
 @Tag(name = "Queue Tasks", description = "API для управления задачами в очереди. " +
     "Позволяет создавать, просматривать, обновлять и удалять задачи, " +
     "которые будут выполнены в системе. Поддерживает различные типы задач, " +

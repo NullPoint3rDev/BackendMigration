@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/welding-machine-types")
+@RequestMapping("/welding-machine-types")
 @Tag(name = "Welding Machine Types", description = "API для управления типами сварочных машин. " +
     "Позволяет создавать, просматривать, обновлять и удалять типы сварочных машин. " +
     "Каждый тип содержит информацию о настройках, лимитах параметров, входящих и исходящих данных, " +

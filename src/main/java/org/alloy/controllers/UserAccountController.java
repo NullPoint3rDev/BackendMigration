@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/user-accounts")
+@RequestMapping("/user-accounts")
 @Tag(name = "User Accounts", description = "API для управления учетными записями пользователей. " +
     "Позволяет создавать, просматривать, обновлять и удалять учетные записи пользователей. " +
     "Поддерживает поиск пользователей по различным параметрам: ID, имя пользователя, email, " +

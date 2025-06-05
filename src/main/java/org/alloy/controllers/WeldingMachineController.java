@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/welding-machines")
+@RequestMapping("/welding-machines")
 @Tag(name = "Welding Machines", description = "API для управления сварочными машинами. " +
     "Позволяет создавать, просматривать, обновлять и удалять сварочные машины в системе. " +
     "Каждая сварочная машина имеет уникальный идентификатор, серийный номер, тип и привязку к подразделению. " +

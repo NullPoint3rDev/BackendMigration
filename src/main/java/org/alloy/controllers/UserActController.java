@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/user-acts")
+@RequestMapping("/user-acts")
 @Tag(name = "User Actions", description = "API для управления действиями пользователей. " +
     "Позволяет отслеживать, создавать и управлять действиями пользователей в системе. " +
     "Поддерживает фильтрацию действий по пользователю, типу действия и временному диапазону. " +

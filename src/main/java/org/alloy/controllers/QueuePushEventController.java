@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/queue-push-events")
+@RequestMapping("/queue-push-events")
 @Tag(name = "Queue Push Events", description = "API для управления событиями push-уведомлений в очереди. " +
     "Позволяет создавать, просматривать, обновлять и удалять события push-уведомлений, " +
     "которые будут отправлены пользователям системы. Поддерживает различные типы событий " +

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/survey-questions")
+@RequestMapping("/survey-questions")
 @Tag(name = "Survey Questions", description = "API для управления вопросами опросов. " +
     "Позволяет создавать, просматривать, обновлять и удалять вопросы, " +
     "которые используются в опросах. Поддерживает различные типы вопросов: " +
