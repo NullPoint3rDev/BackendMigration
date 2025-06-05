@@ -2,7 +2,9 @@ package org.alloy.security;
 
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.UserAccount;
+import org.alloy.models.entities.UserRole;
 import org.alloy.services.UserAccountService;
+import org.alloy.services.UserRoleService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -28,6 +30,7 @@ public class AuthenticationService {
     private final SessionManagementService sessionManagementService;
     private final PasswordValidationService passwordValidationService;
     private final UserAccountService userAccountService;
+    private final UserRoleService userRoleService;
 
     public AuthenticationService(
             AuthenticationManager authenticationManager,
@@ -36,7 +39,8 @@ public class AuthenticationService {
             AccountLockoutService accountLockoutService,
             SessionManagementService sessionManagementService,
             PasswordValidationService passwordValidationService,
-            UserAccountService userAccountService) {
+            UserAccountService userAccountService,
+            UserRoleService userRoleService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.tokenProvider = tokenProvider;
@@ -44,6 +48,7 @@ public class AuthenticationService {
         this.sessionManagementService = sessionManagementService;
         this.passwordValidationService = passwordValidationService;
         this.userAccountService = userAccountService;
+        this.userRoleService = userRoleService;
     }
 
     public AuthenticationResponse authenticate(String username, String password, HttpServletRequest request) {
@@ -125,6 +130,17 @@ public class AuthenticationService {
             // Username is available, continue with registration
         }
 
+        // Get or create default role
+        UserRole defaultRole = userRoleService.getDefaultRole();
+        if (defaultRole == null) {
+            defaultRole = new UserRole();
+            defaultRole.setName("User");
+            defaultRole.setDescription("Default user role");
+            defaultRole.setStatus(GeneralStatus.Active);
+            defaultRole.setPermissions("READ"); // Basic read permissions
+            defaultRole = userRoleService.createUserRole(defaultRole);
+        }
+
         // Create new user account
         UserAccount userAccount = new UserAccount();
         userAccount.setUserName(username);
@@ -132,7 +148,7 @@ public class AuthenticationService {
         userAccount.setPasswordHash(password.getBytes()); // Will be encoded by UserAccountService
         userAccount.setStatus(GeneralStatus.Active);
         userAccount.setFailedLoginsCount(0);
-        userAccount.setUserRoleId(1); // Default role ID, you might want to make this configurable
+        userAccount.setUserRoleId(defaultRole.getId());
 
         // Save user account
         return userAccountService.createUserAccount(userAccount);
