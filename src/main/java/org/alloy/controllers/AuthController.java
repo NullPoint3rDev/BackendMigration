@@ -70,7 +70,9 @@ public class AuthController {
         try {
             AuthenticationService.AuthenticationResponse response = authenticationService.authenticate(
                     loginRequest.getUsername(), loginRequest.getPassword(), request);
-            
+
+            System.out.println("token: " + response.getToken() + ", sessionId: " + response.getSessionId());
+
             Map<String, String> responseMap = new HashMap<>();
             responseMap.put("token", response.getToken());
             responseMap.put("sessionId", response.getSessionId());
