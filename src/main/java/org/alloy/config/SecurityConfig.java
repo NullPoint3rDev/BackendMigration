@@ -73,7 +73,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             "http://localhost:3001",
             "http://localhost:63342",
             "http://localhost:8080",
-            "http://localhost:5432"
+            "http://localhost:5432",
+            "http://192.168.10.137:3000",
+            "http://192.168.10.137:8083"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
