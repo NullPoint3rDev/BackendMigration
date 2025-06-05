@@ -1,5 +1,6 @@
 package org.alloy.security;
 
+import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.services.UserAccountService;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -110,6 +111,31 @@ public class AuthenticationService {
             return request.getRemoteAddr();
         }
         return xfHeader.split(",")[0];
+    }
+
+    public UserAccount register(String username, String password, String email) {
+        // Validate password
+        validatePassword(password);
+
+        // Check if username already exists
+        try {
+            userDetailsService.loadUserByUsername(username);
+            throw new RuntimeException("Username already exists");
+        } catch (UsernameNotFoundException e) {
+            // Username is available, continue with registration
+        }
+
+        // Create new user account
+        UserAccount userAccount = new UserAccount();
+        userAccount.setUserName(username);
+        userAccount.setEmail(email);
+        userAccount.setPasswordHash(password.getBytes()); // Will be encoded by UserAccountService
+        userAccount.setStatus(GeneralStatus.Active);
+        userAccount.setFailedLoginsCount(0);
+        userAccount.setUserRoleId(1); // Default role ID, you might want to make this configurable
+
+        // Save user account
+        return userAccountService.createUserAccount(userAccount);
     }
 
     public static class AuthenticationResponse {
