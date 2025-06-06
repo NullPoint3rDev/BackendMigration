@@ -51,19 +51,27 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
     }
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http
+//    @Override
+//    protected void configure(HttpSecurity http) throws Exception {
+//        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
+//        http
+//            .cors().and()
+//            .csrf().disable()
+//            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+//            .and()
+//            .authorizeRequests()
+//            .antMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+//            .anyRequest().authenticated()
+//            .and()
+//            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+//    }
+@Override
+protected void configure(HttpSecurity http) throws Exception {
+    http
             .cors().and()
             .csrf().disable()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
-            .authorizeRequests()
-            .antMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-            .anyRequest().authenticated()
-            .and()
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-    }
+            .authorizeRequests().anyRequest().permitAll();
+}
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -75,7 +83,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             "http://localhost:8080",
             "http://localhost:5432",
             "http://192.168.10.137:3000",
-            "http://192.168.10.137:8083"
+            "http://192.168.10.137:8083",
+            "http://192.168.10.137:3001",
+            "http://192.168.10.58:3001"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
