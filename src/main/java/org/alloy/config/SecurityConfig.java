@@ -72,6 +72,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/api/swagger-ui/**", "/api/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated()
                 .and()
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new OncePerRequestFilter() {
                     @Override
                     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -83,13 +84,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         );
                         filterChain.doFilter(request, response);
                         System.out.println("Response Status: " + response.getStatus());
-                        System.out.println("Response Headers:");
-                        response.getHeaderNames().forEach(name -> 
-                            System.out.println("  " + name + ": " + response.getHeader(name))
-                        );
                     }
-                }, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                }, UsernamePasswordAuthenticationFilter.class);
 
         System.out.println("SecurityConfig: Security configuration details:");
         System.out.println("- CSRF: disabled");
