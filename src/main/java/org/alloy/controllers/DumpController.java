@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -22,12 +21,6 @@ import java.util.List;
 @Tag(name = "Dump Management", description = "API для управления дампами системы")
 @SecurityRequirement(name = "JWT")
 public class DumpController {
-
-    @PostConstruct
-    public void init() {
-        System.out.println("DumpController initialized!");
-    }
-
     @Autowired
     private DumpService dumpService;
 

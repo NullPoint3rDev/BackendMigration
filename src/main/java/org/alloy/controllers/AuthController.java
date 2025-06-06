@@ -39,6 +39,11 @@ public class AuthController {
         this.authenticationService = authenticationService;
     }
 
+    @GetMapping("/ping")
+    public String ping() {
+        return "pong";
+    }
+
     @Operation(
         summary = "Аутентификация пользователя",
         description = "Выполняет вход пользователя в систему и возвращает JWT токен и ID сессии. " +
