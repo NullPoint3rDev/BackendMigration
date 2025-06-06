@@ -62,10 +62,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .and()
                 .authorizeRequests()
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .antMatchers("/api/auth/**", "/api/swagger-ui/**", "/api/v3/api-docs/**").permitAll()
+                .antMatchers("/api/auth/**").permitAll()
+                .antMatchers("/api/swagger-ui/**", "/api/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+
+        System.out.println("SecurityConfig: Security configuration details:");
+        System.out.println("- CSRF: disabled");
+        System.out.println("- Session Management: STATELESS");
+        System.out.println("- Permitted URLs: /api/auth/**, /api/swagger-ui/**, /api/v3/api-docs/**");
     }
 
     @Bean
