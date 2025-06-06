@@ -64,10 +64,18 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest().authenticated()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+
+        System.out.println("SecurityConfig: CORS configuration:");
+        System.out.println("Allowed origins: " + Arrays.asList(
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://192.168.10.58:3001"
+        ));
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        System.out.println("SecurityConfig: Creating CORS configuration source");
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
@@ -82,6 +90,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
+        System.out.println("SecurityConfig: CORS configuration registered for /api/**");
         return source;
     }
 } 

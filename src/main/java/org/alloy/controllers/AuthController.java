@@ -81,6 +81,9 @@ public class AuthController {
             HttpServletRequest request
     ) {
         System.out.println("LOGIN ENDPOINT CALLED");
+        System.out.println("Request method: " + request.getMethod());
+        System.out.println("Request URI: " + request.getRequestURI());
+        System.out.println("Remote address: " + request.getRemoteAddr());
         System.out.println("Request headers: " + Collections.list(request.getHeaderNames())
                 .stream()
                 .collect(Collectors.toMap(
