@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +26,11 @@ import java.util.UUID;
     "Каждый токен имеет уникальный идентификатор, связан с пользователем и имеет срок действия.")
 @SecurityRequirement(name = "JWT")
 public class UserTokenController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("UserTokenController initialized!");
+    }
 
     private final UserTokenService userTokenService;
 

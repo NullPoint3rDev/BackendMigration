@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -24,6 +25,12 @@ import java.util.List;
     "Каждое право имеет уникальный идентификатор и описание.")
 @SecurityRequirement(name = "JWT")
 public class UserPermissionController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("UserPermissionController initialized!");
+    }
+
     @Autowired
     private UserPermissionService userPermissionService;
 

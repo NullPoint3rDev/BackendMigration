@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -27,6 +28,11 @@ import java.util.List;
     "текущего состояния машины.")
 @SecurityRequirement(name = "JWT")
 public class WeldingMachineStateController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("WeldingMachineStateController initialized!");
+    }
 
     private final WeldingMachineStateService weldingMachineStateService;
 

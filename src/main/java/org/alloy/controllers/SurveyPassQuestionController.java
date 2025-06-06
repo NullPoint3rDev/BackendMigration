@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -26,6 +27,12 @@ import java.util.List;
     "Позволяет отслеживать статистику ответов и анализировать результаты опросов.")
 @SecurityRequirement(name = "JWT")
 public class SurveyPassQuestionController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("SurveyPassQuestionController initialized!");
+    }
+
     @Autowired
     private SurveyPassQuestionService surveyPassQuestionService;
 

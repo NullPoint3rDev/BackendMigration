@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -24,6 +25,11 @@ import java.util.List;
     "а также получать информацию о статусе обслуживания конкретных машин.")
 @SecurityRequirement(name = "JWT")
 public class MaintenanceController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("MaintenanceController initialized!");
+    }
 
     private final MaintenanceService maintenanceService;
 

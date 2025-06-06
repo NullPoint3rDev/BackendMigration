@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -24,6 +25,12 @@ import java.util.List;
     "Связь содержит информацию о правах на чтение и запись для конкретного права в рамках роли.")
 @SecurityRequirement(name = "JWT")
 public class UserRolePermissionController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("UserRolePermissionController initialized!");
+    }
+
     @Autowired
     private UserRolePermissionService userRolePermissionService;
 

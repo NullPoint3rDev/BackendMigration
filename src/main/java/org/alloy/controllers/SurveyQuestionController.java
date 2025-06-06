@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -27,6 +28,12 @@ import java.util.List;
     "Вопросы могут быть сгруппированы по категориям и иметь связи с другими вопросами.")
 @SecurityRequirement(name = "JWT")
 public class SurveyQuestionController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("SurveyQuestionController initialized!");
+    }
+
     @Autowired
     private SurveyQuestionService surveyQuestionService;
 

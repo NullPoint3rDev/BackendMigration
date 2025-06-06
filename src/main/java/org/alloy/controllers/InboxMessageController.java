@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -24,6 +25,11 @@ import java.util.List;
     "Поддерживает работу с непрочитанными сообщениями и фильтрацию по типам.")
 @SecurityRequirement(name = "JWT")
 public class InboxMessageController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("InboxMessageController initialized!");
+    }
 
     private final InboxMessageService inboxMessageService;
 

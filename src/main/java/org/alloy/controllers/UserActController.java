@@ -15,6 +15,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,6 +27,11 @@ import java.util.List;
     "Включает функционал для подсчета действий и очистки устаревших записей.")
 @SecurityRequirement(name = "JWT")
 public class UserActController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("UserActController initialized!");
+    }
 
     private final UserActService userActService;
 

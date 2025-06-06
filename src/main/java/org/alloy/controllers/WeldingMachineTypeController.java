@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +28,11 @@ import java.util.Optional;
     "определениях режимов и оповещений. API поддерживает поиск типов и фильтрацию по статусу.")
 @SecurityRequirement(name = "JWT")
 public class WeldingMachineTypeController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("WeldingMachineTypeController initialized!");
+    }
 
     private final WeldingMachineTypeService weldingMachineTypeService;
 

@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +28,11 @@ import java.util.Map;
     "Поддерживает как мягкое, так и жесткое удаление учетных записей.")
 @SecurityRequirement(name = "JWT")
 public class UserAccountController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("UserAccountController initialized!");
+    }
 
     private final UserAccountService userAccountService;
 

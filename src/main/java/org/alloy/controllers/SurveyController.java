@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -27,6 +28,12 @@ import java.util.List;
     "и иметь свои настройки доступности и сроков проведения.")
 @SecurityRequirement(name = "JWT")
 public class SurveyController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("SurveyController initialized!");
+    }
+
     @Autowired
     private SurveyService surveyService;
 

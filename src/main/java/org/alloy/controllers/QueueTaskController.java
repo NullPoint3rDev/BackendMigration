@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -26,6 +27,12 @@ import java.util.List;
     "синхронизация и другие фоновые процессы.")
 @SecurityRequirement(name = "JWT")
 public class QueueTaskController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("QueueTaskController initialized!");
+    }
+
     @Autowired
     private QueueTaskService queueTaskService;
 

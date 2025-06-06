@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -26,6 +27,11 @@ import java.util.List;
     "так и жесткое удаление подразделений.")
 @SecurityRequirement(name = "JWT")
 public class OrganizationUnitController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("OrganizationUnitController initialized!");
+    }
 
     private final OrganizationUnitService organizationUnitService;
 

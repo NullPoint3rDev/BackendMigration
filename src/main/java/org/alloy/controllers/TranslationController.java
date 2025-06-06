@@ -16,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
+
 @RestController
 @RequestMapping("/translations")
 @Tag(name = "Translations", description = "API для управления переводами в системе. " +
@@ -26,6 +28,12 @@ import org.springframework.web.bind.annotation.*;
     "многоязычными текстами для всего приложения.")
 @SecurityRequirement(name = "JWT")
 public class TranslationController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("TranslationController initialized!");
+    }
+
     @Autowired
     private TranslationService translationService;
 

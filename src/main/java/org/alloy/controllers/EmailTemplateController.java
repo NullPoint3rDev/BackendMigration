@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 @RestController
@@ -23,6 +24,12 @@ import java.util.List;
     "которые используются для автоматической отправки уведомлений пользователям системы.")
 @SecurityRequirement(name = "JWT")
 public class EmailTemplateController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("EmailTemplateController initialized!");
+    }
+
     @Autowired
     private EmailTemplateService emailTemplateService;
 

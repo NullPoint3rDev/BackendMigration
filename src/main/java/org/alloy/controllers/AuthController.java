@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.HashMap;
@@ -26,6 +27,11 @@ import java.util.Map;
 @RequestMapping("/auth")
 @Tag(name = "Authentication", description = "API для аутентификации и управления сессиями пользователей")
 public class AuthController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("AuthController initialized!");
+    }
 
     private final AuthenticationService authenticationService;
 
