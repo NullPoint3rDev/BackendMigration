@@ -66,41 +66,22 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .anyRequest().authenticated()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-
-        System.out.println("SecurityConfig: CORS configuration:");
-        System.out.println("Allowed origins: " + Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://192.168.10.58:3001"
-        ));
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         System.out.println("SecurityConfig: Creating CORS configuration source");
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://192.168.10.58:3001"
-        ));
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Type",
-                "Accept",
-                "Origin",
-                "X-Requested-With",
-                "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
-        ));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
-        System.out.println("SecurityConfig: CORS configuration registered for /api/**");
+        source.registerCorsConfiguration("/**", configuration);
+        System.out.println("SecurityConfig: CORS configuration registered for /**");
         return source;
     }
 } 
