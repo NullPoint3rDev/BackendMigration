@@ -25,8 +25,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.stream.Collectors;
-
 import java.util.Arrays;
 
 @Configuration
@@ -79,18 +77,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
                         System.out.println("Request: " + request.getMethod() + " " + request.getRequestURI());
                         System.out.println("Origin: " + request.getHeader("Origin"));
-                        System.out.println("Headers: " + Collections.list(request.getHeaderNames()).stream()
-                                .collect(Collectors.toMap(
-                                        name -> name,
-                                        request::getHeader
-                                )));
+                        System.out.println("Request Headers:");
+                        Collections.list(request.getHeaderNames()).forEach(name -> 
+                            System.out.println("  " + name + ": " + request.getHeader(name))
+                        );
                         filterChain.doFilter(request, response);
                         System.out.println("Response Status: " + response.getStatus());
-                        System.out.println("Response Headers: " + response.getHeaderNames().stream()
-                                .collect(Collectors.toMap(
-                                        name -> name,
-                                        response::getHeader
-                                )));
+                        System.out.println("Response Headers:");
+                        response.getHeaderNames().forEach(name -> 
+                            System.out.println("  " + name + ": " + response.getHeader(name))
+                        );
                     }
                 }, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
@@ -106,7 +102,6 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         System.out.println("SecurityConfig: Creating CORS configuration source");
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Явно указываем все разрешенные origins
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:3000",
             "http://localhost:3001",
@@ -139,34 +134,5 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         System.out.println("- Max Age: " + configuration.getMaxAge());
         
         return source;
-    }
-
-    @Bean
-    public CorsFilter corsFilter() {
-        System.out.println("SecurityConfig: Creating custom CorsFilter");
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        CorsConfiguration config = new CorsConfiguration();
-        
-        config.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://192.168.10.58:3001"
-        ));
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        config.setAllowedHeaders(Arrays.asList(
-            "Authorization",
-            "Content-Type",
-            "Accept",
-            "Origin",
-            "X-Requested-With",
-            "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
-        ));
-        config.setExposedHeaders(Arrays.asList("Authorization"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
-        
-        source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
     }
 } 
