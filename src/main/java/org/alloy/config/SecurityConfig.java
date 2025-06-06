@@ -17,14 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.http.HttpMethod;
-import org.springframework.web.filter.OncePerRequestFilter;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.Collections;
+
 import java.util.Arrays;
 
 @Configuration
@@ -58,77 +51,50 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
     }
 
+    //    @Override
+//    protected void configure(HttpSecurity http) throws Exception {
+//        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
+//        http
+//            .cors().and()
+//            .csrf().disable()
+//            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+//            .and()
+//            .authorizeRequests()
+//            .antMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+//            .anyRequest().authenticated()
+//            .and()
+//            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+//    }
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
         http
                 .cors().and()
                 .csrf().disable()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
-                .authorizeRequests()
-                .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .antMatchers("/api/auth/**").permitAll()
-                .antMatchers("/api/swagger-ui/**", "/api/v3/api-docs/**").permitAll()
-                .anyRequest().authenticated()
-                .and()
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new OncePerRequestFilter() {
-                    @Override
-                    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-                        System.out.println("Request: " + request.getMethod() + " " + request.getRequestURI());
-                        System.out.println("Origin: " + request.getHeader("Origin"));
-                        System.out.println("Request Headers:");
-                        Collections.list(request.getHeaderNames()).forEach(name -> 
-                            System.out.println("  " + name + ": " + request.getHeader(name))
-                        );
-                        filterChain.doFilter(request, response);
-                        System.out.println("Response Status: " + response.getStatus());
-                    }
-                }, UsernamePasswordAuthenticationFilter.class);
-
-        System.out.println("SecurityConfig: Security configuration details:");
-        System.out.println("- CSRF: disabled");
-        System.out.println("- Session Management: STATELESS");
-        System.out.println("- Permitted URLs: /api/auth/**, /api/swagger-ui/**, /api/v3/api-docs/**");
+                .authorizeRequests().anyRequest().permitAll();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        System.out.println("SecurityConfig: Creating CORS configuration source");
         CorsConfiguration configuration = new CorsConfiguration();
-        
         configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://192.168.10.58:3001"
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://localhost:63342",
+                "http://localhost:8080",
+                "http://localhost:5432",
+                "http://192.168.10.137:3000",
+                "http://192.168.10.137:8083",
+                "http://192.168.10.137:3001",
+                "http://192.168.10.58:3001"
         ));
-        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization",
-            "Content-Type",
-            "Accept",
-            "Origin",
-            "X-Requested-With",
-            "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
-        ));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-        
-        System.out.println("SecurityConfig: CORS configuration details:");
-        System.out.println("- Allowed Origins: " + configuration.getAllowedOrigins());
-        System.out.println("- Allowed Methods: " + configuration.getAllowedMethods());
-        System.out.println("- Allowed Headers: " + configuration.getAllowedHeaders());
-        System.out.println("- Exposed Headers: " + configuration.getExposedHeaders());
-        System.out.println("- Allow Credentials: " + configuration.getAllowCredentials());
-        System.out.println("- Max Age: " + configuration.getMaxAge());
-        
         return source;
     }
 } 
