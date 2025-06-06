@@ -72,16 +72,39 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     public CorsConfigurationSource corsConfigurationSource() {
         System.out.println("SecurityConfig: Creating CORS configuration source");
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        
+        // Явно указываем все разрешенные origins
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://192.168.10.58:3001"
+        ));
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers"
+        ));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-        System.out.println("SecurityConfig: CORS configuration registered for /**");
+        
+        System.out.println("SecurityConfig: CORS configuration details:");
+        System.out.println("- Allowed Origins: " + configuration.getAllowedOrigins());
+        System.out.println("- Allowed Methods: " + configuration.getAllowedMethods());
+        System.out.println("- Allowed Headers: " + configuration.getAllowedHeaders());
+        System.out.println("- Exposed Headers: " + configuration.getExposedHeaders());
+        System.out.println("- Allow Credentials: " + configuration.getAllowCredentials());
+        System.out.println("- Max Age: " + configuration.getMaxAge());
+        
         return source;
     }
 } 
