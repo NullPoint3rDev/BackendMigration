@@ -19,9 +19,11 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
@@ -39,40 +41,52 @@ public class AuthController {
         this.authenticationService = authenticationService;
     }
 
+    @GetMapping("/ping")
+    public String ping() {
+        System.out.println("Ping endpoint called!");
+        return "pong";
+    }
+
     @Operation(
-        summary = "Аутентификация пользователя",
-        description = "Выполняет вход пользователя в систему и возвращает JWT токен и ID сессии. " +
-                     "При неудачной попытке входа увеличивает счетчик неудачных попыток. " +
-                     "После определенного количества неудачных попыток аккаунт блокируется."
+            summary = "Аутентификация пользователя",
+            description = "Выполняет вход пользователя в систему и возвращает JWT токен и ID сессии. " +
+                    "При неудачной попытке входа увеличивает счетчик неудачных попыток. " +
+                    "После определенного количества неудачных попыток аккаунт блокируется."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Успешная аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = LoginResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Неверные учетные данные",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Аккаунт заблокирован",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Успешная аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = LoginResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Неверные учетные данные",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Аккаунт заблокирован",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(
-        @Parameter(description = "Данные для входа", required = true)
-        @Valid @RequestBody LoginRequest loginRequest,
-        @Parameter(description = "HTTP запрос для получения IP адреса и User-Agent")
-        HttpServletRequest request
+            @Parameter(description = "Данные для входа", required = true)
+            @Valid @RequestBody LoginRequest loginRequest,
+            @Parameter(description = "HTTP запрос для получения IP адреса и User-Agent")
+            HttpServletRequest request
     ) {
         System.out.println("LOGIN ENDPOINT CALLED");
+        System.out.println("Request headers: " + Collections.list(request.getHeaderNames())
+                .stream()
+                .collect(Collectors.toMap(
+                        headerName -> headerName,
+                        request::getHeader
+                )));
         System.out.println("loginRequest.username: " + loginRequest.getUsername());
         System.out.println("loginRequest.password: " + loginRequest.getPassword());
         try {
@@ -84,7 +98,7 @@ public class AuthController {
             Map<String, String> responseMap = new HashMap<>();
             responseMap.put("token", response.getToken());
             responseMap.put("sessionId", response.getSessionId());
-            
+
             return ResponseEntity.ok(responseMap);
         } catch (AccountLockedException e) {
             Map<String, String> errorMap = new HashMap<>();
@@ -102,35 +116,35 @@ public class AuthController {
     }
 
     @Operation(
-        summary = "Выход из системы",
-        description = "Выполняет выход пользователя из системы, инвалидируя текущий JWT токен. " +
-                     "Требуется действительный JWT токен в заголовке Authorization."
+            summary = "Выход из системы",
+            description = "Выполняет выход пользователя из системы, инвалидируя текущий JWT токен. " +
+                    "Требуется действительный JWT токен в заголовке Authorization."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Успешный выход из системы",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = LogoutResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Недействительный токен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "500",
-            description = "Внутренняя ошибка сервера",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Успешный выход из системы",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = LogoutResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Недействительный токен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Внутренняя ошибка сервера",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @SecurityRequirement(name = "JWT")
     @PostMapping("/logout")
     public ResponseEntity<?> logoutUser(
-        @Parameter(description = "JWT токен в формате 'Bearer {token}'", required = true)
-        @RequestHeader("Authorization") String token
+            @Parameter(description = "JWT токен в формате 'Bearer {token}'", required = true)
+            @RequestHeader("Authorization") String token
     ) {
         try {
             String jwt = token.substring(7);
@@ -143,28 +157,28 @@ public class AuthController {
     }
 
     @Operation(
-        summary = "Проверка пароля",
-        description = "Проверяет соответствие пароля требованиям безопасности. " +
-                     "Проверяет длину, наличие специальных символов, цифр и букв разного регистра."
+            summary = "Проверка пароля",
+            description = "Проверяет соответствие пароля требованиям безопасности. " +
+                    "Проверяет длину, наличие специальных символов, цифр и букв разного регистра."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Пароль соответствует требованиям",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = PasswordValidationResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Пароль не соответствует требованиям",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = PasswordValidationErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Пароль соответствует требованиям",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = PasswordValidationResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Пароль не соответствует требованиям",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = PasswordValidationErrorResponse.class))
+            )
     })
     @PostMapping("/validate-password")
     public ResponseEntity<?> validatePassword(
-        @Parameter(description = "Пароль для проверки", required = true)
-        @RequestBody PasswordValidationRequest request
+            @Parameter(description = "Пароль для проверки", required = true)
+            @RequestBody PasswordValidationRequest request
     ) {
         try {
             authenticationService.validatePassword(request.getPassword());
@@ -179,40 +193,40 @@ public class AuthController {
     }
 
     @Operation(
-        summary = "Регистрация нового пользователя",
-        description = "Создает нового пользователя в системе. " +
-                     "Проверяет уникальность имени пользователя и соответствие пароля требованиям безопасности."
+            summary = "Регистрация нового пользователя",
+            description = "Создает нового пользователя в системе. " +
+                    "Проверяет уникальность имени пользователя и соответствие пароля требованиям безопасности."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "201",
-            description = "Пользователь успешно зарегистрирован",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = RegisterResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Неверные данные для регистрации",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Пользователь успешно зарегистрирован",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = RegisterResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Неверные данные для регистрации",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(
-        @Parameter(description = "Данные для регистрации", required = true)
-        @Valid @RequestBody RegisterRequest registerRequest
+            @Parameter(description = "Данные для регистрации", required = true)
+            @Valid @RequestBody RegisterRequest registerRequest
     ) {
         try {
             UserAccount user = authenticationService.register(
-                registerRequest.getUsername(),
-                registerRequest.getPassword(),
-                registerRequest.getEmail()
+                    registerRequest.getUsername(),
+                    registerRequest.getPassword(),
+                    registerRequest.getEmail()
             );
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("message", "User registered successfully");
             response.put("userId", user.getId());
-            
+
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
             Map<String, String> errorMap = new HashMap<>();

@@ -51,50 +51,37 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
     }
 
-//    @Override
-//    protected void configure(HttpSecurity http) throws Exception {
-//        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
-//        http
-//            .cors().and()
-//            .csrf().disable()
-//            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-//            .and()
-//            .authorizeRequests()
-//            .antMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-//            .anyRequest().authenticated()
-//            .and()
-//            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-//    }
-@Override
-protected void configure(HttpSecurity http) throws Exception {
-    http
-            .cors().and()
-            .csrf().disable()
-            .authorizeRequests().anyRequest().permitAll();
-}
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
+        http
+                .cors().and()
+                .csrf().disable()
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .authorizeRequests()
+                .antMatchers("/api/auth/**", "/api/swagger-ui/**", "/api/v3/api-docs/**").permitAll()
+                .anyRequest().authenticated()
+                .and()
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://localhost:63342",
-            "http://localhost:8080",
-            "http://localhost:5432",
-            "http://192.168.10.137:3000",
-            "http://192.168.10.137:8083",
-            "http://192.168.10.137:3001",
-            "http://192.168.10.58:3001"
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://192.168.10.58:3001"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/api/**", configuration);
         return source;
     }
 } 
