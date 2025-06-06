@@ -18,7 +18,14 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.http.HttpMethod;
-import org.springframework.web.filter.CorsFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.stream.Collectors;
 
 import java.util.Arrays;
 
@@ -67,7 +74,25 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/api/swagger-ui/**", "/api/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated()
                 .and()
-                .addFilterBefore(corsFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new OncePerRequestFilter() {
+                    @Override
+                    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+                        System.out.println("Request: " + request.getMethod() + " " + request.getRequestURI());
+                        System.out.println("Origin: " + request.getHeader("Origin"));
+                        System.out.println("Headers: " + Collections.list(request.getHeaderNames()).stream()
+                                .collect(Collectors.toMap(
+                                        name -> name,
+                                        request::getHeader
+                                )));
+                        filterChain.doFilter(request, response);
+                        System.out.println("Response Status: " + response.getStatus());
+                        System.out.println("Response Headers: " + response.getHeaderNames().stream()
+                                .collect(Collectors.toMap(
+                                        name -> name,
+                                        response::getHeader
+                                )));
+                    }
+                }, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         System.out.println("SecurityConfig: Security configuration details:");
