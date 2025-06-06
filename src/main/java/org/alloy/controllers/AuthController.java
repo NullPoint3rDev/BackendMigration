@@ -69,10 +69,12 @@ public class AuthController {
     public ResponseEntity<?> authenticateUser(
         @Parameter(description = "Данные для входа", required = true)
         @Valid @RequestBody LoginRequest loginRequest,
-        
         @Parameter(description = "HTTP запрос для получения IP адреса и User-Agent")
         HttpServletRequest request
     ) {
+        System.out.println("LOGIN ENDPOINT CALLED");
+        System.out.println("loginRequest.username: " + loginRequest.getUsername());
+        System.out.println("loginRequest.password: " + loginRequest.getPassword());
         try {
             AuthenticationService.AuthenticationResponse response = authenticationService.authenticate(
                     loginRequest.getUsername(), loginRequest.getPassword(), request);
@@ -88,11 +90,13 @@ public class AuthController {
             Map<String, String> errorMap = new HashMap<>();
             errorMap.put("error", "Account Locked");
             errorMap.put("message", e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorMap);
         } catch (Exception e) {
             Map<String, String> errorMap = new HashMap<>();
             errorMap.put("error", "Authentication Failed");
             errorMap.put("message", e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorMap);
         }
     }
