@@ -163,7 +163,7 @@ public class UserAccountService {
     }
 
     public UUID savePhoto(String username, MultipartFile photo) throws IOException {
-        UserAccount user = userAccountRepository.findByUsername(username)
+        UserAccount user = userAccountRepository.findByUserName(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         UUID photoId = fileStorageService.saveFile(photo);
