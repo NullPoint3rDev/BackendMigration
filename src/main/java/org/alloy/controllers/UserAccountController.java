@@ -555,50 +555,48 @@ public class UserAccountController {
 
     @Operation(
             summary = "Обновить профиль пользователя",
-            description = "Обновляет профиль текущего пользователя, включая фото"
+            description = "Обновляет профиль текущего пользователя"
     )
     @PutMapping("/profile")
     public ResponseEntity<UserAccount> updateProfile(
-            @RequestParam(value = "photo", required = false) MultipartFile photo,
-            @RequestParam("userData") String userDataJson
+            @RequestBody Map<String, String> profileData
     ) {
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            UserAccount userData = mapper.readValue(userDataJson, UserAccount.class);
-
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String username = authentication.getName();
-
-            UserAccount currentUser = userAccountService.getUserAccountByUserName(username)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            // Обновляем только разрешенные поля
-            currentUser.setName(userData.getName());
-            currentUser.setPosition(userData.getPosition());
-            currentUser.setOrganizationUnitId(userData.getOrganizationUnitId());
-
-            if (photo != null && !photo.isEmpty()) {
-                // Сохраняем фото и получаем его UUID
-                UUID photoId = userAccountService.savePhoto(currentUser.getUserName(), photo);
-                currentUser.setPhoto(photoId);
-            }
-
-            UserAccount updatedUser = userAccountService.updateUserAccount(currentUser);
-            return ResponseEntity.ok(updatedUser);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        
+        UserAccount userAccount = userAccountService.getUserAccountByUserName(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        if (profileData.containsKey("position")) {
+            userAccount.setPosition(profileData.get("position"));
         }
+        if (profileData.containsKey("workplace")) {
+            userAccount.setWorkplace(profileData.get("workplace"));
+        }
+        
+        UserAccount updatedUser = userAccountService.updateUserAccount(userAccount);
+        return ResponseEntity.ok(updatedUser);
     }
 
-    @PostMapping("/{username}/photo")
+    @Operation(
+            summary = "Загрузить фото пользователя",
+            description = "Загружает фото для текущего пользователя"
+    )
+    @PostMapping("/photo")
     public ResponseEntity<UUID> uploadPhoto(
-            @PathVariable String username,
-            @RequestParam("photo") MultipartFile photo) {
+            @RequestParam("file") MultipartFile file
+    ) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        
+        UserAccount userAccount = userAccountService.getUserAccountByUserName(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
         try {
-            UUID photoId = userAccountService.savePhoto(username, photo);
+            UUID photoId = userAccountService.uploadUserPhoto(userAccount.getId(), file);
             return ResponseEntity.ok(photoId);
         } catch (IOException e) {
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

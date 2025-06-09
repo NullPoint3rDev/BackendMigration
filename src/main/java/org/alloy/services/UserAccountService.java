@@ -173,6 +173,17 @@ public class UserAccountService {
         return photoId;
     }
 
+    public UUID uploadUserPhoto(Integer userId, MultipartFile file) throws IOException {
+        UserAccount user = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID photoId = fileStorageService.saveFile(file);
+        user.setPhoto(photoId);
+        userAccountRepository.save(user);
+
+        return photoId;
+    }
+
     public byte[] getPhoto(UUID photoId) throws IOException {
         return fileStorageService.getFile(photoId);
     }

@@ -59,6 +59,9 @@ public class UserAccount {
     @Column(name = "Position")
     private String position;
 
+    @Column(name = "Workplace")
+    private String workplace;
+
     @Column(name = "Category")
     private String category;
 
