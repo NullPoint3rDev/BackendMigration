@@ -100,20 +100,30 @@
             <artifactId>hibernate-core-jakarta</artifactId>
             <version>5.6.9.Final</version>
         </dependency>
-        
-        <!-- Add Jakarta Persistence API -->
+
+        <!-- Remove old Jakarta dependencies -->
         <dependency>
             <groupId>jakarta.persistence</groupId>
             <artifactId>jakarta.persistence-api</artifactId>
-            <version>2.2.3</version>
+            <version>3.1.0</version>
         </dependency>
 
-        <!-- Add Jakarta Persistence API for tests -->
+        <!-- Add Spring Boot Jakarta dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>jakarta.persistence</groupId>
+                    <artifactId>jakarta.persistence-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <dependency>
             <groupId>jakarta.persistence</groupId>
             <artifactId>jakarta.persistence-api</artifactId>
-            <version>2.2.3</version>
-            <scope>test</scope>
+            <version>3.1.0</version>
         </dependency>
     </dependencies>
 
