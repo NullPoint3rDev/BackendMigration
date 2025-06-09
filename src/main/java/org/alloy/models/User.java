@@ -1,7 +1,7 @@
 package org.alloy.models;
 
 import lombok.Data;
-import jakarta.persistence.*;
+import javax.persistence.*;
 
 @Data
 @Entity

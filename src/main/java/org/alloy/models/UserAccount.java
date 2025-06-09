@@ -1,6 +1,6 @@
 package org.alloy.models;
 
-import jakarta.persistence.*;
+import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
