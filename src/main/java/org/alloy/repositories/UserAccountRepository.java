@@ -28,4 +28,6 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Intege
 
     @Query("SELECT ua FROM UserAccount ua WHERE ua.userName = :userName AND ua.passwordHash = :passwordHash")
     Optional<UserAccount> findByUserNameAndPasswordHash(@Param("userName") String userName, @Param("passwordHash") byte[] passwordHash);
+
+    Optional<UserAccount> findByUsername(String username);
 }
