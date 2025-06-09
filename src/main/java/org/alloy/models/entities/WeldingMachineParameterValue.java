@@ -1,9 +1,9 @@
 package org.alloy.models.entities;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import javax.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "welding_machine_parameter_value")

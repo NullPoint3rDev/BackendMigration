@@ -1,10 +1,10 @@
 package org.alloy.models.entities;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
-import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
