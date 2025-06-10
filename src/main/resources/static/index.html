@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body {
+            background: radial-gradient(circle at top right, #1A1A2E, #16213E);
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+            margin: 0;
+            min-height: 100vh;
+        }
+        #deviceData {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+            min-height: 200px;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 5px;
+        }
+        .connected {
+            color: green;
+        }
+        .disconnected {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Device Monitor</h1>
+    <div id="status" class="status disconnected">Disconnected</div>
+    <div id="deviceData">Waiting for device data...</div>
+
+    <script>
+        let stompClient = null;
+        const statusDiv = document.getElementById('status');
+        const deviceDataDiv = document.getElementById('deviceData');
+
+        function connect() {
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function(frame) {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+                
+                stompClient.subscribe('/topic/device', function(message) {
+                    deviceDataDiv.textContent = message.body;
+                });
+            }, function(error) {
+                statusDiv.textContent = 'Connection failed';
+                statusDiv.className = 'status disconnected';
+                console.error('Connection error:', error);
+            });
+        }
+
+        // Connect when page loads
+        connect();
+    </script>
+</body>
+</html> 
