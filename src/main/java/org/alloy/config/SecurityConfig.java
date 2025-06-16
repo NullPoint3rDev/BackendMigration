@@ -51,26 +51,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
     }
 
-    //    @Override
-//    protected void configure(HttpSecurity http) throws Exception {
-//        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
-//        http
-//            .cors().and()
-//            .csrf().disable()
-//            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-//            .and()
-//            .authorizeRequests()
-//            .antMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-//            .anyRequest().authenticated()
-//            .and()
-//            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-//    }
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
                 .cors().and()
                 .csrf().disable()
-                .authorizeRequests().anyRequest().permitAll();
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .authorizeRequests()
+                .antMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**",
+                        "/about/**", "/profile/**", "/organizations/**").permitAll()
+                .anyRequest().authenticated()
+                .and()
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
     }
 
     @Bean
@@ -79,16 +72,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",
                 "http://localhost:3001",
-                "http://localhost:63342",
-                "http://localhost:8080",
-                "http://localhost:5432",
-                "http://192.168.10.137:3000",
-                "http://192.168.10.137:8083",
                 "http://192.168.10.137:3001",
-                "http://192.168.10.58:3001"
+                "http://192.168.10.137:8083"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Origin",
+                "X-Requested-With",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
+        ));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
