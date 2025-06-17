@@ -20,6 +20,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
+import javax.servlet.http.HttpServletResponse;
+
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
@@ -58,9 +60,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .csrf().disable()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
+                .exceptionHandling()
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setContentType("application/json");
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
+                })
+                .and()
                 .authorizeRequests()
-                .antMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**",
-                        "/about/**", "/profile/**", "/organizations/**").permitAll()
+                .antMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .antMatchers(org.springframework.http.HttpMethod.GET, "/user-accounts/photo/**").permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
@@ -83,9 +92,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 "Origin",
                 "X-Requested-With",
                 "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
+                "Access-Control-Request-Headers",
+                "X-XSRF-TOKEN",
+                "Cache-Control",
+                "Pragma"
         ));
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "X-XSRF-TOKEN"
+        ));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

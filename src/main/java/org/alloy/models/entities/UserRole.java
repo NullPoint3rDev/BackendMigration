@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -38,6 +40,19 @@ public class UserRole {
     @Column(name = "Permissions")
     private String permissions;
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userRole", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAccount> userAccounts = new ArrayList<>();
+
+    @Override
+    public String toString() {
+        return "UserRole{" +
+                "id=" + id +
+                ", status=" + status +
+                ", dateCreated=" + dateCreated +
+                ", name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", permissions='" + permissions + '\'' +
+                '}';
+    }
 }

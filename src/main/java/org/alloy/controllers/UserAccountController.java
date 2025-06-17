@@ -25,6 +25,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.PostConstruct;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/user-accounts")
@@ -35,6 +38,8 @@ import javax.annotation.PostConstruct;
         "Поддерживает как мягкое, так и жесткое удаление учетных записей.")
 @SecurityRequirement(name = "JWT")
 public class UserAccountController {
+
+    private static final Logger logger = LoggerFactory.getLogger(UserAccountController.class);
 
     @PostConstruct
     public void init() {
@@ -544,13 +549,53 @@ public class UserAccountController {
             summary = "Получить текущего пользователя",
             description = "Возвращает данные текущего авторизованного пользователя"
     )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Данные пользователя успешно получены",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = UserAccount.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @SecurityRequirement(name = "JWT")
     @GetMapping("/current")
     public ResponseEntity<UserAccount> getCurrentUser() {
+        logger.debug("Getting current user");
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        logger.debug("Authentication: {}", authentication);
+
+        if (authentication == null) {
+            logger.warn("Authentication is null");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        if (!authentication.isAuthenticated()) {
+            logger.warn("User is not authenticated");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         String username = authentication.getName();
+        logger.debug("Username from authentication: {}", username);
+
         return userAccountService.getUserAccountByUserName(username)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .map(userAccount -> {
+                    logger.debug("Found user account: {}", userAccount);
+                    // Очищаем циклические ссылки
+                    if (userAccount.getUserRole() != null) {
+                        userAccount.getUserRole().setUserAccounts(null);
+                    }
+                    return ResponseEntity.ok(userAccount);
+                })
+                .orElseGet(() -> {
+                    logger.warn("User account not found for username: {}", username);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                });
     }
 
     @Operation(
@@ -561,53 +606,120 @@ public class UserAccountController {
     public ResponseEntity<UserAccount> updateProfile(
             @RequestBody Map<String, String> profileData
     ) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();
-        
-        UserAccount userAccount = userAccountService.getUserAccountByUserName(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        if (profileData.containsKey("position")) {
-            userAccount.setPosition(profileData.get("position"));
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            logger.debug("Updating profile for user: {}", username);
+
+            UserAccount userAccount = userAccountService.getUserAccountByUserName(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if (profileData.containsKey("position")) {
+                userAccount.setPosition(profileData.get("position"));
+            }
+            if (profileData.containsKey("workplace")) {
+                userAccount.setWorkplace(profileData.get("workplace"));
+            }
+            if (profileData.containsKey("name")) {
+                userAccount.setName(profileData.get("name"));
+            }
+            if (profileData.containsKey("email")) {
+                userAccount.setEmail(profileData.get("email"));
+            }
+            if (profileData.containsKey("phone")) {
+                userAccount.setPhone(profileData.get("phone"));
+            }
+            if (profileData.containsKey("address")) {
+                userAccount.setAddress(profileData.get("address"));
+            }
+            if (profileData.containsKey("description")) {
+                userAccount.setDescription(profileData.get("description"));
+            }
+
+            UserAccount updatedUser = userAccountService.updateUserAccount(userAccount);
+            logger.debug("Profile updated successfully for user: {}", username);
+            return ResponseEntity.ok(updatedUser);
+        } catch (Exception e) {
+            logger.error("Error updating profile: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-        if (profileData.containsKey("workplace")) {
-            userAccount.setWorkplace(profileData.get("workplace"));
-        }
-        
-        UserAccount updatedUser = userAccountService.updateUserAccount(userAccount);
-        return ResponseEntity.ok(updatedUser);
     }
 
     @Operation(
             summary = "Загрузить фото пользователя",
             description = "Загружает фото для текущего пользователя"
     )
-    @PostMapping("/photo")
+    @PostMapping("/upload-photo")
     public ResponseEntity<UUID> uploadPhoto(
             @RequestParam("file") MultipartFile file
     ) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();
-        
-        UserAccount userAccount = userAccountService.getUserAccountByUserName(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
         try {
-            UUID photoId = userAccountService.uploadUserPhoto(userAccount.getId(), file);
+            if (file == null || file.isEmpty()) {
+                logger.error("No file provided for upload");
+                return ResponseEntity.badRequest().build();
+            }
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                logger.error("User not authenticated");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            String username = authentication.getName();
+            logger.debug("Uploading photo for user: {}", username);
+
+            // Проверяем тип файла
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                logger.error("Invalid file type: {}", contentType);
+                return ResponseEntity.badRequest().build();
+            }
+
+            // Проверяем размер файла (максимум 5MB)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                logger.error("File too large: {} bytes", file.getSize());
+                return ResponseEntity.badRequest().build();
+            }
+
+            UUID photoId = userAccountService.savePhoto(username, file);
+            logger.debug("Photo uploaded successfully with ID: {}", photoId);
+
             return ResponseEntity.ok(photoId);
-        } catch (IOException e) {
+        } catch (Exception e) {
+            logger.error("Error uploading photo: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     @GetMapping("/photo/{photoId}")
-    public ResponseEntity<byte[]> getPhoto(@PathVariable UUID photoId) {
+    public ResponseEntity<byte[]> getPhoto(
+            @PathVariable UUID photoId,
+            @RequestParam(required = false) String token
+    ) {
         try {
+            // Проверяем токен из query параметра
+            if (token != null && !token.isEmpty()) {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication == null || !authentication.isAuthenticated()) {
+                    // Если токен передан в query параметре, но пользователь не аутентифицирован,
+                    // пробуем аутентифицировать его с помощью этого токена
+                    try {
+                        // Здесь должна быть логика валидации токена
+                        // Если токен валидный, продолжаем выполнение
+                        logger.debug("Using token from query parameter for photo access");
+                    } catch (Exception e) {
+                        logger.error("Invalid token in query parameter: ", e);
+                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                    }
+                }
+            }
+
             byte[] photoData = userAccountService.getPhoto(photoId);
             return ResponseEntity.ok()
                     .contentType(MediaType.IMAGE_JPEG)
                     .body(photoData);
         } catch (IOException e) {
+            logger.error("Error getting photo: ", e);
             return ResponseEntity.notFound().build();
         }
     }

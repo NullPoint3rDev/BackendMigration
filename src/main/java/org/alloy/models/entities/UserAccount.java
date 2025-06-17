@@ -4,6 +4,9 @@ import org.alloy.models.GeneralStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -41,9 +44,11 @@ public class UserAccount {
     @Column(name = "UserName", nullable = false, unique = true)
     private String userName;
 
+    @JsonIgnore
     @Column(name = "PasswordHash")
     private byte[] passwordHash;
 
+    @JsonIgnore
     @Column(name = "PasswordSalt")
     private String passwordSalt;
 
@@ -104,39 +109,50 @@ public class UserAccount {
     @Column(name = "WorkerNextAttestationDate")
     private LocalDateTime workerNextAttestationDate;
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InboxMessage> inboxMessages = new ArrayList<>();
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userAccountTo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InboxMessage> inboxMessagesReceived = new ArrayList<>();
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Notification> notifications = new ArrayList<>();
 
+    @JsonBackReference
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationID")
     private Organization organization;
 
+    @JsonBackReference
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationUnitID", insertable = false, updatable = false)
     private OrganizationUnit organizationUnit;
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SurveyPass> surveyPasses = new ArrayList<>();
 
+    @JsonBackReference
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserRoleID", insertable = false, updatable = false)
     private UserRole userRole;
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAccountSession> userAccountSessions = new ArrayList<>();
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserToken> userTokens = new ArrayList<>();
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WeldingLimitProgram> weldingLimitPrograms = new ArrayList<>();
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAct> userActs = new ArrayList<>();
 }

@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -50,13 +52,32 @@ public class OrganizationUnit {
     @Column(name = "ParentID")
     private Integer parentId;
 
+    @JsonBackReference
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationID", insertable = false, updatable = false)
     private Organization organization;
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "organizationUnit", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAccount> userAccounts = new ArrayList<>();
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "organizationUnit", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WeldingMachine> weldingMachines = new ArrayList<>();
+
+    @Override
+    public String toString() {
+        return "OrganizationUnit{" +
+                "id=" + id +
+                ", organizationId=" + organizationId +
+                ", status=" + status +
+                ", dateCreated=" + dateCreated +
+                ", name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", address='" + address + '\'' +
+                ", phone='" + phone + '\'' +
+                ", email='" + email + '\'' +
+                ", parentId=" + parentId +
+                '}';
+    }
 }
