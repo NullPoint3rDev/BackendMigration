@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.Translation;
 import org.alloy.services.TranslationService;
 import org.alloy.models.dto.TranslationDTO;
-import org.alloy.mappers.TranslationMapper;
+import org.alloy.models.dto.mapper.TranslationMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
