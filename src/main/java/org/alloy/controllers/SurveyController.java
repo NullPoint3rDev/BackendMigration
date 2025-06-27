@@ -157,7 +157,7 @@ public class SurveyController {
         @RequestBody SurveyDTO surveyDTO
     ) {
         Survey entity = SurveyMapper.toEntity(surveyDTO);
-        return new ResponseEntity<>(SurveyMapper.toDTO(surveyService.createSurvey(entity)), HttpStatus.CREATED);
+        return new ResponseEntity<>(SurveyMapper.toDTO(surveyService.save(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -209,7 +209,7 @@ public class SurveyController {
     ) {
         Survey entity = SurveyMapper.toEntity(surveyDTO);
         entity.setId(id);
-        return ResponseEntity.ok(SurveyMapper.toDTO(surveyService.updateSurvey(entity)));
+        return ResponseEntity.ok(SurveyMapper.toDTO(surveyService.save(entity)));
     }
 
     @Operation(
