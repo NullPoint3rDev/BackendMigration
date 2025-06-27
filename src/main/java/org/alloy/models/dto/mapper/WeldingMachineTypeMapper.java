@@ -13,4 +13,14 @@ public class WeldingMachineTypeMapper {
         // ... другие нужные поля
         return dto;
     }
+
+    public static WeldingMachineType toEntity(WeldingMachineTypeDTO dto) {
+        if (dto == null) return null;
+        WeldingMachineType entity = new WeldingMachineType();
+        entity.setId(dto.getId());
+        entity.setName(dto.getName());
+        entity.setDescription(dto.getDescription());
+        // Можно добавить дополнительные поля, если они появятся в DTO
+        return entity;
+    }
 } 

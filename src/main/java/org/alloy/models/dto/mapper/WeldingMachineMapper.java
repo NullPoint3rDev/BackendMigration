@@ -37,4 +37,22 @@ public class WeldingMachineMapper {
         }
         return dto;
     }
+
+    public static WeldingMachine toEntity(WeldingMachineDTO dto) {
+        if (dto == null) return null;
+        WeldingMachine entity = new WeldingMachine();
+        entity.setId(dto.getId());
+        entity.setName(dto.getName());
+        entity.setMac(dto.getMac());
+        entity.setSerialNumber(dto.getSerialNumber());
+        entity.setInventoryNumber(dto.getInventoryNumber());
+        entity.setYearManufactured(dto.getManufactureYear() != null ? dto.getManufactureYear().toString() : null);
+        entity.setDateStartedUsing(dto.getCommissionDate());
+        entity.setLastServiceOn(dto.getLastService());
+        // organizationUnitId и weldingMachineTypeId нужно выставлять отдельно, если DTO содержит эти данные
+        // entity.setOrganizationUnitId(...)
+        // entity.setWeldingMachineTypeId(...)
+        // Можно добавить дополнительные поля, если они появятся в DTO
+        return entity;
+    }
 } 
