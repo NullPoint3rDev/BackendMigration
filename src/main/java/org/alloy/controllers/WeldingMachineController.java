@@ -334,7 +334,7 @@ public class WeldingMachineController {
         @RequestBody WeldingMachineDTO machineDTO
     ) {
         WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineMapper.toDTO(weldingMachineService.save(entity)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineMapper.toDTO(weldingMachineService.createWeldingMachine(entity)));
     }
 
     @Operation(
@@ -382,12 +382,12 @@ public class WeldingMachineController {
         @Parameter(description = "Обновленные данные сварочного аппарата", required = true)
         @RequestBody WeldingMachineDTO machineDTO
     ) {
-        if (!weldingMachineService.findById(id).isPresent()) {
+        if (!weldingMachineService.getWeldingMachineById(id).isPresent()) {
             return ResponseEntity.notFound().build();
         }
         WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
         entity.setId(id);
-        return ResponseEntity.ok(WeldingMachineMapper.toDTO(weldingMachineService.save(entity)));
+        return ResponseEntity.ok(WeldingMachineMapper.toDTO(weldingMachineService.updateWeldingMachine(entity)));
     }
 
     @Operation(
