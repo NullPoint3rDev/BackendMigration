@@ -22,4 +22,20 @@ public class OrganizationUnitMapper {
         }
         return dto;
     }
+
+    public static OrganizationUnit toEntity(OrganizationUnitDTO dto) {
+        if (dto == null) return null;
+        OrganizationUnit entity = new OrganizationUnit();
+        entity.setId(dto.getId());
+        entity.setName(dto.getName());
+        entity.setDescription(dto.getDescription());
+        entity.setAddress(dto.getAddress());
+        entity.setPhone(dto.getPhone());
+        entity.setEmail(dto.getEmail());
+        if (dto.getOrganization() != null) {
+            entity.setOrganizationId(dto.getOrganization().getId());
+        }
+        // ... другие нужные поля
+        return entity;
+    }
 } 
