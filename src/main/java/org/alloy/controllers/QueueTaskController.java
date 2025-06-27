@@ -9,13 +9,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.QueueTask;
+import org.alloy.models.dto.QueueTaskDTO;
+import org.alloy.models.dto.mapper.QueueTaskMapper;
 import org.alloy.services.QueueTaskService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/queue-tasks")
@@ -47,7 +51,7 @@ public class QueueTaskController {
             responseCode = "200",
             description = "Список задач успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = QueueTask.class, type = "array"))
+                schema = @Schema(implementation = QueueTaskDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -63,8 +67,10 @@ public class QueueTaskController {
         )
     })
     @GetMapping
-    public List<QueueTask> getAll() {
-        return queueTaskService.findAll();
+    public List<QueueTaskDTO> getAll() {
+        return queueTaskService.findAll().stream()
+            .map(QueueTaskMapper::toDTO)
+            .collect(Collectors.toList());
     }
 
     @Operation(
@@ -79,7 +85,7 @@ public class QueueTaskController {
             responseCode = "200",
             description = "Задача успешно найдена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = QueueTask.class))
+                schema = @Schema(implementation = QueueTaskDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -101,13 +107,14 @@ public class QueueTaskController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<QueueTask> getById(
+    public ResponseEntity<QueueTaskDTO> getById(
         @Parameter(description = "ID задачи", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return queueTaskService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(QueueTaskMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -123,7 +130,7 @@ public class QueueTaskController {
             responseCode = "200",
             description = "Задача успешно создана",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = QueueTask.class))
+                schema = @Schema(implementation = QueueTaskDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -145,11 +152,12 @@ public class QueueTaskController {
         )
     })
     @PostMapping
-    public QueueTask create(
-        @Parameter(description = "Данные задачи", required = true)
-        @RequestBody QueueTask queueTask
+    public ResponseEntity<QueueTaskDTO> createQueueTask(
+        @Parameter(description = "Данные задачи очереди", required = true)
+        @RequestBody QueueTaskDTO queueTaskDTO
     ) {
-        return queueTaskService.save(queueTask);
+        QueueTask entity = QueueTaskMapper.toEntity(queueTaskDTO);
+        return new ResponseEntity<>(QueueTaskMapper.toDTO(queueTaskService.createQueueTask(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -165,7 +173,7 @@ public class QueueTaskController {
             responseCode = "200",
             description = "Задача успешно обновлена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = QueueTask.class))
+                schema = @Schema(implementation = QueueTaskDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -193,18 +201,15 @@ public class QueueTaskController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<QueueTask> update(
-        @Parameter(description = "ID задачи", required = true, example = "1")
+    public ResponseEntity<QueueTaskDTO> updateQueueTask(
+        @Parameter(description = "ID задачи очереди", required = true, example = "1")
         @PathVariable Integer id,
-        
-        @Parameter(description = "Обновленные данные задачи", required = true)
-        @RequestBody QueueTask queueTask
+        @Parameter(description = "Обновленные данные задачи очереди", required = true)
+        @RequestBody QueueTaskDTO queueTaskDTO
     ) {
-        if (!queueTaskService.findById(id).isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-        queueTask.setId(id);
-        return ResponseEntity.ok(queueTaskService.save(queueTask));
+        QueueTask entity = QueueTaskMapper.toEntity(queueTaskDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(QueueTaskMapper.toDTO(queueTaskService.updateQueueTask(entity)));
     }
 
     @Operation(

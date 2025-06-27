@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -56,6 +57,7 @@ public class WeldingMachineType {
     @Column(name = "AlertDefinitions")
     private String alertDefinitions;
 
+    @JsonManagedReference("machineTypeRef")
     @OneToMany(mappedBy = "weldingMachineType", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WeldingMachine> weldingMachines = new ArrayList<>();
 }

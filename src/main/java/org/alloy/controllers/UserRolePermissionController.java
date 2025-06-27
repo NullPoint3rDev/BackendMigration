@@ -9,13 +9,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.UserRolePermission;
+import org.alloy.models.dto.UserRolePermissionDTO;
+import org.alloy.models.dto.mapper.UserRolePermissionMapper;
 import org.alloy.services.UserRolePermissionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/user-role-permissions")
@@ -45,7 +49,7 @@ public class UserRolePermissionController {
             responseCode = "200",
             description = "Список связей успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserRolePermission.class, type = "array"))
+                schema = @Schema(implementation = UserRolePermissionDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -61,8 +65,8 @@ public class UserRolePermissionController {
         )
     })
     @GetMapping
-    public List<UserRolePermission> getAll() {
-        return userRolePermissionService.findAll();
+    public List<UserRolePermissionDTO> getAll() {
+        return userRolePermissionService.findAll().stream().map(UserRolePermissionMapper::toDTO).collect(Collectors.toList());
     }
 
     @Operation(
@@ -76,7 +80,7 @@ public class UserRolePermissionController {
             responseCode = "200",
             description = "Связь успешно найдена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserRolePermission.class))
+                schema = @Schema(implementation = UserRolePermissionDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -98,11 +102,12 @@ public class UserRolePermissionController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<UserRolePermission> getById(
+    public ResponseEntity<UserRolePermissionDTO> getById(
         @Parameter(description = "ID связи роли и права", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return userRolePermissionService.findById(id)
+                .map(UserRolePermissionMapper::toDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -118,7 +123,7 @@ public class UserRolePermissionController {
             responseCode = "200",
             description = "Связь успешно создана",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserRolePermission.class))
+                schema = @Schema(implementation = UserRolePermissionDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -140,11 +145,12 @@ public class UserRolePermissionController {
         )
     })
     @PostMapping
-    public UserRolePermission create(
-        @Parameter(description = "Данные связи роли и права", required = true)
-        @RequestBody UserRolePermission userRolePermission
+    public ResponseEntity<UserRolePermissionDTO> createUserRolePermission(
+        @Parameter(description = "Данные разрешения роли пользователя", required = true)
+        @RequestBody UserRolePermissionDTO dto
     ) {
-        return userRolePermissionService.save(userRolePermission);
+        UserRolePermission entity = UserRolePermissionMapper.toEntity(dto);
+        return new ResponseEntity<>(UserRolePermissionMapper.toDTO(userRolePermissionService.createUserRolePermission(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -159,7 +165,7 @@ public class UserRolePermissionController {
             responseCode = "200",
             description = "Связь успешно обновлена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserRolePermission.class))
+                schema = @Schema(implementation = UserRolePermissionDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -187,18 +193,15 @@ public class UserRolePermissionController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<UserRolePermission> update(
-        @Parameter(description = "ID связи роли и права", required = true, example = "1")
+    public ResponseEntity<UserRolePermissionDTO> updateUserRolePermission(
+        @Parameter(description = "ID разрешения роли пользователя", required = true, example = "1")
         @PathVariable Integer id,
-        
-        @Parameter(description = "Обновленные данные связи", required = true)
-        @RequestBody UserRolePermission userRolePermission
+        @Parameter(description = "Обновленные данные разрешения роли пользователя", required = true)
+        @RequestBody UserRolePermissionDTO dto
     ) {
-        if (!userRolePermissionService.findById(id).isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-        userRolePermission.setId(id);
-        return ResponseEntity.ok(userRolePermissionService.save(userRolePermission));
+        UserRolePermission entity = UserRolePermissionMapper.toEntity(dto);
+        entity.setId(id);
+        return ResponseEntity.ok(UserRolePermissionMapper.toDTO(userRolePermissionService.updateUserRolePermission(entity)));
     }
 
     @Operation(

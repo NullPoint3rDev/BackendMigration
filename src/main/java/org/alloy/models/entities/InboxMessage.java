@@ -4,6 +4,7 @@ import javax.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import java.time.LocalDateTime;
 
@@ -48,10 +49,12 @@ public class InboxMessage {
     @Column(name = "Type")
     private String type;
 
+    @JsonBackReference("inboxMessagesRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserAccountID", insertable = false, updatable = false)
     private UserAccount userAccount;
 
+    @JsonBackReference("inboxMessagesReceivedRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserAccountToID", insertable = false, updatable = false)
     private UserAccount userAccountTo;

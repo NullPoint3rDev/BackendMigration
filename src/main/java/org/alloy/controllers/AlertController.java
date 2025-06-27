@@ -9,12 +9,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.Alert;
+import org.alloy.models.dto.AlertDTO;
+import org.alloy.models.dto.mapper.AlertMapper;
 import org.alloy.services.AlertService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/alerts")
@@ -33,7 +37,7 @@ public class AlertController {
             responseCode = "200",
             description = "Список оповещений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Alert.class))
+                schema = @Schema(implementation = AlertDTO.class))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -45,14 +49,14 @@ public class AlertController {
         )
     })
     @GetMapping
-    public List<Alert> getAll(
+    public List<AlertDTO> getAll(
         @Parameter(description = "Тип оповещения для фильтрации", example = "MAINTENANCE")
         @RequestParam(required = false) String type,
         
         @Parameter(description = "Статус прочтения для фильтрации", example = "false")
         @RequestParam(required = false) Boolean isRead
     ) {
-        return alertService.findAll();
+        return alertService.findAll().stream().map(AlertMapper::toDTO).collect(Collectors.toList());
     }
 
     @Operation(
@@ -64,7 +68,7 @@ public class AlertController {
             responseCode = "200",
             description = "Оповещение найдено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Alert.class))
+                schema = @Schema(implementation = AlertDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -72,13 +76,14 @@ public class AlertController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Alert> getById(
+    public ResponseEntity<AlertDTO> getById(
         @Parameter(description = "ID оповещения", example = "1", required = true)
         @PathVariable Integer id
     ) {
         return alertService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(AlertMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -90,7 +95,7 @@ public class AlertController {
             responseCode = "201",
             description = "Оповещение успешно создано",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Alert.class))
+                schema = @Schema(implementation = AlertDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -102,11 +107,12 @@ public class AlertController {
         )
     })
     @PostMapping
-    public Alert create(
+    public ResponseEntity<AlertDTO> createAlert(
         @Parameter(description = "Данные оповещения", required = true)
-        @RequestBody Alert alert
+        @RequestBody AlertDTO alertDTO
     ) {
-        return alertService.save(alert);
+        Alert entity = AlertMapper.toEntity(alertDTO);
+        return new ResponseEntity<>(AlertMapper.toDTO(alertService.createAlert(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -118,7 +124,7 @@ public class AlertController {
             responseCode = "200",
             description = "Оповещение успешно обновлено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Alert.class))
+                schema = @Schema(implementation = AlertDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -130,18 +136,15 @@ public class AlertController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Alert> update(
-        @Parameter(description = "ID оповещения", example = "1", required = true)
+    public ResponseEntity<AlertDTO> updateAlert(
+        @Parameter(description = "ID оповещения", required = true, example = "1")
         @PathVariable Integer id,
-        
         @Parameter(description = "Обновленные данные оповещения", required = true)
-        @RequestBody Alert alert
+        @RequestBody AlertDTO alertDTO
     ) {
-        if (!alertService.findById(id).isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-        alert.setId(id);
-        return ResponseEntity.ok(alertService.save(alert));
+        Alert entity = AlertMapper.toEntity(alertDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(AlertMapper.toDTO(alertService.updateAlert(entity)));
     }
 
     @Operation(

@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.UserAccount;
+import org.alloy.models.dto.UserAccountDTO;
+import org.alloy.models.dto.mapper.UserAccountMapper;
 import org.alloy.services.UserAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -23,11 +25,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.Optional;
 
 import javax.annotation.PostConstruct;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/user-accounts")
@@ -38,8 +39,6 @@ import org.slf4j.LoggerFactory;
         "Поддерживает как мягкое, так и жесткое удаление учетных записей.")
 @SecurityRequirement(name = "JWT")
 public class UserAccountController {
-
-    private static final Logger logger = LoggerFactory.getLogger(UserAccountController.class);
 
     @PostConstruct
     public void init() {
@@ -65,7 +64,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Список учетных записей успешно получен",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class, type = "array"))
+                            schema = @Schema(implementation = UserAccountDTO.class, type = "array"))
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -81,8 +80,10 @@ public class UserAccountController {
             )
     })
     @GetMapping
-    public ResponseEntity<List<UserAccount>> getAllUserAccounts() {
-        List<UserAccount> userAccounts = userAccountService.getAllUserAccounts();
+    public ResponseEntity<List<UserAccountDTO>> getAllUserAccounts() {
+        List<UserAccountDTO> userAccounts = userAccountService.getAllUserAccounts().stream()
+            .map(UserAccountMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }
 
@@ -97,7 +98,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Учетная запись успешно найдена",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class))
+                            schema = @Schema(implementation = UserAccountDTO.class))
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -119,13 +120,14 @@ public class UserAccountController {
             )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<UserAccount> getUserAccountById(
+    public ResponseEntity<UserAccountDTO> getUserAccountById(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
             @PathVariable Integer id
     ) {
         return userAccountService.getUserAccountById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(UserAccountMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -138,7 +140,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Учетная запись успешно найдена",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class))
+                            schema = @Schema(implementation = UserAccountDTO.class))
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -160,13 +162,14 @@ public class UserAccountController {
             )
     })
     @GetMapping("/username/{userName}")
-    public ResponseEntity<UserAccount> getUserAccountByUserName(
+    public ResponseEntity<UserAccountDTO> getUserAccountByUserName(
             @Parameter(description = "Имя пользователя", required = true, example = "john.doe")
             @PathVariable String userName
     ) {
         return userAccountService.getUserAccountByUserName(userName)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(UserAccountMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -179,7 +182,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Учетная запись успешно найдена",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class))
+                            schema = @Schema(implementation = UserAccountDTO.class))
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -201,13 +204,14 @@ public class UserAccountController {
             )
     })
     @GetMapping("/email/{email}")
-    public ResponseEntity<UserAccount> getUserAccountByEmail(
+    public ResponseEntity<UserAccountDTO> getUserAccountByEmail(
             @Parameter(description = "Email адрес", required = true, example = "john.doe@example.com")
             @PathVariable String email
     ) {
         return userAccountService.getUserAccountByEmail(email)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(UserAccountMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -220,7 +224,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Список учетных записей успешно получен",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class, type = "array"))
+                            schema = @Schema(implementation = UserAccountDTO.class, type = "array"))
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -236,11 +240,13 @@ public class UserAccountController {
             )
     })
     @GetMapping("/organization-unit/{organizationUnitId}")
-    public ResponseEntity<List<UserAccount>> getUserAccountsByOrganizationUnitId(
+    public ResponseEntity<List<UserAccountDTO>> getUserAccountsByOrganizationUnitId(
             @Parameter(description = "ID организационной единицы", required = true, example = "1")
             @PathVariable Integer organizationUnitId
     ) {
-        List<UserAccount> userAccounts = userAccountService.getUserAccountsByOrganizationUnitId(organizationUnitId);
+        List<UserAccountDTO> userAccounts = userAccountService.getUserAccountsByOrganizationUnitId(organizationUnitId).stream()
+            .map(UserAccountMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }
 
@@ -254,7 +260,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Список учетных записей успешно получен",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class, type = "array"))
+                            schema = @Schema(implementation = UserAccountDTO.class, type = "array"))
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -270,11 +276,13 @@ public class UserAccountController {
             )
     })
     @GetMapping("/user-role/{userRoleId}")
-    public ResponseEntity<List<UserAccount>> getUserAccountsByUserRoleId(
+    public ResponseEntity<List<UserAccountDTO>> getUserAccountsByUserRoleId(
             @Parameter(description = "ID роли пользователя", required = true, example = "1")
             @PathVariable Integer userRoleId
     ) {
-        List<UserAccount> userAccounts = userAccountService.getUserAccountsByUserRoleId(userRoleId);
+        List<UserAccountDTO> userAccounts = userAccountService.getUserAccountsByUserRoleId(userRoleId).stream()
+            .map(UserAccountMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }
 
@@ -289,7 +297,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Результаты поиска успешно получены",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class, type = "array"))
+                            schema = @Schema(implementation = UserAccountDTO.class, type = "array"))
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -305,14 +313,16 @@ public class UserAccountController {
             )
     })
     @GetMapping("/search")
-    public ResponseEntity<List<UserAccount>> searchUserAccounts(
+    public ResponseEntity<List<UserAccountDTO>> searchUserAccounts(
             @Parameter(description = "ID организационной единицы", required = true, example = "1")
             @RequestParam Integer organizationUnitId,
 
             @Parameter(description = "Поисковый запрос", required = true, example = "john")
             @RequestParam String searchTerm
     ) {
-        List<UserAccount> userAccounts = userAccountService.searchUserAccounts(organizationUnitId, searchTerm);
+        List<UserAccountDTO> userAccounts = userAccountService.searchUserAccounts(organizationUnitId, searchTerm).stream()
+            .map(UserAccountMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }
 
@@ -328,7 +338,7 @@ public class UserAccountController {
                     responseCode = "201",
                     description = "Учетная запись успешно создана",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class))
+                            schema = @Schema(implementation = UserAccountDTO.class))
             ),
             @ApiResponse(
                     responseCode = "400",
@@ -350,16 +360,12 @@ public class UserAccountController {
             )
     })
     @PostMapping
-    public ResponseEntity<UserAccount> createUserAccount(
-            @Parameter(description = "Данные учетной записи", required = true)
-            @RequestBody UserAccount userAccount
+    public ResponseEntity<UserAccountDTO> createUserAccount(
+        @Parameter(description = "Данные учетной записи", required = true)
+        @RequestBody UserAccountDTO userAccountDTO
     ) {
-        try {
-            UserAccount createdUserAccount = userAccountService.createUserAccount(userAccount);
-            return new ResponseEntity<>(createdUserAccount, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        UserAccount entity = UserAccountMapper.toEntity(userAccountDTO);
+        return new ResponseEntity<>(UserAccountMapper.toDTO(userAccountService.createUserAccount(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -373,7 +379,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Учетная запись успешно обновлена",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class))
+                            schema = @Schema(implementation = UserAccountDTO.class))
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -401,20 +407,15 @@ public class UserAccountController {
             )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<UserAccount> updateUserAccount(
-            @Parameter(description = "ID учетной записи", required = true, example = "1")
-            @PathVariable Integer id,
-
-            @Parameter(description = "Обновленные данные учетной записи", required = true)
-            @RequestBody UserAccount userAccount
+    public ResponseEntity<UserAccountDTO> updateUserAccount(
+        @Parameter(description = "ID учетной записи", required = true, example = "1")
+        @PathVariable Integer id,
+        @Parameter(description = "Обновленные данные учетной записи", required = true)
+        @RequestBody UserAccountDTO userAccountDTO
     ) {
-        try {
-            userAccount.setId(id);
-            UserAccount updatedUserAccount = userAccountService.updateUserAccount(userAccount);
-            return ResponseEntity.ok(updatedUserAccount);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        UserAccount entity = UserAccountMapper.toEntity(userAccountDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(UserAccountMapper.toDTO(userAccountService.updateUserAccount(entity)));
     }
 
     @Operation(
@@ -513,7 +514,7 @@ public class UserAccountController {
                     responseCode = "200",
                     description = "Аутентификация успешна",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class))
+                            schema = @Schema(implementation = UserAccountDTO.class))
             ),
             @ApiResponse(
                     responseCode = "400",
@@ -529,73 +530,32 @@ public class UserAccountController {
             )
     })
     @PostMapping("/authenticate")
-    public ResponseEntity<UserAccount> authenticateUser(
+    public ResponseEntity<UserAccountDTO> authenticateUser(
             @Parameter(description = "Учетные данные пользователя", required = true)
             @RequestBody Map<String, String> credentials
     ) {
-        String userName = credentials.get("userName");
-        String password = credentials.get("password");
-
-        if (userName == null || password == null) {
-            return ResponseEntity.badRequest().build();
+        Optional<UserAccount> userOpt = userAccountService.authenticateUser(credentials.get("userName"), credentials.get("password"));
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-
-        return userAccountService.authenticateUser(userName, password)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        UserAccount user = userOpt.get();
+        return ResponseEntity.ok(UserAccountMapper.toDTO(user));
     }
 
     @Operation(
             summary = "Получить текущего пользователя",
             description = "Возвращает данные текущего авторизованного пользователя"
     )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Данные пользователя успешно получены",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = UserAccount.class))
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Требуется аутентификация",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class))
-            )
-    })
-    @SecurityRequirement(name = "JWT")
     @GetMapping("/current")
-    public ResponseEntity<UserAccount> getCurrentUser() {
-        logger.debug("Getting current user");
+    public ResponseEntity<UserAccountDTO> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        logger.debug("Authentication: {}", authentication);
-
-        if (authentication == null) {
-            logger.warn("Authentication is null");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        String userName = authentication.getName();
+        Optional<UserAccount> userOpt = userAccountService.getUserAccountByUserName(userName);
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
         }
-
-        if (!authentication.isAuthenticated()) {
-            logger.warn("User is not authenticated");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        String username = authentication.getName();
-        logger.debug("Username from authentication: {}", username);
-
-        return userAccountService.getUserAccountByUserName(username)
-                .map(userAccount -> {
-                    logger.debug("Found user account: {}", userAccount);
-                    // Очищаем циклические ссылки
-                    if (userAccount.getUserRole() != null) {
-                        userAccount.getUserRole().setUserAccounts(null);
-                    }
-                    return ResponseEntity.ok(userAccount);
-                })
-                .orElseGet(() -> {
-                    logger.warn("User account not found for username: {}", username);
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-                });
+        UserAccount user = userOpt.get();
+        return ResponseEntity.ok(UserAccountMapper.toDTO(user));
     }
 
     @Operation(
@@ -603,123 +563,51 @@ public class UserAccountController {
             description = "Обновляет профиль текущего пользователя"
     )
     @PutMapping("/profile")
-    public ResponseEntity<UserAccount> updateProfile(
-            @RequestBody Map<String, String> profileData
-    ) {
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String username = auth.getName();
-            logger.debug("Updating profile for user: {}", username);
-
-            UserAccount userAccount = userAccountService.getUserAccountByUserName(username)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            if (profileData.containsKey("position")) {
-                userAccount.setPosition(profileData.get("position"));
-            }
-            if (profileData.containsKey("workplace")) {
-                userAccount.setWorkplace(profileData.get("workplace"));
-            }
-            if (profileData.containsKey("name")) {
-                userAccount.setName(profileData.get("name"));
-            }
-            if (profileData.containsKey("email")) {
-                userAccount.setEmail(profileData.get("email"));
-            }
-            if (profileData.containsKey("phone")) {
-                userAccount.setPhone(profileData.get("phone"));
-            }
-            if (profileData.containsKey("address")) {
-                userAccount.setAddress(profileData.get("address"));
-            }
-            if (profileData.containsKey("description")) {
-                userAccount.setDescription(profileData.get("description"));
-            }
-
-            UserAccount updatedUser = userAccountService.updateUserAccount(userAccount);
-            logger.debug("Profile updated successfully for user: {}", username);
-            return ResponseEntity.ok(updatedUser);
-        } catch (Exception e) {
-            logger.error("Error updating profile: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    public ResponseEntity<UserAccountDTO> updateProfile(@RequestBody Map<String, String> profileData) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String userName = auth.getName();
+        UserAccount userAccount = userAccountService.getUserAccountByUserName(userName)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        if (profileData.containsKey("position")) {
+            userAccount.setPosition(profileData.get("position"));
         }
+        if (profileData.containsKey("workplace")) {
+            userAccount.setWorkplace(profileData.get("workplace"));
+        }
+        UserAccount updated = userAccountService.updateUserAccount(userAccount);
+        return ResponseEntity.ok(UserAccountMapper.toDTO(updated));
     }
 
     @Operation(
             summary = "Загрузить фото пользователя",
             description = "Загружает фото для текущего пользователя"
     )
-    @PostMapping("/upload-photo")
+    @PostMapping("/photo")
     public ResponseEntity<UUID> uploadPhoto(
             @RequestParam("file") MultipartFile file
     ) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        
+        UserAccount userAccount = userAccountService.getUserAccountByUserName(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
         try {
-            if (file == null || file.isEmpty()) {
-                logger.error("No file provided for upload");
-                return ResponseEntity.badRequest().build();
-            }
-
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
-                logger.error("User not authenticated");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-
-            String username = authentication.getName();
-            logger.debug("Uploading photo for user: {}", username);
-
-            // Проверяем тип файла
-            String contentType = file.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                logger.error("Invalid file type: {}", contentType);
-                return ResponseEntity.badRequest().build();
-            }
-
-            // Проверяем размер файла (максимум 5MB)
-            if (file.getSize() > 5 * 1024 * 1024) {
-                logger.error("File too large: {} bytes", file.getSize());
-                return ResponseEntity.badRequest().build();
-            }
-
-            UUID photoId = userAccountService.savePhoto(username, file);
-            logger.debug("Photo uploaded successfully with ID: {}", photoId);
-
+            UUID photoId = userAccountService.uploadUserPhoto(userAccount.getId(), file);
             return ResponseEntity.ok(photoId);
-        } catch (Exception e) {
-            logger.error("Error uploading photo: ", e);
+        } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     @GetMapping("/photo/{photoId}")
-    public ResponseEntity<byte[]> getPhoto(
-            @PathVariable UUID photoId,
-            @RequestParam(required = false) String token
-    ) {
+    public ResponseEntity<byte[]> getPhoto(@PathVariable UUID photoId) {
         try {
-            // Проверяем токен из query параметра
-            if (token != null && !token.isEmpty()) {
-                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-                if (authentication == null || !authentication.isAuthenticated()) {
-                    // Если токен передан в query параметре, но пользователь не аутентифицирован,
-                    // пробуем аутентифицировать его с помощью этого токена
-                    try {
-                        // Здесь должна быть логика валидации токена
-                        // Если токен валидный, продолжаем выполнение
-                        logger.debug("Using token from query parameter for photo access");
-                    } catch (Exception e) {
-                        logger.error("Invalid token in query parameter: ", e);
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-                    }
-                }
-            }
-
             byte[] photoData = userAccountService.getPhoto(photoId);
             return ResponseEntity.ok()
                     .contentType(MediaType.IMAGE_JPEG)
                     .body(photoData);
         } catch (IOException e) {
-            logger.error("Error getting photo: ", e);
             return ResponseEntity.notFound().build();
         }
     }

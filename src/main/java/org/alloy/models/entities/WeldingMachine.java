@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -120,20 +122,25 @@ public class WeldingMachine {
     @Column(name = "LastOnlineOn")
     private LocalDateTime lastOnlineOn;
 
+    @JsonManagedReference("maintenanceRef")
     @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Maintenance> maintenances = new ArrayList<>();
 
+    @JsonManagedReference("limitProgramsRef")
+    @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<WeldingLimitProgram> weldingLimitPrograms = new ArrayList<>();
+
+    @JsonManagedReference("machineStatesRef")
+    @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<WeldingMachineState> weldingMachineStates = new ArrayList<>();
+
+    @JsonBackReference("machineTypeRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "WeldingMachineTypeID", insertable = false, updatable = false)
     private WeldingMachineType weldingMachineType;
 
-    @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<WeldingLimitProgram> weldingLimitPrograms = new ArrayList<>();
-
+    @JsonBackReference("weldingMachinesRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationUnitID", insertable = false, updatable = false)
     private OrganizationUnit organizationUnit;
-
-    @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<WeldingMachineState> weldingMachineStates = new ArrayList<>();
 }

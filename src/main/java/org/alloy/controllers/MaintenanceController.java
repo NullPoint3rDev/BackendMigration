@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.Maintenance;
+import org.alloy.models.dto.MaintenanceDTO;
+import org.alloy.models.dto.mapper.MaintenanceMapper;
 import org.alloy.services.MaintenanceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/maintenance")
@@ -49,7 +52,7 @@ public class MaintenanceController {
             responseCode = "200",
             description = "Список записей успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Maintenance.class, type = "array"))
+                schema = @Schema(implementation = MaintenanceDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -65,8 +68,10 @@ public class MaintenanceController {
         )
     })
     @GetMapping
-    public ResponseEntity<List<Maintenance>> getAllMaintenanceRecords() {
-        List<Maintenance> records = maintenanceService.getAllMaintenanceRecords();
+    public ResponseEntity<List<MaintenanceDTO>> getAllMaintenanceRecords() {
+        List<MaintenanceDTO> records = maintenanceService.getAllMaintenanceRecords().stream()
+            .map(MaintenanceMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(records);
     }
 
@@ -80,7 +85,7 @@ public class MaintenanceController {
             responseCode = "200",
             description = "Запись успешно найдена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Maintenance.class))
+                schema = @Schema(implementation = MaintenanceDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -102,13 +107,14 @@ public class MaintenanceController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Maintenance> getMaintenanceRecordById(
+    public ResponseEntity<MaintenanceDTO> getMaintenanceRecordById(
         @Parameter(description = "ID записи обслуживания", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return maintenanceService.getMaintenanceRecordById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(MaintenanceMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -121,7 +127,7 @@ public class MaintenanceController {
             responseCode = "200",
             description = "Список записей успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Maintenance.class, type = "array"))
+                schema = @Schema(implementation = MaintenanceDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -137,11 +143,13 @@ public class MaintenanceController {
         )
     })
     @GetMapping("/machine/{machineId}")
-    public ResponseEntity<List<Maintenance>> getMaintenanceRecordsByMachineId(
+    public ResponseEntity<List<MaintenanceDTO>> getMaintenanceRecordsByMachineId(
         @Parameter(description = "ID сварочной машины", required = true, example = "1")
         @PathVariable Integer machineId
     ) {
-        List<Maintenance> records = maintenanceService.getMaintenanceRecordsByMachineId(machineId);
+        List<MaintenanceDTO> records = maintenanceService.getMaintenanceRecordsByMachineId(machineId).stream()
+            .map(MaintenanceMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(records);
     }
 
@@ -155,7 +163,7 @@ public class MaintenanceController {
             responseCode = "200",
             description = "Последняя запись успешно найдена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Maintenance.class))
+                schema = @Schema(implementation = MaintenanceDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -177,13 +185,14 @@ public class MaintenanceController {
         )
     })
     @GetMapping("/machine/{machineId}/latest")
-    public ResponseEntity<Maintenance> getLatestMaintenanceRecord(
+    public ResponseEntity<MaintenanceDTO> getLatestMaintenanceRecord(
         @Parameter(description = "ID сварочной машины", required = true, example = "1")
         @PathVariable Integer machineId
     ) {
         return maintenanceService.getLatestMaintenanceRecord(machineId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(MaintenanceMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -196,7 +205,7 @@ public class MaintenanceController {
             responseCode = "200",
             description = "Список записей успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Maintenance.class, type = "array"))
+                schema = @Schema(implementation = MaintenanceDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -212,7 +221,7 @@ public class MaintenanceController {
         )
     })
     @GetMapping("/machine/{machineId}/status/{status}")
-    public ResponseEntity<List<Maintenance>> getMaintenanceRecordsByStatus(
+    public ResponseEntity<List<MaintenanceDTO>> getMaintenanceRecordsByStatus(
         @Parameter(description = "ID сварочной машины", required = true, example = "1")
         @PathVariable Integer machineId,
         
@@ -220,7 +229,9 @@ public class MaintenanceController {
             schema = @Schema(allowableValues = {"PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"}))
         @PathVariable String status
     ) {
-        List<Maintenance> records = maintenanceService.getMaintenanceRecordsByStatus(machineId, status);
+        List<MaintenanceDTO> records = maintenanceService.getMaintenanceRecordsByStatus(machineId, status).stream()
+            .map(MaintenanceMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(records);
     }
 
@@ -235,7 +246,7 @@ public class MaintenanceController {
             responseCode = "201",
             description = "Запись успешно создана",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Maintenance.class))
+                schema = @Schema(implementation = MaintenanceDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -257,16 +268,12 @@ public class MaintenanceController {
         )
     })
     @PostMapping
-    public ResponseEntity<Maintenance> createMaintenanceRecord(
+    public ResponseEntity<MaintenanceDTO> createMaintenanceRecord(
         @Parameter(description = "Данные записи обслуживания", required = true)
-        @RequestBody Maintenance maintenance
+        @RequestBody MaintenanceDTO maintenanceDTO
     ) {
-        try {
-            Maintenance createdRecord = maintenanceService.createMaintenanceRecord(maintenance);
-            return new ResponseEntity<>(createdRecord, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        Maintenance entity = MaintenanceMapper.toEntity(maintenanceDTO);
+        return new ResponseEntity<>(MaintenanceMapper.toDTO(maintenanceService.createMaintenanceRecord(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -280,7 +287,7 @@ public class MaintenanceController {
             responseCode = "200",
             description = "Запись успешно обновлена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Maintenance.class))
+                schema = @Schema(implementation = MaintenanceDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -308,20 +315,15 @@ public class MaintenanceController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Maintenance> updateMaintenanceRecord(
+    public ResponseEntity<MaintenanceDTO> updateMaintenanceRecord(
         @Parameter(description = "ID записи обслуживания", required = true, example = "1")
         @PathVariable Integer id,
-        
-        @Parameter(description = "Обновленные данные записи", required = true)
-        @RequestBody Maintenance maintenance
+        @Parameter(description = "Обновленные данные записи обслуживания", required = true)
+        @RequestBody MaintenanceDTO maintenanceDTO
     ) {
-        try {
-            maintenance.setId(id);
-            Maintenance updatedRecord = maintenanceService.updateMaintenanceRecord(maintenance);
-            return ResponseEntity.ok(updatedRecord);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        Maintenance entity = MaintenanceMapper.toEntity(maintenanceDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(MaintenanceMapper.toDTO(maintenanceService.updateMaintenanceRecord(entity)));
     }
 
     @Operation(

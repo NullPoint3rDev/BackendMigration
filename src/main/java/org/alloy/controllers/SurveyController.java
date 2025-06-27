@@ -9,13 +9,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.Survey;
+import org.alloy.models.dto.SurveyDTO;
+import org.alloy.models.dto.mapper.SurveyMapper;
 import org.alloy.services.SurveyService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/surveys")
@@ -49,7 +53,7 @@ public class SurveyController {
             responseCode = "200",
             description = "Список опросов успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Survey.class, type = "array"))
+                schema = @Schema(implementation = SurveyDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -65,8 +69,8 @@ public class SurveyController {
         )
     })
     @GetMapping
-    public List<Survey> getAll() {
-        return surveyService.findAll();
+    public List<SurveyDTO> getAll() {
+        return surveyService.findAll().stream().map(SurveyMapper::toDTO).collect(Collectors.toList());
     }
 
     @Operation(
@@ -81,7 +85,7 @@ public class SurveyController {
             responseCode = "200",
             description = "Опрос успешно найден",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Survey.class))
+                schema = @Schema(implementation = SurveyDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -103,11 +107,12 @@ public class SurveyController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Survey> getById(
+    public ResponseEntity<SurveyDTO> getById(
         @Parameter(description = "ID опроса", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return surveyService.findById(id)
+                .map(SurveyMapper::toDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -125,7 +130,7 @@ public class SurveyController {
             responseCode = "200",
             description = "Опрос успешно создан",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Survey.class))
+                schema = @Schema(implementation = SurveyDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -147,11 +152,12 @@ public class SurveyController {
         )
     })
     @PostMapping
-    public Survey create(
+    public ResponseEntity<SurveyDTO> createSurvey(
         @Parameter(description = "Данные опроса", required = true)
-        @RequestBody Survey survey
+        @RequestBody SurveyDTO surveyDTO
     ) {
-        return surveyService.save(survey);
+        Survey entity = SurveyMapper.toEntity(surveyDTO);
+        return new ResponseEntity<>(SurveyMapper.toDTO(surveyService.createSurvey(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -167,7 +173,7 @@ public class SurveyController {
             responseCode = "200",
             description = "Опрос успешно обновлен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Survey.class))
+                schema = @Schema(implementation = SurveyDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -195,18 +201,15 @@ public class SurveyController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Survey> update(
+    public ResponseEntity<SurveyDTO> updateSurvey(
         @Parameter(description = "ID опроса", required = true, example = "1")
         @PathVariable Integer id,
-        
         @Parameter(description = "Обновленные данные опроса", required = true)
-        @RequestBody Survey survey
+        @RequestBody SurveyDTO surveyDTO
     ) {
-        if (!surveyService.findById(id).isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-        survey.setId(id);
-        return ResponseEntity.ok(surveyService.save(survey));
+        Survey entity = SurveyMapper.toEntity(surveyDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(SurveyMapper.toDTO(surveyService.updateSurvey(entity)));
     }
 
     @Operation(

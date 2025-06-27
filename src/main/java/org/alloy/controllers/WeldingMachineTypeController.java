@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.WeldingMachineType;
 import org.alloy.models.GeneralStatus;
 import org.alloy.services.WeldingMachineTypeService;
+import org.alloy.models.dto.WeldingMachineTypeDTO;
+import org.alloy.models.dto.mapper.WeldingMachineTypeMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/welding-machine-types")
@@ -53,7 +56,7 @@ public class WeldingMachineTypeController {
             responseCode = "200",
             description = "Список типов успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineType.class, type = "array"))
+                schema = @Schema(implementation = WeldingMachineTypeDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -69,8 +72,11 @@ public class WeldingMachineTypeController {
         )
     })
     @GetMapping
-    public ResponseEntity<List<WeldingMachineType>> getAllWeldingMachineTypes() {
-        return ResponseEntity.ok(weldingMachineTypeService.getAllWeldingMachineTypes());
+    public ResponseEntity<List<WeldingMachineTypeDTO>> getAllWeldingMachineTypes() {
+        List<WeldingMachineTypeDTO> types = weldingMachineTypeService.getAllWeldingMachineTypes().stream()
+            .map(WeldingMachineTypeMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(types);
     }
 
     @Operation(
@@ -85,7 +91,7 @@ public class WeldingMachineTypeController {
             responseCode = "200",
             description = "Тип успешно найден",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineType.class))
+                schema = @Schema(implementation = WeldingMachineTypeDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -107,13 +113,14 @@ public class WeldingMachineTypeController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<WeldingMachineType> getWeldingMachineTypeById(
+    public ResponseEntity<WeldingMachineTypeDTO> getWeldingMachineTypeById(
         @Parameter(description = "ID типа", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return weldingMachineTypeService.getWeldingMachineTypeById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(WeldingMachineTypeMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -127,7 +134,7 @@ public class WeldingMachineTypeController {
             responseCode = "200",
             description = "Тип успешно найден",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineType.class))
+                schema = @Schema(implementation = WeldingMachineTypeDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -149,13 +156,14 @@ public class WeldingMachineTypeController {
         )
     })
     @GetMapping("/name/{name}")
-    public ResponseEntity<WeldingMachineType> getWeldingMachineTypeByName(
+    public ResponseEntity<WeldingMachineTypeDTO> getWeldingMachineTypeByName(
         @Parameter(description = "Имя типа", required = true, example = "Standard Type")
         @PathVariable String name
     ) {
         return weldingMachineTypeService.getWeldingMachineTypeByName(name)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(WeldingMachineTypeMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -169,7 +177,7 @@ public class WeldingMachineTypeController {
             responseCode = "200",
             description = "Список типов успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineType.class, type = "array"))
+                schema = @Schema(implementation = WeldingMachineTypeDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -191,12 +199,15 @@ public class WeldingMachineTypeController {
         )
     })
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<WeldingMachineType>> getWeldingMachineTypesByStatus(
+    public ResponseEntity<List<WeldingMachineTypeDTO>> getWeldingMachineTypesByStatus(
         @Parameter(description = "Статус типа", required = true, example = "Active",
                   schema = @Schema(implementation = GeneralStatus.class))
         @PathVariable GeneralStatus status
     ) {
-        return ResponseEntity.ok(weldingMachineTypeService.getWeldingMachineTypesByStatus(status));
+        List<WeldingMachineTypeDTO> types = weldingMachineTypeService.getWeldingMachineTypesByStatus(status).stream()
+            .map(WeldingMachineTypeMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(types);
     }
 
     @Operation(
@@ -210,7 +221,7 @@ public class WeldingMachineTypeController {
             responseCode = "200",
             description = "Поиск успешно выполнен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineType.class, type = "array"))
+                schema = @Schema(implementation = WeldingMachineTypeDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -226,11 +237,14 @@ public class WeldingMachineTypeController {
         )
     })
     @GetMapping("/search")
-    public ResponseEntity<List<WeldingMachineType>> searchWeldingMachineTypes(
+    public ResponseEntity<List<WeldingMachineTypeDTO>> searchWeldingMachineTypes(
         @Parameter(description = "Поисковый запрос", required = true, example = "Standard")
         @RequestParam String searchTerm
     ) {
-        return ResponseEntity.ok(weldingMachineTypeService.searchWeldingMachineTypes(searchTerm));
+        List<WeldingMachineTypeDTO> types = weldingMachineTypeService.searchWeldingMachineTypes(searchTerm).stream()
+            .map(WeldingMachineTypeMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(types);
     }
 
     @Operation(
@@ -245,7 +259,7 @@ public class WeldingMachineTypeController {
             responseCode = "201",
             description = "Тип успешно создан",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineType.class))
+                schema = @Schema(implementation = WeldingMachineTypeDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -267,16 +281,12 @@ public class WeldingMachineTypeController {
         )
     })
     @PostMapping
-    public ResponseEntity<WeldingMachineType> createWeldingMachineType(
+    public ResponseEntity<WeldingMachineTypeDTO> createWeldingMachineType(
         @Parameter(description = "Данные типа", required = true)
-        @RequestBody WeldingMachineType type
+        @RequestBody WeldingMachineTypeDTO typeDTO
     ) {
-        try {
-            WeldingMachineType createdType = weldingMachineTypeService.createWeldingMachineType(type);
-            return new ResponseEntity<>(createdType, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        WeldingMachineType entity = WeldingMachineTypeMapper.toEntity(typeDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineTypeMapper.toDTO(weldingMachineTypeService.save(entity)));
     }
 
     @Operation(
@@ -291,7 +301,7 @@ public class WeldingMachineTypeController {
             responseCode = "200",
             description = "Тип успешно обновлен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineType.class))
+                schema = @Schema(implementation = WeldingMachineTypeDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -319,19 +329,18 @@ public class WeldingMachineTypeController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<WeldingMachineType> updateWeldingMachineType(
+    public ResponseEntity<WeldingMachineTypeDTO> updateWeldingMachineType(
         @Parameter(description = "ID типа", required = true, example = "1")
         @PathVariable Integer id,
-        
         @Parameter(description = "Обновленные данные типа", required = true)
-        @RequestBody WeldingMachineType type
+        @RequestBody WeldingMachineTypeDTO typeDTO
     ) {
-        try {
-            type.setId(id);
-            return ResponseEntity.ok(weldingMachineTypeService.updateWeldingMachineType(type));
-        } catch (IllegalArgumentException e) {
+        if (!weldingMachineTypeService.findById(id).isPresent()) {
             return ResponseEntity.notFound().build();
         }
+        WeldingMachineType entity = WeldingMachineTypeMapper.toEntity(typeDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(WeldingMachineTypeMapper.toDTO(weldingMachineTypeService.save(entity)));
     }
 
     @Operation(

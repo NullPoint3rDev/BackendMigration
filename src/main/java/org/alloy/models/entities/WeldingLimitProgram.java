@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -50,10 +51,12 @@ public class WeldingLimitProgram {
     @Column(name = "IsDefault")
     private Boolean isDefault;
 
+    @JsonBackReference("limitProgramsRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "WeldingMachineID", insertable = false, updatable = false)
     private WeldingMachine weldingMachine;
 
+    @JsonBackReference("weldingLimitProgramsRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserAccountID", insertable = false, updatable = false)
     private UserAccount userAccount;

@@ -1,0 +1,25 @@
+package org.alloy.models.dto.mapper;
+
+import org.alloy.models.dto.OrganizationUnitDTO;
+import org.alloy.models.dto.OrganizationShortDTO;
+import org.alloy.models.entities.OrganizationUnit;
+
+public class OrganizationUnitMapper {
+    public static OrganizationUnitDTO toDTO(OrganizationUnit entity) {
+        if (entity == null) return null;
+        OrganizationUnitDTO dto = new OrganizationUnitDTO();
+        dto.setId(entity.getId());
+        dto.setName(entity.getName());
+        dto.setDescription(entity.getDescription());
+        dto.setAddress(entity.getAddress());
+        dto.setPhone(entity.getPhone());
+        dto.setEmail(entity.getEmail());
+        if (entity.getOrganization() != null) {
+            OrganizationShortDTO orgDto = new OrganizationShortDTO();
+            orgDto.setId(entity.getOrganization().getId());
+            orgDto.setName(entity.getOrganization().getName());
+            dto.setOrganization(orgDto);
+        }
+        return dto;
+    }
+} 

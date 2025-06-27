@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.Notification;
+import org.alloy.models.dto.NotificationDTO;
+import org.alloy.models.dto.mapper.NotificationMapper;
 import org.alloy.services.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/notifications")
@@ -49,7 +52,7 @@ public class NotificationController {
             responseCode = "200",
             description = "Список уведомлений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Notification.class, type = "array"))
+                schema = @Schema(implementation = NotificationDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -65,8 +68,10 @@ public class NotificationController {
         )
     })
     @GetMapping
-    public ResponseEntity<List<Notification>> getAllNotifications() {
-        List<Notification> notifications = notificationService.getAllNotifications();
+    public ResponseEntity<List<NotificationDTO>> getAllNotifications() {
+        List<NotificationDTO> notifications = notificationService.getAllNotifications().stream()
+            .map(NotificationMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(notifications);
     }
 
@@ -80,7 +85,7 @@ public class NotificationController {
             responseCode = "200",
             description = "Уведомление успешно найдено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Notification.class))
+                schema = @Schema(implementation = NotificationDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -102,13 +107,14 @@ public class NotificationController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Notification> getNotificationById(
+    public ResponseEntity<NotificationDTO> getNotificationById(
         @Parameter(description = "ID уведомления", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return notificationService.getNotificationById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(NotificationMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -121,7 +127,7 @@ public class NotificationController {
             responseCode = "200",
             description = "Список уведомлений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Notification.class, type = "array"))
+                schema = @Schema(implementation = NotificationDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -137,11 +143,14 @@ public class NotificationController {
         )
     })
     @GetMapping("/user/{userAccountId}")
-    public ResponseEntity<List<Notification>> getNotificationsByUserAccountId(
+    public ResponseEntity<List<NotificationDTO>> getNotificationsByUserAccountId(
         @Parameter(description = "ID пользователя", required = true, example = "1")
         @PathVariable Integer userAccountId
     ) {
-        return ResponseEntity.ok(notificationService.getNotificationsByUserAccountId(userAccountId));
+        List<NotificationDTO> notifications = notificationService.getNotificationsByUserAccountId(userAccountId).stream()
+            .map(NotificationMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(notifications);
     }
 
     @Operation(
@@ -154,7 +163,7 @@ public class NotificationController {
             responseCode = "200",
             description = "Список непрочитанных уведомлений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Notification.class, type = "array"))
+                schema = @Schema(implementation = NotificationDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -170,11 +179,14 @@ public class NotificationController {
         )
     })
     @GetMapping("/user/{userAccountId}/unread")
-    public ResponseEntity<List<Notification>> getUnreadNotificationsByUserAccountId(
+    public ResponseEntity<List<NotificationDTO>> getUnreadNotificationsByUserAccountId(
         @Parameter(description = "ID пользователя", required = true, example = "1")
         @PathVariable Integer userAccountId
     ) {
-        return ResponseEntity.ok(notificationService.getUnreadNotificationsByUserAccountId(userAccountId));
+        List<NotificationDTO> notifications = notificationService.getUnreadNotificationsByUserAccountId(userAccountId).stream()
+            .map(NotificationMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(notifications);
     }
 
     @Operation(
@@ -187,7 +199,7 @@ public class NotificationController {
             responseCode = "200",
             description = "Список уведомлений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Notification.class, type = "array"))
+                schema = @Schema(implementation = NotificationDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -203,7 +215,7 @@ public class NotificationController {
         )
     })
     @GetMapping("/user/{userAccountId}/type/{type}")
-    public ResponseEntity<List<Notification>> getNotificationsByUserAccountIdAndType(
+    public ResponseEntity<List<NotificationDTO>> getNotificationsByUserAccountIdAndType(
         @Parameter(description = "ID пользователя", required = true, example = "1")
         @PathVariable Integer userAccountId,
         
@@ -211,7 +223,10 @@ public class NotificationController {
             schema = @Schema(allowableValues = {"SYSTEM", "ALERT", "MAINTENANCE", "WARNING"}))
         @PathVariable String type
     ) {
-        return ResponseEntity.ok(notificationService.getNotificationsByUserAccountIdAndType(userAccountId, type));
+        List<NotificationDTO> notifications = notificationService.getNotificationsByUserAccountIdAndType(userAccountId, type).stream()
+            .map(NotificationMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(notifications);
     }
 
     @Operation(
@@ -256,7 +271,7 @@ public class NotificationController {
             responseCode = "201",
             description = "Уведомление успешно создано",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Notification.class))
+                schema = @Schema(implementation = NotificationDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -278,16 +293,12 @@ public class NotificationController {
         )
     })
     @PostMapping
-    public ResponseEntity<Notification> createNotification(
+    public ResponseEntity<NotificationDTO> createNotification(
         @Parameter(description = "Данные уведомления", required = true)
-        @RequestBody Notification notification
+        @RequestBody NotificationDTO notificationDTO
     ) {
-        try {
-            Notification createdNotification = notificationService.createNotification(notification);
-            return new ResponseEntity<>(createdNotification, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        Notification entity = NotificationMapper.toEntity(notificationDTO);
+        return new ResponseEntity<>(NotificationMapper.toDTO(notificationService.createNotification(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -301,7 +312,7 @@ public class NotificationController {
             responseCode = "200",
             description = "Уведомление успешно обновлено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Notification.class))
+                schema = @Schema(implementation = NotificationDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -329,20 +340,15 @@ public class NotificationController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Notification> updateNotification(
+    public ResponseEntity<NotificationDTO> updateNotification(
         @Parameter(description = "ID уведомления", required = true, example = "1")
         @PathVariable Integer id,
-        
         @Parameter(description = "Обновленные данные уведомления", required = true)
-        @RequestBody Notification notification
+        @RequestBody NotificationDTO notificationDTO
     ) {
-        try {
-            notification.setId(id);
-            Notification updatedNotification = notificationService.updateNotification(notification);
-            return ResponseEntity.ok(updatedNotification);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        Notification entity = NotificationMapper.toEntity(notificationDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(NotificationMapper.toDTO(notificationService.updateNotification(entity)));
     }
 
     @Operation(
@@ -355,7 +361,7 @@ public class NotificationController {
             responseCode = "200",
             description = "Уведомление успешно отмечено как прочитанное",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Notification.class))
+                schema = @Schema(implementation = NotificationDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -377,16 +383,12 @@ public class NotificationController {
         )
     })
     @PutMapping("/{id}/read")
-    public ResponseEntity<Notification> markNotificationAsRead(
+    public ResponseEntity<NotificationDTO> markNotificationAsRead(
         @Parameter(description = "ID уведомления", required = true, example = "1")
         @PathVariable Integer id
     ) {
-        try {
-            Notification updatedNotification = notificationService.markNotificationAsRead(id);
-            return ResponseEntity.ok(updatedNotification);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        Notification updated = notificationService.markNotificationAsRead(id);
+        return ResponseEntity.ok(NotificationMapper.toDTO(updated));
     }
 
     @Operation(

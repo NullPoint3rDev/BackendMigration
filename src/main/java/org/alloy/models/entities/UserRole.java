@@ -40,7 +40,7 @@ public class UserRole {
     @Column(name = "Permissions")
     private String permissions;
 
-    @JsonManagedReference
+    @JsonManagedReference("userRoleRef")
     @OneToMany(mappedBy = "userRole", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAccount> userAccounts = new ArrayList<>();
 

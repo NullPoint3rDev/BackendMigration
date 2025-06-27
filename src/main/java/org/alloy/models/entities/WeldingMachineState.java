@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -79,6 +81,7 @@ public class WeldingMachineState {
     @Column(name = "NormGasFlow")
     private Double normGasFlow;
 
+    @JsonBackReference("machineStatesRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "WeldingMachineID", insertable = false, updatable = false)
     private WeldingMachine weldingMachine;
@@ -87,6 +90,7 @@ public class WeldingMachineState {
     @JoinColumn(name = "WeldingLimitProgramID", insertable = false, updatable = false)
     private WeldingLimitProgram weldingLimitProgram;
 
+    @JsonManagedReference("parameterValuesRef")
     @OneToMany(mappedBy = "weldingMachineState", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WeldingMachineParameterValue> parameterValues = new ArrayList<>();
 }

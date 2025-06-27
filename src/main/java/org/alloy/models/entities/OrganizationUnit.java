@@ -52,16 +52,16 @@ public class OrganizationUnit {
     @Column(name = "ParentID")
     private Integer parentId;
 
-    @JsonBackReference
+    @JsonBackReference("organizationUnitsRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationID", insertable = false, updatable = false)
     private Organization organization;
 
-    @JsonManagedReference
+    @JsonBackReference("userAccountsRef")
     @OneToMany(mappedBy = "organizationUnit", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAccount> userAccounts = new ArrayList<>();
 
-    @JsonManagedReference
+    @JsonBackReference("weldingMachinesRef")
     @OneToMany(mappedBy = "organizationUnit", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WeldingMachine> weldingMachines = new ArrayList<>();
 

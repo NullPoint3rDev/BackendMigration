@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.OrganizationUnit;
+import org.alloy.models.dto.OrganizationUnitDTO;
+import org.alloy.models.dto.mapper.OrganizationUnitMapper;
 import org.alloy.services.OrganizationUnitService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/organization-units")
@@ -51,7 +54,7 @@ public class OrganizationUnitController {
             responseCode = "200",
             description = "Список подразделений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationUnit.class, type = "array"))
+                schema = @Schema(implementation = OrganizationUnitDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -67,8 +70,10 @@ public class OrganizationUnitController {
         )
     })
     @GetMapping
-    public ResponseEntity<List<OrganizationUnit>> getAllOrganizationUnits() {
-        List<OrganizationUnit> organizationUnits = organizationUnitService.getAllOrganizationUnits();
+    public ResponseEntity<List<OrganizationUnitDTO>> getAllOrganizationUnits() {
+        List<OrganizationUnitDTO> organizationUnits = organizationUnitService.getAllOrganizationUnits().stream()
+            .map(OrganizationUnitMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(organizationUnits);
     }
 
@@ -82,7 +87,7 @@ public class OrganizationUnitController {
             responseCode = "200",
             description = "Подразделение успешно найдено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationUnit.class))
+                schema = @Schema(implementation = OrganizationUnitDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -104,13 +109,14 @@ public class OrganizationUnitController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<OrganizationUnit> getOrganizationUnitById(
+    public ResponseEntity<OrganizationUnitDTO> getOrganizationUnitById(
         @Parameter(description = "ID подразделения", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return organizationUnitService.getOrganizationUnitById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(OrganizationUnitMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -123,7 +129,7 @@ public class OrganizationUnitController {
             responseCode = "200",
             description = "Список подразделений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationUnit.class, type = "array"))
+                schema = @Schema(implementation = OrganizationUnitDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -145,11 +151,13 @@ public class OrganizationUnitController {
         )
     })
     @GetMapping("/organization/{organizationId}")
-    public ResponseEntity<List<OrganizationUnit>> getOrganizationUnitsByOrganizationId(
+    public ResponseEntity<List<OrganizationUnitDTO>> getOrganizationUnitsByOrganizationId(
         @Parameter(description = "ID организации", required = true, example = "1")
         @PathVariable Integer organizationId
     ) {
-        List<OrganizationUnit> organizationUnits = organizationUnitService.getOrganizationUnitsByOrganizationId(organizationId);
+        List<OrganizationUnitDTO> organizationUnits = organizationUnitService.getOrganizationUnitsByOrganizationId(organizationId).stream()
+            .map(OrganizationUnitMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(organizationUnits);
     }
 
@@ -163,7 +171,7 @@ public class OrganizationUnitController {
             responseCode = "200",
             description = "Список дочерних подразделений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationUnit.class, type = "array"))
+                schema = @Schema(implementation = OrganizationUnitDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -185,11 +193,13 @@ public class OrganizationUnitController {
         )
     })
     @GetMapping("/parent/{parentId}")
-    public ResponseEntity<List<OrganizationUnit>> getOrganizationUnitsByParentId(
+    public ResponseEntity<List<OrganizationUnitDTO>> getOrganizationUnitsByParentId(
         @Parameter(description = "ID родительского подразделения", required = true, example = "1")
         @PathVariable Integer parentId
     ) {
-        List<OrganizationUnit> organizationUnits = organizationUnitService.getOrganizationUnitsByParentId(parentId);
+        List<OrganizationUnitDTO> organizationUnits = organizationUnitService.getOrganizationUnitsByParentId(parentId).stream()
+            .map(OrganizationUnitMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(organizationUnits);
     }
 
@@ -204,7 +214,7 @@ public class OrganizationUnitController {
             responseCode = "200",
             description = "Поиск успешно выполнен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationUnit.class, type = "array"))
+                schema = @Schema(implementation = OrganizationUnitDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -232,14 +242,16 @@ public class OrganizationUnitController {
         )
     })
     @GetMapping("/search")
-    public ResponseEntity<List<OrganizationUnit>> searchOrganizationUnits(
+    public ResponseEntity<List<OrganizationUnitDTO>> searchOrganizationUnits(
         @Parameter(description = "ID организации", required = true, example = "1")
         @RequestParam Integer organizationId,
         
         @Parameter(description = "Поисковый запрос", required = true, example = "Отдел разработки")
         @RequestParam String searchTerm
     ) {
-        List<OrganizationUnit> organizationUnits = organizationUnitService.searchOrganizationUnits(organizationId, searchTerm);
+        List<OrganizationUnitDTO> organizationUnits = organizationUnitService.searchOrganizationUnits(organizationId, searchTerm).stream()
+            .map(OrganizationUnitMapper::toDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(organizationUnits);
     }
 
@@ -255,7 +267,7 @@ public class OrganizationUnitController {
             responseCode = "201",
             description = "Подразделение успешно создано",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationUnit.class))
+                schema = @Schema(implementation = OrganizationUnitDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -277,16 +289,12 @@ public class OrganizationUnitController {
         )
     })
     @PostMapping
-    public ResponseEntity<OrganizationUnit> createOrganizationUnit(
+    public ResponseEntity<OrganizationUnitDTO> createOrganizationUnit(
         @Parameter(description = "Данные подразделения", required = true)
-        @RequestBody OrganizationUnit organizationUnit
+        @RequestBody OrganizationUnitDTO organizationUnitDTO
     ) {
-        try {
-            OrganizationUnit createdOrganizationUnit = organizationUnitService.createOrganizationUnit(organizationUnit);
-            return new ResponseEntity<>(createdOrganizationUnit, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        OrganizationUnit entity = OrganizationUnitMapper.toEntity(organizationUnitDTO);
+        return new ResponseEntity<>(OrganizationUnitMapper.toDTO(organizationUnitService.createOrganizationUnit(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -300,7 +308,7 @@ public class OrganizationUnitController {
             responseCode = "200",
             description = "Подразделение успешно обновлено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationUnit.class))
+                schema = @Schema(implementation = OrganizationUnitDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -328,20 +336,15 @@ public class OrganizationUnitController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<OrganizationUnit> updateOrganizationUnit(
+    public ResponseEntity<OrganizationUnitDTO> updateOrganizationUnit(
         @Parameter(description = "ID подразделения", required = true, example = "1")
         @PathVariable Integer id,
-        
         @Parameter(description = "Обновленные данные подразделения", required = true)
-        @RequestBody OrganizationUnit organizationUnit
+        @RequestBody OrganizationUnitDTO organizationUnitDTO
     ) {
-        try {
-            organizationUnit.setId(id);
-            OrganizationUnit updatedOrganizationUnit = organizationUnitService.updateOrganizationUnit(organizationUnit);
-            return ResponseEntity.ok(updatedOrganizationUnit);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        OrganizationUnit entity = OrganizationUnitMapper.toEntity(organizationUnitDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(OrganizationUnitMapper.toDTO(organizationUnitService.updateOrganizationUnit(entity)));
     }
 
     @Operation(

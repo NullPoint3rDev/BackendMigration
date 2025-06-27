@@ -9,12 +9,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.Dump;
+import org.alloy.models.dto.DumpDTO;
+import org.alloy.models.dto.mapper.DumpMapper;
 import org.alloy.services.DumpService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/dumps")
@@ -35,7 +38,7 @@ public class DumpController {
             responseCode = "200",
             description = "Список дампов успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Dump.class, type = "array"))
+                schema = @Schema(implementation = DumpDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -51,8 +54,8 @@ public class DumpController {
         )
     })
     @GetMapping
-    public List<Dump> getAll() {
-        return dumpService.findAll();
+    public List<DumpDTO> getAll() {
+        return dumpService.findAll().stream().map(DumpMapper::toDTO).collect(Collectors.toList());
     }
 
     @Operation(
@@ -65,7 +68,7 @@ public class DumpController {
             responseCode = "200",
             description = "Дамп успешно найден",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Dump.class))
+                schema = @Schema(implementation = DumpDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -87,12 +90,12 @@ public class DumpController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Dump> getById(
+    public ResponseEntity<DumpDTO> getById(
         @Parameter(description = "ID дампа", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return dumpService.findById(id)
-                .map(ResponseEntity::ok)
+                .map(dump -> ResponseEntity.ok(DumpMapper.toDTO(dump)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -106,7 +109,7 @@ public class DumpController {
             responseCode = "200",
             description = "Дамп успешно создан",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Dump.class))
+                schema = @Schema(implementation = DumpDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -128,11 +131,12 @@ public class DumpController {
         )
     })
     @PostMapping
-    public Dump create(
+    public DumpDTO create(
         @Parameter(description = "Данные дампа", required = true)
-        @RequestBody Dump dump
+        @RequestBody DumpDTO dumpDTO
     ) {
-        return dumpService.save(dump);
+        Dump entity = DumpMapper.toEntity(dumpDTO);
+        return DumpMapper.toDTO(dumpService.save(entity));
     }
 
     @Operation(
@@ -145,7 +149,7 @@ public class DumpController {
             responseCode = "200",
             description = "Дамп успешно обновлен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Dump.class))
+                schema = @Schema(implementation = DumpDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -173,18 +177,19 @@ public class DumpController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Dump> update(
+    public ResponseEntity<DumpDTO> update(
         @Parameter(description = "ID дампа", required = true, example = "1")
         @PathVariable Integer id,
         
         @Parameter(description = "Обновленные данные дампа", required = true)
-        @RequestBody Dump dump
+        @RequestBody DumpDTO dumpDTO
     ) {
         if (!dumpService.findById(id).isPresent()) {
             return ResponseEntity.notFound().build();
         }
-        dump.setId(id);
-        return ResponseEntity.ok(dumpService.save(dump));
+        Dump entity = DumpMapper.toEntity(dumpDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(DumpMapper.toDTO(dumpService.save(entity)));
     }
 
     @Operation(

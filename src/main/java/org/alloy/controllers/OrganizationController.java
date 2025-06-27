@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.Organization;
+import org.alloy.models.dto.OrganizationShortDTO;
+import org.alloy.models.dto.mapper.OrganizationMapper;
 import org.alloy.services.OrganizationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/organizations")
@@ -50,7 +53,7 @@ public class OrganizationController {
             responseCode = "200",
             description = "Список организаций успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Organization.class, type = "array"))
+                schema = @Schema(implementation = OrganizationShortDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -66,8 +69,10 @@ public class OrganizationController {
         )
     })
     @GetMapping
-    public ResponseEntity<List<Organization>> getAllOrganizations() {
-        List<Organization> organizations = organizationService.getAllOrganizations();
+    public ResponseEntity<List<OrganizationShortDTO>> getAllOrganizations() {
+        List<OrganizationShortDTO> organizations = organizationService.getAllOrganizations().stream()
+            .map(OrganizationMapper::toShortDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(organizations);
     }
 
@@ -81,7 +86,7 @@ public class OrganizationController {
             responseCode = "200",
             description = "Организация успешно найдена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Organization.class))
+                schema = @Schema(implementation = OrganizationShortDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -103,13 +108,14 @@ public class OrganizationController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Organization> getOrganizationById(
+    public ResponseEntity<OrganizationShortDTO> getOrganizationById(
         @Parameter(description = "ID организации", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return organizationService.getOrganizationById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(OrganizationMapper::toShortDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -123,7 +129,7 @@ public class OrganizationController {
             responseCode = "200",
             description = "Поиск успешно выполнен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Organization.class, type = "array"))
+                schema = @Schema(implementation = OrganizationShortDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -145,11 +151,13 @@ public class OrganizationController {
         )
     })
     @GetMapping("/search")
-    public ResponseEntity<List<Organization>> searchOrganizations(
+    public ResponseEntity<List<OrganizationShortDTO>> searchOrganizations(
         @Parameter(description = "Поисковый запрос", required = true, example = "ООО ТехноСварка")
         @RequestParam String searchTerm
     ) {
-        List<Organization> organizations = organizationService.searchOrganizations(searchTerm);
+        List<OrganizationShortDTO> organizations = organizationService.searchOrganizations(searchTerm).stream()
+            .map(OrganizationMapper::toShortDTO)
+            .collect(Collectors.toList());
         return ResponseEntity.ok(organizations);
     }
 
@@ -164,7 +172,7 @@ public class OrganizationController {
             responseCode = "201",
             description = "Организация успешно создана",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Organization.class))
+                schema = @Schema(implementation = OrganizationShortDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -186,13 +194,13 @@ public class OrganizationController {
         )
     })
     @PostMapping
-    public ResponseEntity<Organization> createOrganization(
+    public ResponseEntity<OrganizationShortDTO> createOrganization(
         @Parameter(description = "Данные организации", required = true)
         @RequestBody Organization organization
     ) {
         try {
             Organization createdOrganization = organizationService.createOrganization(organization);
-            return new ResponseEntity<>(createdOrganization, HttpStatus.CREATED);
+            return new ResponseEntity<>(OrganizationMapper.toShortDTO(createdOrganization), HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
@@ -209,7 +217,7 @@ public class OrganizationController {
             responseCode = "200",
             description = "Организация успешно обновлена",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = Organization.class))
+                schema = @Schema(implementation = OrganizationShortDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -237,20 +245,16 @@ public class OrganizationController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Organization> updateOrganization(
+    public ResponseEntity<OrganizationShortDTO> updateOrganization(
         @Parameter(description = "ID организации", required = true, example = "1")
         @PathVariable Integer id,
         
         @Parameter(description = "Обновленные данные организации", required = true)
         @RequestBody Organization organization
     ) {
-        try {
-            organization.setId(id);
-            Organization updatedOrganization = organizationService.updateOrganization(organization);
-            return ResponseEntity.ok(updatedOrganization);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        organization.setId(id);
+        Organization updated = organizationService.updateOrganization(organization);
+        return ResponseEntity.ok(OrganizationMapper.toShortDTO(updated));
     }
 
     @Operation(

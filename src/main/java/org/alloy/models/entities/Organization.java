@@ -55,11 +55,11 @@ public class Organization {
     @Column(name = "Settings")
     private String settings;
 
-    @JsonManagedReference
+    @JsonManagedReference("organizationUnitsRef")
     @OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrganizationUnit> organizationUnits = new ArrayList<>();
 
-    @JsonManagedReference
+    @JsonManagedReference("organizationRef")
     @OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAccount> userAccounts = new ArrayList<>();
 

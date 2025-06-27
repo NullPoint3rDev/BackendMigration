@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.Translation;
 import org.alloy.services.TranslationService;
+import org.alloy.models.dto.TranslationDTO;
+import org.alloy.mappers.TranslationMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -150,11 +152,12 @@ public class TranslationController {
         )
     })
     @PostMapping
-    public Translation create(
+    public TranslationDTO create(
         @Parameter(description = "Данные перевода", required = true)
-        @RequestBody Translation translation
+        @RequestBody TranslationDTO translationDTO
     ) {
-        return translationService.save(translation);
+        Translation entity = TranslationMapper.toEntity(translationDTO);
+        return TranslationMapper.toDTO(translationService.save(entity));
     }
 
     @Operation(
@@ -198,19 +201,18 @@ public class TranslationController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Translation> update(
+    public ResponseEntity<TranslationDTO> update(
         @Parameter(description = "ID перевода", required = true, example = "1")
         @PathVariable Integer id,
-        
         @Parameter(description = "Обновленные данные перевода", required = true)
-        @RequestBody Translation translation
+        @RequestBody TranslationDTO translationDTO
     ) {
-        return translationService.findById(id)
-                .map(existingTranslation -> {
-                    translation.setId(id);
-                    return ResponseEntity.ok(translationService.save(translation));
-                })
-                .orElse(ResponseEntity.notFound().build());
+        if (!translationService.findById(id).isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        Translation entity = TranslationMapper.toEntity(translationDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(TranslationMapper.toDTO(translationService.save(entity)));
     }
 
     @Operation(

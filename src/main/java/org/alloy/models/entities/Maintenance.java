@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -51,6 +52,7 @@ public class Maintenance {
     @Column(name = "Result")
     private String result;
 
+    @JsonBackReference("maintenanceRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "WeldingMachineID", insertable = false, updatable = false)
     private WeldingMachine weldingMachine;

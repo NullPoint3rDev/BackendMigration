@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.InboxMessage;
+import org.alloy.models.dto.InboxMessageDTO;
+import org.alloy.models.dto.mapper.InboxMessageMapper;
 import org.alloy.services.InboxMessageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/inbox-messages")
@@ -48,7 +51,7 @@ public class InboxMessageController {
             responseCode = "200",
             description = "Список сообщений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = InboxMessage.class, type = "array"))
+                schema = @Schema(implementation = InboxMessageDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -64,8 +67,11 @@ public class InboxMessageController {
         )
     })
     @GetMapping
-    public ResponseEntity<List<InboxMessage>> getAllInboxMessages() {
-        return ResponseEntity.ok(inboxMessageService.getAllInboxMessages());
+    public ResponseEntity<List<InboxMessageDTO>> getAllInboxMessages() {
+        List<InboxMessageDTO> messages = inboxMessageService.getAllInboxMessages().stream()
+            .map(InboxMessageMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(messages);
     }
 
     @Operation(
@@ -78,7 +84,7 @@ public class InboxMessageController {
             responseCode = "200",
             description = "Сообщение успешно найдено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = InboxMessage.class))
+                schema = @Schema(implementation = InboxMessageDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -100,13 +106,14 @@ public class InboxMessageController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<InboxMessage> getInboxMessageById(
+    public ResponseEntity<InboxMessageDTO> getInboxMessageById(
         @Parameter(description = "ID сообщения", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return inboxMessageService.getInboxMessageById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(InboxMessageMapper::toDTO)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -119,7 +126,7 @@ public class InboxMessageController {
             responseCode = "200",
             description = "Список сообщений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = InboxMessage.class, type = "array"))
+                schema = @Schema(implementation = InboxMessageDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -135,11 +142,14 @@ public class InboxMessageController {
         )
     })
     @GetMapping("/user/{userAccountId}")
-    public ResponseEntity<List<InboxMessage>> getMessagesByUserAccountId(
+    public ResponseEntity<List<InboxMessageDTO>> getMessagesByUserAccountId(
         @Parameter(description = "ID пользователя", required = true, example = "1")
         @PathVariable Integer userAccountId
     ) {
-        return ResponseEntity.ok(inboxMessageService.getMessagesByUserAccountId(userAccountId));
+        List<InboxMessageDTO> messages = inboxMessageService.getMessagesByUserAccountId(userAccountId).stream()
+            .map(InboxMessageMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(messages);
     }
 
     @Operation(
@@ -152,7 +162,7 @@ public class InboxMessageController {
             responseCode = "200",
             description = "Список непрочитанных сообщений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = InboxMessage.class, type = "array"))
+                schema = @Schema(implementation = InboxMessageDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -168,11 +178,14 @@ public class InboxMessageController {
         )
     })
     @GetMapping("/user/{userAccountId}/unread")
-    public ResponseEntity<List<InboxMessage>> getUnreadMessagesByUserAccountId(
+    public ResponseEntity<List<InboxMessageDTO>> getUnreadMessagesByUserAccountId(
         @Parameter(description = "ID пользователя", required = true, example = "1")
         @PathVariable Integer userAccountId
     ) {
-        return ResponseEntity.ok(inboxMessageService.getUnreadMessagesByUserAccountId(userAccountId));
+        List<InboxMessageDTO> messages = inboxMessageService.getUnreadMessagesByUserAccountId(userAccountId).stream()
+            .map(InboxMessageMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(messages);
     }
 
     @Operation(
@@ -185,7 +198,7 @@ public class InboxMessageController {
             responseCode = "200",
             description = "Список сообщений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = InboxMessage.class, type = "array"))
+                schema = @Schema(implementation = InboxMessageDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -201,14 +214,17 @@ public class InboxMessageController {
         )
     })
     @GetMapping("/user/{userAccountId}/type/{type}")
-    public ResponseEntity<List<InboxMessage>> getMessagesByUserAccountIdAndType(
+    public ResponseEntity<List<InboxMessageDTO>> getMessagesByUserAccountIdAndType(
         @Parameter(description = "ID пользователя", required = true, example = "1")
         @PathVariable Integer userAccountId,
         
         @Parameter(description = "Тип сообщения", required = true, example = "NOTIFICATION")
         @PathVariable String type
     ) {
-        return ResponseEntity.ok(inboxMessageService.getMessagesByUserAccountIdAndType(userAccountId, type));
+        List<InboxMessageDTO> messages = inboxMessageService.getMessagesByUserAccountIdAndType(userAccountId, type).stream()
+            .map(InboxMessageMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(messages);
     }
 
     @Operation(
@@ -253,7 +269,7 @@ public class InboxMessageController {
             responseCode = "200",
             description = "Сообщение успешно создано",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = InboxMessage.class))
+                schema = @Schema(implementation = InboxMessageDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -275,15 +291,12 @@ public class InboxMessageController {
         )
     })
     @PostMapping
-    public ResponseEntity<InboxMessage> createInboxMessage(
+    public ResponseEntity<InboxMessageDTO> createInboxMessage(
         @Parameter(description = "Данные сообщения", required = true)
-        @RequestBody InboxMessage message
+        @RequestBody InboxMessageDTO messageDTO
     ) {
-        try {
-            return ResponseEntity.ok(inboxMessageService.createInboxMessage(message));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        InboxMessage entity = InboxMessageMapper.toEntity(messageDTO);
+        return new ResponseEntity<>(InboxMessageMapper.toDTO(inboxMessageService.createInboxMessage(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -296,7 +309,7 @@ public class InboxMessageController {
             responseCode = "200",
             description = "Сообщение успешно обновлено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = InboxMessage.class))
+                schema = @Schema(implementation = InboxMessageDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -324,19 +337,15 @@ public class InboxMessageController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<InboxMessage> updateInboxMessage(
+    public ResponseEntity<InboxMessageDTO> updateInboxMessage(
         @Parameter(description = "ID сообщения", required = true, example = "1")
         @PathVariable Integer id,
-        
         @Parameter(description = "Обновленные данные сообщения", required = true)
-        @RequestBody InboxMessage message
+        @RequestBody InboxMessageDTO messageDTO
     ) {
-        try {
-            message.setId(id);
-            return ResponseEntity.ok(inboxMessageService.updateInboxMessage(message));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        InboxMessage entity = InboxMessageMapper.toEntity(messageDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(InboxMessageMapper.toDTO(inboxMessageService.updateInboxMessage(entity)));
     }
 
     @Operation(
@@ -349,7 +358,7 @@ public class InboxMessageController {
             responseCode = "200",
             description = "Сообщение успешно отмечено как прочитанное",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = InboxMessage.class))
+                schema = @Schema(implementation = InboxMessageDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -371,15 +380,12 @@ public class InboxMessageController {
         )
     })
     @PutMapping("/{id}/read")
-    public ResponseEntity<InboxMessage> markInboxMessageAsRead(
+    public ResponseEntity<InboxMessageDTO> markInboxMessageAsRead(
         @Parameter(description = "ID сообщения", required = true, example = "1")
         @PathVariable Integer id
     ) {
-        try {
-            return ResponseEntity.ok(inboxMessageService.markInboxMessageAsRead(id));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        InboxMessage updated = inboxMessageService.markInboxMessageAsRead(id);
+        return ResponseEntity.ok(InboxMessageMapper.toDTO(updated));
     }
 
     @Operation(

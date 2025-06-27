@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.SurveyQuestion;
+import org.alloy.models.dto.SurveyQuestionDTO;
+import org.alloy.models.dto.mapper.SurveyQuestionMapper;
 import org.alloy.services.SurveyQuestionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/survey-questions")
@@ -49,7 +52,7 @@ public class SurveyQuestionController {
             responseCode = "200",
             description = "Список вопросов успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SurveyQuestion.class, type = "array"))
+                schema = @Schema(implementation = SurveyQuestionDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -65,8 +68,8 @@ public class SurveyQuestionController {
         )
     })
     @GetMapping
-    public List<SurveyQuestion> getAll() {
-        return surveyQuestionService.findAll();
+    public List<SurveyQuestionDTO> getAll() {
+        return surveyQuestionService.findAll().stream().map(SurveyQuestionMapper::toDTO).collect(Collectors.toList());
     }
 
     @Operation(
@@ -82,7 +85,7 @@ public class SurveyQuestionController {
             responseCode = "200",
             description = "Вопрос успешно найден",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SurveyQuestion.class))
+                schema = @Schema(implementation = SurveyQuestionDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -104,11 +107,12 @@ public class SurveyQuestionController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<SurveyQuestion> getById(
+    public ResponseEntity<SurveyQuestionDTO> getById(
         @Parameter(description = "ID вопроса", required = true, example = "1")
         @PathVariable Integer id
     ) {
         return surveyQuestionService.findById(id)
+                .map(SurveyQuestionMapper::toDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -126,7 +130,7 @@ public class SurveyQuestionController {
             responseCode = "200",
             description = "Вопрос успешно создан",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SurveyQuestion.class))
+                schema = @Schema(implementation = SurveyQuestionDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -148,11 +152,12 @@ public class SurveyQuestionController {
         )
     })
     @PostMapping
-    public SurveyQuestion create(
+    public SurveyQuestionDTO create(
         @Parameter(description = "Данные вопроса", required = true)
-        @RequestBody SurveyQuestion surveyQuestion
+        @RequestBody SurveyQuestionDTO surveyQuestionDTO
     ) {
-        return surveyQuestionService.save(surveyQuestion);
+        SurveyQuestion entity = SurveyQuestionMapper.toEntity(surveyQuestionDTO);
+        return SurveyQuestionMapper.toDTO(surveyQuestionService.save(entity));
     }
 
     @Operation(
@@ -168,7 +173,7 @@ public class SurveyQuestionController {
             responseCode = "200",
             description = "Вопрос успешно обновлен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SurveyQuestion.class))
+                schema = @Schema(implementation = SurveyQuestionDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -196,18 +201,19 @@ public class SurveyQuestionController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<SurveyQuestion> update(
+    public ResponseEntity<SurveyQuestionDTO> update(
         @Parameter(description = "ID вопроса", required = true, example = "1")
         @PathVariable Integer id,
         
         @Parameter(description = "Обновленные данные вопроса", required = true)
-        @RequestBody SurveyQuestion surveyQuestion
+        @RequestBody SurveyQuestionDTO surveyQuestionDTO
     ) {
         if (!surveyQuestionService.findById(id).isPresent()) {
             return ResponseEntity.notFound().build();
         }
-        surveyQuestion.setId(id);
-        return ResponseEntity.ok(surveyQuestionService.save(surveyQuestion));
+        SurveyQuestion entity = SurveyQuestionMapper.toEntity(surveyQuestionDTO);
+        entity.setId(id);
+        return ResponseEntity.ok(SurveyQuestionMapper.toDTO(surveyQuestionService.save(entity)));
     }
 
     @Operation(

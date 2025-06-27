@@ -4,6 +4,7 @@ import javax.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -40,6 +41,7 @@ public class UserAccountSession {
     @Column(name = "UserAgent")
     private String userAgent;
 
+    @JsonBackReference("userAccountSessionsRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserAccountID", insertable = false, updatable = false)
     private UserAccount userAccount;

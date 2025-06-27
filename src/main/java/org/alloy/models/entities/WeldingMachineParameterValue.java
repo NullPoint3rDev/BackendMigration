@@ -4,6 +4,7 @@ import javax.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 @Table(name = "welding_machine_parameter_value")
@@ -38,6 +39,7 @@ public class WeldingMachineParameterValue {
     @Column(name = "LimitMax")
     private Float limitMax;
 
+    @JsonBackReference("parameterValuesRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "WeldingMachineStateID", insertable = false, updatable = false)
     private WeldingMachineState weldingMachineState;

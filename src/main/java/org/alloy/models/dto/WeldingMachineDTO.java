@@ -1,0 +1,51 @@
+package org.alloy.models.dto;
+
+import java.time.LocalDateTime;
+
+public class WeldingMachineDTO {
+    private Integer id;
+    private String name;
+    private String model;
+    private String mac;
+    private String serialNumber;
+    private String inventoryNumber;
+    private String imageUrl;
+    private String department;
+    private String status;
+    private LocalDateTime commissionDate;
+    private Integer manufactureYear;
+    private LocalDateTime lastService;
+    private OrganizationUnitShortDTO organizationUnit;
+    private WeldingMachineTypeShortDTO weldingMachineType;
+    // ... другие нужные поля
+
+    // Геттеры и сеттеры
+    public Integer getId() { return id; }
+    public void setId(Integer id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getModel() { return model; }
+    public void setModel(String model) { this.model = model; }
+    public String getMac() { return mac; }
+    public void setMac(String mac) { this.mac = mac; }
+    public String getSerialNumber() { return serialNumber; }
+    public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
+    public String getInventoryNumber() { return inventoryNumber; }
+    public void setInventoryNumber(String inventoryNumber) { this.inventoryNumber = inventoryNumber; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public LocalDateTime getCommissionDate() { return commissionDate; }
+    public void setCommissionDate(LocalDateTime commissionDate) { this.commissionDate = commissionDate; }
+    public Integer getManufactureYear() { return manufactureYear; }
+    public void setManufactureYear(Integer manufactureYear) { this.manufactureYear = manufactureYear; }
+    public LocalDateTime getLastService() { return lastService; }
+    public void setLastService(LocalDateTime lastService) { this.lastService = lastService; }
+    public OrganizationUnitShortDTO getOrganizationUnit() { return organizationUnit; }
+    public void setOrganizationUnit(OrganizationUnitShortDTO organizationUnit) { this.organizationUnit = organizationUnit; }
+    public WeldingMachineTypeShortDTO getWeldingMachineType() { return weldingMachineType; }
+    public void setWeldingMachineType(WeldingMachineTypeShortDTO weldingMachineType) { this.weldingMachineType = weldingMachineType; }
+} 

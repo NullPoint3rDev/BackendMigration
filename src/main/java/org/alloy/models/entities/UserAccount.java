@@ -109,50 +109,50 @@ public class UserAccount {
     @Column(name = "WorkerNextAttestationDate")
     private LocalDateTime workerNextAttestationDate;
 
-    @JsonManagedReference
+    @JsonManagedReference("inboxMessagesRef")
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InboxMessage> inboxMessages = new ArrayList<>();
 
-    @JsonManagedReference
+    @JsonManagedReference("inboxMessagesReceivedRef")
     @OneToMany(mappedBy = "userAccountTo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InboxMessage> inboxMessagesReceived = new ArrayList<>();
 
-    @JsonManagedReference
+    @JsonManagedReference("notificationsRef")
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Notification> notifications = new ArrayList<>();
 
-    @JsonBackReference
+    @JsonBackReference("organizationRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationID")
     private Organization organization;
 
-    @JsonBackReference
+    @JsonBackReference("organizationUnitRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationUnitID", insertable = false, updatable = false)
     private OrganizationUnit organizationUnit;
 
-    @JsonManagedReference
+    @JsonManagedReference("surveyPassesRef")
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SurveyPass> surveyPasses = new ArrayList<>();
 
-    @JsonBackReference
+    @JsonBackReference("userRoleRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserRoleID", insertable = false, updatable = false)
     private UserRole userRole;
 
-    @JsonManagedReference
+    @JsonManagedReference("userAccountSessionsRef")
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAccountSession> userAccountSessions = new ArrayList<>();
 
-    @JsonManagedReference
+    @JsonManagedReference("userTokensRef")
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserToken> userTokens = new ArrayList<>();
 
-    @JsonManagedReference
+    @JsonManagedReference("weldingLimitProgramsRef")
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<WeldingLimitProgram> weldingLimitPrograms = new ArrayList<>();
 
-    @JsonManagedReference
+    @JsonManagedReference("userActsRef")
     @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAct> userActs = new ArrayList<>();
 }

@@ -4,6 +4,7 @@ import javax.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import java.time.LocalDateTime;
 
@@ -42,6 +43,7 @@ public class Notification {
     @Column(name = "Link")
     private String link;
 
+    @JsonBackReference("notificationsRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserAccountID", insertable = false, updatable = false)
     private UserAccount userAccount;

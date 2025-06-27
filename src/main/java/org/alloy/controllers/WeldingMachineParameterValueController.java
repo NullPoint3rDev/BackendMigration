@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.WeldingMachineParameterValue;
+import org.alloy.models.dto.WeldingMachineParameterValueDTO;
+import org.alloy.models.dto.mapper.WeldingMachineParameterValueMapper;
 import org.alloy.services.WeldingMachineParameterValueService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/welding-machine-parameters")
@@ -34,11 +37,11 @@ public class WeldingMachineParameterValueController {
         System.out.println("WeldingMachineParameterValueController initialized!");
     }
 
-    private final WeldingMachineParameterValueService parameterValueService;
+    private final WeldingMachineParameterValueService weldingMachineParameterValueService;
 
     @Autowired
-    public WeldingMachineParameterValueController(WeldingMachineParameterValueService parameterValueService) {
-        this.parameterValueService = parameterValueService;
+    public WeldingMachineParameterValueController(WeldingMachineParameterValueService weldingMachineParameterValueService) {
+        this.weldingMachineParameterValueService = weldingMachineParameterValueService;
     }
 
     @Operation(
@@ -53,7 +56,7 @@ public class WeldingMachineParameterValueController {
             responseCode = "200",
             description = "Список значений параметров успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineParameterValue.class, type = "array"))
+                schema = @Schema(implementation = WeldingMachineParameterValueDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "401",
@@ -69,8 +72,11 @@ public class WeldingMachineParameterValueController {
         )
     })
     @GetMapping
-    public ResponseEntity<List<WeldingMachineParameterValue>> getAllParameterValues() {
-        return ResponseEntity.ok(parameterValueService.getAllParameterValues());
+    public ResponseEntity<List<WeldingMachineParameterValueDTO>> getAllParameterValues() {
+        List<WeldingMachineParameterValueDTO> dtos = weldingMachineParameterValueService.getAllParameterValues().stream()
+            .map(WeldingMachineParameterValueMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     @Operation(
@@ -85,7 +91,7 @@ public class WeldingMachineParameterValueController {
             responseCode = "200",
             description = "Значение параметра успешно найдено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineParameterValue.class))
+                schema = @Schema(implementation = WeldingMachineParameterValueDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -107,11 +113,12 @@ public class WeldingMachineParameterValueController {
         )
     })
     @GetMapping("/{id}")
-    public ResponseEntity<WeldingMachineParameterValue> getParameterValueById(
+    public ResponseEntity<WeldingMachineParameterValueDTO> getParameterValueById(
         @Parameter(description = "ID значения параметра", required = true, example = "1")
         @PathVariable Long id
     ) {
-        return parameterValueService.getParameterValueById(id)
+        return weldingMachineParameterValueService.getParameterValueById(id)
+                .map(WeldingMachineParameterValueMapper::toDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -127,7 +134,7 @@ public class WeldingMachineParameterValueController {
             responseCode = "200",
             description = "Список значений параметров успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineParameterValue.class, type = "array"))
+                schema = @Schema(implementation = WeldingMachineParameterValueDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -149,11 +156,15 @@ public class WeldingMachineParameterValueController {
         )
     })
     @GetMapping("/state/{stateId}")
-    public ResponseEntity<List<WeldingMachineParameterValue>> getParameterValuesByStateId(
+    public ResponseEntity<List<WeldingMachineParameterValueDTO>> getParameterValuesByStateId(
         @Parameter(description = "ID состояния сварочной машины", required = true, example = "1")
         @PathVariable Long stateId
     ) {
-        return ResponseEntity.ok(parameterValueService.getParameterValuesByStateId(stateId));
+        List<WeldingMachineParameterValueDTO> dtos = weldingMachineParameterValueService.getParameterValuesByStateId(stateId).stream()
+        List<WeldingMachineParameterValueDTO> dtos = parameterValueService.getParameterValuesByStateId(stateId).stream()
+            .map(WeldingMachineParameterValueMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     @Operation(
@@ -167,7 +178,7 @@ public class WeldingMachineParameterValueController {
             responseCode = "200",
             description = "Значение параметра успешно найдено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineParameterValue.class))
+                schema = @Schema(implementation = WeldingMachineParameterValueDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -189,7 +200,7 @@ public class WeldingMachineParameterValueController {
         )
     })
     @GetMapping("/state/{stateId}/property/{propertyCode}")
-    public ResponseEntity<WeldingMachineParameterValue> getParameterValueByStateIdAndPropertyCode(
+    public ResponseEntity<WeldingMachineParameterValueDTO> getParameterValueByStateIdAndPropertyCode(
         @Parameter(description = "ID состояния сварочной машины", required = true, example = "1")
         @PathVariable Long stateId,
         
@@ -197,6 +208,7 @@ public class WeldingMachineParameterValueController {
         @PathVariable String propertyCode
     ) {
         return parameterValueService.getParameterValueByStateIdAndPropertyCode(stateId, propertyCode)
+                .map(WeldingMachineParameterValueMapper::toDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -213,7 +225,7 @@ public class WeldingMachineParameterValueController {
             responseCode = "200",
             description = "Список превышенных значений успешно получен",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineParameterValue.class, type = "array"))
+                schema = @Schema(implementation = WeldingMachineParameterValueDTO.class, type = "array"))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -235,11 +247,14 @@ public class WeldingMachineParameterValueController {
         )
     })
     @GetMapping("/state/{stateId}/exceeded")
-    public ResponseEntity<List<WeldingMachineParameterValue>> getExceededParameterValues(
+    public ResponseEntity<List<WeldingMachineParameterValueDTO>> getExceededParameterValues(
         @Parameter(description = "ID состояния сварочной машины", required = true, example = "1")
         @PathVariable Long stateId
     ) {
-        return ResponseEntity.ok(parameterValueService.getExceededParameterValues(stateId));
+        List<WeldingMachineParameterValueDTO> dtos = parameterValueService.getExceededParameterValues(stateId).stream()
+            .map(WeldingMachineParameterValueMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     @Operation(
@@ -254,7 +269,7 @@ public class WeldingMachineParameterValueController {
             responseCode = "201",
             description = "Значение параметра успешно создано",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineParameterValue.class))
+                schema = @Schema(implementation = WeldingMachineParameterValueDTO.class))
         ),
         @ApiResponse(
             responseCode = "400",
@@ -276,16 +291,12 @@ public class WeldingMachineParameterValueController {
         )
     })
     @PostMapping
-    public ResponseEntity<WeldingMachineParameterValue> createParameterValue(
+    public ResponseEntity<WeldingMachineParameterValueDTO> createParameterValue(
         @Parameter(description = "Данные значения параметра", required = true)
-        @RequestBody WeldingMachineParameterValue parameterValue
+        @RequestBody WeldingMachineParameterValueDTO valueDTO
     ) {
-        try {
-            WeldingMachineParameterValue createdParameterValue = parameterValueService.createParameterValue(parameterValue);
-            return new ResponseEntity<>(createdParameterValue, HttpStatus.CREATED);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        WeldingMachineParameterValue entity = WeldingMachineParameterValueMapper.toEntity(valueDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineParameterValueMapper.toDTO(weldingMachineParameterValueService.createParameterValue(entity)));
     }
 
     @Operation(
@@ -300,7 +311,7 @@ public class WeldingMachineParameterValueController {
             responseCode = "200",
             description = "Значение параметра успешно обновлено",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingMachineParameterValue.class))
+                schema = @Schema(implementation = WeldingMachineParameterValueDTO.class))
         ),
         @ApiResponse(
             responseCode = "404",
@@ -328,19 +339,15 @@ public class WeldingMachineParameterValueController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<WeldingMachineParameterValue> updateParameterValue(
+    public ResponseEntity<WeldingMachineParameterValueDTO> updateParameterValue(
         @Parameter(description = "ID значения параметра", required = true, example = "1")
-        @PathVariable Long id,
-        
+        @PathVariable Integer id,
         @Parameter(description = "Обновленные данные значения параметра", required = true)
-        @RequestBody WeldingMachineParameterValue parameterValue
+        @RequestBody WeldingMachineParameterValueDTO valueDTO
     ) {
-        try {
-            parameterValue.setId(id);
-            return ResponseEntity.ok(parameterValueService.updateParameterValue(parameterValue));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        WeldingMachineParameterValue entity = WeldingMachineParameterValueMapper.toEntity(valueDTO);
+        entity.setId(id.longValue());
+        return ResponseEntity.ok(WeldingMachineParameterValueMapper.toDTO(weldingMachineParameterValueService.updateParameterValue(entity)));
     }
 
     @Operation(
@@ -380,7 +387,7 @@ public class WeldingMachineParameterValueController {
         @PathVariable Long id
     ) {
         try {
-            parameterValueService.deleteParameterValue(id);
+            weldingMachineParameterValueService.deleteParameterValue(id);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -424,7 +431,7 @@ public class WeldingMachineParameterValueController {
         @PathVariable Long stateId
     ) {
         try {
-            parameterValueService.deleteAllParameterValues(stateId);
+            weldingMachineParameterValueService.deleteAllParameterValues(stateId);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
