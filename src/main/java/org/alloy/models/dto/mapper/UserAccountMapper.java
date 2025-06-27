@@ -29,4 +29,18 @@ public class UserAccountMapper {
         dto.setUsername(entity.getUserName());
         return dto;
     }
+
+    public static UserAccount toEntity(UserAccountDTO dto) {
+        if (dto == null) return null;
+        UserAccount entity = new UserAccount();
+        entity.setId(dto.getId());
+        entity.setUserName(dto.getUsername());
+        entity.setEmail(dto.getEmail());
+        entity.setName(dto.getFullName());
+        if (dto.getOrganizationUnit() != null) {
+            entity.setOrganizationUnitId(dto.getOrganizationUnit().getId());
+        }
+        // ... другие нужные поля
+        return entity;
+    }
 } 
