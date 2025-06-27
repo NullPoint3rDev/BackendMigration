@@ -13,4 +13,14 @@ public class AlertMapper {
         // ... другие нужные поля
         return dto;
     }
+
+    public static Alert toEntity(AlertDTO dto) {
+        if (dto == null) return null;
+        Alert entity = new Alert();
+        entity.setId(dto.getId());
+        entity.setMessage(dto.getMessage());
+        entity.setType(dto.getType());
+        // ... другие нужные поля
+        return entity;
+    }
 } 

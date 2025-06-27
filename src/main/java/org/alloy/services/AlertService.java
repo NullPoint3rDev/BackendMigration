@@ -28,4 +28,12 @@ public class AlertService {
     public void deleteById(Integer id) {
         alertRepository.deleteById(id);
     }
+
+    public Alert createAlert(Alert alert) {
+        return alertRepository.save(alert);
+    }
+
+    public Alert updateAlert(Alert alert) {
+        return alertRepository.save(alert);
+    }
 } 
