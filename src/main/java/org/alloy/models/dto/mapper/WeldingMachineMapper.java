@@ -11,16 +11,19 @@ public class WeldingMachineMapper {
         WeldingMachineDTO dto = new WeldingMachineDTO();
         dto.setId(entity.getId());
         dto.setName(entity.getName());
-        dto.setModel(entity.getModel());
         dto.setMac(entity.getMac());
         dto.setSerialNumber(entity.getSerialNumber());
         dto.setInventoryNumber(entity.getInventoryNumber());
-        dto.setImageUrl(entity.getImageUrl());
-        dto.setDepartment(entity.getDepartment());
         dto.setStatus(entity.getStatus() != null ? entity.getStatus().name() : null);
-        dto.setCommissionDate(entity.getCommissionDate());
-        dto.setManufactureYear(entity.getManufactureYear());
-        dto.setLastService(entity.getLastService());
+        dto.setCommissionDate(entity.getDateStartedUsing());
+        if (entity.getYearManufactured() != null) {
+            try {
+                dto.setManufactureYear(Integer.parseInt(entity.getYearManufactured()));
+            } catch (NumberFormatException e) {
+                dto.setManufactureYear(null);
+            }
+        }
+        dto.setLastService(entity.getLastServiceOn());
         // OrganizationUnitShortDTO
         if (entity.getOrganizationUnit() != null) {
             OrganizationUnitShortDTO orgDto = new OrganizationUnitShortDTO();
