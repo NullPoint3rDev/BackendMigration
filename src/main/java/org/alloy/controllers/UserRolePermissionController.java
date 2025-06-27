@@ -150,7 +150,7 @@ public class UserRolePermissionController {
         @RequestBody UserRolePermissionDTO dto
     ) {
         UserRolePermission entity = UserRolePermissionMapper.toEntity(dto);
-        return new ResponseEntity<>(UserRolePermissionMapper.toDTO(userRolePermissionService.createUserRolePermission(entity)), HttpStatus.CREATED);
+        return new ResponseEntity<>(UserRolePermissionMapper.toDTO(userRolePermissionService.save(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
@@ -201,7 +201,7 @@ public class UserRolePermissionController {
     ) {
         UserRolePermission entity = UserRolePermissionMapper.toEntity(dto);
         entity.setId(id);
-        return ResponseEntity.ok(UserRolePermissionMapper.toDTO(userRolePermissionService.updateUserRolePermission(entity)));
+        return ResponseEntity.ok(UserRolePermissionMapper.toDTO(userRolePermissionService.save(entity)));
     }
 
     @Operation(
