@@ -19,4 +19,16 @@ public class NotificationMapper {
         // ... другие нужные поля
         return dto;
     }
+
+    public static Notification toEntity(NotificationDTO dto) {
+        if (dto == null) return null;
+        Notification entity = new Notification();
+        entity.setId(dto.getId());
+        entity.setMessage(dto.getMessage());
+        entity.setType(dto.getType());
+        // TODO: Маппинг userAccount, если потребуется
+        // entity.setUserAccount(...);
+        // ... другие нужные поля
+        return entity;
+    }
 } 
