@@ -52,9 +52,12 @@ public class WeldingMachineMapper {
         entity.setYearManufactured(dto.getManufactureYear() != null ? dto.getManufactureYear().toString() : null);
         entity.setDateStartedUsing(dto.getCommissionDate());
         entity.setLastServiceOn(dto.getLastService());
-        // organizationUnitId и weldingMachineTypeId нужно выставлять отдельно, если DTO содержит эти данные
-        // entity.setOrganizationUnitId(...)
-        // entity.setWeldingMachineTypeId(...)
+        if (dto.getOrganizationUnit() != null) {
+            entity.setOrganizationUnitId(dto.getOrganizationUnit().getId());
+        }
+        if (dto.getWeldingMachineType() != null) {
+            entity.setWeldingMachineTypeId(dto.getWeldingMachineType().getId());
+        }
         // Можно добавить дополнительные поля, если они появятся в DTO
         return entity;
     }
