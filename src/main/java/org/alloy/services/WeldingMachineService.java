@@ -61,19 +61,17 @@ public class WeldingMachineService {
 
     public WeldingMachine createWeldingMachine(WeldingMachine weldingMachine) {
         // Validate required fields
-        if (weldingMachine.getSerialNumber() == null || weldingMachine.getSerialNumber().trim().isEmpty()) {
-            throw new IllegalArgumentException("Serial number is required");
+        if (weldingMachine.getMac() == null || weldingMachine.getMac().trim().isEmpty()) {
+            throw new IllegalArgumentException("MAC address is required");
+        }
+        if (weldingMachine.getName() == null || weldingMachine.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Name is required");
         }
         if (weldingMachine.getOrganizationUnitId() == null) {
             throw new IllegalArgumentException("Organization Unit ID is required");
         }
         if (weldingMachine.getWeldingMachineTypeId() == null) {
             throw new IllegalArgumentException("Type ID is required");
-        }
-
-        // Check if serial number already exists
-        if (weldingMachineRepository.findBySerialNumber(weldingMachine.getSerialNumber()).isPresent()) {
-            throw new IllegalArgumentException("A welding machine with this serial number already exists");
         }
 
         // Verify that the referenced entities exist
