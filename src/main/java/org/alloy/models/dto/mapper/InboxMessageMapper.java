@@ -23,4 +23,20 @@ public class InboxMessageMapper {
         // ... другие нужные поля
         return dto;
     }
+
+    public static InboxMessage toEntity(InboxMessageDTO dto) {
+        if (dto == null) return null;
+        InboxMessage entity = new InboxMessage();
+        entity.setId(dto.getId());
+        entity.setSubject(dto.getSubject());
+        entity.setMessage(dto.getBody());
+        if (dto.getSender() != null) {
+            entity.setUserAccountId(dto.getSender().getId());
+        }
+        if (dto.getRecipient() != null) {
+            entity.setUserAccountToId(dto.getRecipient().getId());
+        }
+        // ... другие нужные поля
+        return entity;
+    }
 } 
