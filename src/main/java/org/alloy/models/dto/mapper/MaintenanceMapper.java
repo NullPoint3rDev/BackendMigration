@@ -26,4 +26,19 @@ public class MaintenanceMapper {
         // ... другие нужные поля
         return dto;
     }
+
+    public static Maintenance toEntity(MaintenanceDTO dto) {
+        if (dto == null) return null;
+        Maintenance entity = new Maintenance();
+        entity.setId(dto.getId());
+        entity.setDescription(dto.getDescription());
+        if (dto.getWeldingMachine() != null) {
+            entity.setWeldingMachineId(dto.getWeldingMachine().getId());
+        }
+        if (dto.getUserAccount() != null) {
+            entity.setUserAccountId(dto.getUserAccount().getId());
+        }
+        // ... другие нужные поля
+        return entity;
+    }
 } 
