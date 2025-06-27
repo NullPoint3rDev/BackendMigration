@@ -161,7 +161,6 @@ public class WeldingMachineParameterValueController {
         @PathVariable Long stateId
     ) {
         List<WeldingMachineParameterValueDTO> dtos = weldingMachineParameterValueService.getParameterValuesByStateId(stateId).stream()
-        List<WeldingMachineParameterValueDTO> dtos = parameterValueService.getParameterValuesByStateId(stateId).stream()
             .map(WeldingMachineParameterValueMapper::toDTO)
             .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -207,7 +206,7 @@ public class WeldingMachineParameterValueController {
         @Parameter(description = "Код свойства параметра", required = true, example = "TEMPERATURE")
         @PathVariable String propertyCode
     ) {
-        return parameterValueService.getParameterValueByStateIdAndPropertyCode(stateId, propertyCode)
+        return weldingMachineParameterValueService.getParameterValueByStateIdAndPropertyCode(stateId, propertyCode)
                 .map(WeldingMachineParameterValueMapper::toDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -251,7 +250,7 @@ public class WeldingMachineParameterValueController {
         @Parameter(description = "ID состояния сварочной машины", required = true, example = "1")
         @PathVariable Long stateId
     ) {
-        List<WeldingMachineParameterValueDTO> dtos = parameterValueService.getExceededParameterValues(stateId).stream()
+        List<WeldingMachineParameterValueDTO> dtos = weldingMachineParameterValueService.getExceededParameterValues(stateId).stream()
             .map(WeldingMachineParameterValueMapper::toDTO)
             .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
