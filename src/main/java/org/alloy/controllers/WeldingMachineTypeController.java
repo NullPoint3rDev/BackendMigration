@@ -286,7 +286,7 @@ public class WeldingMachineTypeController {
         @RequestBody WeldingMachineTypeDTO typeDTO
     ) {
         WeldingMachineType entity = WeldingMachineTypeMapper.toEntity(typeDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineTypeMapper.toDTO(weldingMachineTypeService.save(entity)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineTypeMapper.toDTO(weldingMachineTypeService.createWeldingMachineType(entity)));
     }
 
     @Operation(
@@ -335,12 +335,12 @@ public class WeldingMachineTypeController {
         @Parameter(description = "Обновленные данные типа", required = true)
         @RequestBody WeldingMachineTypeDTO typeDTO
     ) {
-        if (!weldingMachineTypeService.findById(id).isPresent()) {
+        if (!weldingMachineTypeService.getWeldingMachineTypeById(id).isPresent()) {
             return ResponseEntity.notFound().build();
         }
         WeldingMachineType entity = WeldingMachineTypeMapper.toEntity(typeDTO);
         entity.setId(id);
-        return ResponseEntity.ok(WeldingMachineTypeMapper.toDTO(weldingMachineTypeService.save(entity)));
+        return ResponseEntity.ok(WeldingMachineTypeMapper.toDTO(weldingMachineTypeService.updateWeldingMachineType(entity)));
     }
 
     @Operation(
