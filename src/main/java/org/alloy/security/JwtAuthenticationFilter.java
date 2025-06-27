@@ -78,4 +78,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         logger.debug("No JWT token found in request: {}", request.getRequestURI());
         return null;
     }
+
 } 
