@@ -28,4 +28,12 @@ public class QueueTaskService {
     public void deleteById(Integer id) {
         queueTaskRepository.deleteById(id);
     }
+
+    public QueueTask createQueueTask(QueueTask queueTask) {
+        return queueTaskRepository.save(queueTask);
+    }
+
+    public QueueTask updateQueueTask(QueueTask queueTask) {
+        return queueTaskRepository.save(queueTask);
+    }
 } 

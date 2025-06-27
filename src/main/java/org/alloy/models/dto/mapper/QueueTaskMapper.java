@@ -13,4 +13,20 @@ public class QueueTaskMapper {
         // ... другие нужные поля
         return dto;
     }
+
+    public static QueueTask toEntity(QueueTaskDTO dto) {
+        if (dto == null) return null;
+        QueueTask entity = new QueueTask();
+        entity.setId(dto.getId());
+        entity.setTaskName(dto.getName());
+        if (dto.getStatus() != null) {
+            try {
+                entity.setStatus(Integer.parseInt(dto.getStatus()));
+            } catch (NumberFormatException e) {
+                entity.setStatus(null);
+            }
+        }
+        // ... другие нужные поля
+        return entity;
+    }
 } 
