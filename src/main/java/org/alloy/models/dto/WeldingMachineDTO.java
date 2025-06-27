@@ -1,7 +1,10 @@
 package org.alloy.models.dto;
 
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class WeldingMachineDTO {
     private Integer id;
     private String name;
@@ -12,6 +15,7 @@ public class WeldingMachineDTO {
     private String imageUrl;
     private String department;
     private String status;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime commissionDate;
     private Integer manufactureYear;
     private LocalDateTime lastService;
