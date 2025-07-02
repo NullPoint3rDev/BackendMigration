@@ -18,8 +18,8 @@ public class SupportController {
         System.out.println("[SUPPORT] Обращение: " + req.message + " | ФИО: " + req.fio + " | Телефон: " + req.phone + " | Username: " + req.username);
         // Отправка в Telegram-бота
         try {
-            String token = "<8082727205:AAGi07cbAe1XwVm-_jGKsmq8hGngvrhaXnk>"; // <-- Замените на ваш токен
-            String chatId = "<865492349>"; // <-- Замените на ваш chat_id
+            String token = "8082727205:AAGi07cbAe1XwVm-_jGKsmq8hGngvrhaXnk";
+            String chatId = "865492349";
             String text = "\uD83D\uDEA8 Новое обращение в поддержку!%0A" +
                     "Сообщение: " + req.message + "%0A" +
                     "ФИО: " + req.fio + "%0A" +
