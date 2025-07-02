@@ -81,6 +81,12 @@ public class LibraryDocumentController {
                 .body(resource);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDocument(@PathVariable Long id) {
+        service.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // DTO для передачи данных на фронт
     public static class LibraryDocumentDTO {
         public Long id;
