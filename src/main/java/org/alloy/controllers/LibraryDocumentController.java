@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/library-documents")
+@RequestMapping("/library-documents")
 public class LibraryDocumentController {
     private final LibraryDocumentService service;
     private final Path libraryDir = Paths.get("library");
