@@ -82,8 +82,8 @@ public class UserAccountController {
     @GetMapping
     public ResponseEntity<List<UserAccountDTO>> getAllUserAccounts() {
         List<UserAccountDTO> userAccounts = userAccountService.getAllUserAccounts().stream()
-            .map(UserAccountMapper::toDTO)
-            .collect(Collectors.toList());
+                .map(UserAccountMapper::toDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }
 
@@ -125,9 +125,9 @@ public class UserAccountController {
             @PathVariable Integer id
     ) {
         return userAccountService.getUserAccountById(id)
-            .map(UserAccountMapper::toDTO)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+                .map(UserAccountMapper::toDTO)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -167,9 +167,9 @@ public class UserAccountController {
             @PathVariable String userName
     ) {
         return userAccountService.getUserAccountByUserName(userName)
-            .map(UserAccountMapper::toDTO)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+                .map(UserAccountMapper::toDTO)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -209,9 +209,9 @@ public class UserAccountController {
             @PathVariable String email
     ) {
         return userAccountService.getUserAccountByEmail(email)
-            .map(UserAccountMapper::toDTO)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+                .map(UserAccountMapper::toDTO)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -245,8 +245,8 @@ public class UserAccountController {
             @PathVariable Integer organizationUnitId
     ) {
         List<UserAccountDTO> userAccounts = userAccountService.getUserAccountsByOrganizationUnitId(organizationUnitId).stream()
-            .map(UserAccountMapper::toDTO)
-            .collect(Collectors.toList());
+                .map(UserAccountMapper::toDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }
 
@@ -281,8 +281,8 @@ public class UserAccountController {
             @PathVariable Integer userRoleId
     ) {
         List<UserAccountDTO> userAccounts = userAccountService.getUserAccountsByUserRoleId(userRoleId).stream()
-            .map(UserAccountMapper::toDTO)
-            .collect(Collectors.toList());
+                .map(UserAccountMapper::toDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }
 
@@ -321,8 +321,8 @@ public class UserAccountController {
             @RequestParam String searchTerm
     ) {
         List<UserAccountDTO> userAccounts = userAccountService.searchUserAccounts(organizationUnitId, searchTerm).stream()
-            .map(UserAccountMapper::toDTO)
-            .collect(Collectors.toList());
+                .map(UserAccountMapper::toDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }
 
@@ -361,8 +361,8 @@ public class UserAccountController {
     })
     @PostMapping
     public ResponseEntity<UserAccountDTO> createUserAccount(
-        @Parameter(description = "Данные учетной записи", required = true)
-        @RequestBody UserAccountDTO userAccountDTO
+            @Parameter(description = "Данные учетной записи", required = true)
+            @RequestBody UserAccountDTO userAccountDTO
     ) {
         UserAccount entity = UserAccountMapper.toEntity(userAccountDTO);
         return new ResponseEntity<>(UserAccountMapper.toDTO(userAccountService.createUserAccount(entity)), HttpStatus.CREATED);
@@ -408,10 +408,10 @@ public class UserAccountController {
     })
     @PutMapping("/{id}")
     public ResponseEntity<UserAccountDTO> updateUserAccount(
-        @Parameter(description = "ID учетной записи", required = true, example = "1")
-        @PathVariable Integer id,
-        @Parameter(description = "Обновленные данные учетной записи", required = true)
-        @RequestBody UserAccountDTO userAccountDTO
+            @Parameter(description = "ID учетной записи", required = true, example = "1")
+            @PathVariable Integer id,
+            @Parameter(description = "Обновленные данные учетной записи", required = true)
+            @RequestBody UserAccountDTO userAccountDTO
     ) {
         UserAccount entity = UserAccountMapper.toEntity(userAccountDTO);
         entity.setId(id);
@@ -567,7 +567,7 @@ public class UserAccountController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String userName = auth.getName();
         UserAccount userAccount = userAccountService.getUserAccountByUserName(userName)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
         if (profileData.containsKey("position")) {
             userAccount.setPosition(profileData.get("position"));
         }
@@ -582,16 +582,16 @@ public class UserAccountController {
             summary = "Загрузить фото пользователя",
             description = "Загружает фото для текущего пользователя"
     )
-    @PostMapping("/photo")
+    @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UUID> uploadPhoto(
-            @RequestParam("file") MultipartFile file
+            @RequestPart("file") MultipartFile file
     ) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
-        
+
         UserAccount userAccount = userAccountService.getUserAccountByUserName(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         try {
             UUID photoId = userAccountService.uploadUserPhoto(userAccount.getId(), file);
             return ResponseEntity.ok(photoId);
