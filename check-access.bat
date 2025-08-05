@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set EXTERNAL_IP=5.227.31.124
+set EXTERNAL_IP=95.172.58.219
 set LOCAL_IP=192.168.0.100
 
 echo 🔍 Проверка доступности WeldTelecom приложения
