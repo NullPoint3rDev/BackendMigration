@@ -563,19 +563,47 @@ public class UserAccountController {
             description = "Обновляет профиль текущего пользователя"
     )
     @PutMapping("/profile")
-    public ResponseEntity<UserAccountDTO> updateProfile(@RequestBody Map<String, String> profileData) {
+    public ResponseEntity<UserAccountDTO> updateProfile(@RequestBody UserProfileUpdateDTO profileData) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String userName = auth.getName();
         UserAccount userAccount = userAccountService.getUserAccountByUserName(userName)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        if (profileData.containsKey("position")) {
-            userAccount.setPosition(profileData.get("position"));
-        }
-        if (profileData.containsKey("workplace")) {
-            userAccount.setWorkplace(profileData.get("workplace"));
-        }
+        if (profileData.getName() != null) userAccount.setName(profileData.getName());
+        if (profileData.getPosition() != null) userAccount.setPosition(profileData.getPosition());
+        if (profileData.getOrganizationId() != null) userAccount.setOrganizationUnitId(profileData.getOrganizationId());
+        if (profileData.getAbout() != null) userAccount.setDescription(profileData.getAbout());
+        // socials - если появится поле в UserAccount, добавить сохранение
+        // userAccount.setSocials(profileData.getSocials());
         UserAccount updated = userAccountService.updateUserAccount(userAccount);
         return ResponseEntity.ok(UserAccountMapper.toDTO(updated));
+    }
+
+    public static class UserProfileUpdateDTO {
+        private String name;
+        private String position;
+        private Integer organizationId;
+        private String about;
+        private List<SocialLink> socials;
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getPosition() { return position; }
+        public void setPosition(String position) { this.position = position; }
+        public Integer getOrganizationId() { return organizationId; }
+        public void setOrganizationId(Integer organizationId) { this.organizationId = organizationId; }
+        public String getAbout() { return about; }
+        public void setAbout(String about) { this.about = about; }
+        public List<SocialLink> getSocials() { return socials; }
+        public void setSocials(List<SocialLink> socials) { this.socials = socials; }
+    }
+
+    public static class SocialLink {
+        private String type;
+        private String url;
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
     }
 
     @Operation(
