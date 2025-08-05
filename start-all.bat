@@ -7,14 +7,21 @@ echo.
 REM Start backend in background
 echo Starting Backend...
 REM Backend находится в текущей папке
-start "Backend" cmd /k "call mvnw.cmd spring-boot:run"
+REM Проверяем наличие mvnw.cmd, если нет - используем mvn
+if exist mvnw.cmd (
+    start "Backend" cmd /k "call mvnw.cmd spring-boot:run"
+) else (
+    echo Maven wrapper not found, using mvn command...
+    start "Backend" cmd /k "mvn spring-boot:run"
+)
 
 REM Wait for backend to start
 timeout /t 10 /nobreak > nul
 
 REM Start frontend
 echo Starting Frontend...
-cd WebstormProjects\BetaFrontWT
+REM Frontend находится в отдельной папке
+cd ..\..\WebstormProjects\BetaFrontWT
 set REACT_APP_API_URL=http://95.172.58.219:8084/api
 set HOST=0.0.0.0
 set PORT=3001
