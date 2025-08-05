@@ -14,7 +14,7 @@ spring:
         format_sql: true
 
 server:
-  port: 8083
+  port: 8084
   address: 0.0.0.0
   servlet:
     context-path: /api
