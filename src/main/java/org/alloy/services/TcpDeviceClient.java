@@ -8,7 +8,7 @@ import java.io.InputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
-@Service
+// @Service
 public class TcpDeviceClient {
     private final String host = "95.172.58.219";
     private final int port = 3000;

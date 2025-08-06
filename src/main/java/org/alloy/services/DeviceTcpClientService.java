@@ -10,7 +10,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-@Service
+// @Service
 public class DeviceTcpClientService {
     private static final String DEVICE_IP = "95.172.58.219";
     private static final int DEVICE_PORT = 3000;

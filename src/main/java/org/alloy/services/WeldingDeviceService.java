@@ -12,7 +12,7 @@ import java.net.Socket;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-@Service
+// @Service
 public class WeldingDeviceService {
     private static final String DEVICE_IP = "95.172.58.219";
     private static final int DEVICE_PORT = 3000;
