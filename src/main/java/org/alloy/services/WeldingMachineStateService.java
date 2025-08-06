@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.alloy.models.GeneralStatus;
 
 @Service
 @Transactional
@@ -29,39 +30,53 @@ public class WeldingMachineStateService {
     @Transactional
     public void saveMachineState(String mac, StateSummary stateSummary) {
         try {
-            // Находим сварочный аппарат по MAC-адресу
+            // Ищем сварочный аппарат по MAC
             Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
+            WeldingMachine machine;
+            
             if (!machineOpt.isPresent()) {
-                System.err.println("[STATE-SERVICE] Сварочный аппарат с MAC " + mac + " не найден");
-                return;
+                // Создаем новый сварочный аппарат если не найден
+                System.out.println("[STATE-SERVICE] 🔧 Создание нового сварочного аппарата с MAC: " + mac);
+                machine = new WeldingMachine();
+                machine.setMac(mac);
+                machine.setName("Сварочный аппарат " + mac);
+                machine.setDescription("Автоматически созданный аппарат");
+                machine.setStatus(GeneralStatus.Active);
+                machine.setDateCreated(LocalDateTime.now());
+                machine.setLastOnlineOn(LocalDateTime.now());
+                machine.setOrganizationUnitId(1); // Временное значение
+                machine.setWeldingMachineTypeId(1); // Временное значение
+                
+                // Сохраняем аппарат
+                machine = weldingMachineRepository.save(machine);
+                System.out.println("[STATE-SERVICE] ✅ Сварочный аппарат создан с ID: " + machine.getId());
+            } else {
+                machine = machineOpt.get();
+                // Обновляем время последнего подключения
+                machine.setLastOnlineOn(LocalDateTime.now());
+                weldingMachineRepository.save(machine);
             }
-
-            WeldingMachine machine = machineOpt.get();
-
-            // Создаем новое состояние
+            
+            // Создаем состояние
             WeldingMachineState state = new WeldingMachineState();
             state.setWeldingMachineId(machine.getId());
             state.setDateCreated(LocalDateTime.now());
             state.setDateUpdated(LocalDateTime.now());
             state.setWeldingMachineStatus(stateSummary.getStatus());
-            state.setStateDurationMs(0L); // Можно вычислить на основе предыдущего состояния
-
-            // Устанавливаем ошибку, если есть
-            if (stateSummary.getErrorCode() != null) {
-                state.setErrorCode(stateSummary.getErrorCode());
-            }
-
+            state.setControl(stateSummary.getControl());
+            state.setControlState(stateSummary.getControlState());
+            state.setErrorCode(stateSummary.getErrorCode());
+            state.setLimitsExceeded(stateSummary.isLimitsExceeded());
+            state.setStateDurationMs(0L);
+            
             // Сохраняем состояние
             weldingMachineStateRepository.save(state);
-
-            // Обновляем время последнего онлайн
-            machine.setLastOnlineOn(LocalDateTime.now());
-            weldingMachineRepository.save(machine);
-
+            
             System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата " + mac);
-
+            
         } catch (Exception e) {
-            System.err.println("[STATE-SERVICE] Ошибка сохранения состояния: " + e.getMessage());
+            System.err.println("[STATE-SERVICE] ❌ Ошибка сохранения состояния: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

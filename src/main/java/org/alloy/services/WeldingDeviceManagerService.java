@@ -40,24 +40,23 @@ public class WeldingDeviceManagerService {
     public void processDeviceData(String data, String mac) {
         try {
             // Парсим данные
-            StateSummary state = dataParser.parseWeldingData(data, mac);
+            StateSummary stateSummary = dataParser.parseWeldingData(data, mac);
             
-            if (state != null) {
-                // Сохраняем состояние
-                stateService.saveMachineState(mac, state);
-                
-                // Обновляем локальное состояние
-                deviceStates.put(mac, state);
-                connectionStatus.put(mac, true);
-                
-                // Отправляем через WebSocket
-                deviceController.sendDeviceState(state);
-                
-                System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
-            }
+            // Сохраняем в базу данных
+            stateService.saveMachineState(mac, stateSummary);
+            
+            // Обновляем локальное состояние
+            deviceStates.put(mac, stateSummary);
+            connectionStatus.put(mac, true);
+            
+            // Отправляем через WebSocket
+            deviceController.sendDeviceState(stateSummary);
+            
+            System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
+            
         } catch (Exception e) {
-            System.err.println("[DEVICE-MANAGER] Ошибка обработки данных от " + mac + ": " + e.getMessage());
-            connectionStatus.put(mac, false);
+            System.err.println("[DEVICE-MANAGER] ❌ Ошибка обработки данных от " + mac + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

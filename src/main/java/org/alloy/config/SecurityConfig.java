@@ -88,7 +88,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 "http://192.168.10.58:3001",
                 "http://alloynn.keenetic.name:3001",
                 "http://95.172.58.219:3001",
-                "http://5.227.31.124:3001"
+                "http://5.227.31.124:3001",
+                "http://alloynn.keenetic.name:*",
+                "http://95.172.58.219:*",
+                "http://5.227.31.124:*"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
