@@ -15,7 +15,7 @@ import java.net.Socket;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-@Service
+// @Service
 public class WeldingDeviceHttpServer {
     private static final int HTTP_PORT = 3000;
     private static final String EXPECTED_MAC = "8CAAB579425A";
