@@ -5,6 +5,8 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Controller
 public class DeviceController {
@@ -16,7 +18,12 @@ public class DeviceController {
     }
 
     public void sendDeviceData(String data) {
-        messagingTemplate.convertAndSend("/topic/device", data);
+        // Добавляем временную метку к данным
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String enrichedData = timestamp + "|" + data;
+        
+        System.out.println("[DEVICE-CONTROLLER] Отправка данных: " + enrichedData);
+        messagingTemplate.convertAndSend("/topic/device", enrichedData);
     }
     @MessageMapping("/device")
     @SendTo("/topic/device")

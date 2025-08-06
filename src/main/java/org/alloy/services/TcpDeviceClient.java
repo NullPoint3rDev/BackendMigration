@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 
 @Service
 public class TcpDeviceClient {
-    private final String host = "89.109.8.59";
+    private final String host = "95.172.58.219";
     private final int port = 3000;
     private volatile boolean running = true;
     private Thread clientThread;
@@ -37,9 +37,15 @@ public class TcpDeviceClient {
                             if (pos2 > 0 && pos2 - pos1 == 13) {
                                 mac = data.substring(pos1 + 1, pos1 + 13);
                                 System.out.println("[TCP-CLIENT] MAC from packet: " + mac);
+                                
+                                // Проверяем, что это наша плата
+                                if ("8CAAB579425A".equals(mac)) {
+                                    System.out.println("[TCP-CLIENT] ✅ Данные от нашей платы: " + data);
+                                    // Здесь можно добавить обработку данных сварочного аппарата
+                                    processWeldingData(data);
+                                }
                             }
                         }
-                        // Здесь можно добавить обработку данных
                     }
                 } catch (Exception e) {
                     System.err.println("[TCP-CLIENT] Error: " + e.getMessage());
@@ -51,6 +57,29 @@ public class TcpDeviceClient {
         });
         clientThread.setDaemon(true);
         clientThread.start();
+    }
+
+    private void processWeldingData(String data) {
+        try {
+            // Парсим данные сварочного аппарата
+            // Формат данных может быть: MAC:PARAM1=VAL1;PARAM2=VAL2;...
+            String[] parts = data.split(";");
+            for (String part : parts) {
+                if (part.contains("=")) {
+                    String[] keyValue = part.split("=");
+                    if (keyValue.length == 2) {
+                        String key = keyValue[0];
+                        String value = keyValue[1];
+                        System.out.println("[TCP-CLIENT] Параметр: " + key + " = " + value);
+                        
+                        // Здесь можно добавить сохранение в базу данных
+                        // или отправку через WebSocket на фронтенд
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[TCP-CLIENT] Ошибка обработки данных: " + e.getMessage());
+        }
     }
 
     @PreDestroy

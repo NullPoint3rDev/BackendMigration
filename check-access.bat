@@ -30,6 +30,9 @@ powershell -Command "try { Invoke-WebRequest -Uri 'http://%EXTERNAL_IP%:8085/api
 echo -n Frontend (внешне): 
 powershell -Command "try { Invoke-WebRequest -Uri 'http://%EXTERNAL_IP%:3001' -TimeoutSec 5 | Out-Null; Write-Host '✅ Доступен' } catch { Write-Host '❌ Недоступен (возможно, не настроен проброс портов)' }"
 
+echo -n Device Port (внешне): 
+powershell -Command "try { $socket = New-Object System.Net.Sockets.TcpClient; $socket.Connect('%EXTERNAL_IP%', 3000); $socket.Close(); Write-Host '✅ Доступен' } catch { Write-Host '❌ Недоступен (порт 3000 для платы)' }"
+
 echo.
 
 echo 🌍 Текущий внешний IP:
