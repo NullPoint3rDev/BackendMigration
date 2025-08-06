@@ -114,16 +114,16 @@ public class WeldingDataParserService {
             String ctrlValue = ctrlProp.getValue();
             switch (ctrlValue) {
                 case "00":
-                    return WeldingMachineStatus.READY;
+                    return WeldingMachineStatus.Idle;
                 case "01":
-                    return WeldingMachineStatus.WORKING;
+                    return WeldingMachineStatus.Welding;
                 case "02":
-                    return WeldingMachineStatus.ERROR;
+                    return WeldingMachineStatus.Error;
                 default:
-                    return WeldingMachineStatus.OFFLINE;
+                    return WeldingMachineStatus.Offline;
             }
         }
-        return WeldingMachineStatus.OFFLINE;
+        return WeldingMachineStatus.Offline;
     }
 
     private String determineErrorCode(Map<String, StateSummaryPropertyValue> properties) {

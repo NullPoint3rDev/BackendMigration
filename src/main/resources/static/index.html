@@ -233,7 +233,7 @@
                 // Обновляем статус аппарата
                 const statusText = getStatusText(state.status);
                 deviceStatusDiv.textContent = statusText;
-                deviceStatusDiv.className = 'status ' + (state.status === 'WORKING' || state.status === 'READY' ? 'connected' : 'disconnected');
+                deviceStatusDiv.className = 'status ' + (state.status === 'Welding' || state.status === 'Idle' || state.status === 'Online' ? 'connected' : 'disconnected');
                 
                 // Обновляем параметры
                 if (state.properties) {
@@ -268,10 +268,14 @@
 
         function getStatusText(status) {
             const statusMap = {
-                'READY': 'Готов к работе',
-                'WORKING': 'Работает',
-                'ERROR': 'Ошибка',
-                'OFFLINE': 'Отключен'
+                'Idle': 'Готов к работе',
+                'Welding': 'Работает',
+                'Error': 'Ошибка',
+                'Offline': 'Отключен',
+                'Online': 'Подключен',
+                'Maintenance': 'Обслуживание',
+                'Calibration': 'Калибровка',
+                'Testing': 'Тестирование'
             };
             return statusMap[status] || status || 'Неизвестно';
         }
