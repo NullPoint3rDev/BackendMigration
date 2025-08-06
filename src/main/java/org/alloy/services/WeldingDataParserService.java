@@ -55,45 +55,101 @@ public class WeldingDataParserService {
     private Map<String, StateSummaryPropertyValue> parseParameters(String payload) {
         Map<String, StateSummaryPropertyValue> properties = new HashMap<>();
 
-        // Простой парсинг по позициям (можно улучшить с конфигурацией)
+        System.out.println("[PARSER] 🔍 Анализ payload по позициям:");
+        System.out.println("[PARSER] 📏 Общая длина: " + payload.length());
+        
+        // Логируем первые 50 символов для анализа
+        System.out.println("[PARSER] 📋 Первые 50 символов: " + payload.substring(0, Math.min(50, payload.length())));
+        
+        // Анализируем структуру данных
         if (payload.length() >= 2) {
-            // Модель аппарата (первые 2 символа)
-            addProperty(properties, "MODEL", payload.substring(0, 2), "number");
+            String model = payload.substring(0, 2);
+            System.out.println("[PARSER] 🏷️ Позиции 0-1 (MODEL): " + model);
+            addProperty(properties, "MODEL", model, "number");
         }
 
         if (payload.length() >= 4) {
-            // Версия прошивки (позиции 2-3)
-            addProperty(properties, "VERSION", payload.substring(2, 4), "number");
+            String version = payload.substring(2, 4);
+            System.out.println("[PARSER] 🔢 Позиции 2-3 (VERSION): " + version);
+            addProperty(properties, "VERSION", version, "number");
         }
 
         if (payload.length() >= 6) {
-            // Материал (позиции 4-5)
-            addProperty(properties, "State.material", payload.substring(4, 6), "enum");
+            String material = payload.substring(4, 6);
+            System.out.println("[PARSER] 🧱 Позиции 4-5 (MATERIAL): " + material);
+            addProperty(properties, "State.material", material, "enum");
         }
 
         if (payload.length() >= 8) {
-            // Ток (позиции 6-7)
-            addProperty(properties, "State.I", payload.substring(6, 8), "number");
+            String current = payload.substring(6, 8);
+            System.out.println("[PARSER] ⚡ Позиции 6-7 (CURRENT): " + current);
+            addProperty(properties, "State.I", current, "number");
         }
 
         if (payload.length() >= 10) {
-            // Напряжение (позиции 8-9)
-            addProperty(properties, "State.U", payload.substring(8, 10), "number");
+            String voltage = payload.substring(8, 10);
+            System.out.println("[PARSER] 🔌 Позиции 8-9 (VOLTAGE): " + voltage);
+            addProperty(properties, "State.U", voltage, "number");
         }
 
         if (payload.length() >= 12) {
-            // Расход газа (позиции 10-11)
-            addProperty(properties, "State.GasFlow", payload.substring(10, 12), "number");
+            String gasFlow = payload.substring(10, 12);
+            System.out.println("[PARSER] 💨 Позиции 10-11 (GAS_FLOW): " + gasFlow);
+            addProperty(properties, "State.GasFlow", gasFlow, "number");
         }
 
         if (payload.length() >= 14) {
-            // Температура (позиции 12-13)
-            addProperty(properties, "State.Temperature", payload.substring(12, 14), "number");
+            String temperature = payload.substring(12, 14);
+            System.out.println("[PARSER] 🌡️ Позиции 12-13 (TEMPERATURE): " + temperature);
+            addProperty(properties, "State.Temperature", temperature, "number");
         }
 
         if (payload.length() >= 16) {
-            // Статус управления (позиции 14-15)
-            addProperty(properties, "State.Ctrl", payload.substring(14, 16), "enum");
+            String control = payload.substring(14, 16);
+            System.out.println("[PARSER] 🎛️ Позиции 14-15 (CONTROL): " + control);
+            addProperty(properties, "State.Ctrl", control, "enum");
+        }
+
+        // Попробуем найти ток в других позициях
+        if (payload.length() >= 20) {
+            String possibleCurrent1 = payload.substring(16, 18);
+            String possibleCurrent2 = payload.substring(18, 20);
+            System.out.println("[PARSER] 🔍 Позиции 16-17 (возможный ток 1): " + possibleCurrent1);
+            System.out.println("[PARSER] 🔍 Позиции 18-19 (возможный ток 2): " + possibleCurrent2);
+        }
+
+        if (payload.length() >= 24) {
+            String possibleCurrent3 = payload.substring(20, 22);
+            String possibleCurrent4 = payload.substring(22, 24);
+            System.out.println("[PARSER] 🔍 Позиции 20-21 (возможный ток 3): " + possibleCurrent3);
+            System.out.println("[PARSER] 🔍 Позиции 22-23 (возможный ток 4): " + possibleCurrent4);
+        }
+
+        // Попробуем найти ток в позициях, где он может быть (на основе анализа данных)
+        if (payload.length() >= 40) {
+            // Позиции 30-31 могут содержать ток
+            String possibleCurrent5 = payload.substring(30, 32);
+            String possibleCurrent6 = payload.substring(32, 34);
+            System.out.println("[PARSER] 🔍 Позиции 30-31 (возможный ток 5): " + possibleCurrent5);
+            System.out.println("[PARSER] 🔍 Позиции 32-33 (возможный ток 6): " + possibleCurrent6);
+            
+            // Попробуем интерпретировать как ток
+            try {
+                int currentValue5 = Integer.parseInt(possibleCurrent5, 16);
+                int currentValue6 = Integer.parseInt(possibleCurrent6, 16);
+                System.out.println("[PARSER] 🔢 Позиции 30-31 как число: " + currentValue5);
+                System.out.println("[PARSER] 🔢 Позиции 32-33 как число: " + currentValue6);
+            } catch (NumberFormatException e) {
+                System.out.println("[PARSER] ⚠️ Не удалось преобразовать в число");
+            }
+        }
+
+        // Попробуем найти ток в позициях 40-50
+        if (payload.length() >= 50) {
+            String possibleCurrent7 = payload.substring(40, 42);
+            String possibleCurrent8 = payload.substring(42, 44);
+            System.out.println("[PARSER] 🔍 Позиции 40-41 (возможный ток 7): " + possibleCurrent7);
+            System.out.println("[PARSER] 🔍 Позиции 42-43 (возможный ток 8): " + possibleCurrent8);
         }
 
         return properties;
