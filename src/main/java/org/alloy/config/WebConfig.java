@@ -11,6 +11,12 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOriginPatterns("*") // Разрешаем доступ с любого IP
+                .allowedOrigins(
+                    "http://95.172.58.219:3001",
+                    "http://localhost:3001", 
+                    "http://192.168.0.100:3001",
+                    "http://alloynn.keenetic.name:3001"
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .maxAge(3600);
