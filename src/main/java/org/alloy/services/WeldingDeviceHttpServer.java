@@ -88,8 +88,16 @@ public class WeldingDeviceHttpServer {
             String fullRequest = request.toString() + body.toString();
             System.out.println("[WELDING-HTTP] Получен запрос от " + clientIp + ":\n" + fullRequest);
             
-            // Обрабатываем данные
-            processDeviceData(fullRequest, clientIp);
+            // Проверяем, что это наша плата
+            if (clientIp.equals("95.172.58.219") || fullRequest.contains("8CAAB579425A")) {
+                System.out.println("[WELDING-HTTP] ✅ Это наша плата сварочного аппарата!");
+                // Обрабатываем данные
+                processDeviceData(fullRequest, clientIp);
+            } else {
+                System.out.println("[WELDING-HTTP] ⚠️ Неизвестное устройство: " + clientIp);
+                System.out.println("[WELDING-HTTP] Ожидаемый IP: 95.172.58.219");
+                System.out.println("[WELDING-HTTP] Ожидаемый MAC: 8CAAB579425A");
+            }
             
             // Отправляем HTTP ответ
             String response = "HTTP/1.1 200 OK\r\n" +
