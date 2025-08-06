@@ -14,16 +14,20 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.ResponseEntity;
 import java.util.Map;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.alloy.services.WeldingDataParserService;
 
 @Controller
 public class DeviceController {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private final WeldingDataParserService weldingDataParserService;
 
     @Autowired
-    public DeviceController(SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper) {
+    public DeviceController(SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper, WeldingDataParserService weldingDataParserService) {
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
+        this.weldingDataParserService = weldingDataParserService;
     }
 
     public void sendDeviceData(String data) {
@@ -75,7 +79,7 @@ public class DeviceController {
         return "Команда получена: " + command;
     }
     
-    // Тестовый endpoint для проверки WebSocket
+    // Test endpoint for WebSocket
     @GetMapping("/test-websocket")
     public ResponseEntity<String> testWebSocket() {
         try {
@@ -83,9 +87,44 @@ public class DeviceController {
             testState.setStatus(WeldingMachineStatus.Idle);
             testState.setDateCreated(LocalDateTime.now());
             testState.setLastDatetimeUpdate(LocalDateTime.now());
-            
+
             sendDeviceState(testState);
             return ResponseEntity.ok("Тестовое сообщение отправлено через WebSocket");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Ошибка: " + e.getMessage());
+        }
+    }
+
+    // Test endpoint for current position testing
+    @GetMapping("/test-current-position")
+    public ResponseEntity<String> testCurrentPosition(@RequestParam(defaultValue = "6") int position) {
+        try {
+            // Создаем тестовые данные с током в указанной позиции
+            String testData = "8CAAB579425A;";
+            
+            // Заполняем данные до нужной позиции
+            for (int i = 0; i < position; i += 2) {
+                testData += "00";
+            }
+            
+            // Добавляем ток 65 (41 в hex) в указанную позицию
+            testData += "41";
+            
+            // Добавляем остальные данные
+            for (int i = position + 2; i < 50; i += 2) {
+                testData += "00";
+            }
+            
+            System.out.println("[TEST] Тестовые данные: " + testData);
+            System.out.println("[TEST] Позиция тока: " + position);
+            
+            // Парсим данные
+            StateSummary state = weldingDataParserService.parseWeldingData(testData, "8CAAB579425A");
+            
+            // Отправляем через WebSocket
+            sendDeviceState(state);
+            
+            return ResponseEntity.ok("Тест позиции " + position + " выполнен. Данные: " + testData);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Ошибка: " + e.getMessage());
         }

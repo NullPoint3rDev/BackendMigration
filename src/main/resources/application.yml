@@ -63,3 +63,6 @@ welding:
     timeout_ms: 10000
     retry_interval_ms: 5000
     max_retries: 3
+  parser:
+    current_position: 6 # Позиция тока в payload (по умолчанию 6-7)
+    debug_mode: true # Включить детальное логирование парсера
