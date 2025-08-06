@@ -59,8 +59,16 @@ public class WeldingMachineStateService {
                     machine.setOrganizationUnitId(orgUnits.get(0).getId());
                     System.out.println("[STATE-SERVICE] Используем организационную единицу: " + orgUnits.get(0).getName());
                 } else {
-                    System.out.println("[STATE-SERVICE] ⚠️ Организационные единицы не найдены, используем null");
-                    machine.setOrganizationUnitId(null);
+                    // Создаем организационную единицу если её нет
+                    System.out.println("[STATE-SERVICE] Создаем организационную единицу...");
+                    org.alloy.models.entities.OrganizationUnit orgUnit = new org.alloy.models.entities.OrganizationUnit();
+                    orgUnit.setName("Основная организация");
+                    orgUnit.setDescription("Автоматически созданная организация");
+                    orgUnit.setStatus(GeneralStatus.Active);
+                    orgUnit.setDateCreated(LocalDateTime.now());
+                    orgUnit = organizationUnitRepository.save(orgUnit);
+                    machine.setOrganizationUnitId(orgUnit.getId());
+                    System.out.println("[STATE-SERVICE] ✅ Организационная единица создана с ID: " + orgUnit.getId());
                 }
                 
                 List<org.alloy.models.entities.WeldingMachineType> machineTypes = weldingMachineTypeRepository.findAll();
@@ -68,8 +76,16 @@ public class WeldingMachineStateService {
                     machine.setWeldingMachineTypeId(machineTypes.get(0).getId());
                     System.out.println("[STATE-SERVICE] Используем тип аппарата: " + machineTypes.get(0).getName());
                 } else {
-                    System.out.println("[STATE-SERVICE] ⚠️ Типы сварочных аппаратов не найдены, используем null");
-                    machine.setWeldingMachineTypeId(null);
+                    // Создаем тип сварочного аппарата если его нет
+                    System.out.println("[STATE-SERVICE] Создаем тип сварочного аппарата...");
+                    org.alloy.models.entities.WeldingMachineType machineType = new org.alloy.models.entities.WeldingMachineType();
+                    machineType.setName("MP-500");
+                    machineType.setDescription("Автоматически созданный тип аппарата");
+                    machineType.setStatus(GeneralStatus.Active);
+                    machineType.setDateCreated(LocalDateTime.now());
+                    machineType = weldingMachineTypeRepository.save(machineType);
+                    machine.setWeldingMachineTypeId(machineType.getId());
+                    System.out.println("[STATE-SERVICE] ✅ Тип аппарата создан с ID: " + machineType.getId());
                 }
                 
                 // Сохраняем аппарат

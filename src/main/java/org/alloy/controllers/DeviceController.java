@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.ResponseEntity;
+import java.util.Map;
+import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
 
 @Controller
 public class DeviceController {
@@ -26,17 +28,13 @@ public class DeviceController {
 
     public void sendDeviceData(String data) {
         try {
-            // Добавляем временную метку к данным
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            String enrichedData = timestamp + "|" + data;
-            
-            System.out.println("[DEVICE-CONTROLLER] Отправка данных: " + enrichedData);
-            messagingTemplate.convertAndSend("/topic/device", enrichedData);
+            messagingTemplate.convertAndSend("/topic/device", data);
+            System.out.println("[DEVICE-CONTROLLER] 📤 Отправка сырых данных: " + data);
         } catch (Exception e) {
-            System.err.println("[DEVICE-CONTROLLER] Ошибка отправки данных: " + e.getMessage());
+            System.err.println("[DEVICE-CONTROLLER] ❌ Ошибка отправки данных: " + e.getMessage());
         }
     }
-
+    
     public void sendDeviceState(StateSummary state) {
         try {
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
@@ -48,6 +46,21 @@ public class DeviceController {
             System.out.println("[DEVICE-CONTROLLER] 📤 Отправка состояния: " + jsonData);
             messagingTemplate.convertAndSend("/topic/device-state", jsonData);
             System.out.println("[DEVICE-CONTROLLER] ✅ Состояние отправлено на /topic/device-state");
+            
+            // Также отправляем данные в формате, который ожидает фронтенд
+            if (state.getProperties() != null) {
+                StringBuilder dataString = new StringBuilder();
+                dataString.append(timestamp).append("|");
+                dataString.append("8CAAB579425A:"); // MAC адрес
+                
+                for (Map.Entry<String, StateSummaryPropertyValue> entry : state.getProperties().entrySet()) {
+                    dataString.append(entry.getKey()).append(":").append(entry.getValue().getValue()).append(";");
+                }
+                
+                String rawData = dataString.toString();
+                System.out.println("[DEVICE-CONTROLLER] 📤 Отправка данных в старом формате: " + rawData);
+                messagingTemplate.convertAndSend("/topic/device", rawData);
+            }
             
         } catch (Exception e) {
             System.err.println("[DEVICE-CONTROLLER] ❌ Ошибка отправки состояния: " + e.getMessage());
