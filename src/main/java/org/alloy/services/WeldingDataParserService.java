@@ -81,6 +81,10 @@ public class WeldingDataParserService {
         // Анализируем каждые 2 символа для поиска возможного тока
         if (debugMode) {
             System.out.println("[PARSER] 🔍 Поиск возможных значений тока:");
+            int bestCurrentPosition = -1;
+            int bestCurrentValue = -1;
+            int minDifference = Integer.MAX_VALUE;
+            
             for (int i = 0; i < payload.length() - 1; i += 2) {
                 if (i + 1 < payload.length()) {
                     String value = payload.substring(i, i + 2);
@@ -94,11 +98,26 @@ public class WeldingDataParserService {
                         // Если это число в диапазоне 50-200, это может быть ток
                         if (numValue >= 50 && numValue <= 200) {
                             System.out.println("[PARSER]     ⚡ ВОЗМОЖНЫЙ ТОК! Значение: " + numValue);
+                            
+                            // Ищем значение, наиболее близкое к 65
+                            int difference = Math.abs(numValue - 65);
+                            if (difference < minDifference) {
+                                minDifference = difference;
+                                bestCurrentPosition = i;
+                                bestCurrentValue = numValue;
+                            }
                         }
                     } catch (NumberFormatException e) {
                         // Не число, пропускаем
                     }
                 }
+            }
+            
+            if (bestCurrentPosition >= 0) {
+                System.out.println("[PARSER] 🎯 НАИЛУЧШИЙ КАНДИДАТ НА ТОК:");
+                System.out.println("[PARSER]    Позиция: " + bestCurrentPosition + "-" + (bestCurrentPosition+1));
+                System.out.println("[PARSER]    Значение: " + bestCurrentValue);
+                System.out.println("[PARSER]    Разница с 65: " + minDifference);
             }
         }
         
@@ -146,6 +165,40 @@ public class WeldingDataParserService {
             }
             // Обновляем значение тока на конфигурируемое
             addProperty(properties, "State.I", configurableCurrent, "number");
+        }
+        
+        // Автоматический поиск лучшей позиции тока (если включен debug_mode)
+        if (debugMode) {
+            // Повторяем поиск лучшей позиции для автоматического использования
+            int bestCurrentPosition = -1;
+            int bestCurrentValue = -1;
+            int minDifference = Integer.MAX_VALUE;
+            
+            for (int i = 0; i < payload.length() - 1; i += 2) {
+                if (i + 1 < payload.length()) {
+                    try {
+                        String value = payload.substring(i, i + 2);
+                        int numValue = Integer.parseInt(value, 16);
+                        
+                        if (numValue >= 50 && numValue <= 200) {
+                            int difference = Math.abs(numValue - 65);
+                            if (difference < minDifference) {
+                                minDifference = difference;
+                                bestCurrentPosition = i;
+                                bestCurrentValue = numValue;
+                            }
+                        }
+                    } catch (NumberFormatException e) {
+                        // Пропускаем
+                    }
+                }
+            }
+            
+            if (bestCurrentPosition >= 0) {
+                String bestCurrent = payload.substring(bestCurrentPosition, bestCurrentPosition + 2);
+                System.out.println("[PARSER] 🔄 Автоматически используем лучшую позицию тока: " + bestCurrentPosition + "-" + (bestCurrentPosition+1) + " = " + bestCurrentValue);
+                addProperty(properties, "State.I", bestCurrent, "number");
+            }
         }
         if (payload.length() >= 10) {
             String voltage = payload.substring(8, 10);

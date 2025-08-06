@@ -64,5 +64,5 @@ welding:
     retry_interval_ms: 5000
     max_retries: 3
   parser:
-    current_position: 6 # Позиция тока в payload (по умолчанию 6-7)
+    current_position: 88 # Позиция тока в payload (изменено с 6 на 88 для тестирования)
     debug_mode: true # Включить детальное логирование парсера
