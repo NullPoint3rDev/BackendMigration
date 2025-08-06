@@ -549,10 +549,18 @@ public class UserAccountController {
     @GetMapping("/current")
     public ResponseEntity<UserAccountDTO> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        // Проверяем, что пользователь аутентифицирован и это не anonymous
+        if (authentication == null || 
+            !authentication.isAuthenticated() || 
+            "anonymousUser".equals(authentication.getName())) {
+            return ResponseEntity.ok(null); // Возвращаем null вместо 404
+        }
+        
         String userName = authentication.getName();
         Optional<UserAccount> userOpt = userAccountService.getUserAccountByUserName(userName);
         if (!userOpt.isPresent()) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(null); // Возвращаем null вместо 404
         }
         UserAccount user = userOpt.get();
         return ResponseEntity.ok(UserAccountMapper.toDTO(user));

@@ -27,8 +27,18 @@ public class TcpDeviceClient {
     @Value("${welding.device.mac:8CAAB579425A}")
     private String expectedMac;
     
+    @Value("${welding.connection.timeout_ms:10000}")
+    private int timeoutMs;
+    
+    @Value("${welding.connection.retry_interval_ms:5000}")
+    private int retryIntervalMs;
+    
+    @Value("${welding.connection.max_retries:3}")
+    private int maxRetries;
+    
     private volatile boolean running = true;
     private Thread clientThread;
+    private int retryCount = 0;
 
     @Autowired
     private DeviceController deviceController;
@@ -44,39 +54,73 @@ public class TcpDeviceClient {
 
     @PostConstruct
     public void start() {
+        System.out.println("[TCP-CLIENT] 🚀 Запуск TCP клиента для сварочного аппарата");
+        System.out.println("[TCP-CLIENT] Хост: " + host + ":" + port);
+        System.out.println("[TCP-CLIENT] Ожидаемый MAC: " + expectedMac);
+        System.out.println("[TCP-CLIENT] Таймаут: " + timeoutMs + "мс");
+        
         clientThread = new Thread(() -> {
             while (running) {
-                try (Socket socket = new Socket(host, port);
-                     InputStream in = socket.getInputStream()) {
+                try {
+                    System.out.println("[TCP-CLIENT] 🔌 Попытка подключения к " + host + ":" + port + " (попытка " + (retryCount + 1) + ")");
+                    
+                    Socket socket = new Socket();
+                    socket.setSoTimeout(timeoutMs);
+                    socket.connect(new java.net.InetSocketAddress(host, port), timeoutMs);
+                    
+                    System.out.println("[TCP-CLIENT] ✅ Подключение установлено к " + host + ":" + port);
+                    retryCount = 0; // Сбрасываем счетчик при успешном подключении
+                    
+                    try (InputStream in = socket.getInputStream()) {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while (running && (bytesRead = in.read(buffer)) != -1) {
+                            String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
+                            System.out.println("[TCP-CLIENT] 📨 Получены данные: " + data);
 
-                    System.out.println("[TCP-CLIENT] Connected to device " + host + ":" + port);
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while (running && (bytesRead = in.read(buffer)) != -1) {
-                        String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
-                        System.out.println("[TCP-CLIENT] Received: " + data);
-
-                        // Извлечение MAC-адреса из пакета
-                        String mac = extractMacFromPacket(data);
-                        if (mac != null) {
-                            System.out.println("[TCP-CLIENT] MAC from packet: " + mac);
-                            
-                            // Проверяем, что это наша плата
-                            if (expectedMac.equals(mac)) {
-                                System.out.println("[TCP-CLIENT] ✅ Данные от нашей платы: " + data);
-                                processWeldingData(data, mac);
+                            // Извлечение MAC-адреса из пакета
+                            String mac = extractMacFromPacket(data);
+                            if (mac != null) {
+                                System.out.println("[TCP-CLIENT] MAC из пакета: " + mac);
+                                
+                                // Проверяем, что это наша плата
+                                if (expectedMac.equals(mac)) {
+                                    System.out.println("[TCP-CLIENT] ✅ Данные от нашей платы: " + data);
+                                    processWeldingData(data, mac);
+                                } else {
+                                    System.out.println("[TCP-CLIENT] ⚠️ Неизвестный MAC: " + mac + " (ожидался: " + expectedMac + ")");
+                                }
                             }
                         }
                     }
-                } catch (Exception e) {
-                    System.err.println("[TCP-CLIENT] Error: " + e.getMessage());
+                    
+                } catch (java.net.ConnectException e) {
+                    retryCount++;
+                    System.err.println("[TCP-CLIENT] ❌ Ошибка подключения: " + e.getMessage());
+                    System.err.println("[TCP-CLIENT] 🔄 Повторная попытка через " + retryIntervalMs + "мс (попытка " + retryCount + "/" + maxRetries + ")");
+                    
                     // Отмечаем аппарат как отключенный
                     deviceManager.markDeviceDisconnected(expectedMac);
+                    
+                    if (retryCount >= maxRetries) {
+                        System.err.println("[TCP-CLIENT] ⚠️ Достигнуто максимальное количество попыток. Переходим в тестовый режим.");
+                        break;
+                    }
+                    
                     try {
-                        Thread.sleep(5000); // Пауза перед повторным подключением
+                        Thread.sleep(retryIntervalMs);
+                    } catch (InterruptedException ignored) {}
+                    
+                } catch (Exception e) {
+                    System.err.println("[TCP-CLIENT] ❌ Ошибка: " + e.getMessage());
+                    deviceManager.markDeviceDisconnected(expectedMac);
+                    try {
+                        Thread.sleep(retryIntervalMs);
                     } catch (InterruptedException ignored) {}
                 }
             }
+            
+            System.out.println("[TCP-CLIENT] 🔚 TCP клиент остановлен");
         });
         clientThread.setDaemon(true);
         clientThread.start();
