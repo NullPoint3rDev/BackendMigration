@@ -34,3 +34,22 @@ logging:
 app:
   jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
   jwtExpirationInMs: 43200000 # 12 hours in milliseconds
+
+# Конфигурация сварочных аппаратов
+welding:
+  device:
+    host: 95.172.58.219
+    port: 3000
+    mac: 8CAAB579425A
+  # Настройки для множественных аппаратов
+  devices:
+    - mac: 8CAAB579425A
+      type: MP-500
+      ip: 95.172.58.219
+      port: 3000
+      description: Основной сварочный аппарат
+    - mac: DC4F220AC7D4
+      type: MX-Pulse
+      ip: 95.172.58.220
+      port: 3000
+      description: Дополнительный сварочный аппарат

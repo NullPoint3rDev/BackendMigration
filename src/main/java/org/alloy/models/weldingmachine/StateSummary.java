@@ -31,15 +31,3 @@ public class StateSummary {
     private boolean isOfflineData = false;
     private Double gasFlowNotifyTreshold;
 }
-
-@Data
-@NoArgsConstructor
-class StateSummaryPropertyValue {
-    private String propertyCode;
-    private String value;
-    private String propertyType;
-    private String rawValue;
-    private boolean limitsExceeded;
-    private Float limitMin;
-    private Float limitMax;
-}

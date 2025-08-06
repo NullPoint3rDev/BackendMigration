@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Device Monitor</title>
+    <title>WeldTelecom - Мониторинг сварочных аппаратов</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <style>
@@ -12,54 +12,280 @@
             overflow-x: hidden;
             margin: 0;
             min-height: 100vh;
+            padding: 20px;
         }
-        #deviceData {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-top: 20px;
-            min-height: 200px;
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
         }
+        
+        .header h1 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        
+        .status-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            flex: 1;
+            margin: 0 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-card h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        
         .status {
             margin-top: 10px;
-            padding: 5px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
         }
+        
         .connected {
-            color: green;
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+            border: 1px solid #4CAF50;
         }
+        
         .disconnected {
-            color: red;
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+        
+        .data-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .data-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .data-card h3 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+        
+        .parameter {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .parameter:last-child {
+            border-bottom: none;
+        }
+        
+        .parameter-label {
+            font-weight: bold;
+            color: #FFC107;
+        }
+        
+        .parameter-value {
+            color: #4CAF50;
+        }
+        
+        .raw-data {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .timestamp {
+            color: #9E9E9E;
+            font-size: 12px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
-    <h1>Device Monitor</h1>
-    <div id="status" class="status disconnected">Disconnected</div>
-    <div id="deviceData">Waiting for device data...</div>
+    <div class="header">
+        <h1>🔧 WeldTelecom</h1>
+        <p>Система мониторинга сварочных аппаратов</p>
+    </div>
+
+    <div class="status-container">
+        <div class="status-card">
+            <h3>🌐 WebSocket соединение</h3>
+            <div id="wsStatus" class="status disconnected">Отключено</div>
+        </div>
+        <div class="status-card">
+            <h3>📡 TCP соединение</h3>
+            <div id="tcpStatus" class="status disconnected">Отключено</div>
+        </div>
+        <div class="status-card">
+            <h3>⚡ Статус аппарата</h3>
+            <div id="deviceStatus" class="status disconnected">Неизвестно</div>
+        </div>
+    </div>
+
+    <div class="data-container">
+        <div class="data-card">
+            <h3>📊 Параметры сварочного аппарата</h3>
+            <div id="deviceParameters">
+                <div class="parameter">
+                    <span class="parameter-label">Ток (А):</span>
+                    <span class="parameter-value" id="current">--</span>
+                </div>
+                <div class="parameter">
+                    <span class="parameter-label">Напряжение (В):</span>
+                    <span class="parameter-value" id="voltage">--</span>
+                </div>
+                <div class="parameter">
+                    <span class="parameter-label">Расход газа (л/мин):</span>
+                    <span class="parameter-value" id="gasFlow">--</span>
+                </div>
+                <div class="parameter">
+                    <span class="parameter-label">Температура (°C):</span>
+                    <span class="parameter-value" id="temperature">--</span>
+                </div>
+                <div class="parameter">
+                    <span class="parameter-label">Модель:</span>
+                    <span class="parameter-value" id="model">--</span>
+                </div>
+                <div class="parameter">
+                    <span class="parameter-label">Версия:</span>
+                    <span class="parameter-value" id="version">--</span>
+                </div>
+                <div class="parameter">
+                    <span class="parameter-label">Материал:</span>
+                    <span class="parameter-value" id="material">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-card">
+            <h3>📝 Последние данные</h3>
+            <div class="timestamp" id="lastUpdate">Ожидание данных...</div>
+            <div class="raw-data" id="rawData">Ожидание данных от сварочного аппарата...</div>
+        </div>
+    </div>
 
     <script>
         let stompClient = null;
-        const statusDiv = document.getElementById('status');
-        const deviceDataDiv = document.getElementById('deviceData');
+        const wsStatusDiv = document.getElementById('wsStatus');
+        const tcpStatusDiv = document.getElementById('tcpStatus');
+        const deviceStatusDiv = document.getElementById('deviceStatus');
+        const lastUpdateDiv = document.getElementById('lastUpdate');
+        const rawDataDiv = document.getElementById('rawData');
 
         function connect() {
-            const socket = new SockJS('/ws');
+            const socket = new SockJS('/api/ws');
             stompClient = Stomp.over(socket);
             stompClient.connect({}, function(frame) {
-                statusDiv.textContent = 'Connected';
-                statusDiv.className = 'status connected';
+                wsStatusDiv.textContent = 'Подключено';
+                wsStatusDiv.className = 'status connected';
                 
-                stompClient.subscribe('/topic/device', function(message) {
-                    deviceDataDiv.textContent = message.body;
+                // Подписываемся на обновления состояния аппарата
+                stompClient.subscribe('/topic/device-state', function(message) {
+                    try {
+                        const data = JSON.parse(message.body);
+                        updateDeviceState(data);
+                    } catch (e) {
+                        console.error('Ошибка парсинга JSON:', e);
+                    }
                 });
+                
+                // Подписываемся на сырые данные
+                stompClient.subscribe('/topic/device', function(message) {
+                    updateRawData(message.body);
+                });
+                
             }, function(error) {
-                statusDiv.textContent = 'Connection failed';
-                statusDiv.className = 'status disconnected';
+                wsStatusDiv.textContent = 'Ошибка подключения';
+                wsStatusDiv.className = 'status disconnected';
                 console.error('Connection error:', error);
+                
+                // Пытаемся переподключиться через 5 секунд
+                setTimeout(connect, 5000);
             });
         }
 
-        // Connect when page loads
+        function updateDeviceState(data) {
+            if (data.state) {
+                const state = data.state;
+                
+                // Обновляем статус аппарата
+                const statusText = getStatusText(state.status);
+                deviceStatusDiv.textContent = statusText;
+                deviceStatusDiv.className = 'status ' + (state.status === 'WORKING' || state.status === 'READY' ? 'connected' : 'disconnected');
+                
+                // Обновляем параметры
+                if (state.properties) {
+                    updateParameter('current', state.properties['State.I']?.value || '--');
+                    updateParameter('voltage', state.properties['State.U']?.value || '--');
+                    updateParameter('gasFlow', state.properties['State.GasFlow']?.value || '--');
+                    updateParameter('temperature', state.properties['State.Temperature']?.value || '--');
+                    updateParameter('model', state.properties['MODEL']?.value || '--');
+                    updateParameter('version', state.properties['VERSION']?.value || '--');
+                    updateParameter('material', state.properties['State.material']?.value || '--');
+                }
+                
+                // Обновляем время
+                lastUpdateDiv.textContent = 'Последнее обновление: ' + data.timestamp;
+                
+                // Показываем TCP статус как подключенный
+                tcpStatusDiv.textContent = 'Подключено';
+                tcpStatusDiv.className = 'status connected';
+            }
+        }
+
+        function updateRawData(data) {
+            rawDataDiv.textContent = data;
+        }
+
+        function updateParameter(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'READY': 'Готов к работе',
+                'WORKING': 'Работает',
+                'ERROR': 'Ошибка',
+                'OFFLINE': 'Отключен'
+            };
+            return statusMap[status] || status || 'Неизвестно';
+        }
+
+        // Подключаемся при загрузке страницы
         connect();
+        
+        // Периодически проверяем соединение
+        setInterval(() => {
+            if (stompClient && !stompClient.connected) {
+                console.log('WebSocket отключен, переподключаемся...');
+                connect();
+            }
+        }, 10000);
     </script>
 </body>
 </html> 

@@ -1,87 +1,101 @@
 package org.alloy.services;
 
+import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineState;
-import org.alloy.models.WeldingMachineStatus;
+import org.alloy.models.weldingmachine.StateSummary;
+import org.alloy.repositories.WeldingMachineRepository;
 import org.alloy.repositories.WeldingMachineStateRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @Service
-@Transactional
 public class WeldingMachineStateService {
 
-    private final WeldingMachineStateRepository weldingMachineStateRepository;
+    @Autowired
+    private WeldingMachineRepository weldingMachineRepository;
 
     @Autowired
-    public WeldingMachineStateService(WeldingMachineStateRepository weldingMachineStateRepository) {
-        this.weldingMachineStateRepository = weldingMachineStateRepository;
-    }
+    private WeldingMachineStateRepository weldingMachineStateRepository;
 
-    public List<WeldingMachineState> getAllWeldingMachineStates() {
-        return weldingMachineStateRepository.findAll();
-    }
+    @Transactional
+    public void saveMachineState(String mac, StateSummary stateSummary) {
+        try {
+            // Находим сварочный аппарат по MAC-адресу
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
+            if (!machineOpt.isPresent()) {
+                System.err.println("[STATE-SERVICE] Сварочный аппарат с MAC " + mac + " не найден");
+                return;
+            }
 
-    public Optional<WeldingMachineState> getWeldingMachineStateById(Long id) {
-        return weldingMachineStateRepository.findById(id);
-    }
+            WeldingMachine machine = machineOpt.get();
 
-    public List<WeldingMachineState> getWeldingMachineStatesByMachineId(Integer machineId) {
-        return weldingMachineStateRepository.findByWeldingMachineId(machineId);
-    }
+            // Создаем новое состояние
+            WeldingMachineState state = new WeldingMachineState();
+            state.setWeldingMachineId(machine.getId());
+            state.setDateCreated(LocalDateTime.now());
+            state.setDateUpdated(LocalDateTime.now());
+            state.setWeldingMachineStatus(stateSummary.getStatus());
+            state.setStateDurationMs(0L); // Можно вычислить на основе предыдущего состояния
 
-    public Optional<WeldingMachineState> getLatestWeldingMachineState(Integer machineId) {
-        return weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(machineId);
-    }
+            // Устанавливаем ошибку, если есть
+            if (stateSummary.getErrorCode() != null) {
+                state.setErrorCode(stateSummary.getErrorCode());
+            }
 
-    public List<WeldingMachineState> getWeldingMachineStatesByStatus(Integer machineId, WeldingMachineStatus status) {
-        return weldingMachineStateRepository.findByWeldingMachineIdAndWeldingMachineStatus(machineId, status);
-    }
+            // Сохраняем состояние
+            weldingMachineStateRepository.save(state);
 
-    public WeldingMachineState createWeldingMachineState(WeldingMachineState state) {
-        // Validate required fields
-        if (state.getWeldingMachineId() == null) {
-            throw new IllegalArgumentException("Welding machine ID is required");
+            // Обновляем время последнего онлайн
+            machine.setLastOnlineOn(LocalDateTime.now());
+            weldingMachineRepository.save(machine);
+
+            System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата " + mac);
+
+        } catch (Exception e) {
+            System.err.println("[STATE-SERVICE] Ошибка сохранения состояния: " + e.getMessage());
         }
-        if (state.getWeldingMachineStatus() == null) {
-            throw new IllegalArgumentException("Status is required");
-        }
-
-        // Set creation date
-        state.setDateCreated(LocalDateTime.now());
-
-        return weldingMachineStateRepository.save(state);
     }
 
-    public WeldingMachineState updateWeldingMachineState(WeldingMachineState state) {
-        // Validate ID
-        if (state.getId() == null) {
-            throw new IllegalArgumentException("ID is required for update");
+    public StateSummary getCurrentState(String mac) {
+        try {
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
+            if (!machineOpt.isPresent()) {
+                return null;
+            }
+
+            WeldingMachine machine = machineOpt.get();
+            Optional<WeldingMachineState> stateOpt = weldingMachineStateRepository
+                    .findTopByWeldingMachineIdOrderByDateCreatedDesc(machine.getId());
+
+            if (stateOpt.isPresent()) {
+                WeldingMachineState state = stateOpt.get();
+                return convertToStateSummary(state);
+            }
+
+        } catch (Exception e) {
+            System.err.println("[STATE-SERVICE] Ошибка получения состояния: " + e.getMessage());
         }
 
-        // Check if state exists
-        WeldingMachineState existingState = weldingMachineStateRepository.findById(state.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Welding machine state not found"));
-
-        // Preserve creation date
-        state.setDateCreated(existingState.getDateCreated());
-
-        return weldingMachineStateRepository.save(state);
+        return null;
     }
 
-    public void deleteWeldingMachineState(Long id) {
-        if (!weldingMachineStateRepository.existsById(id)) {
-            throw new IllegalArgumentException("Welding machine state not found");
-        }
-        weldingMachineStateRepository.deleteById(id);
-    }
+    private StateSummary convertToStateSummary(WeldingMachineState state) {
+        StateSummary summary = new StateSummary();
+        summary.setWeldingMachineStateId(state.getId());
+        summary.setDateCreated(state.getDateCreated());
+        summary.setLastDatetimeUpdate(state.getDateUpdated());
+        summary.setStatus(state.getWeldingMachineStatus());
+        summary.setStateDurationMs(state.getStateDurationMs());
+        summary.setErrorCode(state.getErrorCode());
+        summary.setWeldingMaterialId(state.getWeldingMaterialId());
+        summary.setLimitsExceeded(state.getLimitsExceeded() != null ? state.getLimitsExceeded() : false);
+        summary.setWeldingLimitProgramId(state.getWeldingLimitProgramId());
+        summary.setWeldingLimitProgramName(state.getWeldingLimitProgramName());
 
-    public void deleteAllWeldingMachineStates(Integer machineId) {
-        List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineId(machineId);
-        weldingMachineStateRepository.deleteAll(states);
+        return summary;
     }
 }

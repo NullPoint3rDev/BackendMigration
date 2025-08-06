@@ -1,0 +1,134 @@
+package org.alloy.services;
+
+import org.alloy.controllers.DeviceController;
+import org.alloy.models.WeldingMachineStatus;
+import org.alloy.models.weldingmachine.StateSummary;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.PostConstruct;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+public class WeldingDeviceManagerService {
+
+    @Autowired
+    private WeldingDataParserService dataParser;
+
+    @Autowired
+    private WeldingMachineStateService stateService;
+
+    @Autowired
+    private DeviceController deviceController;
+
+    // Хранилище состояний всех аппаратов
+    private final Map<String, StateSummary> deviceStates = new ConcurrentHashMap<>();
+
+    // Хранилище статусов подключения
+    private final Map<String, Boolean> connectionStatus = new ConcurrentHashMap<>();
+
+    @PostConstruct
+    public void init() {
+        System.out.println("[DEVICE-MANAGER] Сервис управления аппаратами инициализирован");
+    }
+
+    /**
+     * Обрабатывает данные от сварочного аппарата
+     */
+    public void processDeviceData(String data, String mac) {
+        try {
+            // Парсим данные
+            StateSummary state = dataParser.parseWeldingData(data, mac);
+            
+            if (state != null) {
+                // Сохраняем состояние
+                stateService.saveMachineState(mac, state);
+                
+                // Обновляем локальное состояние
+                deviceStates.put(mac, state);
+                connectionStatus.put(mac, true);
+                
+                // Отправляем через WebSocket
+                deviceController.sendDeviceState(state);
+                
+                System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
+            }
+        } catch (Exception e) {
+            System.err.println("[DEVICE-MANAGER] Ошибка обработки данных от " + mac + ": " + e.getMessage());
+            connectionStatus.put(mac, false);
+        }
+    }
+
+    /**
+     * Получает текущее состояние аппарата
+     */
+    public StateSummary getDeviceState(String mac) {
+        return deviceStates.get(mac);
+    }
+
+    /**
+     * Получает статус подключения аппарата
+     */
+    public boolean isDeviceConnected(String mac) {
+        return connectionStatus.getOrDefault(mac, false);
+    }
+
+    /**
+     * Получает состояния всех аппаратов
+     */
+    public Map<String, StateSummary> getAllDeviceStates() {
+        return new HashMap<>(deviceStates);
+    }
+
+    /**
+     * Получает статусы подключения всех аппаратов
+     */
+    public Map<String, Boolean> getAllConnectionStatuses() {
+        return new HashMap<>(connectionStatus);
+    }
+
+    /**
+     * Отмечает аппарат как отключенный
+     */
+    public void markDeviceDisconnected(String mac) {
+        connectionStatus.put(mac, false);
+        
+        // Обновляем состояние как Offline
+        StateSummary state = deviceStates.get(mac);
+        if (state != null) {
+            state.setStatus(WeldingMachineStatus.Offline);
+            deviceStates.put(mac, state);
+            
+            // Отправляем обновление через WebSocket
+            deviceController.sendDeviceState(state);
+        }
+        
+        System.out.println("[DEVICE-MANAGER] Аппарат " + mac + " отмечен как отключенный");
+    }
+
+    /**
+     * Получает статистику по аппаратам
+     */
+    public Map<String, Object> getDeviceStatistics() {
+        Map<String, Object> stats = new HashMap<>();
+        
+        int totalDevices = deviceStates.size();
+        int connectedDevices = (int) connectionStatus.values().stream().filter(Boolean::booleanValue).count();
+        int workingDevices = (int) deviceStates.values().stream()
+                .filter(state -> state.getStatus() == WeldingMachineStatus.Welding)
+                .count();
+        int errorDevices = (int) deviceStates.values().stream()
+                .filter(state -> state.getStatus() == WeldingMachineStatus.Error)
+                .count();
+        
+        stats.put("totalDevices", totalDevices);
+        stats.put("connectedDevices", connectedDevices);
+        stats.put("workingDevices", workingDevices);
+        stats.put("errorDevices", errorDevices);
+        stats.put("disconnectedDevices", totalDevices - connectedDevices);
+        
+        return stats;
+    }
+} 

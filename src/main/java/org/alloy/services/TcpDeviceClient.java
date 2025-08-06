@@ -1,5 +1,12 @@
 package org.alloy.services;
 
+import org.alloy.controllers.DeviceController;
+import org.alloy.models.weldingmachine.StateSummary;
+import org.alloy.services.WeldingDataParserService;
+import org.alloy.services.WeldingMachineStateService;
+import org.alloy.services.WeldingDeviceManagerService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -8,12 +15,32 @@ import java.io.InputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
-// @Service
+@Service
 public class TcpDeviceClient {
-    private final String host = "95.172.58.219";
-    private final int port = 3000;
+    
+    @Value("${welding.device.host:95.172.58.219}")
+    private String host;
+    
+    @Value("${welding.device.port:3000}")
+    private int port;
+    
+    @Value("${welding.device.mac:8CAAB579425A}")
+    private String expectedMac;
+    
     private volatile boolean running = true;
     private Thread clientThread;
+
+    @Autowired
+    private DeviceController deviceController;
+    
+    @Autowired
+    private WeldingDataParserService dataParser;
+    
+    @Autowired
+    private WeldingMachineStateService stateService;
+    
+    @Autowired
+    private WeldingDeviceManagerService deviceManager;
 
     @PostConstruct
     public void start() {
@@ -30,25 +57,21 @@ public class TcpDeviceClient {
                         System.out.println("[TCP-CLIENT] Received: " + data);
 
                         // Извлечение MAC-адреса из пакета
-                        String mac = "";
-                        int pos1 = data.indexOf(':');
-                        if (pos1 >= 0) {
-                            int pos2 = data.indexOf(';', pos1);
-                            if (pos2 > 0 && pos2 - pos1 == 13) {
-                                mac = data.substring(pos1 + 1, pos1 + 13);
-                                System.out.println("[TCP-CLIENT] MAC from packet: " + mac);
-                                
-                                // Проверяем, что это наша плата
-                                if ("8CAAB579425A".equals(mac)) {
-                                    System.out.println("[TCP-CLIENT] ✅ Данные от нашей платы: " + data);
-                                    // Здесь можно добавить обработку данных сварочного аппарата
-                                    processWeldingData(data);
-                                }
+                        String mac = extractMacFromPacket(data);
+                        if (mac != null) {
+                            System.out.println("[TCP-CLIENT] MAC from packet: " + mac);
+                            
+                            // Проверяем, что это наша плата
+                            if (expectedMac.equals(mac)) {
+                                System.out.println("[TCP-CLIENT] ✅ Данные от нашей платы: " + data);
+                                processWeldingData(data, mac);
                             }
                         }
                     }
                 } catch (Exception e) {
                     System.err.println("[TCP-CLIENT] Error: " + e.getMessage());
+                    // Отмечаем аппарат как отключенный
+                    deviceManager.markDeviceDisconnected(expectedMac);
                     try {
                         Thread.sleep(5000); // Пауза перед повторным подключением
                     } catch (InterruptedException ignored) {}
@@ -59,24 +82,26 @@ public class TcpDeviceClient {
         clientThread.start();
     }
 
-    private void processWeldingData(String data) {
-        try {
-            // Парсим данные сварочного аппарата
-            // Формат данных может быть: MAC:PARAM1=VAL1;PARAM2=VAL2;...
-            String[] parts = data.split(";");
-            for (String part : parts) {
-                if (part.contains("=")) {
-                    String[] keyValue = part.split("=");
-                    if (keyValue.length == 2) {
-                        String key = keyValue[0];
-                        String value = keyValue[1];
-                        System.out.println("[TCP-CLIENT] Параметр: " + key + " = " + value);
-                        
-                        // Здесь можно добавить сохранение в базу данных
-                        // или отправку через WebSocket на фронтенд
-                    }
-                }
+    private String extractMacFromPacket(String data) {
+        if (data == null || data.isEmpty()) {
+            return null;
+        }
+        
+        int pos1 = data.indexOf(':');
+        if (pos1 >= 0) {
+            int pos2 = data.indexOf(';', pos1);
+            if (pos2 > 0 && pos2 - pos1 == 13) {
+                return data.substring(pos1 + 1, pos1 + 13);
             }
+        }
+        return null;
+    }
+
+    private void processWeldingData(String data, String mac) {
+        try {
+            // Используем менеджер для обработки данных
+            deviceManager.processDeviceData(data, mac);
+            System.out.println("[TCP-CLIENT] ✅ Данные обработаны и сохранены");
         } catch (Exception e) {
             System.err.println("[TCP-CLIENT] Ошибка обработки данных: " + e.getMessage());
         }
