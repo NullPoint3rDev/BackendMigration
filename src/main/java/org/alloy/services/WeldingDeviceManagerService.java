@@ -42,10 +42,7 @@ public class WeldingDeviceManagerService {
             // Парсим данные
             StateSummary stateSummary = dataParser.parseWeldingData(data, mac);
             
-            // Сохраняем в базу данных
-            stateService.saveMachineState(mac, stateSummary);
-            
-            // Обновляем локальное состояние
+            // Обновляем локальное состояние (даже если сохранение в БД не удалось)
             deviceStates.put(mac, stateSummary);
             connectionStatus.put(mac, true);
             
@@ -53,6 +50,15 @@ public class WeldingDeviceManagerService {
             deviceController.sendDeviceState(stateSummary);
             
             System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
+            
+            // Пытаемся сохранить в базу данных (но не блокируем основной поток)
+            try {
+                stateService.saveMachineState(mac, stateSummary);
+                System.out.println("[DEVICE-MANAGER] ✅ Данные сохранены в базу данных");
+            } catch (Exception dbError) {
+                System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
+                // Не прерываем обработку данных из-за ошибки БД
+            }
             
         } catch (Exception e) {
             System.err.println("[DEVICE-MANAGER] ❌ Ошибка обработки данных от " + mac + ": " + e.getMessage());

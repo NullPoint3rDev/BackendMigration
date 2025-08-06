@@ -2,10 +2,12 @@ package org.alloy.services;
 
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineState;
-import org.alloy.models.WeldingMachineStatus;
 import org.alloy.models.weldingmachine.StateSummary;
+import org.alloy.models.WeldingMachineStatus;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.alloy.repositories.WeldingMachineStateRepository;
+import org.alloy.repositories.OrganizationUnitRepository;
+import org.alloy.repositories.WeldingMachineTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,12 @@ public class WeldingMachineStateService {
 
     @Autowired
     private WeldingMachineStateRepository weldingMachineStateRepository;
+
+    @Autowired
+    private OrganizationUnitRepository organizationUnitRepository;
+
+    @Autowired
+    private WeldingMachineTypeRepository weldingMachineTypeRepository;
 
     // ===== НОВЫЕ МЕТОДЫ ДЛЯ ИНТЕГРАЦИИ СО СВАРОЧНЫМИ АППАРАТАМИ =====
 
@@ -44,8 +52,25 @@ public class WeldingMachineStateService {
                 machine.setStatus(GeneralStatus.Active);
                 machine.setDateCreated(LocalDateTime.now());
                 machine.setLastOnlineOn(LocalDateTime.now());
-                machine.setOrganizationUnitId(1); // Временное значение
-                machine.setWeldingMachineTypeId(1); // Временное значение
+                
+                // Ищем существующие записи для обязательных полей
+                List<org.alloy.models.entities.OrganizationUnit> orgUnits = organizationUnitRepository.findAll();
+                if (!orgUnits.isEmpty()) {
+                    machine.setOrganizationUnitId(orgUnits.get(0).getId());
+                    System.out.println("[STATE-SERVICE] Используем организационную единицу: " + orgUnits.get(0).getName());
+                } else {
+                    System.out.println("[STATE-SERVICE] ⚠️ Организационные единицы не найдены, используем null");
+                    machine.setOrganizationUnitId(null);
+                }
+                
+                List<org.alloy.models.entities.WeldingMachineType> machineTypes = weldingMachineTypeRepository.findAll();
+                if (!machineTypes.isEmpty()) {
+                    machine.setWeldingMachineTypeId(machineTypes.get(0).getId());
+                    System.out.println("[STATE-SERVICE] Используем тип аппарата: " + machineTypes.get(0).getName());
+                } else {
+                    System.out.println("[STATE-SERVICE] ⚠️ Типы сварочных аппаратов не найдены, используем null");
+                    machine.setWeldingMachineTypeId(null);
+                }
                 
                 // Сохраняем аппарат
                 machine = weldingMachineRepository.save(machine);
