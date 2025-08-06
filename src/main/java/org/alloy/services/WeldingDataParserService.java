@@ -13,33 +13,34 @@ import java.util.Map;
 public class WeldingDataParserService {
 
     public StateSummary parseWeldingData(String data, String mac) {
-        if (data == null || data.isEmpty()) {
-            return null;
-        }
-
+        System.out.println("[PARSER] 🔍 Парсинг данных: " + data);
+        System.out.println("[PARSER] MAC: " + mac);
+        
         StateSummary state = new StateSummary();
+        state.setDateCreated(LocalDateTime.now());
         state.setLastDatetimeUpdate(LocalDateTime.now());
-        state.setLocalServerPacketDatetime(LocalDateTime.now());
-
-        // Извлекаем данные после MAC-адреса
+        
         String payload = extractPayload(data);
-        if (payload == null) {
-            return null;
+        if (payload != null) {
+            System.out.println("[PARSER] 📦 Извлеченный payload: " + payload);
+            System.out.println("[PARSER] 📏 Длина payload: " + payload.length());
+            
+            Map<String, StateSummaryPropertyValue> properties = parseParameters(payload);
+            state.setProperties(properties);
+            
+            System.out.println("[PARSER] ✅ Парсинг завершен. Найдено свойств: " + properties.size());
+            for (Map.Entry<String, StateSummaryPropertyValue> entry : properties.entrySet()) {
+                System.out.println("[PARSER]   " + entry.getKey() + " = " + entry.getValue().getValue());
+            }
+        } else {
+            System.out.println("[PARSER] ❌ Не удалось извлечь payload из данных");
         }
-
-        // Парсим параметры
-        Map<String, StateSummaryPropertyValue> properties = parseParameters(payload);
-        state.setProperties(properties);
-
-        // Определяем статус аппарата
-        state.setStatus(determineStatus(properties));
-
-        // Определяем ошибки
-        String errorCode = determineErrorCode(properties);
-        if (errorCode != null) {
-            state.setErrorCode(errorCode);
-        }
-
+        
+        state.setStatus(determineStatus(state.getProperties()));
+        state.setErrorCode(determineErrorCode(state.getProperties()));
+        
+        System.out.println("[PARSER] 🎯 Итоговый статус: " + state.getStatus());
+        
         return state;
     }
 

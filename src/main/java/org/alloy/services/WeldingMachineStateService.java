@@ -8,6 +8,7 @@ import org.alloy.repositories.WeldingMachineRepository;
 import org.alloy.repositories.WeldingMachineStateRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.repositories.WeldingMachineTypeRepository;
+import org.alloy.repositories.OrganizationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,9 @@ public class WeldingMachineStateService {
 
     @Autowired
     private WeldingMachineTypeRepository weldingMachineTypeRepository;
+
+    @Autowired
+    private OrganizationRepository organizationRepository;
 
     // ===== НОВЫЕ МЕТОДЫ ДЛЯ ИНТЕГРАЦИИ СО СВАРОЧНЫМИ АППАРАТАМИ =====
 
@@ -61,11 +65,31 @@ public class WeldingMachineStateService {
                 } else {
                     // Создаем организационную единицу если её нет
                     System.out.println("[STATE-SERVICE] Создаем организационную единицу...");
+                    
+                    // Сначала создаем организацию
+                    List<org.alloy.models.entities.Organization> organizations = organizationRepository.findAll();
+                    org.alloy.models.entities.Organization organization;
+                    if (!organizations.isEmpty()) {
+                        organization = organizations.get(0);
+                        System.out.println("[STATE-SERVICE] Используем существующую организацию: " + organization.getName());
+                    } else {
+                        System.out.println("[STATE-SERVICE] Создаем организацию...");
+                        organization = new org.alloy.models.entities.Organization();
+                        organization.setName("Основная организация");
+                        organization.setDescription("Автоматически созданная организация");
+                        organization.setStatus(GeneralStatus.Active);
+                        organization.setDateCreated(LocalDateTime.now());
+                        organization = organizationRepository.save(organization);
+                        System.out.println("[STATE-SERVICE] ✅ Организация создана с ID: " + organization.getId());
+                    }
+                    
+                    // Теперь создаем организационную единицу
                     org.alloy.models.entities.OrganizationUnit orgUnit = new org.alloy.models.entities.OrganizationUnit();
-                    orgUnit.setName("Основная организация");
-                    orgUnit.setDescription("Автоматически созданная организация");
+                    orgUnit.setName("Основная организационная единица");
+                    orgUnit.setDescription("Автоматически созданная организационная единица");
                     orgUnit.setStatus(GeneralStatus.Active);
                     orgUnit.setDateCreated(LocalDateTime.now());
+                    orgUnit.setOrganizationId(organization.getId());
                     orgUnit = organizationUnitRepository.save(orgUnit);
                     machine.setOrganizationUnitId(orgUnit.getId());
                     System.out.println("[STATE-SERVICE] ✅ Организационная единица создана с ID: " + orgUnit.getId());

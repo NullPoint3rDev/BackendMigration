@@ -55,8 +55,8 @@ welding:
       description: Дополнительный сварочный аппарат
   # Тестовый режим для демонстрации
   test:
-    enabled: true
-    simulate_data: true
+    enabled: false
+    simulate_data: false
     interval_ms: 5000
   # Альтернативные настройки подключения
   connection:
