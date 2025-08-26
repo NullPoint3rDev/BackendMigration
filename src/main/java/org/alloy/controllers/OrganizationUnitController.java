@@ -294,15 +294,21 @@ public class OrganizationUnitController {
         @RequestBody OrganizationUnitDTO organizationUnitDTO
     ) {
         try {
+            System.out.println("Получены данные для создания подразделения: " + organizationUnitDTO);
             OrganizationUnit entity = OrganizationUnitMapper.toEntity(organizationUnitDTO);
+            System.out.println("Преобразовано в сущность: " + entity);
             OrganizationUnit createdEntity = organizationUnitService.createOrganizationUnit(entity);
+            System.out.println("Создана сущность: " + createdEntity);
             return new ResponseEntity<>(OrganizationUnitMapper.toDTO(createdEntity), HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
+            System.err.println("Ошибка валидации: " + e.getMessage());
             ErrorResponse errorResponse = new ErrorResponse();
             errorResponse.setError("Bad Request");
             errorResponse.setMessage(e.getMessage());
             return ResponseEntity.badRequest().body(null);
         } catch (Exception e) {
+            System.err.println("Неожиданная ошибка: " + e.getMessage());
+            e.printStackTrace();
             ErrorResponse errorResponse = new ErrorResponse();
             errorResponse.setError("Internal Server Error");
             errorResponse.setMessage("An unexpected error occurred: " + e.getMessage());
