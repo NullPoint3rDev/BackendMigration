@@ -21,7 +21,7 @@ public class OrganizationUnitService {
     }
 
     public List<OrganizationUnit> getAllOrganizationUnits() {
-        return organizationUnitRepository.findAll();
+        return organizationUnitRepository.findByStatus(GeneralStatus.Active);
     }
 
     public Optional<OrganizationUnit> getOrganizationUnitById(Integer id) {

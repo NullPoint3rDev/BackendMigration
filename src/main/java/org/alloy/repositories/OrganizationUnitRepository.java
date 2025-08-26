@@ -23,4 +23,6 @@ public interface OrganizationUnitRepository extends JpaRepository<OrganizationUn
 
     @Query("SELECT ou FROM OrganizationUnit ou WHERE ou.id IN :ids")
     List<OrganizationUnit> findByIds(@Param("ids") List<Integer> ids);
+
+    List<OrganizationUnit> findByStatus(org.alloy.models.GeneralStatus status);
 }
