@@ -12,7 +12,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/welders")
-@CrossOrigin(origins = "*")
 public class WelderController {
     
     @Autowired

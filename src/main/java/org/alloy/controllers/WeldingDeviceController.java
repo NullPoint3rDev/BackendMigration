@@ -10,7 +10,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/welding-devices")
-@CrossOrigin(origins = "*")
+
 public class WeldingDeviceController {
 
     @Autowired
