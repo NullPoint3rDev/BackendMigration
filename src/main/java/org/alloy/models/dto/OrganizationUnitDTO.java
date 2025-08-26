@@ -7,6 +7,8 @@ public class OrganizationUnitDTO {
     private String address;
     private String phone;
     private String email;
+    private Integer level;
+    private String parentDepartment;
     private OrganizationShortDTO organization;
     // ... другие нужные поля
 
@@ -24,4 +26,10 @@ public class OrganizationUnitDTO {
     public void setEmail(String email) { this.email = email; }
     public OrganizationShortDTO getOrganization() { return organization; }
     public void setOrganization(OrganizationShortDTO organization) { this.organization = organization; }
+    
+    public Integer getLevel() { return level; }
+    public void setLevel(Integer level) { this.level = level; }
+    
+    public String getParentDepartment() { return parentDepartment; }
+    public void setParentDepartment(String parentDepartment) { this.parentDepartment = parentDepartment; }
 } 

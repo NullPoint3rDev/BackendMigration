@@ -14,6 +14,8 @@ public class OrganizationUnitMapper {
         dto.setAddress(entity.getAddress());
         dto.setPhone(entity.getPhone());
         dto.setEmail(entity.getEmail());
+        dto.setLevel(1); // Дефолтный уровень
+        dto.setParentDepartment(null); // Пока не реализовано
         if (entity.getOrganization() != null) {
             OrganizationShortDTO orgDto = new OrganizationShortDTO();
             orgDto.setId(entity.getOrganization().getId());
