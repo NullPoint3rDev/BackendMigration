@@ -34,8 +34,12 @@ public class OrganizationUnitMapper {
         entity.setEmail(dto.getEmail());
         if (dto.getOrganization() != null) {
             entity.setOrganizationId(dto.getOrganization().getId());
+        } else {
+            // Устанавливаем дефолтную организацию (ID = 1)
+            entity.setOrganizationId(1);
         }
-        // ... другие нужные поля
+        // Устанавливаем дефолтный статус
+        entity.setStatus(org.alloy.models.GeneralStatus.Active);
         return entity;
     }
 } 

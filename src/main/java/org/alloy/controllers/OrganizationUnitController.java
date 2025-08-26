@@ -293,8 +293,21 @@ public class OrganizationUnitController {
         @Parameter(description = "Данные подразделения", required = true)
         @RequestBody OrganizationUnitDTO organizationUnitDTO
     ) {
-        OrganizationUnit entity = OrganizationUnitMapper.toEntity(organizationUnitDTO);
-        return new ResponseEntity<>(OrganizationUnitMapper.toDTO(organizationUnitService.createOrganizationUnit(entity)), HttpStatus.CREATED);
+        try {
+            OrganizationUnit entity = OrganizationUnitMapper.toEntity(organizationUnitDTO);
+            OrganizationUnit createdEntity = organizationUnitService.createOrganizationUnit(entity);
+            return new ResponseEntity<>(OrganizationUnitMapper.toDTO(createdEntity), HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setError("Bad Request");
+            errorResponse.setMessage(e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            ErrorResponse errorResponse = new ErrorResponse();
+            errorResponse.setError("Internal Server Error");
+            errorResponse.setMessage("An unexpected error occurred: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
     @Operation(
