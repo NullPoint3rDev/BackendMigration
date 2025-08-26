@@ -10,15 +10,18 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("*") // Разрешаем доступ с любого IP
-                .allowedOrigins(
-                    "http://95.172.58.219:3001",
-                    "http://localhost:3001", 
-                    "http://192.168.0.100:3001",
-                    "http://alloynn.keenetic.name:3001"
+                .allowedOriginPatterns(
+                    "http://*", 
+                    "https://*",
+                    "http://localhost:*",
+                    "http://192.168.*:*",
+                    "http://95.172.*:*",
+                    "http://5.227.*:*",
+                    "http://alloynn.keenetic.name:*"
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
+                .allowCredentials(true) // Включаем credentials для JWT токенов
                 .maxAge(3600);
     }
 } 
