@@ -18,6 +18,8 @@ public interface OrganizationUnitRepository extends JpaRepository<OrganizationUn
 
     Optional<OrganizationUnit> findByNameAndOrganizationId(String name, Integer organizationId);
 
+    Optional<OrganizationUnit> findByNameAndOrganizationIdAndStatus(String name, Integer organizationId, org.alloy.models.GeneralStatus status);
+
     @Query("SELECT ou FROM OrganizationUnit ou WHERE ou.organizationId = :organizationId AND (ou.name LIKE %:searchTerm% OR ou.description LIKE %:searchTerm%)")
     List<OrganizationUnit> searchOrganizationUnits(@Param("organizationId") Integer organizationId, @Param("searchTerm") String searchTerm);
 

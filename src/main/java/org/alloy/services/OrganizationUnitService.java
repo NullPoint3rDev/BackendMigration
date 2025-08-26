@@ -51,9 +51,9 @@ public class OrganizationUnitService {
             organizationUnit.setStatus(GeneralStatus.Active);
         }
 
-        // Check if name is already used in the same organization
-        Optional<OrganizationUnit> existingUnit = organizationUnitRepository.findByNameAndOrganizationId(
-                organizationUnit.getName(), organizationUnit.getOrganizationId());
+        // Check if name is already used by an ACTIVE unit in the same organization
+        Optional<OrganizationUnit> existingUnit = organizationUnitRepository.findByNameAndOrganizationIdAndStatus(
+                organizationUnit.getName(), organizationUnit.getOrganizationId(), GeneralStatus.Active);
         if (existingUnit.isPresent()) {
             throw new IllegalArgumentException("Organization unit with name '" + organizationUnit.getName() +
                     "' already exists in organization with ID " + organizationUnit.getOrganizationId());
@@ -69,9 +69,9 @@ public class OrganizationUnitService {
             throw new IllegalArgumentException("Organization unit with ID " + organizationUnit.getId() + " does not exist");
         }
 
-        // Check if name is already used by another unit in the same organization
-        Optional<OrganizationUnit> existingUnit = organizationUnitRepository.findByNameAndOrganizationId(
-                organizationUnit.getName(), organizationUnit.getOrganizationId());
+        // Check if name is already used by another ACTIVE unit in the same organization
+        Optional<OrganizationUnit> existingUnit = organizationUnitRepository.findByNameAndOrganizationIdAndStatus(
+                organizationUnit.getName(), organizationUnit.getOrganizationId(), GeneralStatus.Active);
         if (existingUnit.isPresent() && !existingUnit.get().getId().equals(organizationUnit.getId())) {
             throw new IllegalArgumentException("Organization unit with name '" + organizationUnit.getName() +
                     "' already exists in organization with ID " + organizationUnit.getOrganizationId());
