@@ -1,5 +1,6 @@
 package org.alloy.security;
 
+import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.services.UserAccountService;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -23,6 +24,15 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return userAccountService.getUserAccountByUserName(username)
+                .filter(userAccount -> {
+                    // Проверяем статус пользователя
+                    if (userAccount.getStatus() == GeneralStatus.Deleted || 
+                        userAccount.getStatus() == GeneralStatus.Blocked) {
+                        System.out.println("Попытка входа для заблокированного/удаленного пользователя: " + username + " со статусом: " + userAccount.getStatus());
+                        return false;
+                    }
+                    return true;
+                })
                 .map(this::createUserDetails)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
     }

@@ -186,7 +186,9 @@ public class EmployeeController {
         @Parameter(description = "ID сотрудника", required = true, example = "1")
         @PathVariable Long id
     ) {
+        System.out.println("Контроллер: Получен запрос на удаление сотрудника с ID: " + id);
         boolean deleted = employeeService.deleteEmployee(id);
+        System.out.println("Контроллер: Результат удаления: " + deleted);
         if (deleted) {
             return ResponseEntity.noContent().build();
         }
