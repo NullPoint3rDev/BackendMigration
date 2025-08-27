@@ -47,25 +47,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
     }
 
-    //    @Override
-//    protected void configure(HttpSecurity http) throws Exception {
-//        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
-//        http
-//            .cors().and()
-//            .csrf().disable()
-//            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-//            .and()
-//            .authorizeRequests()
-//            .antMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-//            .anyRequest().authenticated()
-//            .and()
-//            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-//    }
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
         http
-                .csrf().disable()
-                .authorizeRequests().anyRequest().permitAll();
+            .csrf().disable()
+            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            .and()
+            .authorizeRequests()
+            .antMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+            .anyRequest().authenticated()
+            .and()
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
     }
 
 
