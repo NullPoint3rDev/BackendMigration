@@ -23,23 +23,41 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        System.out.println("CustomUserDetailsService: Попытка загрузки пользователя: " + username);
+        
         return userAccountService.getUserAccountByUserName(username)
-                .filter(userAccount -> {
+                .map(userAccount -> {
+                    System.out.println("CustomUserDetailsService: Пользователь найден в базе: " + username + ", статус: " + userAccount.getStatus());
+                    
                     // Проверяем статус пользователя
                     if (userAccount.getStatus() == GeneralStatus.Deleted || 
                         userAccount.getStatus() == GeneralStatus.Blocked) {
-                        System.out.println("Попытка входа для заблокированного/удаленного пользователя: " + username + " со статусом: " + userAccount.getStatus());
-                        return false;
+                        System.out.println("CustomUserDetailsService: Попытка входа для заблокированного/удаленного пользователя: " + username + " со статусом: " + userAccount.getStatus());
+                        throw new UsernameNotFoundException("User account is " + userAccount.getStatus());
                     }
-                    return true;
+                    
+                    System.out.println("CustomUserDetailsService: Создаем UserDetails для пользователя: " + username);
+                    return createUserDetails(userAccount);
                 })
-                .map(this::createUserDetails)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+                .orElseThrow(() -> {
+                    System.out.println("CustomUserDetailsService: Пользователь не найден в базе: " + username);
+                    return new UsernameNotFoundException("User not found with username: " + username);
+                });
     }
 
     private UserDetails createUserDetails(UserAccount userAccount) {
         // Convert the password hash from byte[] to String for Spring Security
-        String password = userAccount.getPasswordHash() != null ? new String(userAccount.getPasswordHash()) : "";
+        String password = "";
+        if (userAccount.getPasswordHash() != null) {
+            try {
+                // Используем UTF-8 кодировку для корректной конвертации BCrypt хеша
+                password = new String(userAccount.getPasswordHash(), "UTF-8");
+                System.out.println("CustomUserDetailsService: Пароль для пользователя " + userAccount.getUserName() + " успешно конвертирован");
+            } catch (Exception e) {
+                System.err.println("CustomUserDetailsService: Ошибка конвертации пароля для пользователя " + userAccount.getUserName() + ": " + e.getMessage());
+                password = "";
+            }
+        }
         
         // Create a list of authorities based on user role
         // For now, we'll use a simple ROLE_USER authority
