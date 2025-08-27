@@ -3,11 +3,13 @@ package org.alloy.services;
 import org.alloy.models.entities.Employee;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.UserRole;
+import org.alloy.models.entities.UserAccount;
 import org.alloy.models.dto.EmployeeDTO;
 import org.alloy.models.dto.mapper.EmployeeMapper;
 import org.alloy.repositories.EmployeeRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.repositories.UserRoleRepository;
+import org.alloy.repositories.UserAccountRepository;
 import org.alloy.models.GeneralStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,16 +25,19 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final OrganizationUnitRepository organizationUnitRepository;
     private final UserRoleRepository userRoleRepository;
+    private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public EmployeeService(EmployeeRepository employeeRepository,
                           OrganizationUnitRepository organizationUnitRepository,
                           UserRoleRepository userRoleRepository,
+                          UserAccountRepository userAccountRepository,
                           PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
         this.userRoleRepository = userRoleRepository;
+        this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -79,10 +84,15 @@ public class EmployeeService {
 
     @Transactional
     public Employee createEmployee(EmployeeDTO employeeDTO) {
-        // Проверяем, что логин уникален
+        // Проверяем, что логин уникален в обеих таблицах
         Optional<Employee> existingEmployee = employeeRepository.findByUsername(employeeDTO.getUsername());
         if (existingEmployee.isPresent()) {
             throw new IllegalArgumentException("Сотрудник с логином '" + employeeDTO.getUsername() + "' уже существует");
+        }
+        
+        Optional<UserAccount> existingUserAccount = userAccountRepository.findByUserName(employeeDTO.getUsername());
+        if (existingUserAccount.isPresent()) {
+            throw new IllegalArgumentException("Пользователь с логином '" + employeeDTO.getUsername() + "' уже существует в системе");
         }
 
         Employee employee = EmployeeMapper.toEntity(employeeDTO, passwordEncoder);
@@ -107,7 +117,25 @@ public class EmployeeService {
             }
         }
 
-        return employeeRepository.save(employee);
+        // Сохраняем сотрудника
+        Employee savedEmployee = employeeRepository.save(employee);
+
+        // Создаем соответствующую запись в UserAccount для входа в систему
+        UserAccount userAccount = new UserAccount();
+        userAccount.setUserName(employeeDTO.getUsername());
+        userAccount.setPasswordHash(employee.getPassword().getBytes());
+        userAccount.setName(employeeDTO.getFullName());
+        userAccount.setEmail(employeeDTO.getEmail());
+        userAccount.setPhone(employeeDTO.getPhone());
+        userAccount.setPosition(employeeDTO.getPosition());
+        userAccount.setOrganizationUnitId(employee.getOrganizationUnit() != null ? employee.getOrganizationUnit().getId().intValue() : null);
+        userAccount.setUserRoleId(employee.getUserRole() != null ? employee.getUserRole().getId() : null);
+        userAccount.setStatus(employeeDTO.getStatus());
+        // userAccount.setPhoto(employeeDTO.getPhoto()); // Пропускаем фото, так как типы не совпадают
+        
+        userAccountRepository.save(userAccount);
+
+        return savedEmployee;
     }
 
     @Transactional
@@ -168,7 +196,16 @@ public class EmployeeService {
     public boolean deleteEmployee(Long id) {
         Optional<Employee> employee = employeeRepository.findById(id);
         if (employee.isPresent()) {
-            employeeRepository.delete(employee.get());
+            Employee emp = employee.get();
+            
+            // Удаляем соответствующую запись из UserAccount
+            Optional<UserAccount> userAccount = userAccountRepository.findByUserName(emp.getUsername());
+            if (userAccount.isPresent()) {
+                userAccountRepository.delete(userAccount.get());
+            }
+            
+            // Удаляем сотрудника
+            employeeRepository.delete(emp);
             return true;
         }
         return false;
