@@ -93,9 +93,11 @@ public class AuthController {
         System.out.println("loginRequest.username: " + loginRequest.getUsername());
         System.out.println("loginRequest.password: " + loginRequest.getPassword());
         try {
+            System.out.println("AuthController: Вызываем authenticationService.authenticate для пользователя: " + loginRequest.getUsername());
             AuthenticationService.AuthenticationResponse response = authenticationService.authenticate(
                     loginRequest.getUsername(), loginRequest.getPassword(), request);
 
+            System.out.println("AuthController: Получен ответ от authenticationService");
             System.out.println("token: " + response.getToken() + ", sessionId: " + response.getSessionId());
 
             Map<String, String> responseMap = new HashMap<>();
