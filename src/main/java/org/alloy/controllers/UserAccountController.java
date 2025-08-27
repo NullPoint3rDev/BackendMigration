@@ -549,20 +549,27 @@ public class UserAccountController {
     @GetMapping("/current")
     public ResponseEntity<UserAccountDTO> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println("UserAccountController.getCurrentUser: authentication = " + authentication);
+        System.out.println("UserAccountController.getCurrentUser: authentication.getName() = " + (authentication != null ? authentication.getName() : "null"));
+        System.out.println("UserAccountController.getCurrentUser: authentication.isAuthenticated() = " + (authentication != null ? authentication.isAuthenticated() : "null"));
         
         // Проверяем, что пользователь аутентифицирован и это не anonymous
         if (authentication == null || 
             !authentication.isAuthenticated() || 
             "anonymousUser".equals(authentication.getName())) {
+            System.out.println("UserAccountController.getCurrentUser: Возвращаем null - пользователь не аутентифицирован");
             return ResponseEntity.ok(null); // Возвращаем null вместо 404
         }
         
         String userName = authentication.getName();
+        System.out.println("UserAccountController.getCurrentUser: Ищем пользователя с именем: " + userName);
         Optional<UserAccount> userOpt = userAccountService.getUserAccountByUserName(userName);
         if (!userOpt.isPresent()) {
+            System.out.println("UserAccountController.getCurrentUser: Пользователь не найден в базе данных");
             return ResponseEntity.ok(null); // Возвращаем null вместо 404
         }
         UserAccount user = userOpt.get();
+        System.out.println("UserAccountController.getCurrentUser: Пользователь найден: " + user.getUserName());
         return ResponseEntity.ok(UserAccountMapper.toDTO(user));
     }
 
