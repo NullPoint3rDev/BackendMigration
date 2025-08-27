@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/employees")
+@RequestMapping("/employees")
 @Tag(name = "Сотрудники", description = "API для управления сотрудниками")
 public class EmployeeController {
 
