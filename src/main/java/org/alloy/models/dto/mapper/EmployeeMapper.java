@@ -24,6 +24,7 @@ public class EmployeeMapper {
         
         entity.setFullName(dto.getFullName());
         entity.setEmail(dto.getEmail());
+        entity.setEmployeeType(dto.getEmployeeType());
         entity.setPosition(dto.getPosition());
         entity.setPhone(dto.getPhone());
         entity.setPhoto(dto.getPhoto());
@@ -51,6 +52,7 @@ public class EmployeeMapper {
         dto.setPassword(null); // Не возвращаем пароль в DTO
         dto.setFullName(entity.getFullName());
         dto.setEmail(entity.getEmail());
+        dto.setEmployeeType(entity.getEmployeeType());
         dto.setPosition(entity.getPosition());
         dto.setPhone(entity.getPhone());
         dto.setPhoto(entity.getPhoto());

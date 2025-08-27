@@ -2,6 +2,7 @@ package org.alloy.models.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.alloy.models.GeneralStatus;
+import org.alloy.models.EmployeeType;
 
 @Schema(description = "DTO для сотрудника")
 public class EmployeeDTO {
@@ -20,6 +21,9 @@ public class EmployeeDTO {
     
     @Schema(description = "Email сотрудника")
     private String email;
+    
+    @Schema(description = "Тип сотрудника")
+    private EmployeeType employeeType;
     
     @Schema(description = "Должность")
     private String position;
@@ -87,6 +91,14 @@ public class EmployeeDTO {
     
     public void setEmail(String email) {
         this.email = email;
+    }
+    
+    public EmployeeType getEmployeeType() {
+        return employeeType;
+    }
+    
+    public void setEmployeeType(EmployeeType employeeType) {
+        this.employeeType = employeeType;
     }
     
     public String getPosition() {

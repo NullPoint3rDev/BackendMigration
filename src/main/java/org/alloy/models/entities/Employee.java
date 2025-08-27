@@ -3,6 +3,7 @@ package org.alloy.models.entities;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.alloy.models.GeneralStatus;
+import org.alloy.models.EmployeeType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import javax.persistence.*;
@@ -35,6 +36,11 @@ public class Employee {
     @Column(name = "email", length = 255)
     @Schema(description = "Email сотрудника")
     private String email;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "employee_type", length = 50, nullable = false)
+    @Schema(description = "Тип сотрудника")
+    private EmployeeType employeeType;
     
     @Column(name = "position", length = 255)
     @Schema(description = "Должность")
@@ -76,6 +82,9 @@ public class Employee {
         dateCreated = LocalDateTime.now();
         if (status == null) {
             status = GeneralStatus.Active;
+        }
+        if (employeeType == null) {
+            employeeType = EmployeeType.PROGRAMMER; // По умолчанию программист
         }
     }
     
