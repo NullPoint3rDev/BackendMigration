@@ -148,6 +148,13 @@ public class UserAccountService {
         Optional<UserAccount> userAccountOpt = userAccountRepository.findByUserName(userName);
         if (userAccountOpt.isPresent()) {
             UserAccount userAccount = userAccountOpt.get();
+            
+            // Проверяем статус пользователя
+            if (userAccount.getStatus() == GeneralStatus.Deleted || userAccount.getStatus() == GeneralStatus.Blocked) {
+                System.out.println("Попытка входа для заблокированного/удаленного пользователя: " + userName);
+                return Optional.empty();
+            }
+            
             if (passwordEncoder.matches(password, new String(userAccount.getPasswordHash()))) {
                 // Update last login date
                 userAccount.setDateLastLogon(LocalDateTime.now());

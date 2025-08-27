@@ -119,10 +119,12 @@ public class EmployeeService {
 
         // Сохраняем сотрудника
         Employee savedEmployee = employeeRepository.save(employee);
+        System.out.println("Employee создан: " + savedEmployee.getUsername());
 
         // Создаем соответствующую запись в UserAccount для входа в систему
         UserAccount userAccount = new UserAccount();
         userAccount.setUserName(employeeDTO.getUsername());
+        // Используем уже хешированный пароль из Employee
         userAccount.setPasswordHash(employee.getPassword().getBytes());
         userAccount.setName(employeeDTO.getFullName());
         userAccount.setEmail(employeeDTO.getEmail());
@@ -131,9 +133,11 @@ public class EmployeeService {
         userAccount.setOrganizationUnitId(employee.getOrganizationUnit() != null ? employee.getOrganizationUnit().getId().intValue() : null);
         userAccount.setUserRoleId(employee.getUserRole() != null ? employee.getUserRole().getId() : null);
         userAccount.setStatus(employeeDTO.getStatus());
+        userAccount.setFailedLoginsCount(0);
         // userAccount.setPhoto(employeeDTO.getPhoto()); // Пропускаем фото, так как типы не совпадают
         
-        userAccountRepository.save(userAccount);
+        UserAccount savedUserAccount = userAccountRepository.save(userAccount);
+        System.out.println("UserAccount создан: " + savedUserAccount.getUserName());
 
         return savedEmployee;
     }
@@ -197,15 +201,23 @@ public class EmployeeService {
         Optional<Employee> employee = employeeRepository.findById(id);
         if (employee.isPresent()) {
             Employee emp = employee.get();
+            System.out.println("Удаляем сотрудника: " + emp.getUsername());
             
-            // Удаляем соответствующую запись из UserAccount
+            // Удаляем соответствующую запись из UserAccount (soft delete)
             Optional<UserAccount> userAccount = userAccountRepository.findByUserName(emp.getUsername());
             if (userAccount.isPresent()) {
-                userAccountRepository.delete(userAccount.get());
+                System.out.println("Найдена запись UserAccount для удаления: " + userAccount.get().getUserName());
+                UserAccount ua = userAccount.get();
+                ua.setStatus(GeneralStatus.Deleted);
+                userAccountRepository.save(ua);
+                System.out.println("UserAccount помечен как удаленный");
+            } else {
+                System.out.println("UserAccount не найден для пользователя: " + emp.getUsername());
             }
             
             // Удаляем сотрудника
             employeeRepository.delete(emp);
+            System.out.println("Employee удален успешно");
             return true;
         }
         return false;
