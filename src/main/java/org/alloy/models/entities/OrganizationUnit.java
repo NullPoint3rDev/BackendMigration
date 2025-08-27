@@ -52,10 +52,17 @@ public class OrganizationUnit {
     @Column(name = "ParentID")
     private Integer parentId;
 
+    @Column(name = "Level")
+    private Integer level;
+
     @JsonBackReference("organizationUnitsRef")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationID", insertable = false, updatable = false)
     private Organization organization;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ParentID", insertable = false, updatable = false)
+    private OrganizationUnit parent;
 
     @JsonBackReference("userAccountsRef")
     @OneToMany(mappedBy = "organizationUnit", cascade = CascadeType.ALL, orphanRemoval = true)

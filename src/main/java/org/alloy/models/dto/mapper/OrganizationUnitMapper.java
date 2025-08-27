@@ -14,8 +14,15 @@ public class OrganizationUnitMapper {
         dto.setAddress(entity.getAddress());
         dto.setPhone(entity.getPhone());
         dto.setEmail(entity.getEmail());
-        dto.setLevel(1); // Дефолтный уровень
-        dto.setParentDepartment(null); // Пока не реализовано
+        dto.setLevel(entity.getLevel() != null ? entity.getLevel() : 1);
+        if (entity.getParent() != null) {
+            OrganizationUnitDTO parentDto = new OrganizationUnitDTO();
+            parentDto.setId(entity.getParent().getId());
+            parentDto.setName(entity.getParent().getName());
+            dto.setParentDepartment(parentDto);
+        } else {
+            dto.setParentDepartment(null);
+        }
         if (entity.getOrganization() != null) {
             OrganizationShortDTO orgDto = new OrganizationShortDTO();
             orgDto.setId(entity.getOrganization().getId());
@@ -40,6 +47,16 @@ public class OrganizationUnitMapper {
             // Устанавливаем дефолтную организацию (ID = 1)
             entity.setOrganizationId(1);
         }
+        // Устанавливаем уровень
+        entity.setLevel(dto.getLevel() != null ? dto.getLevel() : 1);
+        
+        // Устанавливаем родительское подразделение
+        if (dto.getParentDepartment() != null && dto.getParentDepartment().getId() != null) {
+            entity.setParentId(dto.getParentDepartment().getId());
+        } else {
+            entity.setParentId(null);
+        }
+        
         // Устанавливаем дефолтный статус
         entity.setStatus(org.alloy.models.GeneralStatus.Active);
         return entity;
