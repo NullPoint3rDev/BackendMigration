@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -106,12 +107,12 @@ public class EmployeeController {
             return new ResponseEntity<>(EmployeeMapper.toDTO(createdEmployee), HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             ErrorResponse errorResponse = new ErrorResponse();
-            errorResponse.setError("Bad Request");
+            errorResponse.setStatus(400);
             errorResponse.setMessage(e.getMessage());
             return ResponseEntity.badRequest().body(null);
         } catch (Exception e) {
             ErrorResponse errorResponse = new ErrorResponse();
-            errorResponse.setError("Internal Server Error");
+            errorResponse.setStatus(500);
             errorResponse.setMessage("An unexpected error occurred: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
@@ -153,12 +154,12 @@ public class EmployeeController {
             return ResponseEntity.ok(EmployeeMapper.toDTO(updatedEmployee));
         } catch (IllegalArgumentException e) {
             ErrorResponse errorResponse = new ErrorResponse();
-            errorResponse.setError("Bad Request");
+            errorResponse.setStatus(400);
             errorResponse.setMessage(e.getMessage());
             return ResponseEntity.badRequest().body(null);
         } catch (Exception e) {
             ErrorResponse errorResponse = new ErrorResponse();
-            errorResponse.setError("Internal Server Error");
+            errorResponse.setStatus(500);
             errorResponse.setMessage("An unexpected error occurred: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
