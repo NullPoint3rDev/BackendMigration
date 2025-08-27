@@ -4,6 +4,7 @@ import org.alloy.models.entities.Employee;
 import org.alloy.models.dto.EmployeeDTO;
 import org.alloy.models.dto.OrganizationUnitShortDTO;
 import org.alloy.models.dto.UserRoleShortDTO;
+import org.alloy.models.EmployeeType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.format.DateTimeFormatter;
@@ -24,7 +25,7 @@ public class EmployeeMapper {
         
         entity.setFullName(dto.getFullName());
         entity.setEmail(dto.getEmail());
-        entity.setEmployeeType(dto.getEmployeeType());
+        entity.setEmployeeType(dto.getEmployeeType() != null ? dto.getEmployeeType() : EmployeeType.PROGRAMMER);
         entity.setPosition(dto.getPosition());
         entity.setPhone(dto.getPhone());
         entity.setPhoto(dto.getPhoto());
@@ -52,7 +53,7 @@ public class EmployeeMapper {
         dto.setPassword(null); // Не возвращаем пароль в DTO
         dto.setFullName(entity.getFullName());
         dto.setEmail(entity.getEmail());
-        dto.setEmployeeType(entity.getEmployeeType());
+        dto.setEmployeeType(entity.getEmployeeType() != null ? entity.getEmployeeType() : EmployeeType.PROGRAMMER);
         dto.setPosition(entity.getPosition());
         dto.setPhone(entity.getPhone());
         dto.setPhoto(entity.getPhoto());
