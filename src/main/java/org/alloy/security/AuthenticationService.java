@@ -52,13 +52,17 @@ public class AuthenticationService {
     }
 
     public AuthenticationResponse authenticate(String username, String password, HttpServletRequest request) {
+        System.out.println("AuthenticationService: Попытка аутентификации для пользователя: " + username);
+        
         // Check if account is locked
         if (accountLockoutService.isAccountLocked(username)) {
             LocalDateTime lockoutEndTime = accountLockoutService.getLockoutEndTime(username);
+            System.out.println("AuthenticationService: Аккаунт заблокирован для пользователя: " + username);
             throw new AccountLockedException("Account is locked until " + lockoutEndTime);
         }
 
         try {
+            System.out.println("AuthenticationService: Вызываем authenticationManager.authenticate для пользователя: " + username);
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password)
             );
@@ -67,6 +71,7 @@ public class AuthenticationService {
             
             // Generate JWT token
             String jwt = tokenProvider.generateToken(authentication);
+            System.out.println("AuthenticationService: JWT токен сгенерирован для пользователя: " + username);
             
             // Create session
             String userAgent = request.getHeader("User-Agent");
@@ -76,8 +81,10 @@ public class AuthenticationService {
             // Reset failed attempts on successful login
             accountLockoutService.resetFailedAttempts(username);
             
+            System.out.println("AuthenticationService: Аутентификация успешна для пользователя: " + username);
             return new AuthenticationResponse(jwt, sessionId.toString());
         } catch (AuthenticationException e) {
+            System.out.println("AuthenticationService: Ошибка аутентификации для пользователя: " + username + " - " + e.getMessage());
             // Record failed attempt
             accountLockoutService.recordFailedAttempt(username);
             
