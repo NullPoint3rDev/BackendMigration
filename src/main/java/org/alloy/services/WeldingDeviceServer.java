@@ -74,6 +74,7 @@ public class WeldingDeviceServer {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.US_ASCII))) {
             
             String line;
+            System.out.println("[WELDING-SERVER] 🔄 Ожидание данных от " + clientIp + "...");
             while (running && (line = in.readLine()) != null) {
                 System.out.println("[WELDING-SERVER] 📨 Получены данные от " + clientIp + ": " + line);
                 
@@ -91,6 +92,7 @@ public class WeldingDeviceServer {
                     }
                 }
             }
+            System.out.println("[WELDING-SERVER] 🔌 Клиент " + clientIp + " закрыл соединение");
         } catch (IOException e) {
             System.err.println("[WELDING-SERVER] ❌ Ошибка обработки клиента " + clientIp + ": " + e.getMessage());
         } finally {
