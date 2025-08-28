@@ -25,7 +25,9 @@ public class WeldingDeviceServer {
     
     private volatile boolean running = true;
     private Thread serverThread;
+    private Thread heartbeatThread;
     private ServerSocket serverSocket;
+    private volatile Socket currentClientSocket = null;
     
     @Autowired
     private WeldingDeviceManagerService deviceManager;
@@ -42,6 +44,9 @@ public class WeldingDeviceServer {
         serverThread = new Thread(this::runServer);
         serverThread.setDaemon(true);
         serverThread.start();
+        
+        // Запускаем поток для отправки периодических команд
+        startHeartbeatThread();
     }
 
     private void runServer() {
@@ -54,6 +59,19 @@ public class WeldingDeviceServer {
                     Socket clientSocket = serverSocket.accept();
                     String clientIp = clientSocket.getInetAddress().getHostAddress();
                     System.out.println("[WELDING-SERVER] 🔌 Подключение от: " + clientIp);
+                    
+                    // Сохраняем ссылку на клиентский сокет
+                    currentClientSocket = clientSocket;
+                    
+                    // Отправляем приветственную команду плате
+                    try {
+                        java.io.PrintWriter out = new java.io.PrintWriter(clientSocket.getOutputStream(), true);
+                        String welcomeCommand = "HELLO:8CAAB579425A\n";
+                        out.println(welcomeCommand);
+                        System.out.println("[WELDING-SERVER] 📤 Отправлена команда: " + welcomeCommand.trim());
+                    } catch (Exception e) {
+                        System.err.println("[WELDING-SERVER] ❌ Ошибка отправки команды: " + e.getMessage());
+                    }
                     
                     // Обрабатываем подключение в отдельном потоке
                     new Thread(() -> handleClient(clientSocket)).start();
@@ -102,9 +120,35 @@ public class WeldingDeviceServer {
             } catch (IOException e) {
                 System.err.println("[WELDING-SERVER] ❌ Ошибка закрытия соединения: " + e.getMessage());
             }
-        }
+                }
     }
     
+    private void startHeartbeatThread() {
+        heartbeatThread = new Thread(() -> {
+            while (running) {
+                try {
+                    Thread.sleep(10000); // Отправляем команду каждые 10 секунд
+                    
+                    if (currentClientSocket != null && !currentClientSocket.isClosed()) {
+                        try {
+                            java.io.PrintWriter out = new java.io.PrintWriter(currentClientSocket.getOutputStream(), true);
+                            String heartbeatCommand = "PING:8CAAB579425A\n";
+                            out.println(heartbeatCommand);
+                            System.out.println("[WELDING-SERVER] 📤 Отправлен ping: " + heartbeatCommand.trim());
+                        } catch (Exception e) {
+                            System.err.println("[WELDING-SERVER] ❌ Ошибка отправки ping: " + e.getMessage());
+                            currentClientSocket = null;
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        heartbeatThread.setDaemon(true);
+        heartbeatThread.start();
+    }
+
     private String extractMacFromPacket(String data) {
         if (data == null || data.isEmpty()) {
             return null;
@@ -130,6 +174,9 @@ public class WeldingDeviceServer {
             } catch (IOException e) {
                 System.err.println("[WELDING-SERVER] ❌ Ошибка остановки сервера: " + e.getMessage());
             }
+        }
+        if (heartbeatThread != null) {
+            heartbeatThread.interrupt();
         }
     }
 } 
