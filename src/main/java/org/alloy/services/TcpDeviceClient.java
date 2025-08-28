@@ -38,7 +38,10 @@ public class TcpDeviceClient {
     
     private volatile boolean running = true;
     private Thread clientThread;
+    private Thread heartbeatThread;
     private int retryCount = 0;
+    private volatile long lastDataReceived = 0;
+    private volatile boolean isConnected = false;
 
     @Autowired
     private DeviceController deviceController;
@@ -72,11 +75,17 @@ public class TcpDeviceClient {
                     System.out.println("[TCP-CLIENT] ✅ Подключение установлено к " + host + ":" + port);
                     System.out.println("[TCP-CLIENT] 🔄 Ожидание данных от сварочного аппарата...");
                     retryCount = 0; // Сбрасываем счетчик при успешном подключении
+                    isConnected = true;
+                    lastDataReceived = System.currentTimeMillis();
                     
                     try (InputStream in = socket.getInputStream()) {
                         byte[] buffer = new byte[4096];
                         int bytesRead;
+                        long lastDataTime = System.currentTimeMillis();
+                        
                         while (running && (bytesRead = in.read(buffer)) != -1) {
+                            lastDataTime = System.currentTimeMillis();
+                            lastDataReceived = System.currentTimeMillis();
                             String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
                             System.out.println("[TCP-CLIENT] 📨 Получены данные: " + data);
 
@@ -94,6 +103,10 @@ public class TcpDeviceClient {
                                 }
                             }
                         }
+                        
+                        // Если вышли из цикла чтения, значит соединение закрыто
+                        System.out.println("[TCP-CLIENT] 🔌 Соединение закрыто аппаратом");
+                        deviceManager.markDeviceDisconnected(expectedMac);
                     }
                     
                 } catch (java.net.ConnectException e) {
@@ -126,6 +139,34 @@ public class TcpDeviceClient {
         });
         clientThread.setDaemon(true);
         clientThread.start();
+        
+        // Запускаем поток для проверки состояния соединения
+        startHeartbeatThread();
+    }
+    
+    private void startHeartbeatThread() {
+        heartbeatThread = new Thread(() -> {
+            while (running) {
+                try {
+                    Thread.sleep(10000); // Проверяем каждые 10 секунд
+                    
+                    if (isConnected && lastDataReceived > 0) {
+                        long timeSinceLastData = System.currentTimeMillis() - lastDataReceived;
+                        
+                        // Если данных не было более 30 секунд, считаем аппарат отключенным
+                        if (timeSinceLastData > 30000) {
+                            System.out.println("[TCP-CLIENT] ⚠️ Данных не было " + (timeSinceLastData / 1000) + " секунд, отмечаем как отключенный");
+                            deviceManager.markDeviceDisconnected(expectedMac);
+                            isConnected = false;
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        heartbeatThread.setDaemon(true);
+        heartbeatThread.start();
     }
 
     private String extractMacFromPacket(String data) {
@@ -158,6 +199,9 @@ public class TcpDeviceClient {
         running = false;
         if (clientThread != null) {
             clientThread.interrupt();
+        }
+        if (heartbeatThread != null) {
+            heartbeatThread.interrupt();
         }
         System.out.println("[TCP-CLIENT] Stopped.");
     }
