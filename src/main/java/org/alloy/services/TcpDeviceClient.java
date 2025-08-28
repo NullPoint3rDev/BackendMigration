@@ -65,10 +65,12 @@ public class TcpDeviceClient {
                     System.out.println("[TCP-CLIENT] 🔌 Попытка подключения к " + host + ":" + port + " (попытка " + (retryCount + 1) + ")");
                     
                     Socket socket = new Socket();
-                    socket.setSoTimeout(timeoutMs);
+                    // Убираем таймаут на чтение - ждем данные бесконечно
+                    // socket.setSoTimeout(timeoutMs);
                     socket.connect(new java.net.InetSocketAddress(host, port), timeoutMs);
                     
                     System.out.println("[TCP-CLIENT] ✅ Подключение установлено к " + host + ":" + port);
+                    System.out.println("[TCP-CLIENT] 🔄 Ожидание данных от сварочного аппарата...");
                     retryCount = 0; // Сбрасываем счетчик при успешном подключении
                     
                     try (InputStream in = socket.getInputStream()) {
