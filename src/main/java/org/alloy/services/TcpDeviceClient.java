@@ -74,6 +74,8 @@ public class TcpDeviceClient {
                     
                     System.out.println("[TCP-CLIENT] ✅ Подключение установлено к " + host + ":" + port);
                     System.out.println("[TCP-CLIENT] 🔄 Ожидание данных от сварочного аппарата...");
+                    System.out.println("[TCP-CLIENT] 📡 Локальный адрес: " + socket.getLocalAddress() + ":" + socket.getLocalPort());
+                    System.out.println("[TCP-CLIENT] 📡 Удаленный адрес: " + socket.getInetAddress() + ":" + socket.getPort());
                     retryCount = 0; // Сбрасываем счетчик при успешном подключении
                     isConnected = true;
                     lastDataReceived = System.currentTimeMillis();
@@ -88,8 +90,11 @@ public class TcpDeviceClient {
                             lastDataReceived = System.currentTimeMillis();
                             String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
                             System.out.println("[TCP-CLIENT] 📨 Получены данные: " + data);
+                            System.out.println("[TCP-CLIENT] 📊 Размер данных: " + bytesRead + " байт");
+                            System.out.println("[TCP-CLIENT] 📊 Сырые байты: " + java.util.Arrays.toString(java.util.Arrays.copyOfRange(buffer, 0, Math.min(bytesRead, 20))));
 
                             // Извлечение MAC-адреса из пакета
+                            System.out.println("[TCP-CLIENT] 🔍 Поиск MAC в данных: " + data);
                             String mac = extractMacFromPacket(data);
                             if (mac != null) {
                                 System.out.println("[TCP-CLIENT] MAC из пакета: " + mac);
