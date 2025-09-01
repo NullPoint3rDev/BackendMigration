@@ -323,7 +323,7 @@ public class ReportService {
             document.add(new Paragraph("  Подразделение: " + departments[i % departments.length]));
             document.add(new Paragraph("  Квалификация: " + qualifications[i % qualifications.length]));
             document.add(new Paragraph("  Время работы: " + (160 + (int)(Math.random() * 200)) + " часов"));
-            document.add(new Paragraph("  Выполнено швов: " + (50 + (int)(Math.random() * 150)));
+            document.add(new Paragraph("  Выполнено швов: " + (50 + (int)(Math.random() * 150))));
             document.add(new Paragraph("  Расход проволоки: " + String.format("%.1f", 8.5 + (Math.random() * 41.5)) + " кг"));
             document.add(new Paragraph("  Качество работы: " + (85 + (int)(Math.random() * 15)) + "%"));
             document.add(new Paragraph("---"));
