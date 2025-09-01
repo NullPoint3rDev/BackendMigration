@@ -472,6 +472,473 @@ public class ReportService {
         return csv.toString().getBytes("UTF-8");
     }
 
+    // Методы для генерации отчета по сварочным швам
+    private byte[] generateWeldsReportWithData(String format) throws IOException {
+        if ("EXCEL".equalsIgnoreCase(format)) {
+            return generateWeldsExcelWithData();
+        } else if ("PDF".equalsIgnoreCase(format)) {
+            return generateWeldsPdfWithData();
+        } else if ("CSV".equalsIgnoreCase(format)) {
+            return generateWeldsCsvWithData();
+        }
+        throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
+    private byte[] generateWeldsExcelWithData() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по сварочным швам");
+            
+            // Создаем заголовки
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {
+                "ID шва", "Тип шва", "Сварщик", "Оборудование", "Материал", "Длина (мм)",
+                "Толщина (мм)", "Ток (А)", "Напряжение (В)", "Скорость (мм/мин)", "Качество (%)", "Дата"
+            };
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 4000);
+            }
+
+            // Заполняем тестовыми данными
+            int rowNum = 1;
+            String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный", "Торцевой"};
+            String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+            String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
+            String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
+            
+            for (int i = 0; i < 30; i++) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(4000 + i);
+                row.createCell(1).setCellValue(weldTypes[i % weldTypes.length]);
+                row.createCell(2).setCellValue(welders[i % welders.length]);
+                row.createCell(3).setCellValue(equipment[i % equipment.length]);
+                row.createCell(4).setCellValue(materials[i % materials.length]);
+                row.createCell(5).setCellValue(50 + (int)(Math.random() * 450)); // 50-500 мм
+                row.createCell(6).setCellValue(3.0 + (Math.random() * 17.0)); // 3-20 мм
+                row.createCell(7).setCellValue(150 + (int)(Math.random() * 150)); // 150-300 А
+                row.createCell(8).setCellValue(18 + (int)(Math.random() * 12)); // 18-30 В
+                row.createCell(9).setCellValue(200 + (int)(Math.random() * 300)); // 200-500 мм/мин
+                row.createCell(10).setCellValue(85 + (int)(Math.random() * 15)); // 85-100%
+                row.createCell(11).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28)));
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private byte[] generateWeldsPdfWithData() throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(outputStream);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+        
+        document.add(new Paragraph("Отчет по сварочным швам"));
+        document.add(new Paragraph(""));
+        
+        String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный", "Торцевой"};
+        String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+        String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
+        
+        for (int i = 0; i < 15; i++) {
+            document.add(new Paragraph("Шов " + (i + 1) + ":"));
+            document.add(new Paragraph("  Тип: " + weldTypes[i % weldTypes.length]));
+            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
+            document.add(new Paragraph("  Оборудование: " + equipment[i % equipment.length]));
+            document.add(new Paragraph("  Длина: " + (50 + (int)(Math.random() * 450)) + " мм"));
+            document.add(new Paragraph("  Толщина: " + String.format("%.1f", 3.0 + (Math.random() * 17.0)) + " мм"));
+            document.add(new Paragraph("  Качество: " + (85 + (int)(Math.random() * 15)) + "%"));
+            document.add(new Paragraph("---"));
+        }
+        
+        document.close();
+        return outputStream.toByteArray();
+    }
+
+    private byte[] generateWeldsCsvWithData() throws IOException {
+        StringBuilder csv = new StringBuilder();
+        csv.append("ID шва,Тип шва,Сварщик,Оборудование,Материал,Длина (мм),Толщина (мм),Ток (А),Напряжение (В),Скорость (мм/мин),Качество (%),Дата\n");
+        
+        String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный", "Торцевой"};
+        String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+        String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
+        String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
+        
+        for (int i = 0; i < 25; i++) {
+            csv.append(4000 + i).append(",");
+            csv.append(weldTypes[i % weldTypes.length]).append(",");
+            csv.append(welders[i % welders.length]).append(",");
+            csv.append(equipment[i % equipment.length]).append(",");
+            csv.append(materials[i % materials.length]).append(",");
+            csv.append(50 + (int)(Math.random() * 450)).append(",");
+            csv.append(String.format("%.1f", 3.0 + (Math.random() * 17.0))).append(",");
+            csv.append(150 + (int)(Math.random() * 150)).append(",");
+            csv.append(18 + (int)(Math.random() * 12)).append(",");
+            csv.append(200 + (int)(Math.random() * 300)).append(",");
+            csv.append(85 + (int)(Math.random() * 15)).append(",");
+            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28)));
+            csv.append("\n");
+        }
+        
+        return csv.toString().getBytes("UTF-8");
+    }
+
+    // Методы для генерации отчета по ошибкам
+    private byte[] generateErrorsReportWithData(String format) throws IOException {
+        if ("EXCEL".equalsIgnoreCase(format)) {
+            return generateErrorsExcelWithData();
+        } else if ("PDF".equalsIgnoreCase(format)) {
+            return generateErrorsPdfWithData();
+        } else if ("CSV".equalsIgnoreCase(format)) {
+            return generateErrorsCsvWithData();
+        }
+        throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
+    private byte[] generateErrorsExcelWithData() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по ошибкам оборудования");
+            
+            // Создаем заголовки
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {
+                "ID ошибки", "Оборудование", "Тип ошибки", "Описание", "Критичность", "Дата возникновения",
+                "Дата устранения", "Время простоя (часы)", "Стоимость ремонта", "Ответственный", "Статус"
+            };
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 4000);
+            }
+
+            // Заполняем тестовыми данными
+            int rowNum = 1;
+            String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250", "Аппарат плазменной резки"};
+            String[] errorTypes = {"Электрическая", "Механическая", "Термическая", "Программная", "Сетевая"};
+            String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
+            String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
+            String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+            String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
+            
+            for (int i = 0; i < 20; i++) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(5000 + i);
+                row.createCell(1).setCellValue(equipment[i % equipment.length]);
+                row.createCell(2).setCellValue(errorTypes[i % errorTypes.length]);
+                row.createCell(3).setCellValue(descriptions[i % descriptions.length]);
+                row.createCell(4).setCellValue(criticality[i % criticality.length]);
+                row.createCell(5).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28)));
+                row.createCell(6).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28)));
+                row.createCell(7).setCellValue(2 + (int)(Math.random() * 48)); // 2-50 часов
+                row.createCell(8).setCellValue(5000 + (int)(Math.random() * 45000)); // 5000-50000 руб
+                row.createCell(9).setCellValue(responsible[i % responsible.length]);
+                row.createCell(10).setCellValue(statuses[i % statuses.length]);
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private byte[] generateErrorsPdfWithData() throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(outputStream);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+        
+        document.add(new Paragraph("Отчет по ошибкам сварочного оборудования"));
+        document.add(new Paragraph(""));
+        
+        String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
+        String[] errorTypes = {"Электрическая", "Механическая", "Термическая", "Программная"};
+        String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО"};
+        
+        for (int i = 0; i < 12; i++) {
+            document.add(new Paragraph("Ошибка " + (i + 1) + ":"));
+            document.add(new Paragraph("  Оборудование: " + equipment[i % equipment.length]));
+            document.add(new Paragraph("  Тип: " + errorTypes[i % errorTypes.length]));
+            document.add(new Paragraph("  Описание: " + descriptions[i % descriptions.length]));
+            document.add(new Paragraph("  Время простоя: " + (2 + (int)(Math.random() * 48)) + " часов"));
+            document.add(new Paragraph("  Стоимость ремонта: " + (5000 + (int)(Math.random() * 45000)) + " руб"));
+            document.add(new Paragraph("---"));
+        }
+        
+        document.close();
+        return outputStream.toByteArray();
+    }
+
+    private byte[] generateErrorsCsvWithData() throws IOException {
+        StringBuilder csv = new StringBuilder();
+        csv.append("ID ошибки,Оборудование,Тип ошибки,Описание,Критичность,Дата возникновения,Дата устранения,Время простоя (часы),Стоимость ремонта,Ответственный,Статус\n");
+        
+        String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250", "Аппарат плазменной резки"};
+        String[] errorTypes = {"Электрическая", "Механическая", "Термическая", "Программная", "Сетевая"};
+        String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
+        String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
+        String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
+        
+        for (int i = 0; i < 18; i++) {
+            csv.append(5000 + i).append(",");
+            csv.append(equipment[i % equipment.length]).append(",");
+            csv.append(errorTypes[i % errorTypes.length]).append(",");
+            csv.append(descriptions[i % descriptions.length]).append(",");
+            csv.append(criticality[i % criticality.length]).append(",");
+            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
+            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
+            csv.append(2 + (int)(Math.random() * 48)).append(",");
+            csv.append(5000 + (int)(Math.random() * 45000)).append(",");
+            csv.append(responsible[i % responsible.length]).append(",");
+            csv.append(statuses[i % statuses.length]);
+            csv.append("\n");
+        }
+        
+        return csv.toString().getBytes("UTF-8");
+    }
+
+    // Методы для генерации отчета по нарушениям
+    private byte[] generateViolationsReportWithData(String format) throws IOException {
+        if ("EXCEL".equalsIgnoreCase(format)) {
+            return generateViolationsExcelWithData();
+        } else if ("PDF".equalsIgnoreCase(format)) {
+            return generateViolationsPdfWithData();
+        } else if ("CSV".equalsIgnoreCase(format)) {
+            return generateViolationsCsvWithData();
+        }
+        throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
+    private byte[] generateViolationsExcelWithData() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по нарушениям");
+            
+            // Создаем заголовки
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {
+                "ID нарушения", "Шов", "Сварщик", "Тип нарушения", "Описание", "Критичность",
+                "Дата обнаружения", "Дата исправления", "Ответственный", "Статус", "Штраф"
+            };
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 4000);
+            }
+
+            // Заполняем тестовыми данными
+            int rowNum = 1;
+            String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный"};
+            String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+            String[] violationTypes = {"Технологическое", "Качественное", "Временное", "Безопасности"};
+            String[] descriptions = {"Несоответствие режиму", "Пористость", "Превышение времени", "Отсутствие СИЗ"};
+            String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
+            String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+            String[] statuses = {"Обнаружено", "Исправляется", "Исправлено", "Проверено"};
+            
+            for (int i = 0; i < 18; i++) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(6000 + i);
+                row.createCell(1).setCellValue(weldTypes[i % weldTypes.length] + " шов №" + (i + 1));
+                row.createCell(2).setCellValue(welders[i % welders.length]);
+                row.createCell(3).setCellValue(violationTypes[i % violationTypes.length]);
+                row.createCell(4).setCellValue(descriptions[i % descriptions.length]);
+                row.createCell(5).setCellValue(criticality[i % criticality.length]);
+                row.createCell(6).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28)));
+                row.createCell(7).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28)));
+                row.createCell(8).setCellValue(responsible[i % responsible.length]);
+                row.createCell(9).setCellValue(statuses[i % statuses.length]);
+                row.createCell(10).setCellValue(1000 + (int)(Math.random() * 9000)); // 1000-10000 руб
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private byte[] generateViolationsPdfWithData() throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(outputStream);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+        
+        document.add(new Paragraph("Отчет по нарушениям при сварке"));
+        document.add(new Paragraph(""));
+        
+        String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный"};
+        String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] violationTypes = {"Технологическое", "Качественное", "Временное", "Безопасности"};
+        
+        for (int i = 0; i < 10; i++) {
+            document.add(new Paragraph("Нарушение " + (i + 1) + ":"));
+            document.add(new Paragraph("  Шов: " + weldTypes[i % weldTypes.length] + " №" + (i + 1)));
+            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
+            document.add(new Paragraph("  Тип: " + violationTypes[i % violationTypes.length]));
+            document.add(new Paragraph("  Штраф: " + (1000 + (int)(Math.random() * 9000)) + " руб"));
+            document.add(new Paragraph("---"));
+        }
+        
+        document.close();
+        return outputStream.toByteArray();
+    }
+
+    private byte[] generateViolationsCsvWithData() throws IOException {
+        StringBuilder csv = new StringBuilder();
+        csv.append("ID нарушения,Шов,Сварщик,Тип нарушения,Описание,Критичность,Дата обнаружения,Дата исправления,Ответственный,Статус,Штраф\n");
+        
+        String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный"};
+        String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] violationTypes = {"Технологическое", "Качественное", "Временное", "Безопасности"};
+        String[] descriptions = {"Несоответствие режиму", "Пористость", "Превышение времени", "Отсутствие СИЗ"};
+        String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
+        String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] statuses = {"Обнаружено", "Исправляется", "Исправлено", "Проверено"};
+        
+        for (int i = 0; i < 15; i++) {
+            csv.append(6000 + i).append(",");
+            csv.append(weldTypes[i % weldTypes.length] + " шов №" + (i + 1)).append(",");
+            csv.append(welders[i % welders.length]).append(",");
+            csv.append(violationTypes[i % violationTypes.length]).append(",");
+            csv.append(descriptions[i % descriptions.length]).append(",");
+            csv.append(criticality[i % criticality.length]).append(",");
+            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
+            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
+            csv.append(responsible[i % responsible.length]).append(",");
+            csv.append(statuses[i % statuses.length]).append(",");
+            csv.append(1000 + (int)(Math.random() * 9000));
+            csv.append("\n");
+        }
+        
+        return csv.toString().getBytes("UTF-8");
+    }
+
+    // Методы для генерации отчета по заданиям
+    private byte[] generateTasksReportWithData(String format) throws IOException {
+        if ("EXCEL".equalsIgnoreCase(format)) {
+            return generateTasksExcelWithData();
+        } else if ("PDF".equalsIgnoreCase(format)) {
+            return generateTasksPdfWithData();
+        } else if ("CSV".equalsIgnoreCase(format)) {
+            return generateTasksCsvWithData();
+        }
+        throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
+    private byte[] generateTasksExcelWithData() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по заданиям");
+            
+            // Создаем заголовки
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {
+                "ID задания", "Название", "Описание", "Сварщик", "Оборудование", "Материал",
+                "Плановая дата", "Фактическая дата", "Статус", "Прогресс (%)", "Приоритет"
+            };
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 4000);
+            }
+
+            // Заполняем тестовыми данными
+            int rowNum = 1;
+            String[] taskNames = {"Сварка трубопровода", "Ремонт конструкции", "Изготовление детали", "Сборка узла", "Восстановление износа"};
+            String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+            String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
+            String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
+            String[] statuses = {"Новое", "В работе", "На проверке", "Завершено", "Отменено"};
+            String[] priorities = {"Низкий", "Средний", "Высокий", "Критический"};
+            
+            for (int i = 0; i < 25; i++) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(7000 + i);
+                row.createCell(1).setCellValue(taskNames[i % taskNames.length] + " №" + (i + 1));
+                row.createCell(2).setCellValue("Детальное описание задания " + (i + 1));
+                row.createCell(3).setCellValue(welders[i % welders.length]);
+                row.createCell(4).setCellValue(equipment[i % equipment.length]);
+                row.createCell(5).setCellValue(materials[i % materials.length]);
+                row.createCell(6).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28)));
+                row.createCell(7).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28)));
+                row.createCell(8).setCellValue(statuses[i % statuses.length]);
+                row.createCell(9).setCellValue(10 + (int)(Math.random() * 90)); // 10-100%
+                row.createCell(10).setCellValue(priorities[i % priorities.length]);
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private byte[] generateTasksPdfWithData() throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(outputStream);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+        
+        document.add(new Paragraph("Отчет по сварочным заданиям"));
+        document.add(new Paragraph(""));
+        
+        String[] taskNames = {"Сварка трубопровода", "Ремонт конструкции", "Изготовление детали", "Сборка узла"};
+        String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] statuses = {"Новое", "В работе", "На проверке", "Завершено"};
+        
+        for (int i = 0; i < 12; i++) {
+            document.add(new Paragraph("Задание " + (i + 1) + ":"));
+            document.add(new Paragraph("  Название: " + taskNames[i % taskNames.length] + " №" + (i + 1)));
+            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
+            document.add(new Paragraph("  Статус: " + statuses[i % statuses.length]));
+            document.add(new Paragraph("  Прогресс: " + (10 + (int)(Math.random() * 90)) + "%"));
+            document.add(new Paragraph("---"));
+        }
+        
+        document.close();
+        return outputStream.toByteArray();
+    }
+
+    private byte[] generateTasksCsvWithData() throws IOException {
+        StringBuilder csv = new StringBuilder();
+        csv.append("ID задания,Название,Описание,Сварщик,Оборудование,Материал,Плановая дата,Фактическая дата,Статус,Прогресс (%),Приоритет\n");
+        
+        String[] taskNames = {"Сварка трубопровода", "Ремонт конструкции", "Изготовление детали", "Сборка узла", "Восстановление износа"};
+        String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+        String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
+        String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
+        String[] statuses = {"Новое", "В работе", "На проверке", "Завершено", "Отменено"};
+        String[] priorities = {"Низкий", "Средний", "Высокий", "Критический"};
+        
+        for (int i = 0; i < 20; i++) {
+            csv.append(7000 + i).append(",");
+            csv.append(taskNames[i % taskNames.length] + " №" + (i + 1)).append(",");
+            csv.append("Детальное описание задания " + (i + 1)).append(",");
+            csv.append(welders[i % welders.length]).append(",");
+            csv.append(equipment[i % equipment.length]).append(",");
+            csv.append(materials[i % materials.length]).append(",");
+            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
+            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
+            csv.append(statuses[i % statuses.length]).append(",");
+            csv.append(10 + (int)(Math.random() * 90)).append(",");
+            csv.append(priorities[i % priorities.length]);
+            csv.append("\n");
+        }
+        
+        return csv.toString().getBytes("UTF-8");
+    }
+
     private byte[] generateWireConsumptionExcel(List<WireConsumptionReportDTO> data) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Расход проволоки");
