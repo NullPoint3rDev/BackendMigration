@@ -100,13 +100,215 @@ public class ReportController {
 
     @GetMapping("/formats")
     public ResponseEntity<List<String>> getReportFormats() {
-        List<String> formats = List.of("EXCEL", "PDF");
+        List<String> formats = List.of("EXCEL", "PDF", "CSV");
         return ResponseEntity.ok(formats);
     }
 
     @GetMapping("/periods")
     public ResponseEntity<List<String>> getReportPeriods() {
-        List<String> periods = List.of("DAY", "MONTH", "YEAR");
+        List<String> periods = List.of("DAY", "WEEK", "MONTH", "QUARTER", "YEAR", "CUSTOM");
         return ResponseEntity.ok(periods);
+    }
+
+    // Новые эндпоинты для отчетов согласно требованиям
+    
+    @PostMapping("/equipment")
+    public ResponseEntity<byte[]> generateEquipmentReport(@RequestBody ReportRequestDTO request) {
+        try {
+            // TODO: Реализовать генерацию отчета по работе оборудования
+            byte[] reportBytes = reportService.generateEquipmentReport(request);
+            
+            String filename = "equipment_work_report_" + System.currentTimeMillis();
+            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
+                filename += ".xlsx";
+            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
+                filename += ".pdf";
+            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
+                filename += ".csv";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/welders")
+    public ResponseEntity<byte[]> generateWeldersReport(@RequestBody ReportRequestDTO request) {
+        try {
+            // TODO: Реализовать генерацию отчета по работе сварщиков
+            byte[] reportBytes = reportService.generateWeldersReport(request);
+            
+            String filename = "welders_work_report_" + System.currentTimeMillis();
+            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
+                filename += ".xlsx";
+            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
+                filename += ".pdf";
+            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
+                filename += ".csv";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/materials")
+    public ResponseEntity<byte[]> generateMaterialsReport(@RequestBody ReportRequestDTO request) {
+        try {
+            // TODO: Реализовать генерацию отчета по расходу материалов
+            byte[] reportBytes = reportService.generateMaterialsReport(request);
+            
+            String filename = "materials_consumption_report_" + System.currentTimeMillis();
+            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
+                filename += ".xlsx";
+            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
+                filename += ".pdf";
+            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
+                filename += ".csv";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/welds")
+    public ResponseEntity<byte[]> generateWeldsReport(@RequestBody ReportRequestDTO request) {
+        try {
+            // TODO: Реализовать генерацию отчета по сварочным швам
+            byte[] reportBytes = reportService.generateWeldsReport(request);
+            
+            String filename = "welds_quality_report_" + System.currentTimeMillis();
+            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
+                filename += ".xlsx";
+            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
+                filename += ".pdf";
+            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
+                filename += ".csv";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/notifications")
+    public ResponseEntity<byte[]> generateNotificationsReport(@RequestBody ReportRequestDTO request) {
+        try {
+            // TODO: Реализовать генерацию отчета по уведомлениям
+            byte[] reportBytes = reportService.generateNotificationsReport(request);
+            
+            String filename = "notifications_report_" + System.currentTimeMillis();
+            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
+                filename += ".xlsx";
+            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
+                filename += ".pdf";
+            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
+                filename += ".csv";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/errors")
+    public ResponseEntity<byte[]> generateErrorsReport(@RequestBody ReportRequestDTO request) {
+        try {
+            // TODO: Реализовать генерацию отчета по ошибкам
+            byte[] reportBytes = reportService.generateErrorsReport(request);
+            
+            String filename = "equipment_errors_report_" + System.currentTimeMillis();
+            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
+                filename += ".xlsx";
+            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
+                filename += ".pdf";
+            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
+                filename += ".csv";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/violations")
+    public ResponseEntity<byte[]> generateViolationsReport(@RequestBody ReportRequestDTO request) {
+        try {
+            // TODO: Реализовать генерацию отчета по нарушениям
+            byte[] reportBytes = reportService.generateViolationsReport(request);
+            
+            String filename = "welds_violations_report_" + System.currentTimeMillis();
+            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
+                filename += ".xlsx";
+            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
+                filename += ".pdf";
+            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
+                filename += ".csv";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/tasks")
+    public ResponseEntity<byte[]> generateTasksReport(@RequestBody ReportRequestDTO request) {
+        try {
+            // TODO: Реализовать генерацию отчета по заданиям
+            byte[] reportBytes = reportService.generateTasksReport(request);
+            
+            String filename = "welding_tasks_report_" + System.currentTimeMillis();
+            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
+                filename += ".xlsx";
+            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
+                filename += ".pdf";
+            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
+                filename += ".csv";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (IOException e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 } 

@@ -53,10 +53,19 @@ public class CustomUserDetailsService implements UserDetailsService {
                 // Используем UTF-8 кодировку для корректной конвертации BCrypt хеша
                 password = new String(userAccount.getPasswordHash(), "UTF-8");
                 System.out.println("CustomUserDetailsService: Пароль для пользователя " + userAccount.getUserName() + " успешно конвертирован");
+                System.out.println("CustomUserDetailsService: Длина пароля: " + password.length());
+                System.out.println("CustomUserDetailsService: Начало пароля: " + password.substring(0, Math.min(10, password.length())));
+                
+                // Проверяем, что пароль в правильном формате BCrypt
+                if (!password.startsWith("$2a$")) {
+                    System.err.println("CustomUserDetailsService: ВНИМАНИЕ! Пароль не в формате BCrypt: " + password.substring(0, Math.min(20, password.length())));
+                }
             } catch (Exception e) {
                 System.err.println("CustomUserDetailsService: Ошибка конвертации пароля для пользователя " + userAccount.getUserName() + ": " + e.getMessage());
                 password = "";
             }
+        } else {
+            System.err.println("CustomUserDetailsService: Пароль для пользователя " + userAccount.getUserName() + " равен NULL");
         }
         
         // Create a list of authorities based on user role

@@ -7,8 +7,6 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
-import com.itextpdf.layout.property.TextAlignment;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -46,6 +44,103 @@ public class ReportService {
             return generateWorkPdf(data);
         }
         throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
+    // Новые методы для отчетов согласно требованиям
+    
+    public byte[] generateEquipmentReport(ReportRequestDTO request) throws IOException {
+        // TODO: Реализовать генерацию отчета по работе оборудования
+        // Пока что возвращаем заглушку
+        return generatePlaceholderReport("Отчет по работе оборудования", request.getFormat());
+    }
+
+    public byte[] generateWeldersReport(ReportRequestDTO request) throws IOException {
+        // TODO: Реализовать генерацию отчета по работе сварщиков
+        // Пока что возвращаем заглушку
+        return generatePlaceholderReport("Отчет по работе сварщиков", request.getFormat());
+    }
+
+    public byte[] generateMaterialsReport(ReportRequestDTO request) throws IOException {
+        // TODO: Реализовать генерацию отчета по расходу материалов
+        // Пока что возвращаем заглушку
+        return generatePlaceholderReport("Отчет по расходу материалов", request.getFormat());
+    }
+
+    public byte[] generateWeldsReport(ReportRequestDTO request) throws IOException {
+        // TODO: Реализовать генерацию отчета по сварочным швам
+        // Пока что возвращаем заглушку
+        return generatePlaceholderReport("Отчет по сварочным швам", request.getFormat());
+    }
+
+    public byte[] generateNotificationsReport(ReportRequestDTO request) throws IOException {
+        // TODO: Реализовать генерацию отчета по уведомлениям
+        // Пока что возвращаем заглушку
+        return generatePlaceholderReport("Отчет по уведомлениям", request.getFormat());
+    }
+
+    public byte[] generateErrorsReport(ReportRequestDTO request) throws IOException {
+        // TODO: Реализовать генерацию отчета по ошибкам
+        // Пока что возвращаем заглушку
+        return generatePlaceholderReport("Отчет по ошибкам сварочного оборудования", request.getFormat());
+    }
+
+    public byte[] generateViolationsReport(ReportRequestDTO request) throws IOException {
+        // TODO: Реализовать генерацию отчета по нарушениям
+        // Пока что возвращаем заглушку
+        return generatePlaceholderReport("Перечень швов, выполненных с нарушением", request.getFormat());
+    }
+
+    public byte[] generateTasksReport(ReportRequestDTO request) throws IOException {
+        // TODO: Реализовать генерацию отчета по заданиям
+        // Пока что возвращаем заглушку
+        return generatePlaceholderReport("Отчет о выполнении сварочного задания", request.getFormat());
+    }
+
+    private byte[] generatePlaceholderReport(String title, String format) throws IOException {
+        if ("EXCEL".equalsIgnoreCase(format)) {
+            return generatePlaceholderExcel(title);
+        } else if ("PDF".equalsIgnoreCase(format)) {
+            return generatePlaceholderPdf(title);
+        } else if ("CSV".equalsIgnoreCase(format)) {
+            return generatePlaceholderCsv(title);
+        }
+        throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
+    private byte[] generatePlaceholderExcel(String title) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет");
+            
+            Row headerRow = sheet.createRow(0);
+            Cell headerCell = headerRow.createCell(0);
+            headerCell.setCellValue(title);
+            
+            Row infoRow = sheet.createRow(1);
+            Cell infoCell = infoRow.createCell(0);
+            infoCell.setCellValue("Это заглушка для отчета. Реальная реализация будет добавлена позже.");
+            
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private byte[] generatePlaceholderPdf(String title) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(outputStream);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+        
+        document.add(new Paragraph(title));
+        document.add(new Paragraph("Это заглушка для отчета. Реальная реализация будет добавлена позже."));
+        
+        document.close();
+        return outputStream.toByteArray();
+    }
+
+    private byte[] generatePlaceholderCsv(String title) throws IOException {
+        String csvContent = title + "\nЭто заглушка для отчета. Реальная реализация будет добавлена позже.";
+        return csvContent.getBytes("UTF-8");
     }
 
     private byte[] generateWireConsumptionExcel(List<WireConsumptionReportDTO> data) throws IOException {
@@ -101,41 +196,28 @@ public class ReportService {
         // Заголовок
         Paragraph title = new Paragraph("Отчет по расходу проволоки");
         title.setFontSize(18);
-        title.setTextAlignment(TextAlignment.CENTER);
+        // title.setTextAlignment(TextAlignment.CENTER); // Временно отключено
         document.add(title);
 
-        // Таблица
-        Table table = new Table(12);
-        table.setWidth(500);
-
-        // Заголовки таблицы
-        String[] headers = {
-            "Аппарат", "Серийный номер", "Сварщик", "Дата", "Расход проволоки (кг)",
-            "Скорость подачи (м/мин)", "Время сварки (мин)", "Ток (А)", "Напряжение (В)",
-            "Режим сварки", "Тип сварки", "Подразделение"
-        };
-
-        for (String header : headers) {
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(header)).setBold());
-        }
-
-        // Данные
+        // Упрощенный список вместо таблицы
+        document.add(new Paragraph("Данные по расходу проволоки:"));
+        document.add(new Paragraph(""));
+        
         for (WireConsumptionReportDTO item : data) {
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingMachineSerialNumber() != null ? item.getWeldingMachineSerialNumber() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWelderName() != null ? item.getWelderName() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getDate() != null ? item.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWireConsumption() != null ? item.getWireConsumption().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWireFeedRate() != null ? item.getWireFeedRate().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingTime() != null ? item.getWeldingTime().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getCurrent() != null ? item.getCurrent().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getVoltage() != null ? item.getVoltage().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingMode() != null ? item.getWeldingMode() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingType() != null ? item.getWeldingType() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "")));
+            document.add(new Paragraph("Аппарат: " + (item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
+            document.add(new Paragraph("Серийный номер: " + (item.getWeldingMachineSerialNumber() != null ? item.getWeldingMachineSerialNumber() : "")));
+            document.add(new Paragraph("Сварщик: " + (item.getWelderName() != null ? item.getWelderName() : "")));
+            document.add(new Paragraph("Дата: " + (item.getDate() != null ? item.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "")));
+            document.add(new Paragraph("Расход проволоки (кг): " + (item.getWireConsumption() != null ? item.getWireConsumption().toString() : "0")));
+            document.add(new Paragraph("Скорость подачи (м/мин): " + (item.getWireFeedRate() != null ? item.getWireFeedRate().toString() : "0")));
+            document.add(new Paragraph("Время сварки (мин): " + (item.getWeldingTime() != null ? item.getWeldingTime().toString() : "0")));
+            document.add(new Paragraph("Ток (А): " + (item.getCurrent() != null ? item.getCurrent().toString() : "0")));
+            document.add(new Paragraph("Напряжение (В): " + (item.getVoltage() != null ? item.getVoltage().toString() : "0")));
+            document.add(new Paragraph("Режим сварки: " + (item.getWeldingMode() != null ? item.getWeldingMode() : "")));
+            document.add(new Paragraph("Тип сварки: " + (item.getWeldingType() != null ? item.getWeldingType() : "")));
+            document.add(new Paragraph("Подразделение: " + (item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "")));
+            document.add(new Paragraph("---"));
         }
-
-        document.add(table);
         document.close();
 
         return outputStream.toByteArray();
@@ -193,40 +275,27 @@ public class ReportService {
         // Заголовок
         Paragraph title = new Paragraph("Отчет по сварщику");
         title.setFontSize(18);
-        title.setTextAlignment(TextAlignment.CENTER);
+        // title.setTextAlignment(TextAlignment.CENTER); // Временно отключено
         document.add(title);
 
-        // Таблица
-        Table table = new Table(11);
-        table.setWidth(500);
-
-        // Заголовки таблицы
-        String[] headers = {
-            "Сварщик", "Email", "Дата", "Общий расход проволоки (кг)", "Общее время сварки (мин)",
-            "Количество сессий", "Средний ток (А)", "Среднее напряжение (В)", 
-            "Средняя скорость подачи (м/мин)", "Подразделение", "Аппарат"
-        };
-
-        for (String header : headers) {
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(header)).setBold());
-        }
-
-        // Данные
+        // Упрощенный список вместо таблицы
+        document.add(new Paragraph("Данные по сварщику:"));
+        document.add(new Paragraph(""));
+        
         for (WelderReportDTO item : data) {
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWelderName() != null ? item.getWelderName() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWelderEmail() != null ? item.getWelderEmail() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getDate() != null ? item.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getTotalWireConsumption() != null ? item.getTotalWireConsumption().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getTotalWeldingTime() != null ? item.getTotalWeldingTime().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getTotalWeldingSessions() != null ? item.getTotalWeldingSessions().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getAverageCurrent() != null ? item.getAverageCurrent().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getAverageVoltage() != null ? item.getAverageVoltage().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getAverageWireFeedRate() != null ? item.getAverageWireFeedRate().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
+            document.add(new Paragraph("Сварщик: " + (item.getWelderName() != null ? item.getWelderName() : "")));
+            document.add(new Paragraph("Email: " + (item.getWelderEmail() != null ? item.getWelderEmail() : "")));
+            document.add(new Paragraph("Дата: " + (item.getDate() != null ? item.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "")));
+            document.add(new Paragraph("Общий расход проволоки (кг): " + (item.getTotalWireConsumption() != null ? item.getTotalWireConsumption().toString() : "0")));
+            document.add(new Paragraph("Общее время сварки (мин): " + (item.getTotalWeldingTime() != null ? item.getTotalWeldingTime().toString() : "0")));
+            document.add(new Paragraph("Количество сессий: " + (item.getTotalWeldingSessions() != null ? item.getTotalWeldingSessions().toString() : "0")));
+            document.add(new Paragraph("Средний ток (А): " + (item.getAverageCurrent() != null ? item.getAverageCurrent().toString() : "0")));
+            document.add(new Paragraph("Среднее напряжение (В): " + (item.getAverageVoltage() != null ? item.getAverageVoltage().toString() : "0")));
+            document.add(new Paragraph("Средняя скорость подачи (м/мин): " + (item.getAverageWireFeedRate() != null ? item.getAverageWireFeedRate().toString() : "0")));
+            document.add(new Paragraph("Подразделение: " + (item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "")));
+            document.add(new Paragraph("Аппарат: " + (item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
+            document.add(new Paragraph("---"));
         }
-
-        document.add(table);
         document.close();
 
         return outputStream.toByteArray();
@@ -287,43 +356,30 @@ public class ReportService {
         // Заголовок
         Paragraph title = new Paragraph("Отчет по работе");
         title.setFontSize(18);
-        title.setTextAlignment(TextAlignment.CENTER);
+        // title.setTextAlignment(TextAlignment.CENTER); // Временно отключено
         document.add(title);
 
-        // Таблица
-        Table table = new Table(14);
-        table.setWidth(500);
-
-        // Заголовки таблицы
-        String[] headers = {
-            "Аппарат", "Серийный номер", "Сварщик", "Время начала", "Время окончания",
-            "Время сварки (мин)", "Ток (А)", "Напряжение (В)", "Режим сварки", "Тип сварки",
-            "Расход проволоки (кг)", "Скорость подачи (м/мин)", "Подразделение", "Примечания"
-        };
-
-        for (String header : headers) {
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(header)).setBold());
-        }
-
-        // Данные
+        // Упрощенный список вместо таблицы
+        document.add(new Paragraph("Данные по работе:"));
+        document.add(new Paragraph(""));
+        
         for (WorkReportDTO item : data) {
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingMachineSerialNumber() != null ? item.getWeldingMachineSerialNumber() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWelderName() != null ? item.getWelderName() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getStartTime() != null ? item.getStartTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getEndTime() != null ? item.getEndTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingTime() != null ? item.getWeldingTime().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getCurrent() != null ? item.getCurrent().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getVoltage() != null ? item.getVoltage().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingMode() != null ? item.getWeldingMode() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWeldingType() != null ? item.getWeldingType() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWireConsumption() != null ? item.getWireConsumption().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getWireFeedRate() != null ? item.getWireFeedRate().toString() : "0")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "")));
-            table.addCell(new com.itextpdf.layout.element.Cell().add(new Paragraph(item.getNotes() != null ? item.getNotes() : "")));
+            document.add(new Paragraph("Аппарат: " + (item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
+            document.add(new Paragraph("Серийный номер: " + (item.getWeldingMachineSerialNumber() != null ? item.getWeldingMachineSerialNumber() : "")));
+            document.add(new Paragraph("Сварщик: " + (item.getWelderName() != null ? item.getWelderName() : "")));
+            document.add(new Paragraph("Время начала: " + (item.getStartTime() != null ? item.getStartTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "")));
+            document.add(new Paragraph("Время окончания: " + (item.getEndTime() != null ? item.getEndTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "")));
+            document.add(new Paragraph("Время сварки (мин): " + (item.getWeldingTime() != null ? item.getWeldingTime().toString() : "0")));
+            document.add(new Paragraph("Ток (А): " + (item.getCurrent() != null ? item.getCurrent().toString() : "0")));
+            document.add(new Paragraph("Напряжение (В): " + (item.getVoltage() != null ? item.getVoltage().toString() : "0")));
+            document.add(new Paragraph("Режим сварки: " + (item.getWeldingMode() != null ? item.getWeldingMode() : "")));
+            document.add(new Paragraph("Тип сварки: " + (item.getWeldingType() != null ? item.getWeldingType() : "")));
+            document.add(new Paragraph("Расход проволоки (кг): " + (item.getWireConsumption() != null ? item.getWireConsumption().toString() : "0")));
+            document.add(new Paragraph("Скорость подачи (м/мин): " + (item.getWireFeedRate() != null ? item.getWireFeedRate().toString() : "0")));
+            document.add(new Paragraph("Подразделение: " + (item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "")));
+            document.add(new Paragraph("Примечания: " + (item.getNotes() != null ? item.getNotes() : "")));
+            document.add(new Paragraph("---"));
         }
-
-        document.add(table);
         document.close();
 
         return outputStream.toByteArray();
