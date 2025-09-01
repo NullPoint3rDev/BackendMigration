@@ -212,30 +212,7 @@ public class ReportController {
         }
     }
 
-    @PostMapping("/notifications")
-    public ResponseEntity<byte[]> generateNotificationsReport(@RequestBody ReportRequestDTO request) {
-        try {
-            // TODO: Реализовать генерацию отчета по уведомлениям
-            byte[] reportBytes = reportService.generateNotificationsReport(request);
-            
-            String filename = "notifications_report_" + System.currentTimeMillis();
-            if ("EXCEL".equalsIgnoreCase(request.getFormat())) {
-                filename += ".xlsx";
-            } else if ("PDF".equalsIgnoreCase(request.getFormat())) {
-                filename += ".pdf";
-            } else if ("CSV".equalsIgnoreCase(request.getFormat())) {
-                filename += ".csv";
-            }
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentDispositionFormData("attachment", filename);
-            
-            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
-        } catch (IOException e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
 
     @PostMapping("/errors")
     public ResponseEntity<byte[]> generateErrorsReport(@RequestBody ReportRequestDTO request) {
