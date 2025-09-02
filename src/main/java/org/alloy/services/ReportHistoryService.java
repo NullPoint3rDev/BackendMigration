@@ -23,18 +23,29 @@ public class ReportHistoryService {
      * Добавить отчет в историю
      */
     public void addReportToHistory(ReportHistory report) {
-        String reportType = report.getReportType();
-        
-        // Получаем текущую историю для данного типа отчета
-        List<ReportHistory> history = reportHistory.computeIfAbsent(reportType, k -> new ArrayList<>());
-        
-        // Добавляем новый отчет в начало списка
-        history.add(0, report);
-        
-        // Ограничиваем размер истории
-        if (history.size() > MAX_HISTORY_SIZE) {
-            history = history.subList(0, MAX_HISTORY_SIZE);
-            reportHistory.put(reportType, history);
+        try {
+            String reportType = report.getReportType();
+            
+            System.out.println("ReportHistoryService: Добавляем отчет типа '" + reportType + "' в историю");
+            
+            // Получаем текущую историю для данного типа отчета
+            List<ReportHistory> history = reportHistory.computeIfAbsent(reportType, k -> new ArrayList<>());
+            
+            // Добавляем новый отчет в начало списка
+            history.add(0, report);
+            
+            // Ограничиваем размер истории
+            if (history.size() > MAX_HISTORY_SIZE) {
+                history = history.subList(0, MAX_HISTORY_SIZE);
+                reportHistory.put(reportType, history);
+            }
+            
+            System.out.println("ReportHistoryService: Отчет успешно добавлен. Всего отчетов типа '" + reportType + "': " + history.size());
+            System.out.println("ReportHistoryService: Общее количество отчетов в истории: " + getTotalReportsCount());
+            
+        } catch (Exception e) {
+            System.err.println("ReportHistoryService: Ошибка при добавлении отчета в историю: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -43,6 +54,7 @@ public class ReportHistoryService {
      */
     public List<ReportHistory> getRecentReports(String reportType) {
         List<ReportHistory> history = reportHistory.get(reportType);
+        System.out.println("ReportHistoryService: Запрос истории для типа '" + reportType + "'. Найдено отчетов: " + (history != null ? history.size() : 0));
         if (history == null) {
             return new ArrayList<>();
         }
@@ -98,6 +110,8 @@ public class ReportHistoryService {
      * Инициализация тестовыми данными
      */
     public void initializeTestData() {
+        System.out.println("ReportHistoryService: Начинаем инициализацию тестовых данных");
+        
         // Тестовые данные для оборудования
         addReportToHistory(new ReportHistory(
             "equipment", "Отчет по работе оборудования", "PDF", "За месяц",
@@ -155,5 +169,7 @@ public class ReportHistoryService {
             "tasks", "Отчет по сварочным заданиям", "PDF", "За месяц",
             "tasks_report_2024_01.pdf", 198400L, "Система"
         ));
+        
+        System.out.println("ReportHistoryService: Инициализация тестовых данных завершена. Общее количество отчетов: " + getTotalReportsCount());
     }
 }

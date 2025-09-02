@@ -24,7 +24,9 @@ public class ReportHistoryController {
      */
     @GetMapping("/{reportType}")
     public ResponseEntity<List<ReportHistory>> getRecentReports(@PathVariable String reportType) {
+        System.out.println("ReportHistoryController: Запрос истории для типа '" + reportType + "'");
         List<ReportHistory> reports = reportHistoryService.getRecentReports(reportType);
+        System.out.println("ReportHistoryController: Возвращаем " + reports.size() + " отчетов");
         return ResponseEntity.ok(reports);
     }
     
@@ -69,7 +71,9 @@ public class ReportHistoryController {
      */
     @PostMapping("/init-test-data")
     public ResponseEntity<Void> initializeTestData() {
+        System.out.println("ReportHistoryController: Инициализация тестовых данных");
         reportHistoryService.initializeTestData();
+        System.out.println("ReportHistoryController: Тестовые данные инициализированы");
         return ResponseEntity.ok().build();
     }
 }

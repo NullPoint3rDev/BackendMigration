@@ -60,18 +60,27 @@ public class ReportService {
         // Генерируем отчет по работе оборудования с тестовыми данными
         byte[] reportData = generateEquipmentReportWithData(request.getFormat());
         
-        // Записываем в историю
-        String fileName = "equipment_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
-        ReportHistory history = new ReportHistory(
-            "equipment", 
-            "Отчет по работе оборудования", 
-            request.getFormat(), 
-            request.getPeriod(), 
-            fileName, 
-            (long) reportData.length, 
-            "Система"
-        );
-        reportHistoryService.addReportToHistory(history);
+        try {
+            // Записываем в историю
+            String fileName = "equipment_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
+            ReportHistory history = new ReportHistory(
+                "equipment", 
+                "Отчет по работе оборудования", 
+                request.getFormat(), 
+                request.getPeriod(), 
+                fileName, 
+                (long) reportData.length, 
+                "Система"
+            );
+            
+            System.out.println("Добавляем отчет в историю: " + history.getReportName() + " (" + history.getFormat() + ")");
+            reportHistoryService.addReportToHistory(history);
+            System.out.println("Отчет успешно добавлен в историю");
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка при добавлении отчета в историю: " + e.getMessage());
+            e.printStackTrace();
+        }
         
         return reportData;
     }
