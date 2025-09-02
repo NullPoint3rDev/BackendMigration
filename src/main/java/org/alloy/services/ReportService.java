@@ -132,6 +132,16 @@ public class ReportService {
         return csvContent.getBytes("UTF-8");
     }
 
+    // Вспомогательный метод для добавления BOM к CSV файлам
+    private byte[] addBomToCsv(String csvContent) throws IOException {
+        byte[] csvBytes = csvContent.getBytes("UTF-8");
+        byte[] bom = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF}; // UTF-8 BOM
+        byte[] result = new byte[bom.length + csvBytes.length];
+        System.arraycopy(bom, 0, result, 0, bom.length);
+        System.arraycopy(csvBytes, 0, result, bom.length, csvBytes.length);
+        return result;
+    }
+
     // Методы для генерации отчетов с тестовыми данными
     
     private byte[] generateEquipmentReportWithData(String format) throws IOException {
@@ -243,7 +253,7 @@ public class ReportService {
             csv.append("\n");
         }
         
-        return csv.toString().getBytes("UTF-8");
+        return addBomToCsv(csv.toString());
     }
 
     private byte[] generateWeldersReportWithData(String format) throws IOException {
@@ -356,7 +366,7 @@ public class ReportService {
             csv.append("\n");
         }
         
-        return csv.toString().getBytes("UTF-8");
+        return addBomToCsv(csv.toString());
     }
 
     private byte[] generateMaterialsReportWithData(String format) throws IOException {
@@ -461,7 +471,7 @@ public class ReportService {
             csv.append(types[i % types.length]).append(",");
             csv.append(departments[i % departments.length]).append(",");
             csv.append(String.format("%.1f", 25.5 + (Math.random() * 74.5))).append(",");
-            csv.append(String.format("%.1f", 5.0 + (Math.random() * 45.0))).append(",");
+            csv.append(String.format("%.1f", 5.0 + (Math.random() * 84.5))).append(",");
             csv.append(String.format("%.0f", 120.0 + (Math.random() * 180.0))).append(",");
             csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
             csv.append(suppliers[i % suppliers.length]).append(",");
@@ -469,7 +479,7 @@ public class ReportService {
             csv.append("\n");
         }
         
-        return csv.toString().getBytes("UTF-8");
+        return addBomToCsv(csv.toString());
     }
 
     // Методы для генерации отчета по сварочным швам
@@ -576,7 +586,7 @@ public class ReportService {
             csv.append(equipment[i % equipment.length]).append(",");
             csv.append(materials[i % materials.length]).append(",");
             csv.append(50 + (int)(Math.random() * 450)).append(",");
-            csv.append(String.format("%.1f", 3.0 + (Math.random() * 17.0))).append(",");
+            csv.append(String.format("%.1f", 3.0 + (Math.random() * 15.0))).append(",");
             csv.append(150 + (int)(Math.random() * 150)).append(",");
             csv.append(18 + (int)(Math.random() * 12)).append(",");
             csv.append(200 + (int)(Math.random() * 300)).append(",");
@@ -585,7 +595,7 @@ public class ReportService {
             csv.append("\n");
         }
         
-        return csv.toString().getBytes("UTF-8");
+        return addBomToCsv(csv.toString());
     }
 
     // Методы для генерации отчета по ошибкам
@@ -695,14 +705,14 @@ public class ReportService {
             csv.append(criticality[i % criticality.length]).append(",");
             csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
             csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
-            csv.append(2 + (int)(Math.random() * 48)).append(",");
+            csv.append(2 + (int)(Math.random() * 12)).append(",");
             csv.append(5000 + (int)(Math.random() * 45000)).append(",");
             csv.append(responsible[i % responsible.length]).append(",");
             csv.append(statuses[i % statuses.length]);
             csv.append("\n");
         }
         
-        return csv.toString().getBytes("UTF-8");
+        return addBomToCsv(csv.toString());
     }
 
     // Методы для генерации отчета по нарушениям
@@ -820,7 +830,7 @@ public class ReportService {
             csv.append("\n");
         }
         
-        return csv.toString().getBytes("UTF-8");
+        return addBomToCsv(csv.toString());
     }
 
     // Методы для генерации отчета по заданиям
@@ -936,7 +946,7 @@ public class ReportService {
             csv.append("\n");
         }
         
-        return csv.toString().getBytes("UTF-8");
+        return addBomToCsv(csv.toString());
     }
 
     private byte[] generateWireConsumptionExcel(List<WireConsumptionReportDTO> data) throws IOException {
