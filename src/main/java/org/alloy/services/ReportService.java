@@ -10,7 +10,9 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.alloy.models.ReportHistory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -21,6 +23,9 @@ import java.util.List;
 
 @Service
 public class ReportService {
+
+    @Autowired
+    private ReportHistoryService reportHistoryService;
 
     public byte[] generateWireConsumptionReport(List<WireConsumptionReportDTO> data, String format) throws IOException {
         if ("EXCEL".equalsIgnoreCase(format)) {
@@ -53,39 +58,144 @@ public class ReportService {
     
     public byte[] generateEquipmentReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по работе оборудования с тестовыми данными
-        return generateEquipmentReportWithData(request.getFormat());
+        byte[] reportData = generateEquipmentReportWithData(request.getFormat());
+        
+        // Записываем в историю
+        String fileName = "equipment_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
+        ReportHistory history = new ReportHistory(
+            "equipment", 
+            "Отчет по работе оборудования", 
+            request.getFormat(), 
+            request.getPeriod(), 
+            fileName, 
+            (long) reportData.length, 
+            "Система"
+        );
+        reportHistoryService.addReportToHistory(history);
+        
+        return reportData;
     }
 
     public byte[] generateWeldersReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по работе сварщиков с тестовыми данными
-        return generateWeldersReportWithData(request.getFormat());
+        byte[] reportData = generateWeldersReportWithData(request.getFormat());
+        
+        // Записываем в историю
+        String fileName = "welders_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
+        ReportHistory history = new ReportHistory(
+            "welders", 
+            "Отчет по работе сварщиков", 
+            request.getFormat(), 
+            request.getPeriod(), 
+            fileName, 
+            (long) reportData.length, 
+            "Система"
+        );
+        reportHistoryService.addReportToHistory(history);
+        
+        return reportData;
     }
 
     public byte[] generateMaterialsReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по расходу материалов с тестовыми данными
-        return generateMaterialsReportWithData(request.getFormat());
+        byte[] reportData = generateMaterialsReportWithData(request.getFormat());
+        
+        // Записываем в историю
+        String fileName = "materials_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
+        ReportHistory history = new ReportHistory(
+            "materials", 
+            "Отчет по расходу материалов", 
+            request.getFormat(), 
+            request.getPeriod(), 
+            fileName, 
+            (long) reportData.length, 
+            "Система"
+        );
+        reportHistoryService.addReportToHistory(history);
+        
+        return reportData;
     }
 
     public byte[] generateWeldsReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по сварочным швам с тестовыми данными
-        return generateWeldsReportWithData(request.getFormat());
+        byte[] reportData = generateWeldsReportWithData(request.getFormat());
+        
+        // Записываем в историю
+        String fileName = "welds_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
+        ReportHistory history = new ReportHistory(
+            "welds", 
+            "Отчет по сварочным швам", 
+            request.getFormat(), 
+            request.getPeriod(), 
+            fileName, 
+            (long) reportData.length, 
+            "Система"
+        );
+        reportHistoryService.addReportToHistory(history);
+        
+        return reportData;
     }
 
 
 
     public byte[] generateErrorsReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по ошибкам с тестовыми данными
-        return generateErrorsReportWithData(request.getFormat());
+        byte[] reportData = generateErrorsReportWithData(request.getFormat());
+        
+        // Записываем в историю
+        String fileName = "errors_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
+        ReportHistory history = new ReportHistory(
+            "errors", 
+            "Отчет по ошибкам оборудования", 
+            request.getFormat(), 
+            request.getPeriod(), 
+            fileName, 
+            (long) reportData.length, 
+            "Система"
+        );
+        reportHistoryService.addReportToHistory(history);
+        
+        return reportData;
     }
 
     public byte[] generateViolationsReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по нарушениям с тестовыми данными
-        return generateViolationsReportWithData(request.getFormat());
+        byte[] reportData = generateViolationsReportWithData(request.getFormat());
+        
+        // Записываем в историю
+        String fileName = "violations_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
+        ReportHistory history = new ReportHistory(
+            "violations", 
+            "Отчет по нарушениям при сварке", 
+            request.getFormat(), 
+            request.getPeriod(), 
+            fileName, 
+            (long) reportData.length, 
+            "Система"
+        );
+        reportHistoryService.addReportToHistory(history);
+        
+        return reportData;
     }
 
     public byte[] generateTasksReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по заданиям с тестовыми данными
-        return generateTasksReportWithData(request.getFormat());
+        byte[] reportData = generateTasksReportWithData(request.getFormat());
+        
+        // Записываем в историю
+        String fileName = "tasks_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
+        ReportHistory history = new ReportHistory(
+            "tasks", 
+            "Отчет по сварочным заданиям", 
+            request.getFormat(), 
+            request.getPeriod(), 
+            fileName, 
+            (long) reportData.length, 
+            "Система"
+        );
+        reportHistoryService.addReportToHistory(history);
+        
+        return reportData;
     }
 
     private byte[] generatePlaceholderReport(String title, String format) throws IOException {
@@ -97,6 +207,22 @@ public class ReportService {
             return generatePlaceholderCsv(title);
         }
         throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+    
+    /**
+     * Получить расширение файла для формата отчета
+     */
+    private String getFileExtension(String format) {
+        switch (format.toUpperCase()) {
+            case "EXCEL":
+                return ".xlsx";
+            case "PDF":
+                return ".pdf";
+            case "CSV":
+                return ".csv";
+            default:
+                return ".txt";
+        }
     }
 
     private byte[] generatePlaceholderExcel(String title) throws IOException {
