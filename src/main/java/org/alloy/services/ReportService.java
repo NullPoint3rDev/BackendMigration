@@ -9,6 +9,7 @@ import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 
+
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -231,6 +232,9 @@ public class ReportService {
         for (String header : headers) {
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(header));
+            // Устанавливаем минимальную ширину для ячеек и разрешаем перенос текста
+            cell.setMinWidth(80);
+            cell.setPadding(5);
             table.addHeaderCell(cell);
         }
         
@@ -243,56 +247,67 @@ public class ReportService {
             // ID
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(1000 + i)));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Название
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(equipmentNames[i % equipmentNames.length]));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Серийный номер
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph("SN-" + (2023000 + i)));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Подразделение
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(departments[i % departments.length]));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Время работы
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(120 + (int)(Math.random() * 480))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Расход проволоки
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.format("%.1f", 15.5 + (Math.random() * 84.5))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Количество сварщиков
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(1 + (int)(Math.random() * 4))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Средний ток
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(180 + (int)(Math.random() * 120))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Среднее напряжение
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(20 + (int)(Math.random() * 10))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Статус
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(statuses[i % statuses.length]));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Последнее обслуживание
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            cell.setPadding(3);
             table.addCell(cell);
         }
         
@@ -412,6 +427,8 @@ public class ReportService {
         for (String header : headers) {
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(header));
+            // Устанавливаем минимальную ширину для ячеек
+            cell.setMinWidth(80);
             table.addHeaderCell(cell);
         }
         
@@ -424,56 +441,67 @@ public class ReportService {
             // ID
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(2000 + i)));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // ФИО
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(names[i % names.length]));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Подразделение
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(departments[i % departments.length]));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Квалификация
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(qualifications[i % qualifications.length]));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Время работы
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(160 + (int)(Math.random() * 200))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Выполнено швов
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(50 + (int)(Math.random() * 150))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Расход проволоки
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.format("%.1f", 8.5 + (Math.random() * 41.5))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Средний ток
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(180 + (int)(Math.random() * 120))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Среднее напряжение
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(20 + (int)(Math.random() * 10))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Качество работы
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(String.valueOf(85 + (int)(Math.random() * 15))));
+            cell.setPadding(3);
             table.addCell(cell);
             
             // Дата последней работы
             cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            cell.setPadding(3);
             table.addCell(cell);
         }
         
@@ -592,6 +620,8 @@ public class ReportService {
         for (String header : headers) {
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(header));
+            // Устанавливаем минимальную ширину для ячеек
+            cell.setMinWidth(80);
             table.addHeaderCell(cell);
         }
         
@@ -772,6 +802,8 @@ public class ReportService {
         for (String header : headers) {
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(header));
+            // Устанавливаем минимальную ширину для ячеек
+            cell.setMinWidth(80);
             table.addHeaderCell(cell);
         }
         
@@ -963,6 +995,8 @@ public class ReportService {
         for (String header : headers) {
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(header));
+            // Устанавливаем минимальную ширину для ячеек
+            cell.setMinWidth(80);
             table.addHeaderCell(cell);
         }
         
@@ -1153,6 +1187,8 @@ public class ReportService {
         for (String header : headers) {
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(header));
+            // Устанавливаем минимальную ширину для ячеек
+            cell.setMinWidth(80);
             table.addHeaderCell(cell);
         }
         
@@ -1344,6 +1380,8 @@ public class ReportService {
         for (String header : headers) {
             com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
             cell.add(new Paragraph(header));
+            // Устанавливаем минимальную ширину для ячеек
+            cell.setMinWidth(80);
             table.addHeaderCell(cell);
         }
         
