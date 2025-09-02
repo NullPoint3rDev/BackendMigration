@@ -21,6 +21,7 @@ public class ReportHistoryService {
     
     public ReportHistoryService() {
         System.out.println("ReportHistoryService: Сервис инициализирован");
+        System.out.println("ReportHistoryService: Готов к работе с историей отчетов");
     }
     
     /**
@@ -31,6 +32,7 @@ public class ReportHistoryService {
             String reportType = report.getReportType();
             
             System.out.println("ReportHistoryService: Добавляем отчет типа '" + reportType + "' в историю");
+            System.out.println("ReportHistoryService: Детали отчета - Название: '" + report.getReportName() + "', Формат: '" + report.getFormat() + "', Размер: " + report.getFileSize() + " байт");
             
             // Получаем текущую историю для данного типа отчета
             List<ReportHistory> history = reportHistory.computeIfAbsent(reportType, k -> new ArrayList<>());
@@ -46,6 +48,7 @@ public class ReportHistoryService {
             
             System.out.println("ReportHistoryService: Отчет успешно добавлен. Всего отчетов типа '" + reportType + "': " + history.size());
             System.out.println("ReportHistoryService: Общее количество отчетов в истории: " + getTotalReportsCount());
+            System.out.println("ReportHistoryService: Текущее содержимое истории для типа '" + reportType + "': " + history.stream().map(r -> r.getReportName() + " (" + r.getFormat() + ")").collect(java.util.stream.Collectors.joining(", ")));
             
         } catch (Exception e) {
             System.err.println("ReportHistoryService: Ошибка при добавлении отчета в историю: " + e.getMessage());
@@ -59,9 +62,13 @@ public class ReportHistoryService {
     public List<ReportHistory> getRecentReports(String reportType) {
         List<ReportHistory> history = reportHistory.get(reportType);
         System.out.println("ReportHistoryService: Запрос истории для типа '" + reportType + "'. Найдено отчетов: " + (history != null ? history.size() : 0));
+        
         if (history == null) {
+            System.out.println("ReportHistoryService: История для типа '" + reportType + "' не найдена, возвращаем пустой список");
             return new ArrayList<>();
         }
+        
+        System.out.println("ReportHistoryService: Возвращаем историю для типа '" + reportType + "': " + history.stream().map(r -> r.getReportName() + " (" + r.getFormat() + ")").collect(java.util.stream.Collectors.joining(", ")));
         return new ArrayList<>(history);
     }
     
@@ -175,5 +182,6 @@ public class ReportHistoryService {
         ));
         
         System.out.println("ReportHistoryService: Инициализация тестовых данных завершена. Общее количество отчетов: " + getTotalReportsCount());
+        System.out.println("ReportHistoryService: Доступные типы отчетов: " + getReportTypes());
     }
 }
