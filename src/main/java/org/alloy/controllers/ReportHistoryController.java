@@ -12,7 +12,7 @@ import java.util.List;
  * Контроллер для работы с историей отчетов
  */
 @RestController
-@RequestMapping("/api/reports/history")
+@RequestMapping("/reports/history")
 @CrossOrigin(origins = "*")
 public class ReportHistoryController {
     

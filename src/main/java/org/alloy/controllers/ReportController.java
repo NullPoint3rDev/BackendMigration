@@ -1,8 +1,10 @@
 package org.alloy.controllers;
 
 import org.alloy.models.dto.*;
+import org.alloy.models.ReportHistory;
 import org.alloy.services.ReportService;
 import org.alloy.services.ReportDataService;
+import org.alloy.services.ReportHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -22,6 +24,9 @@ public class ReportController {
 
     @Autowired
     private ReportDataService reportDataService;
+
+    @Autowired
+    private ReportHistoryService reportHistoryService;
 
     @PostMapping("/wire-consumption")
     public ResponseEntity<byte[]> generateWireConsumptionReport(@RequestBody ReportRequestDTO request) {
@@ -287,5 +292,65 @@ public class ReportController {
         } catch (IOException e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    // Методы для работы с историей отчетов
+    
+    /**
+     * Получить последние отчеты для определенного типа
+     */
+    @GetMapping("/history/{reportType}")
+    public ResponseEntity<List<ReportHistory>> getRecentReports(@PathVariable String reportType) {
+        System.out.println("ReportController: Запрос истории для типа '" + reportType + "'");
+        List<ReportHistory> reports = reportHistoryService.getRecentReports(reportType);
+        System.out.println("ReportController: Возвращаем " + reports.size() + " отчетов");
+        return ResponseEntity.ok(reports);
+    }
+    
+    /**
+     * Получить все типы отчетов, для которых есть история
+     */
+    @GetMapping("/history/types")
+    public ResponseEntity<java.util.Set<String>> getHistoryReportTypes() {
+        java.util.Set<String> types = reportHistoryService.getReportTypes();
+        return ResponseEntity.ok(types);
+    }
+    
+    /**
+     * Получить общее количество отчетов в истории
+     */
+    @GetMapping("/history/count")
+    public ResponseEntity<Integer> getTotalReportsCount() {
+        int count = reportHistoryService.getTotalReportsCount();
+        return ResponseEntity.ok(count);
+    }
+    
+    /**
+     * Очистить историю для определенного типа отчета
+     */
+    @DeleteMapping("/history/{reportType}")
+    public ResponseEntity<Void> clearHistory(@PathVariable String reportType) {
+        reportHistoryService.clearHistory(reportType);
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Очистить всю историю
+     */
+    @DeleteMapping("/history/all")
+    public ResponseEntity<Void> clearAllHistory() {
+        reportHistoryService.clearAllHistory();
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Инициализировать тестовые данные
+     */
+    @PostMapping("/history/init-test-data")
+    public ResponseEntity<Void> initializeTestData() {
+        System.out.println("ReportController: Инициализация тестовых данных");
+        reportHistoryService.initializeTestData();
+        System.out.println("ReportController: Тестовые данные инициализированы");
+        return ResponseEntity.ok().build();
     }
 } 

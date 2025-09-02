@@ -19,6 +19,10 @@ public class ReportHistoryService {
     // Максимальное количество отчетов для каждого типа
     private static final int MAX_HISTORY_SIZE = 5;
     
+    public ReportHistoryService() {
+        System.out.println("ReportHistoryService: Сервис инициализирован");
+    }
+    
     /**
      * Добавить отчет в историю
      */
