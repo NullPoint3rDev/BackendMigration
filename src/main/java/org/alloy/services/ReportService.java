@@ -225,17 +225,17 @@ public class ReportService {
         
         for (int i = 0; i < 12; i++) {
             document.add(new Paragraph("Оборудование " + (i + 1) + ":"));
-            document.add(new Paragraph("  ID: " + (1000 + i)));
-            document.add(new Paragraph("  Название: " + equipmentNames[i % equipmentNames.length]));
-            document.add(new Paragraph("  Серийный номер: SN-" + (2023000 + i)));
-            document.add(new Paragraph("  Подразделение: " + departments[i % departments.length]));
-            document.add(new Paragraph("  Время работы: " + (120 + (int)(Math.random() * 480)) + " часов"));
-            document.add(new Paragraph("  Расход проволоки: " + String.format("%.1f", 15.5 + (Math.random() * 84.5)) + " кг"));
-            document.add(new Paragraph("  Количество сварщиков: " + (1 + (int)(Math.random() * 4))));
-            document.add(new Paragraph("  Средний ток: " + (180 + (int)(Math.random() * 120)) + " А"));
-            document.add(new Paragraph("  Среднее напряжение: " + (20 + (int)(Math.random() * 10)) + " В"));
-            document.add(new Paragraph("  Статус: " + statuses[i % statuses.length]));
-            document.add(new Paragraph("  Последнее обслуживание: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("ID: " + (1000 + i)));
+            document.add(new Paragraph("Название: " + equipmentNames[i % equipmentNames.length]));
+            document.add(new Paragraph("Серийный номер: SN-" + (2023000 + i)));
+            document.add(new Paragraph("Подразделение: " + departments[i % departments.length]));
+            document.add(new Paragraph("Время работы: " + (120 + (int)(Math.random() * 480)) + " часов"));
+            document.add(new Paragraph("Расход проволоки: " + String.format("%.1f", 15.5 + (Math.random() * 84.5)) + " кг"));
+            document.add(new Paragraph("Количество сварщиков: " + (1 + (int)(Math.random() * 4))));
+            document.add(new Paragraph("Средний ток: " + (180 + (int)(Math.random() * 120)) + " А"));
+            document.add(new Paragraph("Среднее напряжение: " + (20 + (int)(Math.random() * 10)) + " В"));
+            document.add(new Paragraph("Статус: " + statuses[i % statuses.length]));
+            document.add(new Paragraph("Последнее обслуживание: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
             document.add(new Paragraph(""));
         }
         document.close();
@@ -346,17 +346,17 @@ public class ReportService {
         
         for (int i = 0; i < 20; i++) {
             document.add(new Paragraph("Сварщик " + (i + 1) + ":"));
-            document.add(new Paragraph("  ID: " + (2000 + i)));
-            document.add(new Paragraph("  ФИО: " + names[i % names.length]));
-            document.add(new Paragraph("  Подразделение: " + departments[i % departments.length]));
-            document.add(new Paragraph("  Квалификация: " + qualifications[i % qualifications.length]));
-            document.add(new Paragraph("  Время работы: " + (160 + (int)(Math.random() * 200)) + " часов"));
-            document.add(new Paragraph("  Выполнено швов: " + (50 + (int)(Math.random() * 150))));
-            document.add(new Paragraph("  Расход проволоки: " + String.format("%.1f", 8.5 + (Math.random() * 41.5)) + " кг"));
-            document.add(new Paragraph("  Средний ток: " + (180 + (int)(Math.random() * 120)) + " А"));
-            document.add(new Paragraph("  Среднее напряжение: " + (20 + (int)(Math.random() * 10)) + " В"));
-            document.add(new Paragraph("  Качество работы: " + (85 + (int)(Math.random() * 15)) + "%"));
-            document.add(new Paragraph("  Дата последней работы: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("ID: " + (2000 + i)));
+            document.add(new Paragraph("ФИО: " + names[i % names.length]));
+            document.add(new Paragraph("Подразделение: " + departments[i % departments.length]));
+            document.add(new Paragraph("Квалификация: " + qualifications[i % qualifications.length]));
+            document.add(new Paragraph("Время работы: " + (160 + (int)(Math.random() * 200)) + " часов"));
+            document.add(new Paragraph("Выполнено швов: " + (50 + (int)(Math.random() * 150))));
+            document.add(new Paragraph("Расход проволоки: " + String.format("%.1f", 8.5 + (Math.random() * 41.5)) + " кг"));
+            document.add(new Paragraph("Средний ток: " + (180 + (int)(Math.random() * 120)) + " А"));
+            document.add(new Paragraph("Среднее напряжение: " + (20 + (int)(Math.random() * 10)) + " В"));
+            document.add(new Paragraph("Качество работы: " + (85 + (int)(Math.random() * 15)) + "%"));
+            document.add(new Paragraph("Дата последней работы: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
             document.add(new Paragraph(""));
         }
         document.close();
@@ -469,16 +469,16 @@ public class ReportService {
         
         for (int i = 0; i < 20; i++) {
             document.add(new Paragraph("Материал " + (i + 1) + ":"));
-            document.add(new Paragraph("  ID: " + (3000 + i)));
-            document.add(new Paragraph("  Название: " + materialNames[i % materialNames.length]));
-            document.add(new Paragraph("  Тип: " + types[i % types.length]));
-            document.add(new Paragraph("  Подразделение: " + departments[i % departments.length]));
-            document.add(new Paragraph("  Расход: " + String.format("%.1f", 25.5 + (Math.random() * 74.5)) + " кг"));
-            document.add(new Paragraph("  Остаток: " + String.format("%.1f", 5.0 + (Math.random() * 84.5)) + " кг"));
-            document.add(new Paragraph("  Стоимость: " + String.format("%.0f", 120.0 + (Math.random() * 180.0)) + " руб/кг"));
-            document.add(new Paragraph("  Дата поставки: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
-            document.add(new Paragraph("  Поставщик: " + suppliers[i % suppliers.length]));
-            document.add(new Paragraph("  Статус: " + statuses[i % statuses.length]));
+            document.add(new Paragraph("ID: " + (3000 + i)));
+            document.add(new Paragraph("Название: " + materialNames[i % materialNames.length]));
+            document.add(new Paragraph("Тип: " + types[i % types.length]));
+            document.add(new Paragraph("Подразделение: " + departments[i % departments.length]));
+            document.add(new Paragraph("Расход: " + String.format("%.1f", 25.5 + (Math.random() * 74.5)) + " кг"));
+            document.add(new Paragraph("Остаток: " + String.format("%.1f", 5.0 + (Math.random() * 84.5)) + " кг"));
+            document.add(new Paragraph("Стоимость: " + String.format("%.0f", 120.0 + (Math.random() * 180.0)) + " руб/кг"));
+            document.add(new Paragraph("Дата поставки: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Поставщик: " + suppliers[i % suppliers.length]));
+            document.add(new Paragraph("Статус: " + statuses[i % statuses.length]));
             document.add(new Paragraph(""));
         }
         document.close();
@@ -593,18 +593,18 @@ public class ReportService {
         
         for (int i = 0; i < 25; i++) {
             document.add(new Paragraph("Сварочный шов " + (i + 1) + ":"));
-            document.add(new Paragraph("  ID: " + (4000 + i)));
-            document.add(new Paragraph("  Тип шва: " + weldTypes[i % weldTypes.length]));
-            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
-            document.add(new Paragraph("  Оборудование: " + equipment[i % equipment.length]));
-            document.add(new Paragraph("  Материал: " + materials[i % materials.length]));
-            document.add(new Paragraph("  Длина: " + (50 + (int)(Math.random() * 450)) + " мм"));
-            document.add(new Paragraph("  Толщина: " + String.format("%.1f", 3.0 + (Math.random() * 15.0)) + " мм"));
-            document.add(new Paragraph("  Ток: " + (150 + (int)(Math.random() * 150)) + " А"));
-            document.add(new Paragraph("  Напряжение: " + (18 + (int)(Math.random() * 12)) + " В"));
-            document.add(new Paragraph("  Скорость: " + (200 + (int)(Math.random() * 300)) + " мм/мин"));
-            document.add(new Paragraph("  Качество: " + (85 + (int)(Math.random() * 15)) + "%"));
-            document.add(new Paragraph("  Дата: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("ID: " + (4000 + i)));
+            document.add(new Paragraph("Тип шва: " + weldTypes[i % weldTypes.length]));
+            document.add(new Paragraph("Сварщик: " + welders[i % welders.length]));
+            document.add(new Paragraph("Оборудование: " + equipment[i % equipment.length]));
+            document.add(new Paragraph("Материал: " + materials[i % materials.length]));
+            document.add(new Paragraph("Длина: " + (50 + (int)(Math.random() * 450)) + " мм"));
+            document.add(new Paragraph("Толщина: " + String.format("%.1f", 3.0 + (Math.random() * 15.0)) + " мм"));
+            document.add(new Paragraph("Ток: " + (150 + (int)(Math.random() * 150)) + " А"));
+            document.add(new Paragraph("Напряжение: " + (18 + (int)(Math.random() * 12)) + " В"));
+            document.add(new Paragraph("Скорость: " + (200 + (int)(Math.random() * 300)) + " мм/мин"));
+            document.add(new Paragraph("Качество: " + (85 + (int)(Math.random() * 15)) + "%"));
+            document.add(new Paragraph("Дата: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
             document.add(new Paragraph(""));
         }
         document.close();
@@ -723,17 +723,17 @@ public class ReportService {
         
         for (int i = 0; i < 18; i++) {
             document.add(new Paragraph("Ошибка " + (i + 1) + ":"));
-            document.add(new Paragraph("  ID: " + (5000 + i)));
-            document.add(new Paragraph("  Оборудование: " + equipment[i % equipment.length]));
-            document.add(new Paragraph("  Тип ошибки: " + errorTypes[i % errorTypes.length]));
-            document.add(new Paragraph("  Описание: " + descriptions[i % descriptions.length]));
-            document.add(new Paragraph("  Критичность: " + criticality[i % criticality.length]));
-            document.add(new Paragraph("  Дата возникновения: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
-            document.add(new Paragraph("  Дата устранения: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
-            document.add(new Paragraph("  Время простоя: " + (2 + (int)(Math.random() * 12)) + " часов"));
-            document.add(new Paragraph("  Стоимость ремонта: " + (5000 + (int)(Math.random() * 45000)) + " руб"));
-            document.add(new Paragraph("  Ответственный: " + responsible[i % responsible.length]));
-            document.add(new Paragraph("  Статус: " + statuses[i % statuses.length]));
+            document.add(new Paragraph("ID: " + (5000 + i)));
+            document.add(new Paragraph("Оборудование: " + equipment[i % equipment.length]));
+            document.add(new Paragraph("Тип ошибки: " + errorTypes[i % errorTypes.length]));
+            document.add(new Paragraph("Описание: " + descriptions[i % descriptions.length]));
+            document.add(new Paragraph("Критичность: " + criticality[i % criticality.length]));
+            document.add(new Paragraph("Дата возникновения: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Дата устранения: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Время простоя: " + (2 + (int)(Math.random() * 12)) + " часов"));
+            document.add(new Paragraph("Стоимость ремонта: " + (5000 + (int)(Math.random() * 45000)) + " руб"));
+            document.add(new Paragraph("Ответственный: " + responsible[i % responsible.length]));
+            document.add(new Paragraph("Статус: " + statuses[i % statuses.length]));
             document.add(new Paragraph(""));
         }
         document.close();
@@ -855,17 +855,17 @@ public class ReportService {
         
         for (int i = 0; i < 15; i++) {
             document.add(new Paragraph("Нарушение " + (i + 1) + ":"));
-            document.add(new Paragraph("  ID: " + (6000 + i)));
-            document.add(new Paragraph("  Шов: " + weldTypes[i % weldTypes.length] + " шов №" + (i + 1)));
-            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
-            document.add(new Paragraph("  Тип нарушения: " + violationTypes[i % violationTypes.length]));
-            document.add(new Paragraph("  Описание: " + descriptions[i % descriptions.length]));
-            document.add(new Paragraph("  Критичность: " + criticality[i % criticality.length]));
-            document.add(new Paragraph("  Дата обнаружения: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
-            document.add(new Paragraph("  Дата исправления: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
-            document.add(new Paragraph("  Ответственный: " + responsible[i % responsible.length]));
-            document.add(new Paragraph("  Статус: " + statuses[i % statuses.length]));
-            document.add(new Paragraph("  Штраф: " + (1000 + (int)(Math.random() * 9000)) + " руб"));
+            document.add(new Paragraph("ID: " + (6000 + i)));
+            document.add(new Paragraph("Шов: " + weldTypes[i % weldTypes.length] + " шов №" + (i + 1)));
+            document.add(new Paragraph("Сварщик: " + welders[i % welders.length]));
+            document.add(new Paragraph("Тип нарушения: " + violationTypes[i % violationTypes.length]));
+            document.add(new Paragraph("Описание: " + descriptions[i % descriptions.length]));
+            document.add(new Paragraph("Критичность: " + criticality[i % criticality.length]));
+            document.add(new Paragraph("Дата обнаружения: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Дата исправления: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Ответственный: " + responsible[i % responsible.length]));
+            document.add(new Paragraph("Статус: " + statuses[i % statuses.length]));
+            document.add(new Paragraph("Штраф: " + (1000 + (int)(Math.random() * 9000)) + " руб"));
             document.add(new Paragraph(""));
         }
         document.close();
@@ -988,17 +988,17 @@ public class ReportService {
         
         for (int i = 0; i < 20; i++) {
             document.add(new Paragraph("Задание " + (i + 1) + ":"));
-            document.add(new Paragraph("  ID: " + (7000 + i)));
-            document.add(new Paragraph("  Название: " + taskNames[i % taskNames.length] + " №" + (i + 1)));
-            document.add(new Paragraph("  Описание: Детальное описание задания " + (i + 1)));
-            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
-            document.add(new Paragraph("  Оборудование: " + equipment[i % equipment.length]));
-            document.add(new Paragraph("  Материал: " + materials[i % materials.length]));
-            document.add(new Paragraph("  Плановая дата: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
-            document.add(new Paragraph("  Фактическая дата: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
-            document.add(new Paragraph("  Статус: " + statuses[i % statuses.length]));
-            document.add(new Paragraph("  Прогресс: " + (10 + (int)(Math.random() * 90)) + "%"));
-            document.add(new Paragraph("  Приоритет: " + priorities[i % priorities.length]));
+            document.add(new Paragraph("ID: " + (7000 + i)));
+            document.add(new Paragraph("Название: " + taskNames[i % taskNames.length] + " №" + (i + 1)));
+            document.add(new Paragraph("Описание: Детальное описание задания " + (i + 1)));
+            document.add(new Paragraph("Сварщик: " + welders[i % welders.length]));
+            document.add(new Paragraph("Оборудование: " + equipment[i % equipment.length]));
+            document.add(new Paragraph("Материал: " + materials[i % materials.length]));
+            document.add(new Paragraph("Плановая дата: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Фактическая дата: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Статус: " + statuses[i % statuses.length]));
+            document.add(new Paragraph("Прогресс: " + (10 + (int)(Math.random() * 10)) + "%"));
+            document.add(new Paragraph("Приоритет: " + priorities[i % priorities.length]));
             document.add(new Paragraph(""));
         }
         document.close();
