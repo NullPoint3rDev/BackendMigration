@@ -302,9 +302,28 @@ public class ReportController {
     @GetMapping("/history/{reportType}")
     public ResponseEntity<List<ReportHistory>> getRecentReports(@PathVariable String reportType) {
         System.out.println("ReportController: Запрос истории для типа '" + reportType + "'");
-        List<ReportHistory> reports = reportHistoryService.getRecentReports(reportType);
-        System.out.println("ReportController: Возвращаем " + reports.size() + " отчетов");
-        return ResponseEntity.ok(reports);
+        System.out.println("ReportController: URL: /reports/history/" + reportType);
+        
+        try {
+            List<ReportHistory> reports = reportHistoryService.getRecentReports(reportType);
+            System.out.println("ReportController: Возвращаем " + reports.size() + " отчетов");
+            
+            // Добавляем детальное логирование
+            if (reports.isEmpty()) {
+                System.out.println("ReportController: История пуста для типа '" + reportType + "'");
+            } else {
+                System.out.println("ReportController: Детали отчетов:");
+                for (ReportHistory report : reports) {
+                    System.out.println("  - " + report.getReportName() + " (" + report.getFormat() + ") - " + report.getGeneratedAt());
+                }
+            }
+            
+            return ResponseEntity.ok(reports);
+        } catch (Exception e) {
+            System.err.println("ReportController: Ошибка при получении истории: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
     
     /**
@@ -349,8 +368,16 @@ public class ReportController {
     @PostMapping("/history/init-test-data")
     public ResponseEntity<Void> initializeTestData() {
         System.out.println("ReportController: Инициализация тестовых данных");
-        reportHistoryService.initializeTestData();
-        System.out.println("ReportController: Тестовые данные инициализированы");
-        return ResponseEntity.ok().build();
+        System.out.println("ReportController: URL: /reports/history/init-test-data");
+        
+        try {
+            reportHistoryService.initializeTestData();
+            System.out.println("ReportController: Тестовые данные инициализированы");
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.err.println("ReportController: Ошибка при инициализации: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 } 
