@@ -7,6 +7,8 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -208,24 +210,93 @@ public class ReportService {
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
         
-        document.add(new Paragraph("Отчет по работе сварочного оборудования"));
+        // Заголовок отчета
+        Paragraph title = new Paragraph("Отчет по работе сварочного оборудования");
+        title.setFontSize(18);
+        title.setBold();
+        document.add(title);
         document.add(new Paragraph(""));
         
-        String[] equipmentNames = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250", "Аппарат плазменной резки", "Сварочный робот"};
-        String[] departments = {"Цех №1", "Цех №2", "Сборочный участок", "Ремонтный участок", "Склад"};
+        // Создаем таблицу
+        Table table = new Table(11); // 11 колонок
         
-        for (int i = 0; i < 8; i++) {
-            document.add(new Paragraph("Оборудование " + (i + 1) + ":"));
-            document.add(new Paragraph("  Название: " + equipmentNames[i % equipmentNames.length]));
-            document.add(new Paragraph("  Серийный номер: SN-" + (2023000 + i)));
-            document.add(new Paragraph("  Подразделение: " + departments[i % departments.length]));
-            document.add(new Paragraph("  Время работы: " + (120 + (int)(Math.random() * 480)) + " часов"));
-            document.add(new Paragraph("  Расход проволоки: " + String.format("%.1f", 15.5 + (Math.random() * 84.5)) + " кг"));
-            document.add(new Paragraph("  Средний ток: " + (180 + (int)(Math.random() * 120)) + " А"));
-            document.add(new Paragraph("  Среднее напряжение: " + (20 + (int)(Math.random() * 10)) + " В"));
-            document.add(new Paragraph("---"));
+        // Заголовки таблицы
+        String[] headers = {
+            "ID", "Название", "Серийный номер", "Подразделение", "Время работы (ч)", 
+            "Расход проволоки (кг)", "Кол-во сварщиков", "Средний ток (А)", 
+            "Среднее напряжение (В)", "Статус", "Последнее обслуживание"
+        };
+        
+        // Добавляем заголовки
+        for (String header : headers) {
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(header));
+            table.addHeaderCell(cell);
         }
         
+        // Данные
+        String[] equipmentNames = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250", "Аппарат плазменной резки", "Сварочный робот"};
+        String[] departments = {"Цех №1", "Цех №2", "Сборочный участок", "Ремонтный участок", "Склад"};
+        String[] statuses = {"Работает", "Техобслуживание", "Ремонт", "Резерв", "Неисправен"};
+        
+        for (int i = 0; i < 12; i++) {
+            // ID
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(1000 + i)));
+            table.addCell(cell);
+            
+            // Название
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(equipmentNames[i % equipmentNames.length]));
+            table.addCell(cell);
+            
+            // Серийный номер
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("SN-" + (2023000 + i)));
+            table.addCell(cell);
+            
+            // Подразделение
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(departments[i % departments.length]));
+            table.addCell(cell);
+            
+            // Время работы
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(120 + (int)(Math.random() * 480))));
+            table.addCell(cell);
+            
+            // Расход проволоки
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.format("%.1f", 15.5 + (Math.random() * 84.5))));
+            table.addCell(cell);
+            
+            // Количество сварщиков
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(1 + (int)(Math.random() * 4))));
+            table.addCell(cell);
+            
+            // Средний ток
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(180 + (int)(Math.random() * 120))));
+            table.addCell(cell);
+            
+            // Среднее напряжение
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(20 + (int)(Math.random() * 10))));
+            table.addCell(cell);
+            
+            // Статус
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(statuses[i % statuses.length]));
+            table.addCell(cell);
+            
+            // Последнее обслуживание
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
+        }
+        
+        document.add(table);
         document.close();
         return outputStream.toByteArray();
     }
@@ -320,25 +391,93 @@ public class ReportService {
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
         
-        document.add(new Paragraph("Отчет по работе сварщиков"));
+        // Заголовок отчета
+        Paragraph title = new Paragraph("Отчет по работе сварщиков");
+        title.setFontSize(18);
+        title.setBold();
+        document.add(title);
         document.add(new Paragraph(""));
         
-        String[] names = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н.", "Морозов М.М."};
+        // Создаем таблицу
+        Table table = new Table(11); // 11 колонок
+        
+        // Заголовки таблицы
+        String[] headers = {
+            "ID", "ФИО", "Подразделение", "Квалификация", "Время работы (ч)",
+            "Выполнено швов", "Расход проволоки (кг)", "Средний ток (А)",
+            "Среднее напряжение (В)", "Качество (%)", "Дата последней работы"
+        };
+        
+        // Добавляем заголовки
+        for (String header : headers) {
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(header));
+            table.addHeaderCell(cell);
+        }
+        
+        // Данные
+        String[] names = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н.", "Морозов М.М.", "Волков В.В.", "Алексеев А.А."};
         String[] departments = {"Цех №1", "Цех №2", "Сборочный участок", "Ремонтный участок"};
         String[] qualifications = {"3 разряд", "4 разряд", "5 разряд", "6 разряд"};
         
-        for (int i = 0; i < 10; i++) {
-            document.add(new Paragraph("Сварщик " + (i + 1) + ":"));
-            document.add(new Paragraph("  ФИО: " + names[i % names.length]));
-            document.add(new Paragraph("  Подразделение: " + departments[i % departments.length]));
-            document.add(new Paragraph("  Квалификация: " + qualifications[i % qualifications.length]));
-            document.add(new Paragraph("  Время работы: " + (160 + (int)(Math.random() * 200)) + " часов"));
-            document.add(new Paragraph("  Выполнено швов: " + (50 + (int)(Math.random() * 150))));
-            document.add(new Paragraph("  Расход проволоки: " + String.format("%.1f", 8.5 + (Math.random() * 41.5)) + " кг"));
-            document.add(new Paragraph("  Качество работы: " + (85 + (int)(Math.random() * 15)) + "%"));
-            document.add(new Paragraph("---"));
+        for (int i = 0; i < 20; i++) {
+            // ID
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(2000 + i)));
+            table.addCell(cell);
+            
+            // ФИО
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(names[i % names.length]));
+            table.addCell(cell);
+            
+            // Подразделение
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(departments[i % departments.length]));
+            table.addCell(cell);
+            
+            // Квалификация
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(qualifications[i % qualifications.length]));
+            table.addCell(cell);
+            
+            // Время работы
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(160 + (int)(Math.random() * 200))));
+            table.addCell(cell);
+            
+            // Выполнено швов
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(50 + (int)(Math.random() * 150))));
+            table.addCell(cell);
+            
+            // Расход проволоки
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.format("%.1f", 8.5 + (Math.random() * 41.5))));
+            table.addCell(cell);
+            
+            // Средний ток
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(180 + (int)(Math.random() * 120))));
+            table.addCell(cell);
+            
+            // Среднее напряжение
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(20 + (int)(Math.random() * 10))));
+            table.addCell(cell);
+            
+            // Качество работы
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(85 + (int)(Math.random() * 15))));
+            table.addCell(cell);
+            
+            // Дата последней работы
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
         }
         
+        document.add(table);
         document.close();
         return outputStream.toByteArray();
     }
@@ -433,24 +572,89 @@ public class ReportService {
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
         
-        document.add(new Paragraph("Отчет по расходу материалов"));
+        // Заголовок отчета
+        Paragraph title = new Paragraph("Отчет по расходу материалов");
+        title.setFontSize(18);
+        title.setBold();
+        document.add(title);
         document.add(new Paragraph(""));
         
+        // Создаем таблицу
+        Table table = new Table(10); // 10 колонок
+        
+        // Заголовки таблицы
+        String[] headers = {
+            "ID", "Название", "Тип", "Подразделение", "Расход (кг)",
+            "Остаток (кг)", "Стоимость (руб/кг)", "Дата поставки", "Поставщик", "Статус"
+        };
+        
+        // Добавляем заголовки
+        for (String header : headers) {
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(header));
+            table.addHeaderCell(cell);
+        }
+        
+        // Данные
         String[] materialNames = {"Проволока ER70S-6", "Электроды УОНИ-13/55", "Флюс АН-348А", "Газ CO2", "Газ Ar"};
         String[] types = {"Проволока", "Электроды", "Флюс", "Газ", "Газ"};
         String[] departments = {"Цех №1", "Цех №2", "Сборочный участок", "Ремонтный участок"};
+        String[] suppliers = {"ООО МеталлСнаб", "ИП Иванов", "ООО ГазТрейд", "ООО ЭлектродСтрой"};
+        String[] statuses = {"В наличии", "Заканчивается", "Под заказ", "Нет в наличии"};
         
-        for (int i = 0; i < 12; i++) {
-            document.add(new Paragraph("Материал " + (i + 1) + ":"));
-            document.add(new Paragraph("  Название: " + materialNames[i % materialNames.length]));
-            document.add(new Paragraph("  Тип: " + types[i % types.length]));
-            document.add(new Paragraph("  Подразделение: " + departments[i % departments.length]));
-            document.add(new Paragraph("  Расход: " + String.format("%.1f", 25.5 + (Math.random() * 74.5)) + " кг"));
-            document.add(new Paragraph("  Остаток: " + String.format("%.1f", 5.0 + (Math.random() * 45.0)) + " кг"));
-            document.add(new Paragraph("  Стоимость: " + String.format("%.0f", 120.0 + (Math.random() * 180.0)) + " руб/кг"));
-            document.add(new Paragraph("---"));
+        for (int i = 0; i < 20; i++) {
+            // ID
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(3000 + i)));
+            table.addCell(cell);
+            
+            // Название
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(materialNames[i % materialNames.length]));
+            table.addCell(cell);
+            
+            // Тип
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(types[i % types.length]));
+            table.addCell(cell);
+            
+            // Подразделение
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(departments[i % departments.length]));
+            table.addCell(cell);
+            
+            // Расход
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.format("%.1f", 25.5 + (Math.random() * 74.5))));
+            table.addCell(cell);
+            
+            // Остаток
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.format("%.1f", 5.0 + (Math.random() * 84.5))));
+            table.addCell(cell);
+            
+            // Стоимость
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.format("%.0f", 120.0 + (Math.random() * 180.0))));
+            table.addCell(cell);
+            
+            // Дата поставки
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
+            
+            // Поставщик
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(suppliers[i % suppliers.length]));
+            table.addCell(cell);
+            
+            // Статус
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(statuses[i % statuses.length]));
+            table.addCell(cell);
         }
         
+        document.add(table);
         document.close();
         return outputStream.toByteArray();
     }
@@ -548,24 +752,98 @@ public class ReportService {
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
         
-        document.add(new Paragraph("Отчет по сварочным швам"));
+        // Заголовок отчета
+        Paragraph title = new Paragraph("Отчет по сварочным швам");
+        title.setFontSize(18);
+        title.setBold();
+        document.add(title);
         document.add(new Paragraph(""));
         
+        // Создаем таблицу
+        Table table = new Table(12); // 12 колонок
+        
+        // Заголовки таблицы
+        String[] headers = {
+            "ID", "Тип шва", "Сварщик", "Оборудование", "Материал", "Длина (мм)",
+            "Толщина (мм)", "Ток (А)", "Напряжение (В)", "Скорость (мм/мин)", "Качество (%)", "Дата"
+        };
+        
+        // Добавляем заголовки
+        for (String header : headers) {
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(header));
+            table.addHeaderCell(cell);
+        }
+        
+        // Данные
         String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный", "Торцевой"};
         String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
         String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
+        String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
         
-        for (int i = 0; i < 15; i++) {
-            document.add(new Paragraph("Шов " + (i + 1) + ":"));
-            document.add(new Paragraph("  Тип: " + weldTypes[i % weldTypes.length]));
-            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
-            document.add(new Paragraph("  Оборудование: " + equipment[i % equipment.length]));
-            document.add(new Paragraph("  Длина: " + (50 + (int)(Math.random() * 450)) + " мм"));
-            document.add(new Paragraph("  Толщина: " + String.format("%.1f", 3.0 + (Math.random() * 17.0)) + " мм"));
-            document.add(new Paragraph("  Качество: " + (85 + (int)(Math.random() * 15)) + "%"));
-            document.add(new Paragraph("---"));
+        for (int i = 0; i < 25; i++) {
+            // ID
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(4000 + i)));
+            table.addCell(cell);
+            
+            // Тип шва
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(weldTypes[i % weldTypes.length]));
+            table.addCell(cell);
+            
+            // Сварщик
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(welders[i % welders.length]));
+            table.addCell(cell);
+            
+            // Оборудование
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(equipment[i % equipment.length]));
+            table.addCell(cell);
+            
+            // Материал
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(materials[i % materials.length]));
+            table.addCell(cell);
+            
+            // Длина
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(50 + (int)(Math.random() * 450))));
+            table.addCell(cell);
+            
+            // Толщина
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.format("%.1f", 3.0 + (Math.random() * 15.0))));
+            table.addCell(cell);
+            
+            // Ток
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(150 + (int)(Math.random() * 150))));
+            table.addCell(cell);
+            
+            // Напряжение
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(18 + (int)(Math.random() * 12))));
+            table.addCell(cell);
+            
+            // Скорость
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(200 + (int)(Math.random() * 300))));
+            table.addCell(cell);
+            
+            // Качество
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(85 + (int)(Math.random() * 15))));
+            table.addCell(cell);
+            
+            // Дата
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
         }
         
+        document.add(table);
         document.close();
         return outputStream.toByteArray();
     }
@@ -665,23 +943,95 @@ public class ReportService {
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
         
-        document.add(new Paragraph("Отчет по ошибкам сварочного оборудования"));
+        // Заголовок отчета
+        Paragraph title = new Paragraph("Отчет по ошибкам сварочного оборудования");
+        title.setFontSize(18);
+        title.setBold();
+        document.add(title);
         document.add(new Paragraph(""));
         
-        String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
-        String[] errorTypes = {"Электрическая", "Механическая", "Термическая", "Программная"};
-        String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО"};
+        // Создаем таблицу
+        Table table = new Table(11); // 11 колонок
         
-        for (int i = 0; i < 12; i++) {
-            document.add(new Paragraph("Ошибка " + (i + 1) + ":"));
-            document.add(new Paragraph("  Оборудование: " + equipment[i % equipment.length]));
-            document.add(new Paragraph("  Тип: " + errorTypes[i % errorTypes.length]));
-            document.add(new Paragraph("  Описание: " + descriptions[i % descriptions.length]));
-            document.add(new Paragraph("  Время простоя: " + (2 + (int)(Math.random() * 48)) + " часов"));
-            document.add(new Paragraph("  Стоимость ремонта: " + (5000 + (int)(Math.random() * 45000)) + " руб"));
-            document.add(new Paragraph("---"));
+        // Заголовки таблицы
+        String[] headers = {
+            "ID", "Оборудование", "Тип ошибки", "Описание", "Критичность", "Дата возникновения",
+            "Дата устранения", "Время простоя (ч)", "Стоимость (руб)", "Ответственный", "Статус"
+        };
+        
+        // Добавляем заголовки
+        for (String header : headers) {
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(header));
+            table.addHeaderCell(cell);
         }
         
+        // Данные
+        String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250", "Аппарат плазменной резки"};
+        String[] errorTypes = {"Электрическая", "Механическая", "Термическая", "Программная", "Сетевая"};
+        String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
+        String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
+        String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
+        
+        for (int i = 0; i < 18; i++) {
+            // ID
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(5000 + i)));
+            table.addCell(cell);
+            
+            // Оборудование
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(equipment[i % equipment.length]));
+            table.addCell(cell);
+            
+            // Тип ошибки
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(errorTypes[i % errorTypes.length]));
+            table.addCell(cell);
+            
+            // Описание
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(descriptions[i % descriptions.length]));
+            table.addCell(cell);
+            
+            // Критичность
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(criticality[i % criticality.length]));
+            table.addCell(cell);
+            
+            // Дата возникновения
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
+            
+            // Дата устранения
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
+            
+            // Время простоя
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(2 + (int)(Math.random() * 12))));
+            table.addCell(cell);
+            
+            // Стоимость ремонта
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(5000 + (int)(Math.random() * 45000))));
+            table.addCell(cell);
+            
+            // Ответственный
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(responsible[i % responsible.length]));
+            table.addCell(cell);
+            
+            // Статус
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(statuses[i % statuses.length]));
+            table.addCell(cell);
+        }
+        
+        document.add(table);
         document.close();
         return outputStream.toByteArray();
     }
@@ -783,22 +1133,96 @@ public class ReportService {
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
         
-        document.add(new Paragraph("Отчет по нарушениям при сварке"));
+        // Заголовок отчета
+        Paragraph title = new Paragraph("Отчет по нарушениям при сварке");
+        title.setFontSize(18);
+        title.setBold();
+        document.add(title);
         document.add(new Paragraph(""));
         
+        // Создаем таблицу
+        Table table = new Table(11); // 11 колонок
+        
+        // Заголовки таблицы
+        String[] headers = {
+            "ID", "Шов", "Сварщик", "Тип нарушения", "Описание", "Критичность",
+            "Дата обнаружения", "Дата исправления", "Ответственный", "Статус", "Штраф (руб)"
+        };
+        
+        // Добавляем заголовки
+        for (String header : headers) {
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(header));
+            table.addHeaderCell(cell);
+        }
+        
+        // Данные
         String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный"};
         String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
         String[] violationTypes = {"Технологическое", "Качественное", "Временное", "Безопасности"};
+        String[] descriptions = {"Несоответствие режиму", "Пористость", "Превышение времени", "Отсутствие СИЗ"};
+        String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
+        String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] statuses = {"Обнаружено", "Исправляется", "Исправлено", "Проверено"};
         
-        for (int i = 0; i < 10; i++) {
-            document.add(new Paragraph("Нарушение " + (i + 1) + ":"));
-            document.add(new Paragraph("  Шов: " + weldTypes[i % weldTypes.length] + " №" + (i + 1)));
-            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
-            document.add(new Paragraph("  Тип: " + violationTypes[i % violationTypes.length]));
-            document.add(new Paragraph("  Штраф: " + (1000 + (int)(Math.random() * 9000)) + " руб"));
-            document.add(new Paragraph("---"));
+        for (int i = 0; i < 15; i++) {
+            // ID
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(6000 + i)));
+            table.addCell(cell);
+            
+            // Шов
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(weldTypes[i % weldTypes.length] + " шов №" + (i + 1)));
+            table.addCell(cell);
+            
+            // Сварщик
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(welders[i % welders.length]));
+            table.addCell(cell);
+            
+            // Тип нарушения
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(violationTypes[i % violationTypes.length]));
+            table.addCell(cell);
+            
+            // Описание
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(descriptions[i % descriptions.length]));
+            table.addCell(cell);
+            
+            // Критичность
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(criticality[i % criticality.length]));
+            table.addCell(cell);
+            
+            // Дата обнаружения
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
+            
+            // Дата исправления
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
+            
+            // Ответственный
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(responsible[i % responsible.length]));
+            table.addCell(cell);
+            
+            // Статус
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(statuses[i % statuses.length]));
+            table.addCell(cell);
+            
+            // Штраф
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(1000 + (int)(Math.random() * 9000))));
+            table.addCell(cell);
         }
         
+        document.add(table);
         document.close();
         return outputStream.toByteArray();
     }
@@ -900,22 +1324,95 @@ public class ReportService {
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
         
-        document.add(new Paragraph("Отчет по сварочным заданиям"));
+        // Заголовок отчета
+        Paragraph title = new Paragraph("Отчет по сварочным заданиям");
+        title.setFontSize(18);
+        title.setBold();
+        document.add(title);
         document.add(new Paragraph(""));
         
-        String[] taskNames = {"Сварка трубопровода", "Ремонт конструкции", "Изготовление детали", "Сборка узла"};
-        String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
-        String[] statuses = {"Новое", "В работе", "На проверке", "Завершено"};
+        // Создаем таблицу
+        Table table = new Table(11); // 11 колонок
         
-        for (int i = 0; i < 12; i++) {
-            document.add(new Paragraph("Задание " + (i + 1) + ":"));
-            document.add(new Paragraph("  Название: " + taskNames[i % taskNames.length] + " №" + (i + 1)));
-            document.add(new Paragraph("  Сварщик: " + welders[i % welders.length]));
-            document.add(new Paragraph("  Статус: " + statuses[i % statuses.length]));
-            document.add(new Paragraph("  Прогресс: " + (10 + (int)(Math.random() * 90)) + "%"));
-            document.add(new Paragraph("---"));
+        // Заголовки таблицы
+        String[] headers = {
+            "ID", "Название", "Описание", "Сварщик", "Оборудование", "Материал",
+            "Плановая дата", "Фактическая дата", "Статус", "Прогресс (%)", "Приоритет"
+        };
+        
+        // Добавляем заголовки
+        for (String header : headers) {
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(header));
+            table.addHeaderCell(cell);
         }
         
+        // Данные
+        String[] taskNames = {"Сварка трубопровода", "Ремонт конструкции", "Изготовление детали", "Сборка узла", "Восстановление износа"};
+        String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+        String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
+        String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
+        String[] statuses = {"Новое", "В работе", "На проверке", "Завершено", "Отменено"};
+        String[] priorities = {"Низкий", "Средний", "Высокий", "Критический"};
+        
+        for (int i = 0; i < 20; i++) {
+            // ID
+            com.itextpdf.layout.element.Cell cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(7000 + i)));
+            table.addCell(cell);
+            
+            // Название
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(taskNames[i % taskNames.length] + " №" + (i + 1)));
+            table.addCell(cell);
+            
+            // Описание
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("Детальное описание задания " + (i + 1)));
+            table.addCell(cell);
+            
+            // Сварщик
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(welders[i % welders.length]));
+            table.addCell(cell);
+            
+            // Оборудование
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(equipment[i % equipment.length]));
+            table.addCell(cell);
+            
+            // Материал
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(materials[i % materials.length]));
+            table.addCell(cell);
+            
+            // Плановая дата
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
+            
+            // Фактическая дата
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            table.addCell(cell);
+            
+            // Статус
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(statuses[i % statuses.length]));
+            table.addCell(cell);
+            
+            // Прогресс
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(String.valueOf(10 + (int)(Math.random() * 90))));
+            table.addCell(cell);
+            
+            // Приоритет
+            cell = new com.itextpdf.layout.element.Cell();
+            cell.add(new Paragraph(priorities[i % priorities.length]));
+            table.addCell(cell);
+        }
+        
+        document.add(table);
         document.close();
         return outputStream.toByteArray();
     }
