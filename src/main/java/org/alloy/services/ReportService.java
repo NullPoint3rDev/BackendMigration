@@ -281,7 +281,18 @@ public class ReportService {
     }
 
     // Методы для генерации отчетов с тестовыми данными
-    
+
+    private byte[] generateMaterialsReportWithData(String format) throws IOException {
+        if ("EXCEL".equalsIgnoreCase(format)) {
+            return generateMaterialsExcelWithData();
+        } else if ("PDF".equalsIgnoreCase(format)) {
+            return generateMaterialsPdfWithData();
+        } else if ("CSV".equalsIgnoreCase(format)) {
+            return generateMaterialsCsvWithData();
+        }
+        throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
     private byte[] generateEquipmentReportWithData(String format) throws IOException {
         if ("EXCEL".equalsIgnoreCase(format)) {
             return generateEquipmentExcelWithData();
@@ -293,6 +304,17 @@ public class ReportService {
         throw new IllegalArgumentException("Unsupported format: " + format);
     }
 
+    private byte[] generateErrorsReportWithData(String format) throws IOException {
+        if ("EXCEL".equalsIgnoreCase(format)) {
+            return generateMalfunctionExcelData();
+        } else if ("PDF".equalsIgnoreCase(format)) {
+            return generateMalfunctionPdfData();
+        } else if ("CSV".equalsIgnoreCase(format)) {
+            return generateMalfunctionCsvData();
+        }
+        throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
     private byte[] generateEquipmentExcelWithData() throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по работе оборудования");
@@ -300,9 +322,9 @@ public class ReportService {
             // Создаем заголовки
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                "ID оборудования", "Название", "Серийный номер", "Подразделение", 
-                "Время работы (часы)", "Расход проволоки (кг)", "Количество сварщиков",
-                "Средний ток (А)", "Среднее напряжение (В)", "Статус", "Последнее обслуживание"
+                "Дата", "Время", "Сварщик", "Сила тока, А",
+                "Масса проволоки, кг", "Напряжение, V", "Проволока, м/мин",
+                "Газ, л/мин", "Время сварки (с)"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -522,17 +544,6 @@ public class ReportService {
         }
         
         return addBomToCsv(csv.toString());
-    }
-
-    private byte[] generateMaterialsReportWithData(String format) throws IOException {
-        if ("EXCEL".equalsIgnoreCase(format)) {
-            return generateMaterialsExcelWithData();
-        } else if ("PDF".equalsIgnoreCase(format)) {
-            return generateMaterialsPdfWithData();
-        } else if ("CSV".equalsIgnoreCase(format)) {
-            return generateMaterialsCsvWithData();
-        }
-        throw new IllegalArgumentException("Unsupported format: " + format);
     }
 
     private byte[] generateMaterialsExcelWithData() throws IOException {
@@ -775,18 +786,7 @@ public class ReportService {
     }
 
     // Методы для генерации отчета по ошибкам
-    private byte[] generateErrorsReportWithData(String format) throws IOException {
-        if ("EXCEL".equalsIgnoreCase(format)) {
-            return generateErrorsExcelWithData();
-        } else if ("PDF".equalsIgnoreCase(format)) {
-            return generateErrorsPdfWithData();
-        } else if ("CSV".equalsIgnoreCase(format)) {
-            return generateErrorsCsvWithData();
-        }
-        throw new IllegalArgumentException("Unsupported format: " + format);
-    }
-
-    private byte[] generateErrorsExcelWithData() throws IOException {
+    private byte[] generateMalfunctionExcelData() throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по ошибкам оборудования");
             
@@ -835,7 +835,7 @@ public class ReportService {
         }
     }
 
-    private byte[] generateErrorsPdfWithData() throws IOException {
+    private byte[] generateMalfunctionPdfData() throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
@@ -875,7 +875,7 @@ public class ReportService {
         return outputStream.toByteArray();
     }
 
-    private byte[] generateErrorsCsvWithData() throws IOException {
+    private byte[] generateMalfunctionCsvData() throws IOException {
         StringBuilder csv = new StringBuilder();
         csv.append("ID ошибки,Оборудование,Тип ошибки,Описание,Критичность,Дата возникновения,Дата устранения,Время простоя (часы),Стоимость ремонта,Ответственный,Статус\n");
         
