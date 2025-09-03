@@ -408,18 +408,22 @@ public class ReportService {
 
     private byte[] generateEquipmentCsvWithData(Integer weldingMachineId) throws IOException {
         StringBuilder csv = new StringBuilder();
-        csv.append("Отчет по работе оборудования ID: ").append(weldingMachineId).append("\n");
+        String machineInfo = (weldingMachineId != null) ? 
+            "Отчет по работе оборудования ID: " + weldingMachineId : 
+            "Отчет по работе оборудования (ID не указан)";
+        csv.append(machineInfo).append("\n");
         csv.append("Дата,Время,Сварщик,Сила тока (А),Масса проволоки (кг),Напряжение (В),Проволока (м/мин),Газ (л/мин),Время сварки (с)\n");
         
         String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+        String todayDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         
         for (int i = 0; i < 12; i++) {
-            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
+            csv.append(todayDate).append(","); // Всегда сегодняшняя дата
             csv.append(String.format("%02d:%02d", (int)(Math.random() * 24), (int)(Math.random() * 60))).append(",");
             csv.append(welderNames[i % welderNames.length]).append(",");
             csv.append(180 + (int)(Math.random() * 120)).append(",");
             csv.append(String.format("%.1f", 15.5 + (Math.random() * 84.5))).append(",");
-            csv.append(20 + (int)(Math.random() * 120)).append(",");
+            csv.append(20 + (int)(Math.random() * 10)).append(",");
             csv.append(200 + (int)(Math.random() * 300)).append(",");
             csv.append(15 + (int)(Math.random() * 25)).append(",");
             csv.append(30 + (int)(Math.random() * 270));
