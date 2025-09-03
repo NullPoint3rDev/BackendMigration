@@ -352,11 +352,12 @@ public class ReportService {
             // Заполняем данными для конкретного аппарата
             int rowNum = 3;
             String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
-            
+
+            String todayDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             // Генерируем данные только для выбранного аппарата
             for (int i = 0; i < 15; i++) {
                 Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))); // Дата
+                row.createCell(0).setCellValue(todayDate);
                 row.createCell(1).setCellValue(String.format("%02d:%02d", (int)(Math.random() * 24), (int)(Math.random() * 60))); // Время
                 row.createCell(2).setCellValue(welderNames[i % welderNames.length]); // Сварщик
                 row.createCell(3).setCellValue(180 + (int)(Math.random() * 120)); // Сила тока, А (180-300)
