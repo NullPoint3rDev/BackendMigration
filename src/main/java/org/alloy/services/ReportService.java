@@ -57,6 +57,14 @@ public class ReportService {
     // Новые методы для отчетов согласно требованиям
     
     public byte[] generateEquipmentReport(ReportRequestDTO request) throws IOException {
+        // Добавляем отладочную информацию
+        System.out.println("=== DEBUG: generateEquipmentReport ===");
+        System.out.println("Format: " + request.getFormat());
+        System.out.println("Period: " + request.getPeriod());
+        System.out.println("WeldingMachineId: " + request.getWeldingMachineId());
+        System.out.println("WeldingMachineId type: " + (request.getWeldingMachineId() != null ? request.getWeldingMachineId().getClass().getSimpleName() : "null"));
+        System.out.println("=====================================");
+        
         // Генерируем отчет по работе оборудования с тестовыми данными
         byte[] reportData = generateEquipmentReportWithData(request.getFormat(), request.getWeldingMachineId());
         
@@ -324,7 +332,10 @@ public class ReportService {
             // Добавляем информацию о выбранном аппарате
             Row titleRow = sheet.createRow(0);
             Cell titleCell = titleRow.createCell(0);
-            titleCell.setCellValue("Отчет по работе оборудования ID: " + weldingMachineId);
+            String machineInfo = (weldingMachineId != null) ? 
+                "Отчет по работе оборудования ID: " + weldingMachineId : 
+                "Отчет по работе оборудования (ID не указан)";
+            titleCell.setCellValue(machineInfo);
             CellStyle titleStyle = workbook.createCellStyle();
             Font titleFont = workbook.createFont();
             titleFont.setBold(true);
@@ -381,7 +392,10 @@ public class ReportService {
         Document document = new Document(pdf);
         
         // Заголовок отчета с информацией об аппарате
-        Paragraph title = new Paragraph("Отчет по работе сварочного оборудования ID: " + weldingMachineId);
+        String titleText = (weldingMachineId != null) ? 
+            "Отчет по работе сварочного оборудования ID: " + weldingMachineId : 
+            "Отчет по работе сварочного оборудования (ID не указан)";
+        Paragraph title = new Paragraph(titleText);
         title.setFontSize(18);
         title.setBold();
         document.add(title);
@@ -389,10 +403,11 @@ public class ReportService {
         
         // Данные для конкретного аппарата
         String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+        String todayDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         
         for (int i = 0; i < 12; i++) {
             document.add(new Paragraph("Сессия " + (i + 1) + ":"));
-            document.add(new Paragraph("Дата: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Дата: " + todayDate));
             document.add(new Paragraph("Время: " + String.format("%02d:%02d", (int)(Math.random() * 24), (int)(Math.random() * 60))));
             document.add(new Paragraph("Сварщик: " + welderNames[i % welderNames.length]));
             document.add(new Paragraph("Сила тока: " + (180 + (int)(Math.random() * 120)) + " А"));
