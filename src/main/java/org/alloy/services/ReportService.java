@@ -13,6 +13,7 @@ import com.itextpdf.layout.element.Table;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.alloy.models.ReportHistory;
+import org.alloy.services.WeldingMachineService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,6 +27,9 @@ public class ReportService {
 
     @Autowired
     private ReportHistoryService reportHistoryService;
+
+    @Autowired
+    private WeldingMachineService weldingMachineService;
 
     public byte[] generateWireConsumptionReport(List<WireConsumptionReportDTO> data, String format) throws IOException {
         if ("EXCEL".equalsIgnoreCase(format)) {
@@ -65,8 +69,26 @@ public class ReportService {
         System.out.println("WeldingMachineId type: " + (request.getWeldingMachineId() != null ? request.getWeldingMachineId().getClass().getSimpleName() : "null"));
         System.out.println("=====================================");
         
+        // Получаем название аппарата по ID
+        String machineName = "Неизвестный аппарат";
+        if (request.getWeldingMachineId() != null) {
+            try {
+                var machine = weldingMachineService.getWeldingMachineById(request.getWeldingMachineId());
+                if (machine.isPresent()) {
+                    machineName = machine.get().getName();
+                    System.out.println("Найден аппарат: " + machineName);
+                } else {
+                    machineName = "Аппарат ID: " + request.getWeldingMachineId() + " (не найден)";
+                    System.out.println("Аппарат с ID " + request.getWeldingMachineId() + " не найден в базе");
+                }
+            } catch (Exception e) {
+                machineName = "Аппарат ID: " + request.getWeldingMachineId() + " (ошибка загрузки)";
+                System.err.println("Ошибка при получении названия аппарата: " + e.getMessage());
+            }
+        }
+        
         // Генерируем отчет по работе оборудования с тестовыми данными
-        byte[] reportData = generateEquipmentReportWithData(request.getFormat(), request.getWeldingMachineId());
+        byte[] reportData = generateEquipmentReportWithData(request.getFormat(), request.getWeldingMachineId(), machineName);
         
         try {
             // Записываем в историю
@@ -93,13 +115,13 @@ public class ReportService {
         return reportData;
     }
 
-    private byte[] generateEquipmentReportWithData(String format, Integer weldingMachineId) throws IOException {
+    private byte[] generateEquipmentReportWithData(String format, Integer weldingMachineId, String machineName) throws IOException {
         if ("EXCEL".equalsIgnoreCase(format)) {
-            return generateEquipmentExcelWithData(weldingMachineId);
+            return generateEquipmentExcelWithData(weldingMachineId, machineName);
         } else if ("PDF".equalsIgnoreCase(format)) {
-            return generateEquipmentPdfWithData(weldingMachineId);
+            return generateEquipmentPdfWithData(weldingMachineId, machineName);
         } else if ("CSV".equalsIgnoreCase(format)) {
-            return generateEquipmentCsvWithData(weldingMachineId);
+            return generateEquipmentCsvWithData(weldingMachineId, machineName);
         }
         throw new IllegalArgumentException("Unsupported format: " + format);
     }
@@ -325,7 +347,7 @@ public class ReportService {
         throw new IllegalArgumentException("Unsupported format: " + format);
     }
 
-    private byte[] generateEquipmentExcelWithData(Integer weldingMachineId) throws IOException {
+    private byte[] generateEquipmentExcelWithData(Integer weldingMachineId, String machineName) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по работе оборудования");
             
@@ -333,7 +355,7 @@ public class ReportService {
             Row titleRow = sheet.createRow(0);
             Cell titleCell = titleRow.createCell(0);
             String machineInfo = (weldingMachineId != null) ? 
-                "Отчет по работе оборудования ID: " + weldingMachineId : 
+                "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
                 "Отчет по работе оборудования (ID не указан)";
             titleCell.setCellValue(machineInfo);
             CellStyle titleStyle = workbook.createCellStyle();
@@ -385,7 +407,7 @@ public class ReportService {
         }
     }
 
-    private byte[] generateEquipmentPdfWithData(Integer weldingMachineId) throws IOException {
+    private byte[] generateEquipmentPdfWithData(Integer weldingMachineId, String machineName) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
@@ -393,7 +415,7 @@ public class ReportService {
         
         // Заголовок отчета с информацией об аппарате
         String titleText = (weldingMachineId != null) ? 
-            "Отчет по работе сварочного оборудования ID: " + weldingMachineId : 
+            "Отчет по работе сварочного оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
             "Отчет по работе сварочного оборудования (ID не указан)";
         Paragraph title = new Paragraph(titleText);
         title.setFontSize(18);
@@ -422,10 +444,10 @@ public class ReportService {
         return outputStream.toByteArray();
     }
 
-    private byte[] generateEquipmentCsvWithData(Integer weldingMachineId) throws IOException {
+    private byte[] generateEquipmentCsvWithData(Integer weldingMachineId, String machineName) throws IOException {
         StringBuilder csv = new StringBuilder();
         String machineInfo = (weldingMachineId != null) ? 
-            "Отчет по работе оборудования ID: " + weldingMachineId : 
+            "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
             "Отчет по работе оборудования (ID не указан)";
         csv.append(machineInfo).append("\n");
         csv.append("Дата,Время,Сварщик,Сила тока (А),Масса проволоки (кг),Напряжение (В),Проволока (м/мин),Газ (л/мин),Время сварки (с)\n");
