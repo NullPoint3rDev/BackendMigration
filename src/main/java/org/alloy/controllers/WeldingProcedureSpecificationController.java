@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/welding-procedures")
+@RequestMapping("/wps")
 @Tag(name = "Welding Procedure Specifications", description = "API для управления технологическими картами сварки (WPS). " +
     "Позволяет создавать, просматривать, обновлять и удалять технологические карты сварки, " +
     "а также выполнять поиск по различным параметрам.")
