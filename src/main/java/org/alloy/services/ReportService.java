@@ -31,6 +31,66 @@ public class ReportService {
     @Autowired
     private WeldingMachineService weldingMachineService;
 
+    /**
+     * Генерирует даты для отчета в зависимости от выбранного периода
+     */
+    private String[] generateDatesForPeriod(String period, int count) {
+        String[] dates = new String[count];
+        java.time.LocalDate baseDate = java.time.LocalDate.now();
+        
+        switch (period.toUpperCase()) {
+            case "DAY":
+                // За день - все даты одинаковые
+                String dayDate = baseDate.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                for (int i = 0; i < count; i++) {
+                    dates[i] = dayDate;
+                }
+                break;
+                
+            case "WEEK":
+                // За неделю - даты в пределах текущей недели
+                java.time.LocalDate weekStart = baseDate.minusDays(baseDate.getDayOfWeek().getValue() - 1);
+                for (int i = 0; i < count; i++) {
+                    dates[i] = weekStart.plusDays(i % 7).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                }
+                break;
+                
+            case "MONTH":
+                // За месяц - даты в пределах текущего месяца
+                for (int i = 0; i < count; i++) {
+                    int dayOfMonth = 1 + (i % baseDate.lengthOfMonth());
+                    dates[i] = baseDate.withDayOfMonth(dayOfMonth).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                }
+                break;
+                
+            case "QUARTER":
+                // За квартал - даты в пределах текущего квартала
+                int quarter = (baseDate.getMonthValue() - 1) / 3;
+                java.time.LocalDate quarterStart = baseDate.withMonth(quarter * 3 + 1).withDayOfMonth(1);
+                for (int i = 0; i < count; i++) {
+                    dates[i] = quarterStart.plusDays(i % 90).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                }
+                break;
+                
+            case "YEAR":
+                // За год - даты в пределах текущего года
+                java.time.LocalDate yearStart = baseDate.withMonth(1).withDayOfMonth(1);
+                for (int i = 0; i < count; i++) {
+                    dates[i] = yearStart.plusDays(i % 365).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                }
+                break;
+                
+            default:
+                // По умолчанию - случайные даты в текущем году
+                for (int i = 0; i < count; i++) {
+                    dates[i] = "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28));
+                }
+                break;
+        }
+        
+        return dates;
+    }
+
     public byte[] generateWireConsumptionReport(List<WireConsumptionReportDTO> data, String format) throws IOException {
         if ("EXCEL".equalsIgnoreCase(format)) {
             return generateWireConsumptionExcel(data);
@@ -87,8 +147,8 @@ public class ReportService {
             }
         }
         
-        // Генерируем отчет по работе оборудования с тестовыми данными
-        byte[] reportData = generateEquipmentReportWithData(request.getFormat(), request.getWeldingMachineId(), machineName);
+        // Генерируем отчет по работе оборудования с тестовыми данными в зависимости от периода
+        byte[] reportData = generateEquipmentReportWithData(request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod());
         
         try {
             // Записываем в историю
@@ -115,13 +175,13 @@ public class ReportService {
         return reportData;
     }
 
-    private byte[] generateEquipmentReportWithData(String format, Integer weldingMachineId, String machineName) throws IOException {
+    private byte[] generateEquipmentReportWithData(String format, Integer weldingMachineId, String machineName, String period) throws IOException {
         if ("EXCEL".equalsIgnoreCase(format)) {
-            return generateEquipmentExcelWithData(weldingMachineId, machineName);
+            return generateEquipmentExcelWithData(weldingMachineId, machineName, period);
         } else if ("PDF".equalsIgnoreCase(format)) {
-            return generateEquipmentPdfWithData(weldingMachineId, machineName);
+            return generateEquipmentPdfWithData(weldingMachineId, machineName, period);
         } else if ("CSV".equalsIgnoreCase(format)) {
-            return generateEquipmentCsvWithData(weldingMachineId, machineName);
+            return generateEquipmentCsvWithData(weldingMachineId, machineName, period);
         }
         throw new IllegalArgumentException("Unsupported format: " + format);
     }
@@ -215,8 +275,8 @@ public class ReportService {
             }
         }
         
-        // Генерируем отчет по ошибкам с тестовыми данными
-        byte[] reportData = generateErrorsReportWithData(request.getFormat(), request.getWeldingMachineId(), machineName);
+        // Генерируем отчет по ошибкам с тестовыми данными в зависимости от периода
+        byte[] reportData = generateErrorsReportWithData(request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod());
         
         // Записываем в историю
         String fileName = "errors_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
@@ -362,18 +422,18 @@ public class ReportService {
 
 
 
-    private byte[] generateErrorsReportWithData(String format, Integer weldingMachineId, String machineName) throws IOException {
+    private byte[] generateErrorsReportWithData(String format, Integer weldingMachineId, String machineName, String period) throws IOException {
         if ("EXCEL".equalsIgnoreCase(format)) {
-            return generateMalfunctionExcelData(weldingMachineId, machineName);
+            return generateMalfunctionExcelData(weldingMachineId, machineName, period);
         } else if ("PDF".equalsIgnoreCase(format)) {
-            return generateMalfunctionPdfData(weldingMachineId, machineName);
+            return generateMalfunctionPdfData(weldingMachineId, machineName, period);
         } else if ("CSV".equalsIgnoreCase(format)) {
-            return generateMalfunctionCsvData(weldingMachineId, machineName);
+            return generateMalfunctionCsvData(weldingMachineId, machineName, period);
         }
         throw new IllegalArgumentException("Unsupported format: " + format);
     }
 
-    private byte[] generateEquipmentExcelWithData(Integer weldingMachineId, String machineName) throws IOException {
+    private byte[] generateEquipmentExcelWithData(Integer weldingMachineId, String machineName, String period) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по работе оборудования");
             
@@ -412,11 +472,13 @@ public class ReportService {
             int rowNum = 3;
             String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
 
-            String todayDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            // Генерируем даты в зависимости от периода
+            String[] dates = generateDatesForPeriod(period, 15);
+            
             // Генерируем данные только для выбранного аппарата
             for (int i = 0; i < 15; i++) {
                 Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue(todayDate);
+                row.createCell(0).setCellValue(dates[i]);
                 row.createCell(1).setCellValue(String.format("%02d:%02d", (int)(Math.random() * 24), (int)(Math.random() * 60))); // Время
                 row.createCell(2).setCellValue(welderNames[i % welderNames.length]); // Сварщик
                 row.createCell(3).setCellValue(180 + (int)(Math.random() * 120)); // Сила тока, А (180-300)
@@ -433,7 +495,7 @@ public class ReportService {
         }
     }
 
-    private byte[] generateEquipmentPdfWithData(Integer weldingMachineId, String machineName) throws IOException {
+    private byte[] generateEquipmentPdfWithData(Integer weldingMachineId, String machineName, String period) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
@@ -451,11 +513,13 @@ public class ReportService {
         
         // Данные для конкретного аппарата
         String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
-        String todayDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        
+        // Генерируем даты в зависимости от периода
+        String[] dates = generateDatesForPeriod(period, 12);
         
         for (int i = 0; i < 12; i++) {
             document.add(new Paragraph("Сессия " + (i + 1) + ":"));
-            document.add(new Paragraph("Дата: " + todayDate));
+            document.add(new Paragraph("Дата: " + dates[i]));
             document.add(new Paragraph("Время: " + String.format("%02d:%02d", (int)(Math.random() * 24), (int)(Math.random() * 60))));
             document.add(new Paragraph("Сварщик: " + welderNames[i % welderNames.length]));
             document.add(new Paragraph("Сила тока: " + (180 + (int)(Math.random() * 120)) + " А"));
@@ -470,7 +534,7 @@ public class ReportService {
         return outputStream.toByteArray();
     }
 
-    private byte[] generateEquipmentCsvWithData(Integer weldingMachineId, String machineName) throws IOException {
+    private byte[] generateEquipmentCsvWithData(Integer weldingMachineId, String machineName, String period) throws IOException {
         StringBuilder csv = new StringBuilder();
         String machineInfo = (weldingMachineId != null) ? 
             "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
@@ -479,13 +543,15 @@ public class ReportService {
         csv.append("Дата,Время,Сварщик,Сила тока (А),Масса проволоки (кг),Напряжение (В),Проволока (м/мин),Газ (л/мин),Время сварки (с)\n");
         
         String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
-        String todayDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        
+        // Генерируем даты в зависимости от периода
+        String[] dates = generateDatesForPeriod(period, 12);
         
         for (int i = 0; i < 12; i++) {
-            csv.append(todayDate).append(","); // Всегда сегодняшняя дата
+            csv.append(dates[i]).append(","); // Дата в зависимости от периода
             csv.append(String.format("%02d:%02d", (int)(Math.random() * 24), (int)(Math.random() * 60))).append(",");
             csv.append(welderNames[i % welderNames.length]).append(",");
-            csv.append(180 + (int)(Math.random() * 120)).append(",");
+            csv.append(180 + (int)(Math.random() * 24)).append(",");
             csv.append(String.format("%.1f", 15.5 + (Math.random() * 84.5))).append(",");
             csv.append(20 + (int)(Math.random() * 10)).append(",");
             csv.append(200 + (int)(Math.random() * 300)).append(",");
@@ -858,7 +924,7 @@ public class ReportService {
     }
 
     // Методы для генерации отчета по ошибкам
-    private byte[] generateMalfunctionExcelData(Integer weldingMachineId, String machineName) throws IOException {
+    private byte[] generateMalfunctionExcelData(Integer weldingMachineId, String machineName, String period) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по ошибкам оборудования");
             
@@ -904,9 +970,12 @@ public class ReportService {
             String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
             String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
             
+            // Генерируем даты в зависимости от периода
+            String[] dates = generateDatesForPeriod(period, 20);
+            
             for (int i = 0; i < 20; i++) {
                 Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue("2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))); // Дата
+                row.createCell(0).setCellValue(dates[i]); // Дата
                 row.createCell(1).setCellValue(machineName); // Оборудование
                 row.createCell(2).setCellValue(errorTypes[i % errorTypes.length]); // Тип неисправности
                 row.createCell(3).setCellValue(descriptions[i % descriptions.length]); // Описание
@@ -919,7 +988,7 @@ public class ReportService {
         }
     }
 
-    private byte[] generateMalfunctionPdfData(Integer weldingMachineId, String machineName) throws IOException {
+    private byte[] generateMalfunctionPdfData(Integer weldingMachineId, String machineName, String period) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
@@ -940,9 +1009,12 @@ public class ReportService {
         String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
         String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
         
+        // Генерируем даты в зависимости от периода
+        String[] dates = generateDatesForPeriod(period, 18);
+        
         for (int i = 0; i < 18; i++) {
             document.add(new Paragraph("Неисправность " + (i + 1) + ":"));
-            document.add(new Paragraph("Дата: " + "2024-" + String.format("%02d", 1 + (int)(Math.random() * 12)) + "-" + String.format("%02d", 1 + (int)(Math.random() * 28))));
+            document.add(new Paragraph("Дата: " + dates[i]));
             document.add(new Paragraph("Оборудование: " + machineName)); // Используем название выбранного аппарата
             document.add(new Paragraph("Тип неисправности: " + errorTypes[i % errorTypes.length]));
             document.add(new Paragraph("Описание: " + descriptions[i % descriptions.length]));
@@ -953,7 +1025,7 @@ public class ReportService {
         return outputStream.toByteArray();
     }
 
-    private byte[] generateMalfunctionCsvData(Integer weldingMachineId, String machineName) throws IOException {
+    private byte[] generateMalfunctionCsvData(Integer weldingMachineId, String machineName, String period) throws IOException {
         StringBuilder csv = new StringBuilder();
         String machineInfo = (weldingMachineId != null) ? 
             "Отчет по ошибкам оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
@@ -965,8 +1037,11 @@ public class ReportService {
         String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
         String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
         
+        // Генерируем даты в зависимости от периода
+        String[] dates = generateDatesForPeriod(period, 18);
+        
         for (int i = 0; i < 18; i++) {
-            csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28))).append(",");
+            csv.append(dates[i]).append(",");
             csv.append(machineName).append(","); // Используем название выбранного аппарата
             csv.append(errorTypes[i % errorTypes.length]).append(",");
             csv.append(descriptions[i % descriptions.length]).append(",");
