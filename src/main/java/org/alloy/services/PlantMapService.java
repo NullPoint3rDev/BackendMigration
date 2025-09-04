@@ -86,8 +86,8 @@ public class PlantMapService {
                 .getResultList();
 
             if (plantMaps.isEmpty()) {
-                logger.warn("Карта по умолчанию для организации ID {} не найдена", organizationId);
-                return null;
+                logger.warn("Карта по умолчанию для организации ID {} не найдена, создаем новую", organizationId);
+                return createDefaultPlantMap(organizationId);
             }
 
             PlantMap plantMap = plantMaps.get(0);
@@ -96,6 +96,37 @@ public class PlantMapService {
             return getPlantMap(plantMap.getId());
         } catch (Exception e) {
             logger.error("Ошибка при поиске карты по умолчанию для организации ID {}: {}", organizationId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * Создать карту по умолчанию для организации
+     */
+    private PlantMapDTO createDefaultPlantMap(Integer organizationId) {
+        logger.info("Создание карты по умолчанию для организации ID: {}", organizationId);
+        
+        try {
+            PlantMap plantMap = new PlantMap();
+            plantMap.setOrganizationId(organizationId);
+            plantMap.setName("Основная карта предприятия");
+            plantMap.setDescription("Схематичная карта основного производственного комплекса");
+            plantMap.setWidth(1200);
+            plantMap.setHeight(800);
+            plantMap.setBackgroundImage(null);
+            plantMap.setStatus(GeneralStatus.Active);
+            plantMap.setIsDefault(true);
+
+            entityManager.persist(plantMap);
+            entityManager.flush();
+
+            logger.info("Карта по умолчанию успешно создана с ID: {} для организации ID: {}", 
+                       plantMap.getId(), organizationId);
+
+            return getPlantMap(plantMap.getId());
+        } catch (Exception e) {
+            logger.error("Ошибка при создании карты по умолчанию для организации ID {}: {}", 
+                        organizationId, e.getMessage(), e);
             throw e;
         }
     }
