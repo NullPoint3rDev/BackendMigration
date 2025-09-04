@@ -10,14 +10,27 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/plant-map")
 @CrossOrigin(origins = "*")
 public class PlantMapController {
 
+    private static final Logger logger = LoggerFactory.getLogger(PlantMapController.class);
+
     @Autowired
     private PlantMapService plantMapService;
+
+    /**
+     * Простой тестовый эндпоинт для проверки работы контроллера
+     */
+    @GetMapping("/test")
+    public ResponseEntity<String> test() {
+        logger.info("Получен тестовый запрос к PlantMapController");
+        return ResponseEntity.ok("PlantMapController работает! Время: " + System.currentTimeMillis());
+    }
 
     /**
      * Получить карту предприятия по ID
