@@ -727,12 +727,13 @@ public class ReportService {
             titleFont.setFontHeightInPoints((short) 14);
             titleStyle.setFont(titleFont);
             titleCell.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 3));
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 7));
             
-            // Создаем заголовки (начиная с 2-й строки) - 4 столбца согласно макету
+            // Создаем заголовки (начиная с 2-й строки) - 8 столбцов согласно скриншоту
             Row headerRow = sheet.createRow(2);
             String[] headers = {
-                "Дата", "Сварщик", "Расход проволоки (кг)", "Остаток (кг)"
+                "Сварщик", "Должность", "Время в сети", "Время горения дуги", 
+                "Эффективность работы", "Энергия", "Проволока", "Расход, кг"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -740,29 +741,40 @@ public class ReportService {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(headers[i]);
                 cell.setCellStyle(headerStyle);
-                // Устанавливаем разную ширину столбцов согласно макету
-                if (i == 0) { // Первый столбец - узкий (дата)
-                    sheet.setColumnWidth(i, 2500);
-                } else if (i == 1) { // Второй столбец - широкий (сварщик)
+                // Устанавливаем ширину столбцов согласно новым заголовкам
+                if (i == 0 || i == 1) { // Сварщик и Должность - широкие
                     sheet.setColumnWidth(i, 5000);
-                } else { // Третий и четвертый столбцы - средние
+                } else if (i == 2 || i == 3) { // Время в сети и Время горения дуги - средние
                     sheet.setColumnWidth(i, 4000);
+                } else if (i == 4) { // Эффективность работы - узкий
+                    sheet.setColumnWidth(i, 3000);
+                } else if (i == 5) { // Энергия - средний
+                    sheet.setColumnWidth(i, 3500);
+                } else if (i == 6) { // Проволока - средний
+                    sheet.setColumnWidth(i, 4000);
+                } else { // Расход, кг - средний
+                    sheet.setColumnWidth(i, 3500);
                 }
             }
 
             // Заполняем тестовыми данными для конкретного аппарата
             int rowNum = 3;
-            String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+            String[] welderNames = {"Тест", "Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+            String[] positions = {"Электросварщик", "Сварщик 6 разряда", "Сварщик 5 разряда", "Сварщик 4 разряда", "Сварщик 3 разряда"};
+            String[] wireTypes = {"1.2 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С"};
             
-            // Генерируем даты в зависимости от периода
-            String[] dates = generateDatesForPeriod(period, 25);
-            
-            for (int i = 0; i < 25; i++) {
+            for (int i = 0; i < 20; i++) {
                 Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue(dates[i]); // Дата
-                row.createCell(1).setCellValue(welderNames[i % welderNames.length]); // Сварщик
-                row.createCell(2).setCellValue(15.5 + (Math.random() * 84.5)); // Расход проволоки (кг) (15.5-100)
-                row.createCell(3).setCellValue(5.0 + (Math.random() * 45.0)); // Остаток (кг) (5.0-50)
+                row.createCell(0).setCellValue(welderNames[i % welderNames.length]); // Сварщик
+                row.createCell(1).setCellValue(positions[i % positions.length]); // Должность
+                row.createCell(2).setCellValue(String.format("%02d:%02d:%02d", 
+                    8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))); // Время в сети (08:00-16:00)
+                row.createCell(3).setCellValue(String.format("%02d:%02d:%02d", 
+                    1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))); // Время горения дуги (01:00-04:00)
+                row.createCell(4).setCellValue(String.format("%.2f%%", 20.0 + (Math.random() * 40.0))); // Эффективность работы (20-60%)
+                row.createCell(5).setCellValue(String.format("%.1f кВт*ч", 5.0 + (Math.random() * 10.0))); // Энергия (5-15 кВт*ч)
+                row.createCell(6).setCellValue(wireTypes[i % wireTypes.length]); // Проволока
+                row.createCell(7).setCellValue(String.format("%.2f", 10.0 + (Math.random() * 20.0))); // Расход, кг (10-30 кг)
             }
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -788,17 +800,22 @@ public class ReportService {
         document.add(new Paragraph(""));
         
         // Данные для конкретного аппарата
-        String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
+        String[] welderNames = {"Тест", "Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] positions = {"Электросварщик", "Сварщик 6 разряда", "Сварщик 5 разряда", "Сварщик 4 разряда", "Сварщик 3 разряда"};
+        String[] wireTypes = {"1.2 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С"};
         
-        // Генерируем даты в зависимости от периода
-        String[] dates = generateDatesForPeriod(period, 20);
-        
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 18; i++) {
             document.add(new Paragraph("Запись " + (i + 1) + ":"));
-            document.add(new Paragraph("Дата: " + dates[i]));
             document.add(new Paragraph("Сварщик: " + welderNames[i % welderNames.length]));
-            document.add(new Paragraph("Расход проволоки: " + String.format("%.1f", 15.5 + (Math.random() * 84.5)) + " кг"));
-            document.add(new Paragraph("Остаток: " + String.format("%.1f", 5.0 + (Math.random() * 45.0)) + " кг"));
+            document.add(new Paragraph("Должность: " + positions[i % positions.length]));
+            document.add(new Paragraph("Время в сети: " + String.format("%02d:%02d:%02d", 
+                8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))));
+            document.add(new Paragraph("Время горения дуги: " + String.format("%02d:%02d:%02d", 
+                1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))));
+            document.add(new Paragraph("Эффективность работы: " + String.format("%.2f%%", 20.0 + (Math.random() * 40.0))));
+            document.add(new Paragraph("Энергия: " + String.format("%.1f кВт*ч", 5.0 + (Math.random() * 10.0))));
+            document.add(new Paragraph("Проволока: " + wireTypes[i % wireTypes.length]));
+            document.add(new Paragraph("Расход: " + String.format("%.2f кг", 10.0 + (Math.random() * 20.0))));
             document.add(new Paragraph(""));
         }
         document.close();
@@ -811,18 +828,23 @@ public class ReportService {
             "Отчет по расходу проволоки ID: " + weldingMachineId + " (" + machineName + ")" : 
             "Отчет по расходу проволоки (ID не указан)";
         csv.append(machineInfo).append("\n");
-        csv.append("Дата,Сварщик,Расход проволоки (кг),Остаток (кг)\n");
+        csv.append("Сварщик,Должность,Время в сети,Время горения дуги,Эффективность работы,Энергия,Проволока,Расход (кг)\n");
         
-        String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
-        
-        // Генерируем даты в зависимости от периода
-        String[] dates = generateDatesForPeriod(period, 20);
+        String[] welderNames = {"Тест", "Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
+        String[] positions = {"Электросварщик", "Сварщик 6 разряда", "Сварщик 5 разряда", "Сварщик 4 разряда", "Сварщик 3 разряда"};
+        String[] wireTypes = {"1.2 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С"};
         
         for (int i = 0; i < 20; i++) {
-            csv.append(dates[i]).append(",");
             csv.append(welderNames[i % welderNames.length]).append(",");
-            csv.append(String.format("%.1f", 15.5 + (Math.random() * 84.5))).append(",");
-            csv.append(String.format("%.1f", 5.0 + (Math.random() * 45.0)));
+            csv.append(positions[i % positions.length]).append(",");
+            csv.append(String.format("%02d:%02d:%02d", 
+                8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))).append(",");
+            csv.append(String.format("%02d:%02d:%02d", 
+                1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))).append(",");
+            csv.append(String.format("%.2f%%", 20.0 + (Math.random() * 40.0))).append(",");
+            csv.append(String.format("%.1f кВт*ч", 5.0 + (Math.random() * 10.0))).append(",");
+            csv.append(wireTypes[i % wireTypes.length]).append(",");
+            csv.append(String.format("%.2f", 10.0 + (Math.random() * 20.0)));
             csv.append("\n");
         }
         
