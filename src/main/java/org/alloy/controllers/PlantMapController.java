@@ -4,6 +4,7 @@ import org.alloy.models.dto.PlantMapDTO;
 import org.alloy.models.dto.PlantMapElementDTO;
 import org.alloy.models.dto.PlantMapWorkshopDTO;
 import org.alloy.models.entities.WeldingMachine;
+import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.services.PlantMapService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -144,6 +145,15 @@ public class PlantMapController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Получить список подразделений организации для размещения на карте
+     */
+    @GetMapping("/available-units/{organizationId}")
+    public ResponseEntity<List<OrganizationUnit>> getAvailableOrganizationUnits(@PathVariable Integer organizationId) {
+        List<OrganizationUnit> units = plantMapService.getAvailableOrganizationUnits(organizationId);
+        return ResponseEntity.ok(units);
     }
 
     /**

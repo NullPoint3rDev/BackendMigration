@@ -27,6 +27,9 @@ public class PlantMapService {
 
     @Autowired
     private WeldingMachineService weldingMachineService;
+    
+    @Autowired
+    private OrganizationUnitService organizationUnitService;
 
     /**
      * Получить карту предприятия по ID
@@ -358,6 +361,23 @@ public class PlantMapService {
             return true;
         } catch (Exception e) {
             logger.error("Ошибка при удалении цеха с ID {}: {}", workshopId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
+     * Получить список подразделений организации для размещения на карте
+     */
+    public List<OrganizationUnit> getAvailableOrganizationUnits(Integer organizationId) {
+        logger.debug("Поиск подразделений для организации ID: {}", organizationId);
+        
+        try {
+            List<OrganizationUnit> units = organizationUnitService.getOrganizationUnitsByOrganizationId(organizationId);
+            logger.info("Для организации ID {} найдено {} подразделений", organizationId, units.size());
+            return units;
+        } catch (Exception e) {
+            logger.error("Ошибка при поиске подразделений для организации ID {}: {}", 
+                        organizationId, e.getMessage(), e);
             throw e;
         }
     }
