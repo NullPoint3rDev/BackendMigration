@@ -369,13 +369,35 @@ public class PlantMapService {
         logger.debug("Поиск доступного сварочного оборудования для организации ID: {}", organizationId);
         
         try {
+            // Используем более надежный запрос с явным JOIN через organizationUnitId
             List<WeldingMachine> machines = entityManager
-                .createQuery("SELECT w FROM WeldingMachine w JOIN w.organizationUnit ou WHERE ou.organizationId = :organizationId AND w.status = :status", WeldingMachine.class)
+                .createQuery("SELECT w FROM WeldingMachine w JOIN OrganizationUnit ou ON w.organizationUnitId = ou.id WHERE ou.organizationId = :organizationId AND w.status = :status", WeldingMachine.class)
                 .setParameter("organizationId", organizationId)
                 .setParameter("status", GeneralStatus.Active)
                 .getResultList();
 
             logger.info("Для организации ID {} найдено {} единиц доступного сварочного оборудования", organizationId, machines.size());
+            
+            // Дополнительная диагностика
+            if (machines.isEmpty()) {
+                logger.warn("Не найдено сварочных аппаратов для организации ID {}. Проверяем данные в базе:", organizationId);
+                
+                // Проверяем, есть ли подразделения для этой организации
+                Long unitCount = entityManager
+                    .createQuery("SELECT COUNT(ou) FROM OrganizationUnit ou WHERE ou.organizationId = :organizationId AND ou.status = :status", Long.class)
+                    .setParameter("organizationId", organizationId)
+                    .setParameter("status", GeneralStatus.Active)
+                    .getSingleResult();
+                logger.warn("Найдено {} активных подразделений для организации ID {}", unitCount, organizationId);
+                
+                // Проверяем общее количество сварочных аппаратов
+                Long machineCount = entityManager
+                    .createQuery("SELECT COUNT(w) FROM WeldingMachine w WHERE w.status = :status", Long.class)
+                    .setParameter("status", GeneralStatus.Active)
+                    .getSingleResult();
+                logger.warn("Всего активных сварочных аппаратов в системе: {}", machineCount);
+            }
+            
             return machines;
         } catch (Exception e) {
             logger.error("Ошибка при поиске доступного сварочного оборудования для организации ID {}: {}", 
