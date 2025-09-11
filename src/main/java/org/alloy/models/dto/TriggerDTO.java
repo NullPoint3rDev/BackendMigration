@@ -195,6 +195,7 @@ public class TriggerDTO {
     }
 
     // Вспомогательные методы
+    @JsonIgnore
     public boolean isTimeTrigger() {
         return "TIME".equals(type);
     }
