@@ -110,15 +110,21 @@ public class AutomatedReportMapper {
         entity.setTags(dto.getTags());
 
         // Сериализация триггеров в JSON
+        System.out.println("DEBUG AutomatedReportMapper.toEntity: dto.getTriggers() = " + dto.getTriggers());
+        System.out.println("DEBUG AutomatedReportMapper.toEntity: dto.getConfiguration() = " + dto.getConfiguration());
+        
         if (dto.getTriggers() != null && !dto.getTriggers().isEmpty()) {
             try {
                 String triggersJson = objectMapper.writeValueAsString(dto.getTriggers());
+                System.out.println("DEBUG AutomatedReportMapper.toEntity: Serialized triggers to JSON: " + triggersJson);
                 entity.setTriggersConfig(triggersJson);
             } catch (Exception e) {
+                System.out.println("DEBUG AutomatedReportMapper.toEntity: Failed to serialize triggers: " + e.getMessage());
                 // Если не удалось сериализовать, оставляем null
                 entity.setTriggersConfig(null);
             }
         } else {
+            System.out.println("DEBUG AutomatedReportMapper.toEntity: No triggers to serialize, setting triggersConfig to null");
             entity.setTriggersConfig(null);
         }
 
