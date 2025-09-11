@@ -19,7 +19,7 @@ public class AutomatedReportDTO {
     private String description;
 
     @Schema(description = "ID шаблона отчета", example = "1")
-    private Integer templateId;
+    private Long templateId;
 
     @Schema(description = "Название шаблона отчета", example = "Отчет по работе оборудования")
     private String templateName;
@@ -144,11 +144,11 @@ public class AutomatedReportDTO {
         this.description = description;
     }
 
-    public Integer getTemplateId() {
+    public Long getTemplateId() {
         return templateId;
     }
 
-    public void setTemplateId(Integer templateId) {
+    public void setTemplateId(Long templateId) {
         this.templateId = templateId;
     }
 

@@ -18,7 +18,7 @@ public class AutomatedReport {
     private String description;
 
     @Column(name = "template_id", nullable = false)
-    private Integer templateId;
+    private Long templateId;
 
     @Column(name = "template_name", nullable = false, length = 255)
     private String templateName;
@@ -125,11 +125,11 @@ public class AutomatedReport {
         this.description = description;
     }
 
-    public Integer getTemplateId() {
+    public Long getTemplateId() {
         return templateId;
     }
 
-    public void setTemplateId(Integer templateId) {
+    public void setTemplateId(Long templateId) {
         this.templateId = templateId;
     }
 
