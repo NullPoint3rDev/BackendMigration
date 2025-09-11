@@ -1,5 +1,6 @@
 package org.alloy.models.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "DTO для триггера автоматизированного отчета")
@@ -198,14 +199,17 @@ public class TriggerDTO {
         return "TIME".equals(type);
     }
 
+    @JsonIgnore
     public boolean isEquipmentErrorTrigger() {
         return "EQUIPMENT_ERROR".equals(type);
     }
 
+    @JsonIgnore
     public boolean isValueThresholdTrigger() {
         return "VALUE_THRESHOLD".equals(type);
     }
 
+    @JsonIgnore
     public String[] getEquipmentIdArray() {
         if (equipmentIds == null || equipmentIds.trim().isEmpty()) {
             return new String[0];
@@ -221,6 +225,7 @@ public class TriggerDTO {
         }
     }
 
+    @JsonIgnore
     public String[] getDaysOfWeekArray() {
         if (daysOfWeek == null || daysOfWeek.trim().isEmpty()) {
             return new String[0];
@@ -236,6 +241,7 @@ public class TriggerDTO {
         }
     }
 
+    @JsonIgnore
     public boolean isValid() {
         if (type == null || type.trim().isEmpty()) {
             return false;
