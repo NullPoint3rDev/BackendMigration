@@ -92,7 +92,7 @@ public class AutomatedReport {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public AutomatedReport(String name, Integer templateId, String templateName, Integer createdBy) {
+    public AutomatedReport(String name, Long templateId, String templateName, Integer createdBy) {
         this();
         this.name = name;
         this.templateId = templateId;

@@ -103,7 +103,7 @@ public class AutomatedReportDTO {
     // Конструкторы
     public AutomatedReportDTO() {}
 
-    public AutomatedReportDTO(String name, Integer templateId, String templateName, Integer createdBy) {
+    public AutomatedReportDTO(String name, Long templateId, String templateName, Integer createdBy) {
         this.name = name;
         this.templateId = templateId;
         this.templateName = templateName;

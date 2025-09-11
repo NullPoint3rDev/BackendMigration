@@ -30,7 +30,7 @@ public interface AutomatedReportRepository extends JpaRepository<AutomatedReport
     /**
      * Найти автоматизированные отчеты по шаблону
      */
-    List<AutomatedReport> findByTemplateId(Integer templateId);
+    List<AutomatedReport> findByTemplateId(Long templateId);
 
     /**
      * Найти автоматизированные отчеты по типу шаблона
@@ -123,7 +123,7 @@ public interface AutomatedReportRepository extends JpaRepository<AutomatedReport
     /**
      * Подсчитать количество автоматизированных отчетов по шаблону
      */
-    long countByTemplateId(Integer templateId);
+    long countByTemplateId(Long templateId);
 
     /**
      * Получить статистику по автоматизированным отчетам
