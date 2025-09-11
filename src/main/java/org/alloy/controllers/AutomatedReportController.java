@@ -250,12 +250,28 @@ public class AutomatedReportController {
         )
     })
     @PutMapping("/{id}/toggle-status")
-    public ResponseEntity<AutomatedReportDTO> toggleAutomatedReportStatus(
+    public ResponseEntity<?> toggleAutomatedReportStatus(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
         @PathVariable Long id
     ) {
-        AutomatedReport updated = automatedReportService.toggleAutomatedReportStatus(id);
-        return ResponseEntity.ok(AutomatedReportMapper.toDTO(updated));
+        try {
+            System.out.println("Controller: Received toggle request for ID: " + id);
+            AutomatedReport updated = automatedReportService.toggleAutomatedReportStatus(id);
+            return ResponseEntity.ok(AutomatedReportMapper.toDTO(updated));
+        } catch (IllegalArgumentException e) {
+            System.err.println("Controller: Report not found for ID: " + id);
+            ErrorResponse error = new ErrorResponse();
+            error.setError("Not Found");
+            error.setMessage("Automated report with id " + id + " not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        } catch (Exception e) {
+            System.err.println("Controller: Unexpected error for ID: " + id + ", error: " + e.getMessage());
+            e.printStackTrace();
+            ErrorResponse error = new ErrorResponse();
+            error.setError("Internal Server Error");
+            error.setMessage("An unexpected error occurred: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @Operation(

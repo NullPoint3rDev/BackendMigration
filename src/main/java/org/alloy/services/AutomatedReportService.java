@@ -72,19 +72,34 @@ public class AutomatedReportService {
     }
 
     public AutomatedReport toggleAutomatedReportStatus(Long id) {
-        AutomatedReport report = automatedReportRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Automated report with id " + id + " not found"));
+        System.out.println("Attempting to toggle status for automated report with ID: " + id);
         
-        report.setIsActive(!report.getIsActive());
-        report.setUpdatedAt(LocalDateTime.now());
-        
-        if (report.getIsActive()) {
-            calculateNextRunTime(report);
-        } else {
-            report.setNextRun(null);
+        try {
+            AutomatedReport report = automatedReportRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Automated report with id " + id + " not found"));
+            
+            System.out.println("Found report: " + report.getName() + ", current status: " + report.getIsActive());
+            
+            report.setIsActive(!report.getIsActive());
+            report.setUpdatedAt(LocalDateTime.now());
+            
+            if (report.getIsActive()) {
+                System.out.println("Activating report, calculating next run time...");
+                calculateNextRunTime(report);
+            } else {
+                System.out.println("Deactivating report, clearing next run time...");
+                report.setNextRun(null);
+            }
+            
+            AutomatedReport saved = automatedReportRepository.save(report);
+            System.out.println("Report status toggled successfully. New status: " + saved.getIsActive());
+            return saved;
+            
+        } catch (Exception e) {
+            System.err.println("Error toggling automated report status for ID " + id + ": " + e.getMessage());
+            e.printStackTrace();
+            throw e;
         }
-        
-        return automatedReportRepository.save(report);
     }
 
     public AutomatedReport runAutomatedReport(Long id) {
