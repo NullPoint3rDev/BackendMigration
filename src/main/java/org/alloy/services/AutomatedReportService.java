@@ -42,6 +42,10 @@ public class AutomatedReportService {
     }
 
     public AutomatedReport createAutomatedReport(AutomatedReport automatedReport) {
+        System.out.println("DEBUG AutomatedReportService: Creating report with name: " + automatedReport.getName());
+        System.out.println("DEBUG AutomatedReportService: templateName: " + automatedReport.getTemplateName());
+        System.out.println("DEBUG AutomatedReportService: triggersConfig: " + automatedReport.getTriggersConfig());
+        
         automatedReport.setCreatedAt(LocalDateTime.now());
         automatedReport.setUpdatedAt(LocalDateTime.now());
         automatedReport.setRunCount(0);
@@ -52,7 +56,12 @@ public class AutomatedReportService {
         // Вычисляем следующее время выполнения
         calculateNextRunTime(automatedReport);
         
-        return automatedReportRepository.save(automatedReport);
+        AutomatedReport saved = automatedReportRepository.save(automatedReport);
+        System.out.println("DEBUG AutomatedReportService: Saved report with ID: " + saved.getId());
+        System.out.println("DEBUG AutomatedReportService: Saved templateName: " + saved.getTemplateName());
+        System.out.println("DEBUG AutomatedReportService: Saved triggersConfig: " + saved.getTriggersConfig());
+        
+        return saved;
     }
 
     public AutomatedReport updateAutomatedReport(AutomatedReport automatedReport) {

@@ -46,18 +46,25 @@ public class AutomatedReportMapper {
         dto.setTags(entity.getTags());
 
         // Парсинг триггеров из JSON
+        System.out.println("DEBUG AutomatedReportMapper: Parsing triggers for report " + entity.getId());
+        System.out.println("DEBUG AutomatedReportMapper: triggersConfig = " + entity.getTriggersConfig());
+        System.out.println("DEBUG AutomatedReportMapper: templateName = " + entity.getTemplateName());
+        
         if (entity.getTriggersConfig() != null && !entity.getTriggersConfig().trim().isEmpty()) {
             try {
                 List<TriggerDTO> triggers = objectMapper.readValue(
                     entity.getTriggersConfig(), 
                     new TypeReference<List<TriggerDTO>>() {}
                 );
+                System.out.println("DEBUG AutomatedReportMapper: Successfully parsed " + triggers.size() + " triggers");
                 dto.setTriggers(triggers);
             } catch (Exception e) {
+                System.out.println("DEBUG AutomatedReportMapper: Failed to parse triggers: " + e.getMessage());
                 // Если не удалось распарсить, оставляем пустой список
                 dto.setTriggers(new ArrayList<>());
             }
         } else {
+            System.out.println("DEBUG AutomatedReportMapper: No triggersConfig or empty");
             dto.setTriggers(new ArrayList<>());
         }
 
