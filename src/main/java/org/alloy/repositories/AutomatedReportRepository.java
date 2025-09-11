@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface AutomatedReportRepository extends JpaRepository<AutomatedReport, Integer> {
+public interface AutomatedReportRepository extends JpaRepository<AutomatedReport, Long> {
 
     /**
      * Найти все автоматизированные отчеты по пользователю

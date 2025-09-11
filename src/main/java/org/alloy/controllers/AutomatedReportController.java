@@ -94,7 +94,7 @@ public class AutomatedReportController {
     @GetMapping("/{id}")
     public ResponseEntity<AutomatedReportDTO> getAutomatedReportById(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Integer id
+        @PathVariable Long id
     ) {
         return automatedReportService.getAutomatedReportById(id)
             .map(AutomatedReportMapper::toDTO)
@@ -193,7 +193,7 @@ public class AutomatedReportController {
     @PutMapping("/{id}")
     public ResponseEntity<AutomatedReportDTO> updateAutomatedReport(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Integer id,
+        @PathVariable Long id,
         @Parameter(description = "Обновленные данные автоматизированного отчета", required = true)
         @RequestBody AutomatedReportDTO automatedReportDTO
     ) {
@@ -221,7 +221,7 @@ public class AutomatedReportController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAutomatedReport(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Integer id
+        @PathVariable Long id
     ) {
         try {
             automatedReportService.deleteAutomatedReport(id);
@@ -252,7 +252,7 @@ public class AutomatedReportController {
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<AutomatedReportDTO> toggleAutomatedReportStatus(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Integer id
+        @PathVariable Long id
     ) {
         AutomatedReport updated = automatedReportService.toggleAutomatedReportStatus(id);
         return ResponseEntity.ok(AutomatedReportMapper.toDTO(updated));
@@ -279,7 +279,7 @@ public class AutomatedReportController {
     @PostMapping("/{id}/run")
     public ResponseEntity<AutomatedReportDTO> runAutomatedReport(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Integer id
+        @PathVariable Long id
     ) {
         AutomatedReport executed = automatedReportService.runAutomatedReport(id);
         return ResponseEntity.ok(AutomatedReportMapper.toDTO(executed));
@@ -299,7 +299,7 @@ public class AutomatedReportController {
     @GetMapping("/{id}/history")
     public ResponseEntity<List<Object>> getAutomatedReportHistory(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Integer id
+        @PathVariable Long id
     ) {
         List<Object> history = automatedReportService.getAutomatedReportHistory(id);
         return ResponseEntity.ok(history);

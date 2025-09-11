@@ -29,7 +29,7 @@ public class AutomatedReportService {
         return automatedReportRepository.findAll();
     }
 
-    public Optional<AutomatedReport> getAutomatedReportById(Integer id) {
+    public Optional<AutomatedReport> getAutomatedReportById(Long id) {
         return automatedReportRepository.findById(id);
     }
 
@@ -64,14 +64,14 @@ public class AutomatedReportService {
         return automatedReportRepository.save(automatedReport);
     }
 
-    public void deleteAutomatedReport(Integer id) {
+    public void deleteAutomatedReport(Long id) {
         if (!automatedReportRepository.existsById(id)) {
             throw new IllegalArgumentException("Automated report with id " + id + " not found");
         }
         automatedReportRepository.deleteById(id);
     }
 
-    public AutomatedReport toggleAutomatedReportStatus(Integer id) {
+    public AutomatedReport toggleAutomatedReportStatus(Long id) {
         AutomatedReport report = automatedReportRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Automated report with id " + id + " not found"));
         
@@ -87,7 +87,7 @@ public class AutomatedReportService {
         return automatedReportRepository.save(report);
     }
 
-    public AutomatedReport runAutomatedReport(Integer id) {
+    public AutomatedReport runAutomatedReport(Long id) {
         AutomatedReport report = automatedReportRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Automated report with id " + id + " not found"));
         
@@ -113,7 +113,7 @@ public class AutomatedReportService {
         }
     }
 
-    public List<Object> getAutomatedReportHistory(Integer id) {
+    public List<Object> getAutomatedReportHistory(Long id) {
         // Здесь должна быть логика получения истории выполнения
         // Пока возвращаем пустой список
         return new ArrayList<>();

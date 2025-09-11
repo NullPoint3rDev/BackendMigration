@@ -10,7 +10,7 @@ import java.util.List;
 public class AutomatedReportDTO {
 
     @Schema(description = "ID автоматизированного отчета", example = "1")
-    private Integer id;
+    private Long id;
 
     @Schema(description = "Название автоматизированного отчета", example = "Еженедельный отчет по оборудованию")
     private String name;
@@ -120,11 +120,11 @@ public class AutomatedReportDTO {
     }
 
     // Геттеры и сеттеры
-    public Integer getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
