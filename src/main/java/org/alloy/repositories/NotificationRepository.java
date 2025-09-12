@@ -37,5 +37,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
 
     void deleteByUserAccountId(Integer userAccountId);
 
+    List<Notification> findByDateCreatedBefore(LocalDateTime date);
+
     void deleteByDateCreatedBefore(LocalDateTime date);
 }

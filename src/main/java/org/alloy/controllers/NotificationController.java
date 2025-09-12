@@ -220,10 +220,39 @@ public class NotificationController {
         @PathVariable Integer userAccountId,
         
         @Parameter(description = "Тип уведомления", required = true, example = "SYSTEM",
-            schema = @Schema(allowableValues = {"SYSTEM", "ALERT", "MAINTENANCE", "WARNING"}))
+            schema = @Schema(allowableValues = {"SYSTEM", "ALERT", "MAINTENANCE", "WARNING", "AUTOMATED_REPORT", "AUTOMATED_REPORT_ERROR"}))
         @PathVariable String type
     ) {
         List<NotificationDTO> notifications = notificationService.getNotificationsByUserAccountIdAndType(userAccountId, type).stream()
+            .map(NotificationMapper::toDTO)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(notifications);
+    }
+
+    @Operation(
+        summary = "Получить уведомления о автоматических отчетах",
+        description = "Возвращает список уведомлений о автоматически сгенерированных отчетах для указанного пользователя."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Уведомления успешно получены",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = NotificationDTO.class, type = "array"))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Требуется аутентификация",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    @GetMapping("/user/{userAccountId}/automated-reports")
+    public ResponseEntity<List<NotificationDTO>> getAutomatedReportNotifications(
+        @Parameter(description = "ID пользователя", required = true, example = "1")
+        @PathVariable Integer userAccountId
+    ) {
+        List<NotificationDTO> notifications = notificationService.getNotificationsByUserAccountIdAndType(userAccountId, "AUTOMATED_REPORT").stream()
             .map(NotificationMapper::toDTO)
             .collect(Collectors.toList());
         return ResponseEntity.ok(notifications);

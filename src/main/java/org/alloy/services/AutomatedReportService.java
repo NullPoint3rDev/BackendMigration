@@ -256,7 +256,7 @@ public class AutomatedReportService {
         return result;
     }
 
-    private void calculateNextRunTime(AutomatedReport report) {
+    public void calculateNextRunTime(AutomatedReport report) {
         if (report.getTriggersConfig() == null || report.getTriggersConfig().trim().isEmpty()) {
             report.setNextRun(null);
             return;

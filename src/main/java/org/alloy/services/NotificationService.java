@@ -97,6 +97,19 @@ public class NotificationService {
         notificationRepository.deleteById(id);
     }
 
+    /**
+     * Удаляет уведомления старше указанного количества дней
+     */
+    public void deleteOldNotifications(int daysOld) {
+        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(daysOld);
+        List<Notification> oldNotifications = notificationRepository.findByDateCreatedBefore(cutoffDate);
+        
+        if (!oldNotifications.isEmpty()) {
+            notificationRepository.deleteAll(oldNotifications);
+            System.out.println("DEBUG NotificationService: Deleted " + oldNotifications.size() + " old notifications");
+        }
+    }
+
     public void deleteNotificationsByUserAccountId(Integer userAccountId) {
         notificationRepository.deleteByUserAccountId(userAccountId);
     }
