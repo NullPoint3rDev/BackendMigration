@@ -35,6 +35,9 @@ public class AutomatedReportScheduler {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private AutomatedReportDataFixService dataFixService;
+
     /**
      * Проверяет и выполняет автоматические отчеты каждую минуту
      */
@@ -86,6 +89,18 @@ public class AutomatedReportScheduler {
      */
     private void executeAutomatedReport(AutomatedReport automatedReport) {
         try {
+            // Автоматически исправляем данные если они некорректные
+            dataFixService.fixAutomatedReportData(automatedReport);
+            
+            // Проверяем обязательные поля
+            if (automatedReport.getTemplateType() == null || automatedReport.getTemplateType().trim().isEmpty()) {
+                throw new IllegalArgumentException("Template type is required for automated report: " + automatedReport.getName());
+            }
+            
+            if (automatedReport.getTemplateName() == null || automatedReport.getTemplateName().trim().isEmpty()) {
+                throw new IllegalArgumentException("Template name is required for automated report: " + automatedReport.getName());
+            }
+            
             // Создаем запрос для генерации отчета
             ReportRequestDTO reportRequest = createReportRequest(automatedReport);
             
@@ -144,7 +159,12 @@ public class AutomatedReportScheduler {
      * Генерирует отчет в зависимости от типа
      */
     private byte[] generateReportByType(ReportRequestDTO request, AutomatedReport automatedReport) throws Exception {
-        switch (automatedReport.getTemplateType().toLowerCase()) {
+        String templateType = automatedReport.getTemplateType();
+        if (templateType == null || templateType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Template type is null or empty for automated report: " + automatedReport.getName());
+        }
+        
+        switch (templateType.toLowerCase()) {
             case "equipment":
                 List<WorkReportDTO> workData = reportDataService.getWorkReportData(request);
                 return reportService.generateWorkReport(workData, request.getFormat());
@@ -178,34 +198,56 @@ public class AutomatedReportScheduler {
      * Создает уведомление об успешной генерации
      */
     private void createSuccessNotification(AutomatedReport automatedReport, ReportHistory reportHistory) {
-        Notification notification = new Notification();
-        notification.setUserAccountId(automatedReport.getCreatedBy());
-        notification.setTitle("Отчет сгенерирован автоматически");
-        notification.setMessage(String.format("Автоматический отчет '%s' успешно сгенерирован и сохранен.", automatedReport.getName()));
-        notification.setType("AUTOMATED_REPORT");
-        notification.setIsRead(false);
-        notification.setLink("/reports/history"); // Ссылка на страницу с отчетами
-        
-        notificationService.createNotification(notification);
-        
-        System.out.println("DEBUG AutomatedReportScheduler: Created success notification for user " + automatedReport.getCreatedBy());
+        try {
+            // Проверяем, существует ли пользователь
+            if (automatedReport.getCreatedBy() == null) {
+                System.out.println("WARN AutomatedReportScheduler: Cannot create notification - createdBy is null for report: " + automatedReport.getName());
+                return;
+            }
+            
+            Notification notification = new Notification();
+            notification.setUserAccountId(automatedReport.getCreatedBy());
+            notification.setTitle("Отчет сгенерирован автоматически");
+            notification.setMessage(String.format("Автоматический отчет '%s' успешно сгенерирован и сохранен.", automatedReport.getName()));
+            notification.setType("AUTOMATED_REPORT");
+            notification.setIsRead(false);
+            notification.setLink("/reports/history"); // Ссылка на страницу с отчетами
+            
+            notificationService.createNotification(notification);
+            
+            System.out.println("DEBUG AutomatedReportScheduler: Created success notification for user " + automatedReport.getCreatedBy());
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportScheduler: Failed to create success notification: " + e.getMessage());
+            // Не прерываем выполнение из-за ошибки уведомления
+        }
     }
 
     /**
      * Создает уведомление об ошибке
      */
     private void createErrorNotification(AutomatedReport automatedReport, String errorMessage) {
-        Notification notification = new Notification();
-        notification.setUserAccountId(automatedReport.getCreatedBy());
-        notification.setTitle("Ошибка генерации автоматического отчета");
-        notification.setMessage(String.format("Не удалось сгенерировать автоматический отчет '%s': %s", automatedReport.getName(), errorMessage));
-        notification.setType("AUTOMATED_REPORT_ERROR");
-        notification.setIsRead(false);
-        notification.setLink("/automated-reports"); // Ссылка на страницу автоматических отчетов
-        
-        notificationService.createNotification(notification);
-        
-        System.out.println("DEBUG AutomatedReportScheduler: Created error notification for user " + automatedReport.getCreatedBy());
+        try {
+            // Проверяем, существует ли пользователь
+            if (automatedReport.getCreatedBy() == null) {
+                System.out.println("WARN AutomatedReportScheduler: Cannot create error notification - createdBy is null for report: " + automatedReport.getName());
+                return;
+            }
+            
+            Notification notification = new Notification();
+            notification.setUserAccountId(automatedReport.getCreatedBy());
+            notification.setTitle("Ошибка генерации автоматического отчета");
+            notification.setMessage(String.format("Не удалось сгенерировать автоматический отчет '%s': %s", automatedReport.getName(), errorMessage));
+            notification.setType("AUTOMATED_REPORT_ERROR");
+            notification.setIsRead(false);
+            notification.setLink("/automated-reports"); // Ссылка на страницу автоматических отчетов
+            
+            notificationService.createNotification(notification);
+            
+            System.out.println("DEBUG AutomatedReportScheduler: Created error notification for user " + automatedReport.getCreatedBy());
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportScheduler: Failed to create error notification: " + e.getMessage());
+            // Не прерываем выполнение из-за ошибки уведомления
+        }
     }
 
     /**
@@ -218,4 +260,5 @@ public class AutomatedReportScheduler {
         
         System.out.println("DEBUG AutomatedReportScheduler: Updated next run time for report " + automatedReport.getName() + " to " + automatedReport.getNextRun());
     }
+
 }

@@ -52,6 +52,14 @@ public class NotificationService {
             throw new IllegalArgumentException("Message is required");
         }
 
+        // Проверяем, существует ли пользователь (опционально, можно убрать если не нужно)
+        // try {
+        //     userAccountRepository.findById(notification.getUserAccountId())
+        //         .orElseThrow(() -> new IllegalArgumentException("User with ID " + notification.getUserAccountId() + " not found"));
+        // } catch (Exception e) {
+        //     System.err.println("WARN NotificationService: User " + notification.getUserAccountId() + " not found, but creating notification anyway");
+        // }
+
         notification.setDateCreated(LocalDateTime.now());
         notification.setIsRead(false);
         return notificationRepository.save(notification);

@@ -12,6 +12,7 @@ import org.alloy.models.entities.AutomatedReport;
 import org.alloy.models.dto.AutomatedReportDTO;
 import org.alloy.models.dto.mapper.AutomatedReportMapper;
 import org.alloy.services.AutomatedReportService;
+import org.alloy.services.AutomatedReportDataFixService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,10 +36,12 @@ public class AutomatedReportController {
     }
 
     private final AutomatedReportService automatedReportService;
+    private final AutomatedReportDataFixService dataFixService;
 
     @Autowired
-    public AutomatedReportController(AutomatedReportService automatedReportService) {
+    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService) {
         this.automatedReportService = automatedReportService;
+        this.dataFixService = dataFixService;
     }
 
     @Operation(
@@ -71,6 +74,36 @@ public class AutomatedReportController {
             .map(AutomatedReportMapper::toDTO)
             .collect(Collectors.toList());
         return ResponseEntity.ok(reports);
+    }
+
+    @Operation(
+        summary = "Исправить данные автоматических отчетов",
+        description = "Исправляет некорректные данные во всех автоматических отчетах (null template_type, template_name, created_by)."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Данные успешно исправлены",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = String.class))
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Ошибка при исправлении данных",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    @PostMapping("/fix-data")
+    public ResponseEntity<String> fixAutomatedReportsData() {
+        try {
+            dataFixService.fixAllAutomatedReports();
+            return ResponseEntity.ok("Данные автоматических отчетов успешно исправлены");
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportController: Failed to fix automated reports data: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Ошибка при исправлении данных: " + e.getMessage());
+        }
     }
 
     @Operation(
