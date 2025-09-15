@@ -9,13 +9,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.AutomatedReport;
+import org.alloy.models.entities.UserAccount;
 import org.alloy.models.dto.AutomatedReportDTO;
 import org.alloy.models.dto.mapper.AutomatedReportMapper;
 import org.alloy.services.AutomatedReportService;
 import org.alloy.services.AutomatedReportDataFixService;
+import org.alloy.services.UserAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -40,11 +43,13 @@ public class AutomatedReportController {
 
     private final AutomatedReportService automatedReportService;
     private final AutomatedReportDataFixService dataFixService;
+    private final UserAccountService userAccountService;
 
     @Autowired
-    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService) {
+    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService, UserAccountService userAccountService) {
         this.automatedReportService = automatedReportService;
         this.dataFixService = dataFixService;
+        this.userAccountService = userAccountService;
     }
 
     @Operation(
@@ -300,6 +305,23 @@ public class AutomatedReportController {
         @RequestBody AutomatedReportDTO automatedReportDTO
     ) {
         AutomatedReport entity = AutomatedReportMapper.toEntity(automatedReportDTO);
+        
+        // Устанавливаем created_by из текущего пользователя
+        try {
+            String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+            System.out.println("AutomatedReportController: Current user: " + currentUsername);
+            
+            // Получаем ID пользователя по username
+            UserAccount currentUser = userAccountService.getUserAccountByUserName(currentUsername)
+                .orElseThrow(() -> new RuntimeException("Current user not found: " + currentUsername));
+            
+            entity.setCreatedBy(currentUser.getId());
+            System.out.println("AutomatedReportController: Set created_by to: " + currentUser.getId());
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportController: Failed to set created_by: " + e.getMessage());
+            // Не прерываем выполнение, но логируем ошибку
+        }
+        
         return new ResponseEntity<>(AutomatedReportMapper.toDTO(automatedReportService.createAutomatedReport(entity)), HttpStatus.CREATED);
     }
 

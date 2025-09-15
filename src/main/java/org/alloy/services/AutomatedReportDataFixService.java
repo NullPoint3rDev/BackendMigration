@@ -65,15 +65,15 @@ public class AutomatedReportDataFixService {
             System.out.println("DEBUG AutomatedReportDataFixService: Fixed template_name for report: " + automatedReport.getName());
         }
         
-        // Исправляем created_by если он null или ссылается на несуществующего пользователя
-        if (automatedReport.getCreatedBy() == null || !userExists(automatedReport.getCreatedBy())) {
-            Integer firstUserId = getFirstUserId();
-            if (firstUserId != null) {
-                automatedReport.setCreatedBy(firstUserId);
-                needsUpdate = true;
-                System.out.println("DEBUG AutomatedReportDataFixService: Fixed created_by for report: " + automatedReport.getName() + " to user ID: " + firstUserId);
-            }
-        }
+        // НЕ исправляем created_by - оставляем как есть, чтобы не нарушать связь с реальным пользователем
+        // if (automatedReport.getCreatedBy() == null || !userExists(automatedReport.getCreatedBy())) {
+        //     Integer firstUserId = getFirstUserId();
+        //     if (firstUserId != null) {
+        //         automatedReport.setCreatedBy(firstUserId);
+        //         needsUpdate = true;
+        //         System.out.println("DEBUG AutomatedReportDataFixService: Fixed created_by for report: " + automatedReport.getName() + " to user ID: " + firstUserId);
+        //     }
+        // }
         
         // Сохраняем изменения если они были
         if (needsUpdate) {
