@@ -73,7 +73,7 @@ public class ReportHistoryService {
         // Если в памяти нет данных, загружаем из БД
         if (memoryReports == null || memoryReports.isEmpty()) {
             try {
-                List<ReportHistory> dbReports = reportHistoryRepository.findByReportTypeOrderByDateGeneratedDesc(reportType);
+                List<ReportHistory> dbReports = reportHistoryRepository.findByReportTypeOrderByGeneratedAtDesc(reportType);
                 if (!dbReports.isEmpty()) {
                     // Ограничиваем количество отчетов
                     if (dbReports.size() > MAX_HISTORY_SIZE) {
@@ -102,7 +102,7 @@ public class ReportHistoryService {
      */
     public List<ReportHistory> getAllReports() {
         try {
-            return reportHistoryRepository.findAllByOrderByDateGeneratedDesc();
+            return reportHistoryRepository.findAllByOrderByGeneratedAtDesc();
         } catch (Exception e) {
             System.err.println("ReportHistoryService: Ошибка при загрузке всех отчетов из БД: " + e.getMessage());
             return new ArrayList<>();
