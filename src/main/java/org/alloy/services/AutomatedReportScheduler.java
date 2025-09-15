@@ -73,16 +73,29 @@ public class AutomatedReportScheduler {
             return false;
         }
         
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        // Получаем текущее время в UTC
+        LocalDateTime nowUTC = LocalDateTime.now(ZoneOffset.UTC);
         LocalDateTime nextRun = automatedReport.getNextRun();
+        
+        // Конвертируем время выполнения в UTC (вычитаем 3 часа для московского времени)
+        LocalDateTime nextRunUTC = nextRun.minusHours(3);
         
         // Выполняем отчет, если время пришло (с точностью до минуты)
         // Добавляем небольшую задержку (30 секунд) для надежности
-        LocalDateTime executionTime = nextRun.plusSeconds(30);
-        boolean shouldExecute = executionTime.isBefore(now) || executionTime.isEqual(now);
+        LocalDateTime executionTime = nextRunUTC.plusSeconds(30);
+        boolean shouldExecute = executionTime.isBefore(nowUTC) || executionTime.isEqual(nowUTC);
+        
+        // Дополнительная проверка: если разница меньше 2 минут, тоже выполняем
+        long minutesDiff = java.time.Duration.between(nowUTC, nextRunUTC).toMinutes();
+        if (Math.abs(minutesDiff) <= 2) {
+            shouldExecute = true;
+            System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + 
+                              " - Time difference is " + minutesDiff + " minutes, executing anyway");
+        }
         
         System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + 
-                          " - now: " + now + ", nextRun: " + nextRun + ", executionTime: " + executionTime + ", shouldExecute: " + shouldExecute);
+                          " - nowUTC: " + nowUTC + ", nextRun (Moscow): " + nextRun + ", nextRunUTC: " + nextRunUTC + 
+                          ", executionTime: " + executionTime + ", minutesDiff: " + minutesDiff + ", shouldExecute: " + shouldExecute);
         
         return shouldExecute;
     }

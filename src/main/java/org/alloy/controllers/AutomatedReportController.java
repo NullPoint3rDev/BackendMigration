@@ -18,6 +18,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+
 import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -151,6 +154,46 @@ public class AutomatedReportController {
             System.err.println("ERROR AutomatedReportController: Failed to execute automated report: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body("Ошибка при выполнении отчета: " + e.getMessage());
+        }
+    }
+
+    @Operation(
+        summary = "Проверить время выполнения отчета",
+        description = "Проверяет, должно ли выполняться указанное время отчета."
+    )
+    @GetMapping("/{id}/check-time")
+    public ResponseEntity<String> checkReportTime(
+        @Parameter(description = "ID автоматического отчета", required = true, example = "1")
+        @PathVariable Long id
+    ) {
+        try {
+            AutomatedReport automatedReport = automatedReportService.getAutomatedReportById(id)
+                .orElse(null);
+            if (automatedReport == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Автоматический отчет с ID " + id + " не найден");
+            }
+            
+            LocalDateTime nowUTC = LocalDateTime.now(ZoneOffset.UTC);
+            LocalDateTime nextRun = automatedReport.getNextRun();
+            LocalDateTime nextRunUTC = nextRun.minusHours(3); // Конвертируем московское время в UTC
+            long minutesDiff = java.time.Duration.between(nowUTC, nextRunUTC).toMinutes();
+            
+            String result = String.format(
+                "Отчет: %s\nТекущее время (UTC): %s\nВремя выполнения (Москва): %s\nВремя выполнения (UTC): %s\nРазница: %d минут\nДолжен выполняться: %s",
+                automatedReport.getName(),
+                nowUTC,
+                nextRun,
+                nextRunUTC,
+                minutesDiff,
+                Math.abs(minutesDiff) <= 2 ? "ДА" : "НЕТ"
+            );
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportController: Failed to check report time: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Ошибка при проверке времени: " + e.getMessage());
         }
     }
 
