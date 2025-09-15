@@ -243,9 +243,16 @@ public class AutomatedReportController {
         @Parameter(description = "ID пользователя", required = true, example = "1")
         @PathVariable Integer userAccountId
     ) {
-        List<AutomatedReportDTO> reports = automatedReportService.getUserAutomatedReports(userAccountId).stream()
+        System.out.println("AutomatedReportController: Getting reports for user: " + userAccountId);
+        List<AutomatedReport> rawReports = automatedReportService.getUserAutomatedReports(userAccountId);
+        System.out.println("AutomatedReportController: Found " + rawReports.size() + " raw reports");
+        for (AutomatedReport r : rawReports) {
+            System.out.println("AutomatedReportController: Report - ID: " + r.getId() + ", Name: " + r.getName() + ", CreatedBy: " + r.getCreatedBy());
+        }
+        List<AutomatedReportDTO> reports = rawReports.stream()
             .map(AutomatedReportMapper::toDTO)
             .collect(Collectors.toList());
+        System.out.println("AutomatedReportController: Returning " + reports.size() + " DTO reports");
         return ResponseEntity.ok(reports);
     }
 

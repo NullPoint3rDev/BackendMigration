@@ -98,13 +98,14 @@ public class AuthController {
                     loginRequest.getUsername(), loginRequest.getPassword(), request);
 
             System.out.println("AuthController: Получен ответ от authenticationService");
-            System.out.println("token: " + response.getToken() + ", sessionId: " + response.getSessionId());
+            System.out.println("token: " + response.getToken() + ", sessionId: " + response.getSessionId() + ", userId: " + response.getUserId());
 
             Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("token", response.getToken());
             responseMap.put("sessionId", response.getSessionId());
             responseMap.put("userId", response.getUserId()); // Добавляем ID пользователя
 
+            System.out.println("AuthController: Отправляем ответ с userId: " + response.getUserId());
             return ResponseEntity.ok(responseMap);
         } catch (AccountLockedException e) {
             Map<String, String> errorMap = new HashMap<>();

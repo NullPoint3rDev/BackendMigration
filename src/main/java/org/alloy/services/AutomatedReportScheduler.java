@@ -232,6 +232,7 @@ public class AutomatedReportScheduler {
             notificationService.createNotification(notification);
             
             System.out.println("DEBUG AutomatedReportScheduler: Created success notification for user " + automatedReport.getCreatedBy());
+            System.out.println("DEBUG AutomatedReportScheduler: Notification details - Title: " + notification.getTitle() + ", Type: " + notification.getType() + ", UserId: " + notification.getUserAccountId());
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportScheduler: Failed to create success notification: " + e.getMessage());
             // Не прерываем выполнение из-за ошибки уведомления

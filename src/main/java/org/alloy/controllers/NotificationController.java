@@ -252,9 +252,16 @@ public class NotificationController {
         @Parameter(description = "ID пользователя", required = true, example = "1")
         @PathVariable Integer userAccountId
     ) {
-        List<NotificationDTO> notifications = notificationService.getNotificationsByUserAccountIdAndType(userAccountId, "AUTOMATED_REPORT").stream()
+        System.out.println("NotificationController: Getting automated report notifications for user: " + userAccountId);
+        List<Notification> rawNotifications = notificationService.getNotificationsByUserAccountIdAndType(userAccountId, "AUTOMATED_REPORT");
+        System.out.println("NotificationController: Found " + rawNotifications.size() + " raw notifications");
+        for (Notification n : rawNotifications) {
+            System.out.println("NotificationController: Notification - ID: " + n.getId() + ", Type: " + n.getType() + ", UserId: " + n.getUserAccountId() + ", Title: " + n.getTitle());
+        }
+        List<NotificationDTO> notifications = rawNotifications.stream()
             .map(NotificationMapper::toDTO)
             .collect(Collectors.toList());
+        System.out.println("NotificationController: Returning " + notifications.size() + " DTO notifications");
         return ResponseEntity.ok(notifications);
     }
 
