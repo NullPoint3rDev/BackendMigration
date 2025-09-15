@@ -1,17 +1,21 @@
 package org.alloy.services;
 
 import org.alloy.models.ReportHistory;
+import org.alloy.repositories.ReportHistoryRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * Сервис для управления историей сгенерированных отчетов
  */
 @Service
 public class ReportHistoryService {
+    
+    @Autowired
+    private ReportHistoryRepository reportHistoryRepository;
     
     // Временное хранилище в памяти (в реальном проекте это должна быть база данных)
     private final Map<String, List<ReportHistory>> reportHistory = new ConcurrentHashMap<>();
@@ -34,13 +38,15 @@ public class ReportHistoryService {
             System.out.println("ReportHistoryService: Добавляем отчет типа '" + reportType + "' в историю");
             System.out.println("ReportHistoryService: Детали отчета - Название: '" + report.getReportName() + "', Формат: '" + report.getFormat() + "', Размер: " + report.getFileSize() + " байт");
             
-            // Получаем текущую историю для данного типа отчета
+            // Сохраняем в базу данных
+            ReportHistory savedReport = reportHistoryRepository.save(report);
+            System.out.println("ReportHistoryService: Отчет сохранен в БД с ID: " + savedReport.getId());
+            
+            // Также сохраняем в память для быстрого доступа
             List<ReportHistory> history = reportHistory.computeIfAbsent(reportType, k -> new ArrayList<>());
+            history.add(0, savedReport);
             
-            // Добавляем новый отчет в начало списка
-            history.add(0, report);
-            
-            // Ограничиваем размер истории
+            // Ограничиваем размер истории в памяти
             if (history.size() > MAX_HISTORY_SIZE) {
                 history = history.subList(0, MAX_HISTORY_SIZE);
                 reportHistory.put(reportType, history);
@@ -60,16 +66,47 @@ public class ReportHistoryService {
      * Получить последние отчеты для определенного типа
      */
     public List<ReportHistory> getRecentReports(String reportType) {
-        List<ReportHistory> history = reportHistory.get(reportType);
-        System.out.println("ReportHistoryService: Запрос истории для типа '" + reportType + "'. Найдено отчетов: " + (history != null ? history.size() : 0));
+        // Сначала пытаемся получить из памяти
+        List<ReportHistory> memoryReports = reportHistory.get(reportType);
+        System.out.println("ReportHistoryService: Запрос истории для типа '" + reportType + "'. Найдено отчетов в памяти: " + (memoryReports != null ? memoryReports.size() : 0));
         
-        if (history == null) {
+        // Если в памяти нет данных, загружаем из БД
+        if (memoryReports == null || memoryReports.isEmpty()) {
+            try {
+                List<ReportHistory> dbReports = reportHistoryRepository.findByReportTypeOrderByDateGeneratedDesc(reportType);
+                if (!dbReports.isEmpty()) {
+                    // Ограничиваем количество отчетов
+                    if (dbReports.size() > MAX_HISTORY_SIZE) {
+                        dbReports = dbReports.subList(0, MAX_HISTORY_SIZE);
+                    }
+                    reportHistory.put(reportType, dbReports);
+                    System.out.println("ReportHistoryService: Загружено из БД отчетов типа '" + reportType + "': " + dbReports.size());
+                    return dbReports;
+                }
+            } catch (Exception e) {
+                System.err.println("ReportHistoryService: Ошибка при загрузке отчетов из БД: " + e.getMessage());
+            }
+        }
+        
+        if (memoryReports == null) {
             System.out.println("ReportHistoryService: История для типа '" + reportType + "' не найдена, возвращаем пустой список");
             return new ArrayList<>();
         }
         
-        System.out.println("ReportHistoryService: Возвращаем историю для типа '" + reportType + "': " + history.stream().map(r -> r.getReportName() + " (" + r.getFormat() + ")").collect(java.util.stream.Collectors.joining(", ")));
-        return new ArrayList<>(history);
+        System.out.println("ReportHistoryService: Возвращаем историю для типа '" + reportType + "': " + memoryReports.stream().map(r -> r.getReportName() + " (" + r.getFormat() + ")").collect(java.util.stream.Collectors.joining(", ")));
+        return new ArrayList<>(memoryReports);
+    }
+    
+    /**
+     * Получить все отчеты из БД
+     */
+    public List<ReportHistory> getAllReports() {
+        try {
+            return reportHistoryRepository.findAllByOrderByDateGeneratedDesc();
+        } catch (Exception e) {
+            System.err.println("ReportHistoryService: Ошибка при загрузке всех отчетов из БД: " + e.getMessage());
+            return new ArrayList<>();
+        }
     }
     
     /**
