@@ -43,7 +43,8 @@ public class AutomatedReportScheduler {
      */
     @Scheduled(fixedRate = 60000) // Каждую минуту
     public void checkAndExecuteAutomatedReports() {
-        System.out.println("DEBUG AutomatedReportScheduler: Checking for automated reports to execute at " + LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        System.out.println("DEBUG AutomatedReportScheduler: Checking for automated reports to execute at " + now + " (UTC)");
         
         try {
             // Получаем все активные автоматические отчеты
@@ -76,10 +77,12 @@ public class AutomatedReportScheduler {
         LocalDateTime nextRun = automatedReport.getNextRun();
         
         // Выполняем отчет, если время пришло (с точностью до минуты)
-        boolean shouldExecute = nextRun.isBefore(now) || nextRun.isEqual(now);
+        // Добавляем небольшую задержку (30 секунд) для надежности
+        LocalDateTime executionTime = nextRun.plusSeconds(30);
+        boolean shouldExecute = executionTime.isBefore(now) || executionTime.isEqual(now);
         
         System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + 
-                          " - now: " + now + ", nextRun: " + nextRun + ", shouldExecute: " + shouldExecute);
+                          " - now: " + now + ", nextRun: " + nextRun + ", executionTime: " + executionTime + ", shouldExecute: " + shouldExecute);
         
         return shouldExecute;
     }

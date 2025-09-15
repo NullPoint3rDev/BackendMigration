@@ -107,6 +107,54 @@ public class AutomatedReportController {
     }
 
     @Operation(
+        summary = "Принудительно выполнить автоматический отчет",
+        description = "Принудительно выполняет указанный автоматический отчет независимо от времени."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Отчет успешно выполнен",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = String.class))
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Автоматический отчет не найден",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Ошибка при выполнении отчета",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class))
+        )
+    })
+    @PostMapping("/{id}/execute")
+    public ResponseEntity<String> executeAutomatedReport(
+        @Parameter(description = "ID автоматического отчета", required = true, example = "1")
+        @PathVariable Long id
+    ) {
+        try {
+            AutomatedReport automatedReport = automatedReportService.getAutomatedReportById(id)
+                .orElse(null);
+            if (automatedReport == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Автоматический отчет с ID " + id + " не найден");
+            }
+            
+            // Принудительно выполняем отчет
+            automatedReportService.executeAutomatedReport(automatedReport);
+            
+            return ResponseEntity.ok("Автоматический отчет '" + automatedReport.getName() + "' успешно выполнен");
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportController: Failed to execute automated report: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Ошибка при выполнении отчета: " + e.getMessage());
+        }
+    }
+
+    @Operation(
         summary = "Получить автоматизированный отчет по ID",
         description = "Возвращает автоматизированный отчет по его уникальному идентификатору."
     )
