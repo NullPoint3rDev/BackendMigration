@@ -100,9 +100,10 @@ public class AuthController {
             System.out.println("AuthController: Получен ответ от authenticationService");
             System.out.println("token: " + response.getToken() + ", sessionId: " + response.getSessionId());
 
-            Map<String, String> responseMap = new HashMap<>();
+            Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("token", response.getToken());
             responseMap.put("sessionId", response.getSessionId());
+            responseMap.put("userId", response.getUserId()); // Добавляем ID пользователя
 
             return ResponseEntity.ok(responseMap);
         } catch (AccountLockedException e) {

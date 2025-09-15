@@ -69,6 +69,15 @@ public class AuthenticationService {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             
+            // Get user details to extract userId
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String authenticatedUsername = userDetails.getUsername();
+            
+            // Get userId from database
+            UserAccount userAccount = userAccountService.getUserAccountByUserName(authenticatedUsername)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + authenticatedUsername));
+            Integer userId = userAccount.getId();
+            
             // Generate JWT token
             String jwt = tokenProvider.generateToken(authentication);
             System.out.println("AuthenticationService: JWT токен сгенерирован для пользователя: " + username);
@@ -81,8 +90,8 @@ public class AuthenticationService {
             // Reset failed attempts on successful login
             accountLockoutService.resetFailedAttempts(username);
             
-            System.out.println("AuthenticationService: Аутентификация успешна для пользователя: " + username);
-            return new AuthenticationResponse(jwt, sessionId.toString());
+            System.out.println("AuthenticationService: Аутентификация успешна для пользователя: " + username + ", userId: " + userId);
+            return new AuthenticationResponse(jwt, sessionId.toString(), userId);
         } catch (AuthenticationException e) {
             System.out.println("AuthenticationService: Ошибка аутентификации для пользователя: " + username + " - " + e.getMessage());
             // Record failed attempt
@@ -164,10 +173,12 @@ public class AuthenticationService {
     public static class AuthenticationResponse {
         private final String token;
         private final String sessionId;
+        private final Integer userId;
 
-        public AuthenticationResponse(String token, String sessionId) {
+        public AuthenticationResponse(String token, String sessionId, Integer userId) {
             this.token = token;
             this.sessionId = sessionId;
+            this.userId = userId;
         }
 
         public String getToken() {
@@ -176,6 +187,10 @@ public class AuthenticationService {
 
         public String getSessionId() {
             return sessionId;
+        }
+
+        public Integer getUserId() {
+            return userId;
         }
     }
 } 
