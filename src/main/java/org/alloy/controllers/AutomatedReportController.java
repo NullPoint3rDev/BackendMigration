@@ -254,6 +254,14 @@ public class AutomatedReportController {
         for (AutomatedReport r : rawReports) {
             System.out.println("AutomatedReportController: Report - ID: " + r.getId() + ", Name: " + r.getName() + ", CreatedBy: " + r.getCreatedBy());
         }
+        
+        // Проверим все отчеты в системе для отладки
+        List<AutomatedReport> allReports = automatedReportService.getAllAutomatedReports();
+        System.out.println("AutomatedReportController: Total reports in system: " + allReports.size());
+        for (AutomatedReport r : allReports) {
+            System.out.println("AutomatedReportController: All Report - ID: " + r.getId() + ", Name: " + r.getName() + ", CreatedBy: " + r.getCreatedBy());
+        }
+        
         List<AutomatedReportDTO> reports = rawReports.stream()
             .map(AutomatedReportMapper::toDTO)
             .collect(Collectors.toList());

@@ -34,7 +34,10 @@ public class AutomatedReportService {
     }
 
     public List<AutomatedReport> getUserAutomatedReports(Integer userAccountId) {
-        return automatedReportRepository.findByCreatedBy(userAccountId);
+        System.out.println("AutomatedReportService: Getting reports for user: " + userAccountId);
+        List<AutomatedReport> reports = automatedReportRepository.findByCreatedBy(userAccountId);
+        System.out.println("AutomatedReportService: Found " + reports.size() + " reports for user " + userAccountId);
+        return reports;
     }
 
     public List<AutomatedReport> getActiveAutomatedReports() {
