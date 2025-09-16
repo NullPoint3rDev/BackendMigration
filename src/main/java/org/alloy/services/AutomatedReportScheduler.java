@@ -57,10 +57,16 @@ public class AutomatedReportScheduler {
             System.out.println("DEBUG AutomatedReportScheduler: Found " + activeReports.size() + " active automated reports");
             
             for (AutomatedReport automatedReport : activeReports) {
+                System.out.println("DEBUG AutomatedReportScheduler: Checking report: " + automatedReport.getName() + 
+                                  " (ID: " + automatedReport.getId() + ", templateType: " + automatedReport.getTemplateType() + 
+                                  ", nextRun: " + automatedReport.getNextRun() + ")");
+                
                 // Проверяем, нужно ли выполнить отчет
                 if (shouldExecuteReport(automatedReport)) {
                     System.out.println("DEBUG AutomatedReportScheduler: Executing automated report: " + automatedReport.getName());
                     executeAutomatedReport(automatedReport);
+                } else {
+                    System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + " - not ready for execution");
                 }
             }
         } catch (Exception e) {
@@ -101,17 +107,23 @@ public class AutomatedReportScheduler {
         // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: если отчет уже выполнен сегодня, не выполняем повторно
         if (shouldExecute) {
             // Проверяем, был ли уже выполнен отчет сегодня
-            LocalDateTime todayStart = nowUTC.toLocalDate().atStartOfDay();
-            List<ReportHistory> todayReports = reportHistoryService.getRecentReports(automatedReport.getTemplateType())
-                .stream()
-                .filter(r -> r.getGeneratedAt() != null && r.getGeneratedAt().isAfter(todayStart))
-                .filter(r -> r.getAutomatedReportId() != null && r.getAutomatedReportId().equals(automatedReport.getId()))
-                .collect(java.util.stream.Collectors.toList());
-            
-            if (!todayReports.isEmpty()) {
+            String templateType = automatedReport.getTemplateType();
+            if (templateType != null && !templateType.trim().isEmpty()) {
+                LocalDateTime todayStart = nowUTC.toLocalDate().atStartOfDay();
+                List<ReportHistory> todayReports = reportHistoryService.getRecentReports(templateType)
+                    .stream()
+                    .filter(r -> r.getGeneratedAt() != null && r.getGeneratedAt().isAfter(todayStart))
+                    .filter(r -> r.getAutomatedReportId() != null && r.getAutomatedReportId().equals(automatedReport.getId()))
+                    .collect(java.util.stream.Collectors.toList());
+                
+                if (!todayReports.isEmpty()) {
+                    System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + 
+                                      " - Already executed today (" + todayReports.size() + " times), skipping");
+                    return false;
+                }
+            } else {
                 System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + 
-                                  " - Already executed today (" + todayReports.size() + " times), skipping");
-                return false;
+                                  " - templateType is null or empty, skipping duplicate check");
             }
         }
         

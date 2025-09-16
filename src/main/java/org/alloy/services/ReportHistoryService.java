@@ -66,6 +66,12 @@ public class ReportHistoryService {
      * Получить последние отчеты для определенного типа
      */
     public List<ReportHistory> getRecentReports(String reportType) {
+        // Проверяем, что reportType не null
+        if (reportType == null || reportType.trim().isEmpty()) {
+            System.out.println("ReportHistoryService: reportType is null or empty, returning empty list");
+            return new ArrayList<>();
+        }
+        
         // Сначала пытаемся получить из памяти
         List<ReportHistory> memoryReports = reportHistory.get(reportType);
         System.out.println("ReportHistoryService: Запрос истории для типа '" + reportType + "'. Найдено отчетов в памяти: " + (memoryReports != null ? memoryReports.size() : 0));

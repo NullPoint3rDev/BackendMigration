@@ -47,7 +47,36 @@ public class AutomatedReportService {
     public AutomatedReport createAutomatedReport(AutomatedReport automatedReport) {
         System.out.println("DEBUG AutomatedReportService: Creating report with name: " + automatedReport.getName());
         System.out.println("DEBUG AutomatedReportService: templateName: " + automatedReport.getTemplateName());
+        System.out.println("DEBUG AutomatedReportService: templateType: " + automatedReport.getTemplateType());
         System.out.println("DEBUG AutomatedReportService: triggersConfig: " + automatedReport.getTriggersConfig());
+        
+        // Устанавливаем templateType если он не задан
+        if (automatedReport.getTemplateType() == null || automatedReport.getTemplateType().trim().isEmpty()) {
+            // Пытаемся определить тип из templateName
+            String templateName = automatedReport.getTemplateName();
+            if (templateName != null) {
+                if (templateName.toLowerCase().contains("оборудован")) {
+                    automatedReport.setTemplateType("equipment");
+                } else if (templateName.toLowerCase().contains("сварщик")) {
+                    automatedReport.setTemplateType("welders");
+                } else if (templateName.toLowerCase().contains("материал")) {
+                    automatedReport.setTemplateType("materials");
+                } else if (templateName.toLowerCase().contains("шов")) {
+                    automatedReport.setTemplateType("welds");
+                } else if (templateName.toLowerCase().contains("ошибк")) {
+                    automatedReport.setTemplateType("errors");
+                } else if (templateName.toLowerCase().contains("нарушен")) {
+                    automatedReport.setTemplateType("violations");
+                } else if (templateName.toLowerCase().contains("задан")) {
+                    automatedReport.setTemplateType("tasks");
+                } else {
+                    automatedReport.setTemplateType("equipment"); // дефолтный тип
+                }
+            } else {
+                automatedReport.setTemplateType("equipment"); // дефолтный тип
+            }
+            System.out.println("DEBUG AutomatedReportService: Set templateType to: " + automatedReport.getTemplateType());
+        }
         
         automatedReport.setCreatedAt(LocalDateTime.now());
         automatedReport.setUpdatedAt(LocalDateTime.now());
@@ -62,6 +91,7 @@ public class AutomatedReportService {
         AutomatedReport saved = automatedReportRepository.save(automatedReport);
         System.out.println("DEBUG AutomatedReportService: Saved report with ID: " + saved.getId());
         System.out.println("DEBUG AutomatedReportService: Saved templateName: " + saved.getTemplateName());
+        System.out.println("DEBUG AutomatedReportService: Saved templateType: " + saved.getTemplateType());
         System.out.println("DEBUG AutomatedReportService: Saved triggersConfig: " + saved.getTriggersConfig());
         
         return saved;
