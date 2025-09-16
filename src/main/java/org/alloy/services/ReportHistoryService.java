@@ -228,7 +228,7 @@ public class ReportHistoryService {
     public void clearAllReports() {
         try {
             // Очищаем кэш в памяти
-            reportHistoryCache.clear();
+            reportHistory.clear();
             
             // Очищаем базу данных
             reportHistoryRepository.deleteAll();
