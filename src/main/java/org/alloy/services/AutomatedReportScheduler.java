@@ -228,6 +228,7 @@ public class AutomatedReportScheduler {
             notification.setType("AUTOMATED_REPORT");
             notification.setIsRead(false);
             notification.setLink("/reports/history"); // Ссылка на страницу с отчетами
+            notification.setDateCreated(LocalDateTime.now()); // Устанавливаем текущую дату и время
             
             notificationService.createNotification(notification);
             
@@ -257,6 +258,7 @@ public class AutomatedReportScheduler {
             notification.setType("AUTOMATED_REPORT_ERROR");
             notification.setIsRead(false);
             notification.setLink("/automated-reports"); // Ссылка на страницу автоматических отчетов
+            notification.setDateCreated(LocalDateTime.now()); // Устанавливаем текущую дату и время
             
             notificationService.createNotification(notification);
             
