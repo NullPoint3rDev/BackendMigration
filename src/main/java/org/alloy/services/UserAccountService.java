@@ -41,6 +41,10 @@ public class UserAccountService {
     public Optional<UserAccount> getUserAccountById(Integer id) {
         return userAccountRepository.findById(id);
     }
+    
+    public boolean existsById(Integer id) {
+        return userAccountRepository.existsById(id);
+    }
 
     public Optional<UserAccount> getUserAccountByUserName(String userName) {
         return userAccountRepository.findByUserName(userName);

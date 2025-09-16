@@ -626,4 +626,5 @@ public class AutomatedReportController {
             this.message = message;
         }
     }
+    
 }

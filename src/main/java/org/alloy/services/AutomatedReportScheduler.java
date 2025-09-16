@@ -3,6 +3,7 @@ package org.alloy.services;
 import org.alloy.models.entities.AutomatedReport;
 import org.alloy.models.ReportHistory;
 import org.alloy.models.entities.Notification;
+import org.alloy.models.entities.UserAccount;
 import org.alloy.models.dto.ReportRequestDTO;
 import org.alloy.models.dto.WireConsumptionReportDTO;
 import org.alloy.models.dto.WelderReportDTO;
@@ -37,6 +38,9 @@ public class AutomatedReportScheduler {
 
     @Autowired
     private AutomatedReportDataFixService dataFixService;
+
+    @Autowired
+    private UserAccountService userAccountService;
 
     /**
      * Проверяет и выполняет автоматические отчеты каждую минуту
@@ -215,14 +219,15 @@ public class AutomatedReportScheduler {
      */
     private void createSuccessNotification(AutomatedReport automatedReport, ReportHistory reportHistory) {
         try {
-            // Проверяем, существует ли пользователь
-            if (automatedReport.getCreatedBy() == null) {
-                System.out.println("WARN AutomatedReportScheduler: Cannot create notification - createdBy is null for report: " + automatedReport.getName());
+            // Получаем правильный user_accountid для уведомления
+            Integer userId = getValidUserId(automatedReport.getCreatedBy());
+            if (userId == null) {
+                System.out.println("WARN AutomatedReportScheduler: Cannot create notification - no valid user found for report: " + automatedReport.getName());
                 return;
             }
             
             Notification notification = new Notification();
-            notification.setUserAccountId(automatedReport.getCreatedBy());
+            notification.setUserAccountId(userId);
             notification.setTitle("Отчет сгенерирован автоматически");
             notification.setMessage(String.format("Автоматический отчет '%s' успешно сгенерирован и сохранен.", automatedReport.getName()));
             notification.setType("AUTOMATED_REPORT");
@@ -232,7 +237,7 @@ public class AutomatedReportScheduler {
             
             notificationService.createNotification(notification);
             
-            System.out.println("DEBUG AutomatedReportScheduler: Created success notification for user " + automatedReport.getCreatedBy());
+            System.out.println("DEBUG AutomatedReportScheduler: Created success notification for user " + userId);
             System.out.println("DEBUG AutomatedReportScheduler: Notification details - Title: " + notification.getTitle() + ", Type: " + notification.getType() + ", UserId: " + notification.getUserAccountId());
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportScheduler: Failed to create success notification: " + e.getMessage());
@@ -245,14 +250,15 @@ public class AutomatedReportScheduler {
      */
     private void createErrorNotification(AutomatedReport automatedReport, String errorMessage) {
         try {
-            // Проверяем, существует ли пользователь
-            if (automatedReport.getCreatedBy() == null) {
-                System.out.println("WARN AutomatedReportScheduler: Cannot create error notification - createdBy is null for report: " + automatedReport.getName());
+            // Получаем правильный user_accountid для уведомления
+            Integer userId = getValidUserId(automatedReport.getCreatedBy());
+            if (userId == null) {
+                System.out.println("WARN AutomatedReportScheduler: Cannot create error notification - no valid user found for report: " + automatedReport.getName());
                 return;
             }
             
             Notification notification = new Notification();
-            notification.setUserAccountId(automatedReport.getCreatedBy());
+            notification.setUserAccountId(userId);
             notification.setTitle("Ошибка генерации автоматического отчета");
             notification.setMessage(String.format("Не удалось сгенерировать автоматический отчет '%s': %s", automatedReport.getName(), errorMessage));
             notification.setType("AUTOMATED_REPORT_ERROR");
@@ -262,7 +268,7 @@ public class AutomatedReportScheduler {
             
             notificationService.createNotification(notification);
             
-            System.out.println("DEBUG AutomatedReportScheduler: Created error notification for user " + automatedReport.getCreatedBy());
+            System.out.println("DEBUG AutomatedReportScheduler: Created error notification for user " + userId);
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportScheduler: Failed to create error notification: " + e.getMessage());
             // Не прерываем выполнение из-за ошибки уведомления
@@ -278,6 +284,33 @@ public class AutomatedReportScheduler {
         automatedReportService.updateAutomatedReport(automatedReport);
         
         System.out.println("DEBUG AutomatedReportScheduler: Updated next run time for report " + automatedReport.getName() + " to " + automatedReport.getNextRun());
+    }
+    
+    /**
+     * Получает валидный user_accountid для уведомления
+     * Если переданный ID не существует, возвращает ID первого существующего пользователя
+     */
+    private Integer getValidUserId(Integer originalUserId) {
+        try {
+            // Если переданный ID существует, используем его
+            if (originalUserId != null && userAccountService.existsById(originalUserId)) {
+                return originalUserId;
+            }
+            
+            // Иначе находим первого существующего пользователя
+            List<UserAccount> allUsers = userAccountService.getAllUserAccounts();
+            if (!allUsers.isEmpty()) {
+                Integer firstUserId = allUsers.get(0).getId();
+                System.out.println("DEBUG AutomatedReportScheduler: Using first available user ID: " + firstUserId + " instead of invalid ID: " + originalUserId);
+                return firstUserId;
+            }
+            
+            System.err.println("ERROR AutomatedReportScheduler: No users found in the system");
+            return null;
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportScheduler: Failed to get valid user ID: " + e.getMessage());
+            return null;
+        }
     }
 
 }
