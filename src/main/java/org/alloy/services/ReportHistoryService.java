@@ -221,4 +221,22 @@ public class ReportHistoryService {
         System.out.println("ReportHistoryService: Инициализация тестовых данных завершена. Общее количество отчетов: " + getTotalReportsCount());
         System.out.println("ReportHistoryService: Доступные типы отчетов: " + getReportTypes());
     }
+
+    /**
+     * Очистить все отчеты из истории
+     */
+    public void clearAllReports() {
+        try {
+            // Очищаем кэш в памяти
+            reportHistoryCache.clear();
+            
+            // Очищаем базу данных
+            reportHistoryRepository.deleteAll();
+            
+            System.out.println("ReportHistoryService: All reports cleared from history and database");
+        } catch (Exception e) {
+            System.err.println("ReportHistoryService: Error clearing reports: " + e.getMessage());
+            throw new RuntimeException("Failed to clear reports", e);
+        }
+    }
 }

@@ -74,6 +74,7 @@ public class AutomatedReportScheduler {
      */
     private boolean shouldExecuteReport(AutomatedReport automatedReport) {
         if (automatedReport.getNextRun() == null) {
+            System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + " - nextRun is null, skipping");
             return false;
         }
         
@@ -97,6 +98,23 @@ public class AutomatedReportScheduler {
                               " - Time difference is " + minutesDiff + " minutes, executing anyway");
         }
         
+        // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: если отчет уже выполнен сегодня, не выполняем повторно
+        if (shouldExecute) {
+            // Проверяем, был ли уже выполнен отчет сегодня
+            LocalDateTime todayStart = nowUTC.toLocalDate().atStartOfDay();
+            List<ReportHistory> todayReports = reportHistoryService.getRecentReports(automatedReport.getTemplateType())
+                .stream()
+                .filter(r -> r.getGeneratedAt() != null && r.getGeneratedAt().isAfter(todayStart))
+                .filter(r -> r.getAutomatedReportId() != null && r.getAutomatedReportId().equals(automatedReport.getId()))
+                .collect(java.util.stream.Collectors.toList());
+            
+            if (!todayReports.isEmpty()) {
+                System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + 
+                                  " - Already executed today (" + todayReports.size() + " times), skipping");
+                return false;
+            }
+        }
+        
         System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() + 
                           " - nowUTC: " + nowUTC + ", nextRun (Moscow): " + nextRun + ", nextRunUTC: " + nextRunUTC + 
                           ", executionTime: " + executionTime + ", minutesDiff: " + minutesDiff + ", shouldExecute: " + shouldExecute);
@@ -109,6 +127,9 @@ public class AutomatedReportScheduler {
      */
     private void executeAutomatedReport(AutomatedReport automatedReport) {
         try {
+            // СНАЧАЛА обновляем время следующего запуска, чтобы предотвратить повторное выполнение
+            updateNextRunTime(automatedReport);
+            
             // Автоматически исправляем данные если они некорректные
             dataFixService.fixAutomatedReportData(automatedReport);
             
@@ -146,9 +167,6 @@ public class AutomatedReportScheduler {
             
             // Создаем уведомление об успешной генерации
             createSuccessNotification(automatedReport, reportHistory);
-            
-            // Обновляем время следующего запуска
-            updateNextRunTime(automatedReport);
             
             System.out.println("DEBUG AutomatedReportScheduler: Successfully executed automated report: " + automatedReport.getName());
             

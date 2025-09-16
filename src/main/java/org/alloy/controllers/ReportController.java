@@ -354,6 +354,22 @@ public class ReportController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    /**
+     * Очистить все отчеты из истории
+     */
+    @DeleteMapping("/history/clear")
+    public ResponseEntity<String> clearAllReports() {
+        try {
+            reportHistoryService.clearAllReports();
+            System.out.println("ReportController: All reports cleared from history");
+            return ResponseEntity.ok("All reports cleared successfully");
+        } catch (Exception e) {
+            System.err.println("ReportController: Error clearing reports: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error clearing reports: " + e.getMessage());
+        }
+    }
     
     /**
      * Получить все типы отчетов, для которых есть история
