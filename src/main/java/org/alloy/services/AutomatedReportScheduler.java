@@ -227,7 +227,7 @@ public class AutomatedReportScheduler {
             notification.setMessage(String.format("Автоматический отчет '%s' успешно сгенерирован и сохранен.", automatedReport.getName()));
             notification.setType("AUTOMATED_REPORT");
             notification.setIsRead(false);
-            notification.setLink("/reports/history"); // Ссылка на страницу с отчетами
+            notification.setLink("/my-reports"); // Ссылка на страницу с отчетами
             notification.setDateCreated(LocalDateTime.now()); // Устанавливаем текущую дату и время
             
             notificationService.createNotification(notification);
