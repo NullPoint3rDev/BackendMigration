@@ -160,10 +160,13 @@ public class AutomatedReportScheduler {
             // Генерируем отчет в зависимости от типа шаблона
             byte[] reportBytes = generateReportByType(reportRequest, automatedReport);
             
+            // Получаем данные отчета для сохранения
+            Object reportData = getReportDataByType(reportRequest, automatedReport);
+            
             // Создаем имя файла
             String fileName = createFileName(automatedReport);
             
-            // Сохраняем отчет в историю
+            // Сохраняем отчет в историю с данными
             ReportHistory reportHistory = new ReportHistory(
                 automatedReport.getTemplateType(),
                 automatedReport.getTemplateName(),
@@ -174,6 +177,9 @@ public class AutomatedReportScheduler {
                 "Система",
                 automatedReport.getId()
             );
+            
+            // Устанавливаем данные отчета
+            reportHistory.setReportData(reportData);
             
             reportHistoryService.addReportToHistory(reportHistory);
             
@@ -230,6 +236,31 @@ public class AutomatedReportScheduler {
                 
             default:
                 throw new IllegalArgumentException("Unknown report type: " + automatedReport.getTemplateType());
+        }
+    }
+
+    /**
+     * Получает данные отчета в зависимости от типа для сохранения в истории
+     */
+    private Object getReportDataByType(ReportRequestDTO request, AutomatedReport automatedReport) {
+        String templateType = automatedReport.getTemplateType();
+        if (templateType == null || templateType.trim().isEmpty()) {
+            return null;
+        }
+        
+        switch (templateType.toLowerCase()) {
+            case "equipment":
+                return reportDataService.getWorkReportData(request);
+                
+            case "welders":
+                return reportDataService.getWelderReportData(request);
+                
+            case "materials":
+            case "wire-consumption":
+                return reportDataService.getWireConsumptionData(request);
+                
+            default:
+                return null;
         }
     }
 

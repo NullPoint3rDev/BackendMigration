@@ -42,6 +42,9 @@ public class ReportHistory {
     
     @Column(name = "automated_report_id")
     private Long automatedReportId;   // ID автоматического отчета, который сгенерировал этот отчет
+    
+    @Transient
+    private Object reportData;        // Данные отчета для отображения (не сохраняется в БД)
 
     public ReportHistory() {}
 
@@ -105,6 +108,9 @@ public class ReportHistory {
 
     public Long getAutomatedReportId() { return automatedReportId; }
     public void setAutomatedReportId(Long automatedReportId) { this.automatedReportId = automatedReportId; }
+
+    public Object getReportData() { return reportData; }
+    public void setReportData(Object reportData) { this.reportData = reportData; }
 
     /**
      * Получить размер файла в читаемом формате
