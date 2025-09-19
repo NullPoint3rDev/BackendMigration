@@ -24,16 +24,16 @@ public class TcpDeviceClient {
     @Value("${welding.device.port:3000}")
     private int port;
     
-    @Value("${welding.device.mac:8CAAB579425A}")
+    @Value("${welding.device.mac:8CAAB50C4252}")
     private String expectedMac;
     
     @Value("${welding.connection.timeout_ms:10000}")
     private int timeoutMs;
     
-    @Value("${welding.connection.retry_interval_ms:5000}")
+    @Value("${welding.connection.retry_interval_ms:2000}")
     private int retryIntervalMs;
     
-    @Value("${welding.connection.max_retries:3}")
+    @Value("${welding.connection.max_retries:5}")
     private int maxRetries;
     
     private volatile boolean running = true;
@@ -90,8 +90,8 @@ public class TcpDeviceClient {
                             lastDataReceived = System.currentTimeMillis();
                             String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
                             System.out.println("[TCP-CLIENT] 📨 Получены данные: " + data);
-                            System.out.println("[TCP-CLIENT] 📊 Размер данных: " + bytesRead + " байт");
-                            System.out.println("[TCP-CLIENT] 📊 Сырые байты: " + java.util.Arrays.toString(java.util.Arrays.copyOfRange(buffer, 0, Math.min(bytesRead, 20))));
+                         //   System.out.println("[TCP-CLIENT] 📊 Размер данных: " + bytesRead + " байт");
+                         //   System.out.println("[TCP-CLIENT] 📊 Сырые байты: " + java.util.Arrays.toString(java.util.Arrays.copyOfRange(buffer, 0, Math.min(bytesRead, 20))));
 
                             // Извлечение MAC-адреса из пакета
                             System.out.println("[TCP-CLIENT] 🔍 Поиск MAC в данных: " + data);
