@@ -152,21 +152,21 @@ public class WeldingDataParserService {
         //     addProperty(properties, "State.I", current, "number");
         // }
         
-        // Используем конфигурируемую позицию тока
-        if (payload.length() >= currentPosition + 2) {
-            String configurableCurrent = payload.substring(currentPosition, currentPosition + 2);
-            if (debugMode) {
-                System.out.println("[PARSER] ⚡ Конфигурируемая позиция " + currentPosition + "-" + (currentPosition+1) + " (CURRENT): " + configurableCurrent);
-                try {
-                    int currentValue = Integer.parseInt(configurableCurrent, 16);
-                    System.out.println("[PARSER] 🔢 Значение тока как число: " + currentValue);
-                } catch (NumberFormatException e) {
-                    System.out.println("[PARSER] ⚠️ Не удалось преобразовать ток в число");
-                }
-            }
-            // Обновляем значение тока на конфигурируемое
-            addProperty(properties, "State.I", configurableCurrent, "number");
-        }
+        // Конфигурируемая позиция тока отключена - используем фиксированные позиции
+        // if (payload.length() >= currentPosition + 2) {
+        //     String configurableCurrent = payload.substring(currentPosition, currentPosition + 2);
+        //     if (debugMode) {
+        //         System.out.println("[PARSER] ⚡ Конфигурируемая позиция " + currentPosition + "-" + (currentPosition+1) + " (CURRENT): " + configurableCurrent);
+        //         try {
+        //             int currentValue = Integer.parseInt(configurableCurrent, 16);
+        //             System.out.println("[PARSER] 🔢 Значение тока как число: " + currentValue);
+        //         } catch (NumberFormatException e) {
+        //             System.out.println("[PARSER] ⚠️ Не удалось преобразовать ток в число");
+        //         }
+        //     }
+        //     // Обновляем значение тока на конфигурируемое
+        //     addProperty(properties, "State.I", configurableCurrent, "number");
+        // }
         
         // Автоматический поиск тока отключен - используем фиксированные позиции
         // if (debugMode) {
