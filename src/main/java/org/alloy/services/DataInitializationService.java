@@ -13,7 +13,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -105,7 +104,7 @@ public class DataInitializationService {
         WeldingMachineType newType = new WeldingMachineType();
         newType.setName(typeName);
         newType.setDescription(description);
-        newType.setDateCreated(LocalDateTime.now());
+        newType.setStatus(GeneralStatus.Active);
         
         WeldingMachineType savedType = weldingMachineTypeRepository.save(newType);
         System.out.println("[DATA-INIT] ✅ Создан новый тип аппарата: " + savedType.getName());
