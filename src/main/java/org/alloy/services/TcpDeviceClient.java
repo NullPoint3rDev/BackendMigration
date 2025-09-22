@@ -57,7 +57,7 @@ public class TcpDeviceClient {
 
     @PostConstruct
     public void start() {
-        System.out.println("[TCP-CLIENT] 🚀 Запуск TCP клиента для сварочного аппарата");
+        System.out.println("[TCP-CLIENT] 🚀 Запуск TCP клиента для Блока мониторинга ОГК");
         System.out.println("[TCP-CLIENT] Хост: " + host + ":" + port);
         System.out.println("[TCP-CLIENT] Ожидаемый MAC: " + expectedMac);
         System.out.println("[TCP-CLIENT] Таймаут: " + timeoutMs + "мс");
@@ -89,20 +89,18 @@ public class TcpDeviceClient {
                             lastDataTime = System.currentTimeMillis();
                             lastDataReceived = System.currentTimeMillis();
                             String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
-                            System.out.println("[TCP-CLIENT] 📨 Получены данные: " + data);
-                         //   System.out.println("[TCP-CLIENT] 📊 Размер данных: " + bytesRead + " байт");
-                         //   System.out.println("[TCP-CLIENT] 📊 Сырые байты: " + java.util.Arrays.toString(java.util.Arrays.copyOfRange(buffer, 0, Math.min(bytesRead, 20))));
-
+                            
                             // Извлечение MAC-адреса из пакета
-                            System.out.println("[TCP-CLIENT] 🔍 Поиск MAC в данных: " + data);
                             String mac = extractMacFromPacket(data);
                             if (mac != null) {
-                                System.out.println("[TCP-CLIENT] MAC из пакета: " + mac);
-                                
                                 // Проверяем, что это наша плата
                                 if (expectedMac.equals(mac)) {
-                                    System.out.println("[TCP-CLIENT] ✅ Данные от нашей платы: " + data);
-                                    processWeldingData(data, mac);
+                                    // Пропускаем ping сообщения, логируем только полезные данные
+                                    if (!data.startsWith("PING:")) {
+                                        System.out.println("[TCP-CLIENT] 📨 Получены данные от Блока мониторинга ОГК: " + data);
+                                        System.out.println("[TCP-CLIENT] 🔍 MAC из пакета: " + mac);
+                                        processWeldingData(data, mac);
+                                    }
                                 } else {
                                     System.out.println("[TCP-CLIENT] ⚠️ Неизвестный MAC: " + mac + " (ожидался: " + expectedMac + ")");
                                 }

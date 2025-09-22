@@ -20,7 +20,7 @@ public class WeldingDeviceServer {
     @Value("${welding.device.port:3000}")
     private int port;
     
-    @Value("${welding.device.mac:8CAAB579425A}")
+    @Value("${welding.device.mac:8CAAB50C4254}")
     private String expectedMac;
     
     private volatile boolean running = true;
@@ -37,7 +37,7 @@ public class WeldingDeviceServer {
 
     @PostConstruct
     public void start() {
-        System.out.println("[WELDING-SERVER] 🚀 Запуск TCP сервера для сварочного аппарата");
+        System.out.println("[WELDING-SERVER] 🚀 Запуск TCP сервера для Блока мониторинга ОГК");
         System.out.println("[WELDING-SERVER] Порт: " + port);
         System.out.println("[WELDING-SERVER] Ожидаемый MAC: " + expectedMac);
         
@@ -66,7 +66,7 @@ public class WeldingDeviceServer {
                     // Отправляем приветственную команду плате
                     try {
                         java.io.PrintWriter out = new java.io.PrintWriter(clientSocket.getOutputStream(), true);
-                        String welcomeCommand = "HELLO:8CAAB579425A\n";
+                        String welcomeCommand = "HELLO:8CAAB50C4254\n";
                         out.println(welcomeCommand);
                         System.out.println("[WELDING-SERVER] 📤 Отправлена команда: " + welcomeCommand.trim());
                     } catch (Exception e) {
@@ -103,8 +103,11 @@ public class WeldingDeviceServer {
                     
                     // Проверяем, что это наша плата
                     if (expectedMac.equals(mac)) {
-                        System.out.println("[WELDING-SERVER] ✅ Данные от нашей платы: " + line);
-                        deviceManager.processDeviceData(line, mac);
+                        // Пропускаем ping сообщения, логируем только полезные данные
+                        if (!line.startsWith("PING:")) {
+                            System.out.println("[WELDING-SERVER] ✅ Данные от Блока мониторинга ОГК: " + line);
+                            deviceManager.processDeviceData(line, mac);
+                        }
                     } else {
                         System.out.println("[WELDING-SERVER] ⚠️ Неизвестный MAC: " + mac + " (ожидался: " + expectedMac + ")");
                     }
@@ -132,9 +135,9 @@ public class WeldingDeviceServer {
                     if (currentClientSocket != null && !currentClientSocket.isClosed()) {
                         try {
                             java.io.PrintWriter out = new java.io.PrintWriter(currentClientSocket.getOutputStream(), true);
-                            String heartbeatCommand = "PING:8CAAB579425A\n";
+                            String heartbeatCommand = "PING:8CAAB50C4254\n";
                             out.println(heartbeatCommand);
-                            System.out.println("[WELDING-SERVER] 📤 Отправлен ping: " + heartbeatCommand.trim());
+                            // Убираем логирование ping сообщений
                         } catch (Exception e) {
                             System.err.println("[WELDING-SERVER] ❌ Ошибка отправки ping: " + e.getMessage());
                             currentClientSocket = null;
