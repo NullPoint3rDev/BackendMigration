@@ -63,15 +63,7 @@ public class WeldingDeviceServer {
                     // Сохраняем ссылку на клиентский сокет
                     currentClientSocket = clientSocket;
                     
-                    // Отправляем приветственную команду плате
-                    try {
-                        java.io.PrintWriter out = new java.io.PrintWriter(clientSocket.getOutputStream(), true);
-                        String welcomeCommand = "HELLO:8CAAB50C4254\n";
-                        out.println(welcomeCommand);
-                        System.out.println("[WELDING-SERVER] 📤 Отправлена команда: " + welcomeCommand.trim());
-                    } catch (Exception e) {
-                        System.err.println("[WELDING-SERVER] ❌ Ошибка отправки команды: " + e.getMessage());
-                    }
+                    // Блок мониторинга сам отправляет данные, мы ничего не отправляем
                     
                     // Обрабатываем подключение в отдельном потоке
                     new Thread(() -> handleClient(clientSocket)).start();
@@ -127,29 +119,8 @@ public class WeldingDeviceServer {
     }
     
     private void startHeartbeatThread() {
-        heartbeatThread = new Thread(() -> {
-            while (running) {
-                try {
-                    Thread.sleep(10000); // Отправляем команду каждые 10 секунд
-                    
-                    if (currentClientSocket != null && !currentClientSocket.isClosed()) {
-                        try {
-                            java.io.PrintWriter out = new java.io.PrintWriter(currentClientSocket.getOutputStream(), true);
-                            String heartbeatCommand = "PING:8CAAB50C4254\n";
-                            out.println(heartbeatCommand);
-                            // Убираем логирование ping сообщений
-                        } catch (Exception e) {
-                            System.err.println("[WELDING-SERVER] ❌ Ошибка отправки ping: " + e.getMessage());
-                            currentClientSocket = null;
-                        }
-                    }
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
-        });
-        heartbeatThread.setDaemon(true);
-        heartbeatThread.start();
+        // Блок мониторинга сам отправляет данные, heartbeat не нужен
+        System.out.println("[WELDING-SERVER] ℹ️ Heartbeat отключен - блок мониторинга сам отправляет данные");
     }
 
     private String extractMacFromPacket(String data) {
@@ -157,11 +128,21 @@ public class WeldingDeviceServer {
             return null;
         }
         
+        // Ищем MAC в формате: COMMAND:MAC или MAC:data
         int pos1 = data.indexOf(':');
         if (pos1 >= 0) {
-            int pos2 = data.indexOf(';', pos1);
-            if (pos2 > 0 && pos2 - pos1 == 13) {
-                return data.substring(pos1 + 1, pos1 + 13);
+            // Проверяем формат COMMAND:MAC (например, HELLO:8CAAB50C4254)
+            String beforeColon = data.substring(0, pos1);
+            String afterColon = data.substring(pos1 + 1);
+            
+            // Если после двоеточия 12 символов (MAC), то это наш MAC
+            if (afterColon.length() == 12 && afterColon.matches("[0-9A-Fa-f]{12}")) {
+                return afterColon.toUpperCase();
+            }
+            
+            // Проверяем формат MAC:data (например, 8CAAB50C4254:data)
+            if (beforeColon.length() == 12 && beforeColon.matches("[0-9A-Fa-f]{12}")) {
+                return beforeColon.toUpperCase();
             }
         }
         return null;

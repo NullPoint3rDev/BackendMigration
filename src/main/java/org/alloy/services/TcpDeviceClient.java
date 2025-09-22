@@ -184,11 +184,21 @@ public class TcpDeviceClient {
             return null;
         }
         
+        // Ищем MAC в формате: COMMAND:MAC или MAC:data
         int pos1 = data.indexOf(':');
         if (pos1 >= 0) {
-            int pos2 = data.indexOf(';', pos1);
-            if (pos2 > 0 && pos2 - pos1 == 13) {
-                return data.substring(pos1 + 1, pos1 + 13);
+            // Проверяем формат COMMAND:MAC (например, HELLO:8CAAB50C4254)
+            String beforeColon = data.substring(0, pos1);
+            String afterColon = data.substring(pos1 + 1);
+            
+            // Если после двоеточия 12 символов (MAC), то это наш MAC
+            if (afterColon.length() == 12 && afterColon.matches("[0-9A-Fa-f]{12}")) {
+                return afterColon.toUpperCase();
+            }
+            
+            // Проверяем формат MAC:data (например, 8CAAB50C4254:data)
+            if (beforeColon.length() == 12 && beforeColon.matches("[0-9A-Fa-f]{12}")) {
+                return beforeColon.toUpperCase();
             }
         }
         return null;
