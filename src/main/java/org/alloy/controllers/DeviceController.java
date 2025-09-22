@@ -55,7 +55,7 @@ public class DeviceController {
             if (state.getProperties() != null) {
                 StringBuilder dataString = new StringBuilder();
                 dataString.append(timestamp).append("|");
-                dataString.append("8CAAB579425A:"); // MAC адрес
+                dataString.append("8CAAB50C4254:"); // MAC адрес
                 
                 for (Map.Entry<String, StateSummaryPropertyValue> entry : state.getProperties().entrySet()) {
                     dataString.append(entry.getKey()).append(":").append(entry.getValue().getValue()).append(";");
@@ -100,7 +100,7 @@ public class DeviceController {
     public ResponseEntity<String> testCurrentPosition(@RequestParam(defaultValue = "6") int position) {
         try {
             // Создаем тестовые данные с током в указанной позиции
-            String testData = "8CAAB579425A;";
+            String testData = "8CAAB50C4254;";
             
             // Заполняем данные до нужной позиции
             for (int i = 0; i < position; i += 2) {
@@ -119,7 +119,7 @@ public class DeviceController {
             System.out.println("[TEST] Позиция тока: " + position);
             
             // Парсим данные
-            StateSummary state = weldingDataParserService.parseWeldingData(testData, "8CAAB579425A");
+            StateSummary state = weldingDataParserService.parseWeldingData(testData, "8CAAB50C4254");
             
             // Отправляем через WebSocket
             sendDeviceState(state);

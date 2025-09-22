@@ -40,10 +40,10 @@ welding:
   device:
     host: 95.172.58.219
     port: 3000
-    mac: 8CAAB579425A
+    mac: 8CAAB50C4254
   # Настройки для множественных аппаратов
   devices:
-    - mac: 8CAAB579425A
+    - mac: 8CAAB50C4254
       type: MP-500
       ip: 95.172.58.219
       port: 3000
