@@ -18,8 +18,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        System.out.println("[WEBSOCKET-CONFIG] 🔧 Регистрация WebSocket endpoint: /ws");
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")  // Используем patterns вместо origins
                 .withSockJS();
+        System.out.println("[WEBSOCKET-CONFIG] ✅ WebSocket endpoint зарегистрирован");
     }
 } 

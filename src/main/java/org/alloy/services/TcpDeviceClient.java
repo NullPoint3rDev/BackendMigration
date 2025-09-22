@@ -90,20 +90,27 @@ public class TcpDeviceClient {
                             lastDataReceived = System.currentTimeMillis();
                             String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
                             
+                            // Логируем все входящие данные для отладки
+                            System.out.println("[TCP-CLIENT] 📨 Получены сырые данные (" + bytesRead + " байт): " + data);
+                            
                             // Извлечение MAC-адреса из пакета
                             String mac = extractMacFromPacket(data);
                             if (mac != null) {
+                                System.out.println("[TCP-CLIENT] 🔍 Извлечен MAC: " + mac);
                                 // Проверяем, что это наша плата
                                 if (expectedMac.equals(mac)) {
                                     // Пропускаем ping сообщения, логируем только полезные данные
                                     if (!data.startsWith("PING:")) {
-                                        System.out.println("[TCP-CLIENT] 📨 Получены данные от Блока мониторинга ОГК: " + data);
-                                        System.out.println("[TCP-CLIENT] 🔍 MAC из пакета: " + mac);
+                                        System.out.println("[TCP-CLIENT] ✅ Данные от Блока мониторинга ОГК: " + data);
                                         processWeldingData(data, mac);
+                                    } else {
+                                        System.out.println("[TCP-CLIENT] ⏭️ Пропущен ping от Блока мониторинга ОГК");
                                     }
                                 } else {
                                     System.out.println("[TCP-CLIENT] ⚠️ Неизвестный MAC: " + mac + " (ожидался: " + expectedMac + ")");
                                 }
+                            } else {
+                                System.out.println("[TCP-CLIENT] ❌ Не удалось извлечь MAC из данных: " + data);
                             }
                         }
                         
