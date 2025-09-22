@@ -128,23 +128,35 @@ public class WeldingDeviceServer {
             return null;
         }
         
-        // Ищем MAC в формате: COMMAND:MAC или MAC:data
-        int pos1 = data.indexOf(':');
-        if (pos1 >= 0) {
+        // Ищем MAC в различных форматах
+        int colonPos = data.indexOf(':');
+        int semicolonPos = data.indexOf(';');
+        
+        if (colonPos >= 0 && semicolonPos > colonPos) {
+            // Формат :MAC;data (например, :8CAAB50C4254;data)
+            String mac = data.substring(colonPos + 1, semicolonPos);
+            if (mac.length() == 12 && mac.matches("[0-9A-Fa-f]{12}")) {
+                return mac.toUpperCase();
+            }
+        }
+        
+        if (colonPos >= 0) {
             // Проверяем формат COMMAND:MAC (например, HELLO:8CAAB50C4254)
-            String beforeColon = data.substring(0, pos1);
-            String afterColon = data.substring(pos1 + 1);
-            
-            // Если после двоеточия 12 символов (MAC), то это наш MAC
-            if (afterColon.length() == 12 && afterColon.matches("[0-9A-Fa-f]{12}")) {
-                return afterColon.toUpperCase();
+            String afterColon = data.substring(colonPos + 1);
+            if (afterColon.length() >= 12) {
+                String possibleMac = afterColon.substring(0, 12);
+                if (possibleMac.matches("[0-9A-Fa-f]{12}")) {
+                    return possibleMac.toUpperCase();
+                }
             }
             
             // Проверяем формат MAC:data (например, 8CAAB50C4254:data)
+            String beforeColon = data.substring(0, colonPos);
             if (beforeColon.length() == 12 && beforeColon.matches("[0-9A-Fa-f]{12}")) {
                 return beforeColon.toUpperCase();
             }
         }
+        
         return null;
     }
 
