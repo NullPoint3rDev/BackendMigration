@@ -143,13 +143,14 @@ public class WeldingDataParserService {
             }
             addProperty(properties, "State.material", material, "enum");
         }
-        if (payload.length() >= 8) {
-            String current = payload.substring(6, 8);
-            if (debugMode) {
-                System.out.println("[PARSER] ⚡ Позиции 6-7 (CURRENT): " + current);
-            }
-            addProperty(properties, "State.I", current, "number");
-        }
+        // Старые позиции тока (неправильные) - закомментированы
+        // if (payload.length() >= 8) {
+        //     String current = payload.substring(6, 8);
+        //     if (debugMode) {
+        //         System.out.println("[PARSER] ⚡ Позиции 6-7 (CURRENT): " + current);
+        //     }
+        //     addProperty(properties, "State.I", current, "number");
+        // }
         
         // Используем конфигурируемую позицию тока
         if (payload.length() >= currentPosition + 2) {
@@ -167,46 +168,47 @@ public class WeldingDataParserService {
             addProperty(properties, "State.I", configurableCurrent, "number");
         }
         
-        // Автоматический поиск лучшей позиции тока (если включен debug_mode)
-        if (debugMode) {
-            // Повторяем поиск лучшей позиции для автоматического использования
-            int bestCurrentPosition = -1;
-            int bestCurrentValue = -1;
-            int minDifference = Integer.MAX_VALUE;
-            
-            for (int i = 0; i < payload.length() - 1; i += 2) {
-                if (i + 1 < payload.length()) {
-                    try {
-                        String value = payload.substring(i, i + 2);
-                        int numValue = Integer.parseInt(value, 16);
-                        
-                        if (numValue >= 50 && numValue <= 200) {
-                            int difference = Math.abs(numValue - 65);
-                            if (difference < minDifference) {
-                                minDifference = difference;
-                                bestCurrentPosition = i;
-                                bestCurrentValue = numValue;
-                            }
-                        }
-                    } catch (NumberFormatException e) {
-                        // Пропускаем
-                    }
-                }
-            }
-            
-            if (bestCurrentPosition >= 0) {
-                String bestCurrent = payload.substring(bestCurrentPosition, bestCurrentPosition + 2);
-                System.out.println("[PARSER] 🔄 Автоматически используем лучшую позицию тока: " + bestCurrentPosition + "-" + (bestCurrentPosition+1) + " = " + bestCurrentValue);
-                addProperty(properties, "State.I", bestCurrent, "number");
-            }
-        }
-        if (payload.length() >= 10) {
-            String voltage = payload.substring(8, 10);
-            if (debugMode) {
-                System.out.println("[PARSER] 🔌 Позиции 8-9 (VOLTAGE): " + voltage);
-            }
-            addProperty(properties, "State.U", voltage, "number");
-        }
+        // Автоматический поиск тока отключен - используем фиксированные позиции
+        // if (debugMode) {
+        //     // Повторяем поиск лучшей позиции для автоматического использования
+        //     int bestCurrentPosition = -1;
+        //     int bestCurrentValue = -1;
+        //     int minDifference = Integer.MAX_VALUE;
+        //     
+        //     for (int i = 0; i < payload.length() - 1; i += 2) {
+        //         if (i + 1 < payload.length()) {
+        //             try {
+        //                 String value = payload.substring(i, i + 2);
+        //                 int numValue = Integer.parseInt(value, 16);
+        //                 
+        //                 if (numValue >= 50 && numValue <= 200) {
+        //                     int difference = Math.abs(numValue - 65);
+        //                     if (difference < minDifference) {
+        //                         minDifference = difference;
+        //                         bestCurrentPosition = i;
+        //                         bestCurrentValue = numValue;
+        //                     }
+        //                 }
+        //             } catch (NumberFormatException e) {
+        //                 // Пропускаем
+        //             }
+        //         }
+        //     }
+        //     
+        //     if (bestCurrentPosition >= 0) {
+        //         String bestCurrent = payload.substring(bestCurrentPosition, bestCurrentPosition + 2);
+        //         System.out.println("[PARSER] 🔄 Автоматически используем лучшую позицию тока: " + bestCurrentPosition + "-" + (bestCurrentPosition+1) + " = " + bestCurrentValue);
+        //         addProperty(properties, "State.I", bestCurrent, "number");
+        //     }
+        // }
+        // Старые позиции напряжения (неправильные) - закомментированы
+        // if (payload.length() >= 10) {
+        //     String voltage = payload.substring(8, 10);
+        //     if (debugMode) {
+        //         System.out.println("[PARSER] 🔌 Позиции 8-9 (VOLTAGE): " + voltage);
+        //     }
+        //     addProperty(properties, "State.U", voltage, "number");
+        // }
         if (payload.length() >= 12) {
             String gasFlow = payload.substring(10, 12);
             if (debugMode) {
@@ -248,29 +250,31 @@ public class WeldingDataParserService {
             }
         }
 
-        // Попробуем найти ток в позициях, где он может быть (на основе анализа данных)
-        if (payload.length() >= 40) {
-            // Позиции 30-31 могут содержать ток
-            String possibleCurrent5 = payload.substring(30, 32);
-            String possibleCurrent6 = payload.substring(32, 34);
-            if (debugMode) {
-                System.out.println("[PARSER] 🔍 Позиции 30-31 (возможный ток 5): " + possibleCurrent5);
-                System.out.println("[PARSER] 🔍 Позиции 32-33 (возможный ток 6): " + possibleCurrent6);
-            }
+        // ПРАВИЛЬНЫЕ ПОЗИЦИИ ТОКА И НАПРЯЖЕНИЯ (на основе анализа данных)
+        if (payload.length() >= 34) {
+            // Позиции 30-31 содержат ТОК
+            String current = payload.substring(30, 32);
+            // Позиции 32-33 содержат НАПРЯЖЕНИЕ  
+            String voltage = payload.substring(32, 34);
             
-            // Попробуем интерпретировать как ток
-            try {
-                int currentValue5 = Integer.parseInt(possibleCurrent5, 16);
-                int currentValue6 = Integer.parseInt(possibleCurrent6, 16);
-                if (debugMode) {
-                    System.out.println("[PARSER] 🔢 Позиции 30-31 как число: " + currentValue5);
-                    System.out.println("[PARSER] 🔢 Позиции 32-33 как число: " + currentValue6);
-                }
-            } catch (NumberFormatException e) {
-                if (debugMode) {
+            if (debugMode) {
+                System.out.println("[PARSER] ⚡ Позиции 30-31 (ТОК): " + current);
+                System.out.println("[PARSER] 🔌 Позиции 32-33 (НАПРЯЖЕНИЕ): " + voltage);
+                
+                // Попробуем интерпретировать как числа
+                try {
+                    int currentValue = Integer.parseInt(current, 16);
+                    int voltageValue = Integer.parseInt(voltage, 16);
+                    System.out.println("[PARSER] 🔢 Ток как число: " + currentValue + " А");
+                    System.out.println("[PARSER] 🔢 Напряжение как число: " + voltageValue + " В");
+                } catch (NumberFormatException e) {
                     System.out.println("[PARSER] ⚠️ Не удалось преобразовать в число");
                 }
             }
+            
+            // Устанавливаем правильные значения тока и напряжения
+            addProperty(properties, "State.I", current, "number");
+            addProperty(properties, "State.U", voltage, "number");
         }
 
         // Попробуем найти ток в позициях 40-50
