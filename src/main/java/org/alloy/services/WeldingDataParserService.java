@@ -257,21 +257,21 @@ public class WeldingDataParserService {
         }
 
         // ПРАВИЛЬНЫЕ ПОЗИЦИИ ТОКА И НАПРЯЖЕНИЯ (на основе анализа данных)
-        System.out.println("[PARSER] 🔍 Проверяем длину payload: " + payload.length() + " >= 34?");
-        if (payload.length() >= 34) {
+        System.out.println("[PARSER] 🔍 Проверяем длину payload: " + payload.length() + " >= 64?");
+        if (payload.length() >= 64) {
             System.out.println("[PARSER] ✅ Длина достаточная, извлекаем ток и напряжение");
-            // Позиции 30-31 содержат ТОК
-            String current = payload.substring(30, 32);
-            // Позиции 32-33 содержат НАПРЯЖЕНИЕ  
-            String voltage = payload.substring(32, 34);
+            // Позиции 60-61 содержат ТОК
+            String current = payload.substring(60, 62);
+            // Позиции 62-63 содержат НАПРЯЖЕНИЕ  
+            String voltage = payload.substring(62, 64);
             
             System.out.println("[PARSER] 🔍 Извлеченные значения:");
-            System.out.println("[PARSER]   Позиции 30-31 (ток): '" + current + "'");
-            System.out.println("[PARSER]   Позиции 32-33 (напряжение): '" + voltage + "'");
+            System.out.println("[PARSER]   Позиции 60-61 (ток): '" + current + "'");
+            System.out.println("[PARSER]   Позиции 62-63 (напряжение): '" + voltage + "'");
             
-            // Логируем участок payload вокруг позиций 30-33 для анализа
-            int start = Math.max(0, 25);
-            int end = Math.min(payload.length(), 40);
+            // Логируем участок payload вокруг позиций 60-63 для анализа
+            int start = Math.max(0, 55);
+            int end = Math.min(payload.length(), 70);
             String section = payload.substring(start, end);
             System.out.println("[PARSER] 🔍 Участок payload (позиции " + start + "-" + (end-1) + "): " + section);
             
@@ -283,8 +283,8 @@ public class WeldingDataParserService {
             System.out.println("[PARSER] 🔍 Позиции:     " + positions.toString());
             
             if (debugMode) {
-                System.out.println("[PARSER] ⚡ Позиции 30-31 (ТОК): " + current);
-                System.out.println("[PARSER] 🔌 Позиции 32-33 (НАПРЯЖЕНИЕ): " + voltage);
+                System.out.println("[PARSER] ⚡ Позиции 60-61 (ТОК): " + current);
+                System.out.println("[PARSER] 🔌 Позиции 62-63 (НАПРЯЖЕНИЕ): " + voltage);
                 
                 // Попробуем интерпретировать как числа
                 try {
@@ -303,7 +303,7 @@ public class WeldingDataParserService {
             addProperty(properties, "State.I", current, "number");
             addProperty(properties, "State.U", voltage, "number");
         } else {
-            System.out.println("[PARSER] ❌ Длина payload недостаточная: " + payload.length() + " < 34");
+            System.out.println("[PARSER] ❌ Длина payload недостаточная: " + payload.length() + " < 64");
         }
 
         // Попробуем найти ток в позициях 40-50
