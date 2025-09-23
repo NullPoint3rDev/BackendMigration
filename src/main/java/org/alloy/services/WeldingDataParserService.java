@@ -20,6 +20,10 @@ public class WeldingDataParserService {
     private boolean debugMode;
 
     public StateSummary parseWeldingData(String data, String mac) {
+        System.out.println("[PARSER] 🚀 НАЧАЛО ПАРСИНГА");
+        System.out.println("[PARSER] 🔍 Парсинг данных: " + data);
+        System.out.println("[PARSER] MAC: " + mac);
+        
         if (debugMode) {
             System.out.println("[PARSER] 🔍 Парсинг данных: " + data);
             System.out.println("[PARSER] MAC: " + mac);
