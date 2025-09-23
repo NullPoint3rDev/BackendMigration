@@ -269,18 +269,18 @@ public class WeldingDataParserService {
             System.out.println("[PARSER]   Позиции 60-61 (ток): '" + current + "'");
             System.out.println("[PARSER]   Позиции 62-63 (напряжение): '" + voltage + "'");
             
-            // Логируем участок payload вокруг позиций 60-63 для анализа
-            int start = Math.max(0, 55);
-            int end = Math.min(payload.length(), 70);
-            String section = payload.substring(start, end);
-            System.out.println("[PARSER] 🔍 Участок payload (позиции " + start + "-" + (end-1) + "): " + section);
-            
-            // Показываем позиции символов
-            StringBuilder positions = new StringBuilder();
-            for (int i = start; i < end; i++) {
-                positions.append(String.format("%2d", i)).append(" ");
+            // Логируем весь payload с позициями для поиска правильных значений
+            System.out.println("[PARSER] 🔍 ПОЛНЫЙ PAYLOAD С ПОЗИЦИЯМИ:");
+            for (int i = 0; i < payload.length(); i += 20) {
+                int end = Math.min(i + 20, payload.length());
+                String section = payload.substring(i, end);
+                StringBuilder positions = new StringBuilder();
+                for (int j = i; j < end; j++) {
+                    positions.append(String.format("%2d", j)).append(" ");
+                }
+                System.out.println("[PARSER]   " + String.format("%3d", i) + "-" + String.format("%3d", end-1) + ": " + section);
+                System.out.println("[PARSER]   Позиции: " + positions.toString());
             }
-            System.out.println("[PARSER] 🔍 Позиции:     " + positions.toString());
             
             if (debugMode) {
                 System.out.println("[PARSER] ⚡ Позиции 60-61 (ТОК): " + current);
