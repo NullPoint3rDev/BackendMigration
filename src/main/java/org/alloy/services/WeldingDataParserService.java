@@ -265,6 +265,23 @@ public class WeldingDataParserService {
             // Позиции 32-33 содержат НАПРЯЖЕНИЕ  
             String voltage = payload.substring(32, 34);
             
+            System.out.println("[PARSER] 🔍 Извлеченные значения:");
+            System.out.println("[PARSER]   Позиции 30-31 (ток): '" + current + "'");
+            System.out.println("[PARSER]   Позиции 32-33 (напряжение): '" + voltage + "'");
+            
+            // Логируем участок payload вокруг позиций 30-33 для анализа
+            int start = Math.max(0, 25);
+            int end = Math.min(payload.length(), 40);
+            String section = payload.substring(start, end);
+            System.out.println("[PARSER] 🔍 Участок payload (позиции " + start + "-" + (end-1) + "): " + section);
+            
+            // Показываем позиции символов
+            StringBuilder positions = new StringBuilder();
+            for (int i = start; i < end; i++) {
+                positions.append(String.format("%2d", i)).append(" ");
+            }
+            System.out.println("[PARSER] 🔍 Позиции:     " + positions.toString());
+            
             if (debugMode) {
                 System.out.println("[PARSER] ⚡ Позиции 30-31 (ТОК): " + current);
                 System.out.println("[PARSER] 🔌 Позиции 32-33 (НАПРЯЖЕНИЕ): " + voltage);
