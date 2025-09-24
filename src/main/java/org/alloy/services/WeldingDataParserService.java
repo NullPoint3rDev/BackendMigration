@@ -85,46 +85,55 @@ public class WeldingDataParserService {
         }
         
         // Анализируем каждые 2 символа для поиска возможного тока
-        if (debugMode) {
-            System.out.println("[PARSER] 🔍 Поиск возможных значений тока:");
-            int bestCurrentPosition = -1;
-            int bestCurrentValue = -1;
-            int minDifference = Integer.MAX_VALUE;
-            
-            for (int i = 0; i < payload.length() - 1; i += 2) {
-                if (i + 1 < payload.length()) {
-                    String value = payload.substring(i, i + 2);
-                    System.out.println("[PARSER]   Позиции " + i + "-" + (i+1) + ": " + value);
+        System.out.println("[PARSER] 🔍 Поиск возможных значений тока:");
+        int bestCurrentPosition = -1;
+        int bestCurrentValue = -1;
+        int minDifference = Integer.MAX_VALUE;
+        
+        for (int i = 0; i < payload.length() - 1; i += 2) {
+            if (i + 1 < payload.length()) {
+                String value = payload.substring(i, i + 2);
+                System.out.println("[PARSER]   Позиции " + i + "-" + (i+1) + ": " + value);
+                
+                // Попробуем интерпретировать как число
+                try {
+                    int numValue = Integer.parseInt(value, 16);
+                    System.out.println("[PARSER]     Как число (hex): " + numValue);
                     
-                    // Попробуем интерпретировать как число
-                    try {
-                        int numValue = Integer.parseInt(value, 16);
-                        System.out.println("[PARSER]     Как число (hex): " + numValue);
+                    // Если это число в диапазоне 100-120 (ток 104-111 А), это может быть ток
+                    if (numValue >= 100 && numValue <= 120) {
+                        System.out.println("[PARSER]     ⚡ ВОЗМОЖНЫЙ ТОК! Значение: " + numValue);
                         
-                        // Если это число в диапазоне 50-200, это может быть ток
-                        if (numValue >= 50 && numValue <= 200) {
-                            System.out.println("[PARSER]     ⚡ ВОЗМОЖНЫЙ ТОК! Значение: " + numValue);
-                            
-                            // Ищем значение, наиболее близкое к 65
-                            int difference = Math.abs(numValue - 65);
-                            if (difference < minDifference) {
-                                minDifference = difference;
-                                bestCurrentPosition = i;
-                                bestCurrentValue = numValue;
-                            }
+                        // Ищем значение, наиболее близкое к 108 (среднее между 104-111)
+                        int difference = Math.abs(numValue - 108);
+                        if (difference < minDifference) {
+                            minDifference = difference;
+                            bestCurrentPosition = i;
+                            bestCurrentValue = numValue;
                         }
-                    } catch (NumberFormatException e) {
-                        // Не число, пропускаем
                     }
+                } catch (NumberFormatException e) {
+                    // Не число, пропускаем
                 }
             }
+        }
+        
+        if (bestCurrentPosition >= 0) {
+            System.out.println("[PARSER] 🎯 НАИЛУЧШИЙ КАНДИДАТ НА ТОК:");
+            System.out.println("[PARSER]    Позиция: " + bestCurrentPosition + "-" + (bestCurrentPosition+1));
+            System.out.println("[PARSER]    Значение: " + bestCurrentValue);
+            System.out.println("[PARSER]    Разница с 108: " + minDifference);
             
-            if (bestCurrentPosition >= 0) {
-                System.out.println("[PARSER] 🎯 НАИЛУЧШИЙ КАНДИДАТ НА ТОК:");
-                System.out.println("[PARSER]    Позиция: " + bestCurrentPosition + "-" + (bestCurrentPosition+1));
-                System.out.println("[PARSER]    Значение: " + bestCurrentValue);
-                System.out.println("[PARSER]    Разница с 65: " + minDifference);
-            }
+            // Используем найденную позицию для тока
+            String current = payload.substring(bestCurrentPosition, bestCurrentPosition + 2);
+            String voltage = payload.substring(bestCurrentPosition + 2, bestCurrentPosition + 4);
+            
+            System.out.println("[PARSER] 🔧 АВТОМАТИЧЕСКИ УСТАНАВЛИВАЕМ:");
+            System.out.println("[PARSER]   State.I = " + current + " (позиции " + bestCurrentPosition + "-" + (bestCurrentPosition+1) + ")");
+            System.out.println("[PARSER]   State.U = " + voltage + " (позиции " + (bestCurrentPosition+2) + "-" + (bestCurrentPosition+3) + ")");
+            
+            addProperty(properties, "State.I", current, "number");
+            addProperty(properties, "State.U", voltage, "number");
         }
         
         // Original parsing logic with added logging
@@ -256,55 +265,9 @@ public class WeldingDataParserService {
             }
         }
 
-        // ПРАВИЛЬНЫЕ ПОЗИЦИИ ТОКА И НАПРЯЖЕНИЯ (на основе анализа данных)
-        System.out.println("[PARSER] 🔍 Проверяем длину payload: " + payload.length() + " >= 74?");
-        if (payload.length() >= 74) {
-            System.out.println("[PARSER] ✅ Длина достаточная, извлекаем ток и напряжение");
-            // Позиции 70-71 содержат ТОК
-            String current = payload.substring(70, 72);
-            // Позиции 72-73 содержат НАПРЯЖЕНИЕ  
-            String voltage = payload.substring(72, 74);
-            
-            System.out.println("[PARSER] 🔍 Извлеченные значения:");
-            System.out.println("[PARSER]   Позиции 70-71 (ток): '" + current + "'");
-            System.out.println("[PARSER]   Позиции 72-73 (напряжение): '" + voltage + "'");
-            
-            // Логируем весь payload с позициями для поиска правильных значений
-            System.out.println("[PARSER] 🔍 ПОЛНЫЙ PAYLOAD С ПОЗИЦИЯМИ:");
-            for (int i = 0; i < payload.length(); i += 20) {
-                int end = Math.min(i + 20, payload.length());
-                String section = payload.substring(i, end);
-                StringBuilder positions = new StringBuilder();
-                for (int j = i; j < end; j++) {
-                    positions.append(String.format("%2d", j)).append(" ");
-                }
-                System.out.println("[PARSER]   " + String.format("%3d", i) + "-" + String.format("%3d", end-1) + ": " + section);
-                System.out.println("[PARSER]   Позиции: " + positions.toString());
-            }
-            
-            if (debugMode) {
-                System.out.println("[PARSER] ⚡ Позиции 70-71 (ТОК): " + current);
-                System.out.println("[PARSER] 🔌 Позиции 72-73 (НАПРЯЖЕНИЕ): " + voltage);
-                
-                // Попробуем интерпретировать как числа
-                try {
-                    int currentValue = Integer.parseInt(current, 16);
-                    int voltageValue = Integer.parseInt(voltage, 16);
-                    System.out.println("[PARSER] 🔢 Ток как число: " + currentValue + " А");
-                    System.out.println("[PARSER] 🔢 Напряжение как число: " + voltageValue + " В");
-                } catch (NumberFormatException e) {
-                    System.out.println("[PARSER] ⚠️ Не удалось преобразовать в число");
-                }
-            }
-            
-            // Устанавливаем правильные значения тока и напряжения
-            System.out.println("[PARSER] 🔧 Устанавливаем State.I = " + current);
-            System.out.println("[PARSER] 🔧 Устанавливаем State.U = " + voltage);
-            addProperty(properties, "State.I", current, "number");
-            addProperty(properties, "State.U", voltage, "number");
-        } else {
-            System.out.println("[PARSER] ❌ Длина payload недостаточная: " + payload.length() + " < 74");
-        }
+        // СТАРЫЙ КОД С ФИКСИРОВАННЫМИ ПОЗИЦИЯМИ ОТКЛЮЧЕН
+        // Теперь используем автоматический поиск тока выше
+        System.out.println("[PARSER] ℹ️ Используем автоматический поиск тока вместо фиксированных позиций");
 
         // Попробуем найти ток в позициях 40-50
         if (payload.length() >= 50) {
