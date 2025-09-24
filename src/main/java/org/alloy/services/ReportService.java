@@ -31,6 +31,9 @@ public class ReportService {
     @Autowired
     private WeldingMachineService weldingMachineService;
 
+    @Autowired
+    private ReportDataService reportDataService;
+
     /**
      * Генерирует даты для отчета в зависимости от выбранного периода
      */
@@ -206,8 +209,12 @@ public class ReportService {
             }
         }
         
-        // Генерируем отчет по работе оборудования с тестовыми данными в зависимости от периода
-        byte[] reportData = generateEquipmentReportWithData(request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod());
+        // Получаем реальные данные из ReportDataService
+        List<WorkReportDTO> data = reportDataService.getWorkReportData(request);
+        System.out.println("✅ Получено " + data.size() + " записей данных");
+        
+        // Генерируем отчет с реальными данными
+        byte[] reportData = generateEquipmentReportWithRealData(data, request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod());
         
         try {
             // Записываем в историю
@@ -232,6 +239,27 @@ public class ReportService {
         }
         
         return reportData;
+    }
+
+    private byte[] generateEquipmentReportWithRealData(List<WorkReportDTO> data, String format, Integer weldingMachineId, String machineName, String period) throws IOException {
+        if ("EXCEL".equalsIgnoreCase(format)) {
+            return generateEquipmentExcelWithRealData(data, weldingMachineId, machineName, period);
+        } else if ("PDF".equalsIgnoreCase(format)) {
+            return generateEquipmentPdfWithRealData(data, weldingMachineId, machineName, period);
+        } else if ("CSV".equalsIgnoreCase(format)) {
+            return generateEquipmentCsvWithRealData(data, weldingMachineId, machineName, period);
+        }
+        throw new IllegalArgumentException("Unsupported format: " + format);
+    }
+
+    private byte[] generateEquipmentPdfWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period) throws IOException {
+        // Пока используем старый метод с тестовыми данными
+        return generateEquipmentPdfWithData(weldingMachineId, machineName, period);
+    }
+
+    private byte[] generateEquipmentCsvWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period) throws IOException {
+        // Пока используем старый метод с тестовыми данными
+        return generateEquipmentCsvWithData(weldingMachineId, machineName, period);
     }
 
     private byte[] generateEquipmentReportWithData(String format, Integer weldingMachineId, String machineName, String period) throws IOException {
@@ -597,6 +625,133 @@ public class ReportService {
                 row.createCell(6).setCellValue(200 + (int)(Math.random() * 300)); // Проволока, м/мин (200-500)
                 row.createCell(7).setCellValue(15 + (int)(Math.random() * 25)); // Газ, л/мин (15-40)
                 row.createCell(8).setCellValue(30 + (int)(Math.random() * 270)); // Время сварки (с) (30-300)
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private byte[] generateEquipmentExcelWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по работе оборудования");
+            
+            // Добавляем информацию о временном интервале
+            String[] periodInfo = generatePeriodInfo(period);
+            
+            Row periodRow = sheet.createRow(0);
+            Cell periodCell = periodRow.createCell(0);
+            periodCell.setCellValue(periodInfo[0]);
+            CellStyle periodStyle = workbook.createCellStyle();
+            Font periodFont = workbook.createFont();
+            periodFont.setBold(true);
+            periodFont.setFontHeightInPoints((short) 12);
+            periodStyle.setFont(periodFont);
+            periodCell.setCellStyle(periodStyle);
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 8));
+            
+            // Добавляем описание периода
+            Row descriptionRow = sheet.createRow(1);
+            Cell descriptionCell = descriptionRow.createCell(0);
+            descriptionCell.setCellValue(periodInfo[1]);
+            CellStyle descriptionStyle = workbook.createCellStyle();
+            Font descriptionFont = workbook.createFont();
+            descriptionFont.setFontHeightInPoints((short) 10);
+            descriptionStyle.setFont(descriptionFont);
+            descriptionCell.setCellStyle(descriptionStyle);
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(1, 1, 0, 8));
+            
+            // Добавляем информацию о выбранном аппарате
+            Row titleRow = sheet.createRow(2);
+            Cell titleCell = titleRow.createCell(0);
+            String machineInfo = (weldingMachineId != null) ? 
+                "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
+                "Отчет по работе оборудования (ID не указан)";
+            titleCell.setCellValue(machineInfo);
+            CellStyle titleStyle = workbook.createCellStyle();
+            Font titleFont = workbook.createFont();
+            titleFont.setBold(true);
+            titleFont.setFontHeightInPoints((short) 14);
+            titleStyle.setFont(titleFont);
+            titleCell.setCellStyle(titleStyle);
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 0, 8));
+            
+            // Создаем заголовки (начиная с 5-й строки)
+            Row headerRow = sheet.createRow(5);
+            String[] headers = {
+                "Дата", "Время", "Сварщик", "Сила тока, А",
+                "Масса проволоки, кг", "Напряжение, V", "Проволока, м/мин",
+                "Газ, л/мин", "Время сварки (с)"
+            };
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 4000);
+            }
+
+            // Заполняем реальными данными
+            int rowNum = 6;
+            for (WorkReportDTO item : data) {
+                Row row = sheet.createRow(rowNum++);
+                
+                // Дата
+                if (item.getStartTime() != null) {
+                    row.createCell(0).setCellValue(item.getStartTime().toLocalDate().toString());
+                } else {
+                    row.createCell(0).setCellValue("N/A");
+                }
+                
+                // Время
+                if (item.getStartTime() != null) {
+                    row.createCell(1).setCellValue(item.getStartTime().toLocalTime().toString());
+                } else {
+                    row.createCell(1).setCellValue("N/A");
+                }
+                
+                // Сварщик
+                row.createCell(2).setCellValue(item.getWelderName() != null ? item.getWelderName() : "N/A");
+                
+                // Сила тока
+                if (item.getCurrent() != null) {
+                    row.createCell(3).setCellValue(item.getCurrent().doubleValue());
+                } else {
+                    row.createCell(3).setCellValue(0.0);
+                }
+                
+                // Масса проволоки
+                if (item.getWireConsumption() != null) {
+                    row.createCell(4).setCellValue(item.getWireConsumption().doubleValue());
+                } else {
+                    row.createCell(4).setCellValue(0.0);
+                }
+                
+                // Напряжение
+                if (item.getVoltage() != null) {
+                    row.createCell(5).setCellValue(item.getVoltage().doubleValue());
+                } else {
+                    row.createCell(5).setCellValue(0.0);
+                }
+                
+                // Проволока, м/мин
+                if (item.getWireFeedRate() != null) {
+                    row.createCell(6).setCellValue(item.getWireFeedRate().doubleValue());
+                } else {
+                    row.createCell(6).setCellValue(0.0);
+                }
+                
+                // Газ, л/мин (не применимо для блока мониторинга)
+                row.createCell(7).setCellValue(0.0);
+                
+                // Время сварки
+                if (item.getWeldingTime() != null) {
+                    row.createCell(8).setCellValue(item.getWeldingTime().doubleValue());
+                } else {
+                    row.createCell(8).setCellValue(0.0);
+                }
             }
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
