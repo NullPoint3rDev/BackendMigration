@@ -128,11 +128,15 @@ public class ReportDataService {
     public List<WorkReportDTO> getWorkReportData(ReportRequestDTO request) {
         List<WorkReportDTO> data = new ArrayList<>();
         
-        System.out.println("[REPORT-DATA] 🔍 Запрос отчета по работе оборудования:");
+        System.out.println("[REPORT-DATA] ========================================");
+        System.out.println("[REPORT-DATA] 🔍 ЗАПРОС ОТЧЕТА ПО РАБОТЕ ОБОРУДОВАНИЯ");
+        System.out.println("[REPORT-DATA] ========================================");
         System.out.println("[REPORT-DATA]   WeldingMachineId: " + request.getWeldingMachineId());
         System.out.println("[REPORT-DATA]   Period: " + request.getPeriod());
         System.out.println("[REPORT-DATA]   DateFrom: " + request.getDateFrom());
         System.out.println("[REPORT-DATA]   DateTo: " + request.getDateTo());
+        System.out.println("[REPORT-DATA]   ReportType: " + request.getReportType());
+        System.out.println("[REPORT-DATA]   Format: " + request.getFormat());
         
         try {
             // Если указан конкретный аппарат, используем реальные данные
@@ -177,7 +181,7 @@ public class ReportDataService {
                             item.setWelderName("Оператор блока мониторинга");
                             item.setStartTime(dayData.getStartTime());
                             item.setEndTime(dayData.getEndTime());
-                            item.setWeldingTime(BigDecimal.ZERO); // Не применимо для блока мониторинга
+                            item.setWeldingTime(dayData.getWeldingTimeSeconds()); // Время сварки в секундах
                             item.setCurrent(dayData.getAverageCurrent());
                             item.setVoltage(dayData.getAverageVoltage());
                             item.setWeldingMode("Мониторинг");
@@ -186,7 +190,7 @@ public class ReportDataService {
                             item.setWireFeedRate(BigDecimal.ZERO); // Не применимо для блока мониторинга
                             item.setOrganizationUnitName(dayData.getOrganizationUnitName());
                             item.setNotes("Данные за " + dayData.getDate() + 
-                                " (Ток: " + dayData.getAverageCurrent() + "А, Напряжение: " + dayData.getAverageVoltage() + "В)");
+                                " (Ток: " + dayData.getAverageCurrent() + "А, Напряжение: " + dayData.getAverageVoltage() + "В, Время сварки: " + dayData.getWeldingTimeSeconds() + "с)");
                             data.add(item);
                         }
                         

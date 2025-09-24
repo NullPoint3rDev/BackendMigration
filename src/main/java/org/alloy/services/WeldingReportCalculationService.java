@@ -76,10 +76,27 @@ public class WeldingReportCalculationService {
             BigDecimal averageCurrent = calculateAverageForActiveWelding(currentValues, "State.I");
             BigDecimal averageVoltage = calculateAverageForActiveWelding(voltageValues, "State.U");
 
+            // Рассчитываем время сварки
+            long activeWeldingCount = currentValues.stream()
+                    .map(WeldingMachineParameterValue::getValue)
+                    .filter(value -> value != null && !value.trim().isEmpty())
+                    .mapToLong(value -> {
+                        try {
+                            int hexValue = Integer.parseInt(value, 16);
+                            return hexValue > 0 ? 1 : 0; // Считаем только активную сварку
+                        } catch (NumberFormatException e) {
+                            return 0;
+                        }
+                    })
+                    .sum();
+            
+            BigDecimal weldingTimeSeconds = BigDecimal.valueOf(activeWeldingCount);
+            
             System.out.println("[REPORT-CALC] ✅ Средний ток: " + averageCurrent + " А");
             System.out.println("[REPORT-CALC] ✅ Среднее напряжение: " + averageVoltage + " В");
+            System.out.println("[REPORT-CALC] ✅ Время сварки: " + weldingTimeSeconds + " с");
 
-            return new AverageValues(averageCurrent, averageVoltage);
+            return new AverageValues(averageCurrent, averageVoltage, weldingTimeSeconds);
 
         } catch (Exception e) {
             System.err.println("[REPORT-CALC] ❌ Ошибка расчета средних значений: " + e.getMessage());
@@ -134,10 +151,18 @@ public class WeldingReportCalculationService {
     public static class AverageValues {
         private final BigDecimal averageCurrent;
         private final BigDecimal averageVoltage;
+        private final BigDecimal weldingTimeSeconds;
 
         public AverageValues(BigDecimal averageCurrent, BigDecimal averageVoltage) {
             this.averageCurrent = averageCurrent;
             this.averageVoltage = averageVoltage;
+            this.weldingTimeSeconds = BigDecimal.ZERO;
+        }
+
+        public AverageValues(BigDecimal averageCurrent, BigDecimal averageVoltage, BigDecimal weldingTimeSeconds) {
+            this.averageCurrent = averageCurrent;
+            this.averageVoltage = averageVoltage;
+            this.weldingTimeSeconds = weldingTimeSeconds;
         }
 
         public BigDecimal getAverageCurrent() {
@@ -147,6 +172,10 @@ public class WeldingReportCalculationService {
         public BigDecimal getAverageVoltage() {
             return averageVoltage;
         }
+
+        public BigDecimal getWeldingTimeSeconds() {
+            return weldingTimeSeconds;
+        }
     }
 
     /**
@@ -155,6 +184,12 @@ public class WeldingReportCalculationService {
      */
     public List<DailyAverageValues> calculateDailyAverageValues(String mac, LocalDateTime startDate, LocalDateTime endDate) {
         List<DailyAverageValues> dailyData = new ArrayList<>();
+        
+        System.out.println("[REPORT-CALC] ========================================");
+        System.out.println("[REPORT-CALC] 🔍 РАСЧЕТ ДАННЫХ ПО ДНЯМ");
+        System.out.println("[REPORT-CALC] ========================================");
+        System.out.println("[REPORT-CALC] MAC: " + mac);
+        System.out.println("[REPORT-CALC] Период: " + startDate + " - " + endDate);
         
         try {
             // Находим аппарат по MAC
@@ -186,6 +221,7 @@ public class WeldingReportCalculationService {
                 dayData.setEndTime(dayEnd);
                 dayData.setAverageCurrent(dayAverages.getAverageCurrent());
                 dayData.setAverageVoltage(dayAverages.getAverageVoltage());
+                dayData.setWeldingTimeSeconds(dayAverages.getWeldingTimeSeconds());
                 dayData.setWeldingMachineId(machine.getId());
                 dayData.setWeldingMachineName(machine.getName());
                 dayData.setOrganizationUnitName(machine.getOrganizationUnit() != null ? 
@@ -194,7 +230,7 @@ public class WeldingReportCalculationService {
                 dailyData.add(dayData);
                 
                 System.out.println("[REPORT-CALC] 📊 " + currentDate.toLocalDate() + 
-                    ": Ток=" + dayAverages.getAverageCurrent() + "А, Напряжение=" + dayAverages.getAverageVoltage() + "В");
+                    ": Ток=" + dayAverages.getAverageCurrent() + "А, Напряжение=" + dayAverages.getAverageVoltage() + "В, Время сварки=" + dayAverages.getWeldingTimeSeconds() + "с");
                 
                 // Переходим к следующему дню
                 currentDate = currentDate.plusDays(1);
@@ -214,12 +250,17 @@ public class WeldingReportCalculationService {
      * Рассчитывает средние значения для конкретного периода (вспомогательный метод)
      */
     private AverageValues calculateAverageValuesForPeriod(Integer machineId, LocalDateTime startDate, LocalDateTime endDate) {
+        System.out.println("[REPORT-CALC] 🔍 Расчет для периода: " + startDate + " - " + endDate + " (MachineId: " + machineId + ")");
+        
         try {
             // Получаем состояния за указанный период
             List<WeldingMachineState> states = weldingMachineStateRepository
                     .findByWeldingMachineIdAndDateRange(machineId, startDate, endDate);
 
+            System.out.println("[REPORT-CALC] 📊 Найдено состояний за период: " + states.size());
+
             if (states.isEmpty()) {
+                System.out.println("[REPORT-CALC] ⚠️ Нет данных за период " + startDate + " - " + endDate);
                 return new AverageValues(BigDecimal.ZERO, BigDecimal.ZERO);
             }
 
@@ -234,11 +275,33 @@ public class WeldingReportCalculationService {
             List<WeldingMachineParameterValue> voltageValues = parameterValueRepository
                     .findByStateIdsAndPropertyCode(stateIds, "State.U");
 
+            System.out.println("[REPORT-CALC] ⚡ Найдено значений тока: " + currentValues.size());
+            System.out.println("[REPORT-CALC] 🔌 Найдено значений напряжения: " + voltageValues.size());
+
             // Рассчитываем средние значения
             BigDecimal averageCurrent = calculateAverageForActiveWelding(currentValues, "State.I");
             BigDecimal averageVoltage = calculateAverageForActiveWelding(voltageValues, "State.U");
+            
+            // Рассчитываем время сварки (количество активных записей * интервал между записями)
+            long activeWeldingCount = currentValues.stream()
+                    .map(WeldingMachineParameterValue::getValue)
+                    .filter(value -> value != null && !value.trim().isEmpty())
+                    .mapToLong(value -> {
+                        try {
+                            int hexValue = Integer.parseInt(value, 16);
+                            return hexValue > 0 ? 1 : 0; // Считаем только активную сварку
+                        } catch (NumberFormatException e) {
+                            return 0;
+                        }
+                    })
+                    .sum();
+            
+            // Предполагаем интервал между записями 1 секунда (данные приходят каждую секунду)
+            BigDecimal weldingTimeSeconds = BigDecimal.valueOf(activeWeldingCount);
+            
+            System.out.println("[REPORT-CALC] ✅ Результат: Ток=" + averageCurrent + "А, Напряжение=" + averageVoltage + "В, Время сварки=" + weldingTimeSeconds + "с");
 
-            return new AverageValues(averageCurrent, averageVoltage);
+            return new AverageValues(averageCurrent, averageVoltage, weldingTimeSeconds);
 
         } catch (Exception e) {
             System.err.println("[REPORT-CALC] ❌ Ошибка расчета для периода: " + e.getMessage());
@@ -255,6 +318,7 @@ public class WeldingReportCalculationService {
         private LocalDateTime endTime;
         private BigDecimal averageCurrent;
         private BigDecimal averageVoltage;
+        private BigDecimal weldingTimeSeconds; // время сварки в секундах
         private Integer weldingMachineId;
         private String weldingMachineName;
         private String organizationUnitName;
@@ -274,6 +338,9 @@ public class WeldingReportCalculationService {
         
         public BigDecimal getAverageVoltage() { return averageVoltage; }
         public void setAverageVoltage(BigDecimal averageVoltage) { this.averageVoltage = averageVoltage; }
+        
+        public BigDecimal getWeldingTimeSeconds() { return weldingTimeSeconds; }
+        public void setWeldingTimeSeconds(BigDecimal weldingTimeSeconds) { this.weldingTimeSeconds = weldingTimeSeconds; }
         
         public Integer getWeldingMachineId() { return weldingMachineId; }
         public void setWeldingMachineId(Integer weldingMachineId) { this.weldingMachineId = weldingMachineId; }
