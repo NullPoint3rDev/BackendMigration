@@ -97,6 +97,56 @@ public class ReportController {
         }
     }
 
+    // Новые endpoints для получения данных отчетов для просмотра онлайн
+    
+    @PostMapping("/data/wire-consumption")
+    public ResponseEntity<List<WireConsumptionReportDTO>> getWireConsumptionData(@RequestBody ReportRequestDTO request) {
+        try {
+            List<WireConsumptionReportDTO> data = reportDataService.getWireConsumptionData(request);
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            System.err.println("Ошибка получения данных отчета по расходу проволоки: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/data/welder")
+    public ResponseEntity<List<WelderReportDTO>> getWelderData(@RequestBody ReportRequestDTO request) {
+        try {
+            List<WelderReportDTO> data = reportDataService.getWelderReportData(request);
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            System.err.println("Ошибка получения данных отчета по сварщику: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/data/work")
+    public ResponseEntity<List<WorkReportDTO>> getWorkData(@RequestBody ReportRequestDTO request) {
+        try {
+            List<WorkReportDTO> data = reportDataService.getWorkReportData(request);
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            System.err.println("Ошибка получения данных отчета по работе оборудования: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/data/equipment")
+    public ResponseEntity<List<WorkReportDTO>> getEquipmentData(@RequestBody ReportRequestDTO request) {
+        try {
+            List<WorkReportDTO> data = reportDataService.getWorkReportData(request);
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            System.err.println("Ошибка получения данных отчета по оборудованию: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping("/types")
     public ResponseEntity<List<String>> getReportTypes() {
         List<String> reportTypes = List.of("WIRE_CONSUMPTION", "WELDER_REPORT", "WORK_REPORT");
