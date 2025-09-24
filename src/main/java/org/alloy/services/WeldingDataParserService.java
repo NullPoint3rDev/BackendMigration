@@ -134,6 +134,20 @@ public class WeldingDataParserService {
             
             addProperty(properties, "State.I", current, "number");
             addProperty(properties, "State.U", voltage, "number");
+        } else {
+            // Если ток не найден в диапазоне 100-120, ищем в позициях 72-73 (где был найден ток 112)
+            System.out.println("[PARSER] ⚠️ Ток не найден в диапазоне 100-120, используем фиксированные позиции 72-73");
+            if (payload.length() >= 76) {
+                String current = payload.substring(72, 74);
+                String voltage = payload.substring(74, 76);
+                
+                System.out.println("[PARSER] 🔧 УСТАНАВЛИВАЕМ ИЗ ФИКСИРОВАННЫХ ПОЗИЦИЙ:");
+                System.out.println("[PARSER]   State.I = " + current + " (позиции 72-73)");
+                System.out.println("[PARSER]   State.U = " + voltage + " (позиции 74-75)");
+                
+                addProperty(properties, "State.I", current, "number");
+                addProperty(properties, "State.U", voltage, "number");
+            }
         }
         
         // Original parsing logic with added logging
