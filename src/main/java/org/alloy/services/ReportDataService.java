@@ -128,20 +128,38 @@ public class ReportDataService {
     public List<WorkReportDTO> getWorkReportData(ReportRequestDTO request) {
         List<WorkReportDTO> data = new ArrayList<>();
         
+        System.out.println("[REPORT-DATA] 🔍 Запрос отчета по работе оборудования:");
+        System.out.println("[REPORT-DATA]   WeldingMachineId: " + request.getWeldingMachineId());
+        System.out.println("[REPORT-DATA]   Period: " + request.getPeriod());
+        System.out.println("[REPORT-DATA]   DateFrom: " + request.getDateFrom());
+        System.out.println("[REPORT-DATA]   DateTo: " + request.getDateTo());
+        
         try {
             // Если указан конкретный аппарат, используем реальные данные
             if (request.getWeldingMachineId() != null) {
                 Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(request.getWeldingMachineId());
                 if (machineOpt.isPresent()) {
                     WeldingMachine machine = machineOpt.get();
+                    System.out.println("[REPORT-DATA] 🔍 Найден аппарат: " + machine.getName() + " (MAC: " + machine.getMac() + ")");
                     
-                    // Конвертируем LocalDate в LocalDateTime для расчета
-                    LocalDateTime startDate = request.getDateFrom() != null ? 
-                        request.getDateFrom().atStartOfDay() : 
-                        LocalDateTime.now().minusDays(1);
-                    LocalDateTime endDate = request.getDateTo() != null ? 
-                        request.getDateTo().atTime(23, 59, 59) : 
-                        LocalDateTime.now();
+                    // Определяем период на основе параметра period
+                    LocalDateTime startDate, endDate;
+                    if ("DAY".equals(request.getPeriod())) {
+                        // За день - используем сегодняшний день
+                        LocalDate today = LocalDate.now();
+                        startDate = today.atStartOfDay();
+                        endDate = today.atTime(23, 59, 59);
+                        System.out.println("[REPORT-DATA] 📅 Период 'DAY': " + startDate + " - " + endDate);
+                    } else {
+                        // Используем переданные даты или по умолчанию
+                        startDate = request.getDateFrom() != null ? 
+                            request.getDateFrom().atStartOfDay() : 
+                            LocalDateTime.now().minusDays(1);
+                        endDate = request.getDateTo() != null ? 
+                            request.getDateTo().atTime(23, 59, 59) : 
+                            LocalDateTime.now();
+                        System.out.println("[REPORT-DATA] 📅 Период по датам: " + startDate + " - " + endDate);
+                    }
                     
                     // Рассчитываем средние значения для блока мониторинга ОГК
                     if ("8CAAB50C4254".equals(machine.getMac())) {
@@ -175,13 +193,29 @@ public class ReportDataService {
                         System.out.println("[REPORT-DATA] ✅ Создан отчет по работе оборудования для блока мониторинга ОГК с " + 
                             dailyData.size() + " записями по дням");
                         return data;
+                    } else {
+                        System.out.println("[REPORT-DATA] ⚠️ Аппарат не является блоком мониторинга ОГК (MAC: " + machine.getMac() + ")");
                     }
+                } else {
+                    System.out.println("[REPORT-DATA] ❌ Аппарат с ID " + request.getWeldingMachineId() + " не найден");
                 }
+            } else {
+                System.out.println("[REPORT-DATA] ⚠️ WeldingMachineId не указан в запросе");
             }
             
             // Для других аппаратов используем моковые данные (как было)
             System.out.println("[REPORT-DATA] ⚠️ Используем моковые данные для отчета по работе оборудования");
-            LocalDateTime baseDate = LocalDateTime.now();
+            
+            // Определяем базовую дату в зависимости от периода
+            LocalDateTime baseDate;
+            if ("DAY".equals(request.getPeriod())) {
+                // За день - используем только сегодняшний день
+                baseDate = LocalDateTime.now().withHour(15).withMinute(13).withSecond(0);
+                System.out.println("[REPORT-DATA] 📅 Моковые данные за день: " + baseDate.toLocalDate());
+            } else {
+                // Для других периодов - используем разные даты
+                baseDate = LocalDateTime.now();
+            }
             
             for (int i = 0; i < 8; i++) {
                 WorkReportDTO item = new WorkReportDTO();
@@ -190,8 +224,17 @@ public class ReportDataService {
                 item.setWeldingMachineSerialNumber("SN" + (1000 + i));
                 item.setWelderId(1 + i % 2);
                 item.setWelderName("Сварщик " + (1 + i % 2));
-                item.setStartTime(baseDate.minusHours(i * 2));
-                item.setEndTime(baseDate.minusHours(i * 2).plusMinutes(45 + i * 5));
+                
+                if ("DAY".equals(request.getPeriod())) {
+                    // За день - все записи в один день, но в разное время
+                    item.setStartTime(baseDate.plusMinutes(i * 30));
+                    item.setEndTime(baseDate.plusMinutes(i * 30).plusMinutes(45 + i * 5));
+                } else {
+                    // Для других периодов - разные даты
+                    item.setStartTime(baseDate.minusHours(i * 2));
+                    item.setEndTime(baseDate.minusHours(i * 2).plusMinutes(45 + i * 5));
+                }
+                
                 item.setWeldingTime(BigDecimal.valueOf(45 + i * 5));
                 item.setCurrent(BigDecimal.valueOf(180 + i * 8));
                 item.setVoltage(BigDecimal.valueOf(22 + i * 0.4));
