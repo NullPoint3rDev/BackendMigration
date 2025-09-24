@@ -127,8 +127,8 @@ public class WeldingDataParserService {
             // Используем найденную позицию для тока
             String current = payload.substring(bestCurrentPosition, bestCurrentPosition + 2);
             
-            // Ищем напряжение в диапазоне 20-50 В (14-32 в hex)
-            System.out.println("[PARSER] 🔍 Поиск напряжения в диапазоне 20-50 В:");
+            // Ищем напряжение в диапазоне 15-50 В (0F-32 в hex) - расширенный диапазон
+            System.out.println("[PARSER] 🔍 Поиск напряжения в диапазоне 15-50 В:");
             int bestVoltagePosition = -1;
             int bestVoltageValue = -1;
             int minVoltageDifference = Integer.MAX_VALUE;
@@ -138,12 +138,12 @@ public class WeldingDataParserService {
                     String value = payload.substring(i, i + 2);
                     try {
                         int numValue = Integer.parseInt(value, 16);
-                        // Если это число в диапазоне 20-50 В (14-32 в hex)
-                        if (numValue >= 20 && numValue <= 50) {
+                        // Если это число в диапазоне 15-50 В (0F-32 в hex) - расширенный диапазон
+                        if (numValue >= 15 && numValue <= 50) {
                             System.out.println("[PARSER]   Позиции " + i + "-" + (i+1) + ": " + value + " = " + numValue + " В ⚡ ВОЗМОЖНОЕ НАПРЯЖЕНИЕ!");
                             
-                            // Ищем значение, наиболее близкое к 25 В
-                            int difference = Math.abs(numValue - 25);
+                            // Ищем значение, наиболее близкое к 20 В
+                            int difference = Math.abs(numValue - 20);
                             if (difference < minVoltageDifference) {
                                 minVoltageDifference = difference;
                                 bestVoltagePosition = i;
@@ -163,9 +163,17 @@ public class WeldingDataParserService {
                 System.out.println("[PARSER]    Позиция: " + bestVoltagePosition + "-" + (bestVoltagePosition+1));
                 System.out.println("[PARSER]    Значение: " + bestVoltageValue + " В");
             } else {
-                // Fallback к позиции рядом с током
-                voltage = payload.substring(bestCurrentPosition + 2, bestCurrentPosition + 4);
-                System.out.println("[PARSER] ⚠️ Напряжение не найдено в диапазоне 20-50 В, используем позицию рядом с током");
+                // Fallback к позиции рядом с током, но проверяем границы
+                int voltageStart = bestCurrentPosition + 2;
+                int voltageEnd = bestCurrentPosition + 4;
+                if (voltageEnd <= payload.length()) {
+                    voltage = payload.substring(voltageStart, voltageEnd);
+                    System.out.println("[PARSER] ⚠️ Напряжение не найдено в диапазоне 20-50 В, используем позицию рядом с током");
+                } else {
+                    // Если позиция рядом с током выходит за границы, используем фиксированную позицию 78-79
+                    voltage = payload.length() >= 80 ? payload.substring(78, 80) : "00";
+                    System.out.println("[PARSER] ⚠️ Позиция рядом с током выходит за границы, используем фиксированную позицию 78-79");
+                }
             }
             
             System.out.println("[PARSER] 🔧 АВТОМАТИЧЕСКИ УСТАНАВЛИВАЕМ:");
