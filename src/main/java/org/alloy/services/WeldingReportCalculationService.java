@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -146,5 +147,141 @@ public class WeldingReportCalculationService {
         public BigDecimal getAverageVoltage() {
             return averageVoltage;
         }
+    }
+
+    /**
+     * Рассчитывает средние значения тока и напряжения по дням для указанного аппарата за период времени
+     * Возвращает список данных по дням для отчета по работе оборудования
+     */
+    public List<DailyAverageValues> calculateDailyAverageValues(String mac, LocalDateTime startDate, LocalDateTime endDate) {
+        List<DailyAverageValues> dailyData = new ArrayList<>();
+        
+        try {
+            // Находим аппарат по MAC
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
+            if (!machineOpt.isPresent()) {
+                System.out.println("[REPORT-CALC] ❌ Аппарат с MAC " + mac + " не найден");
+                return dailyData;
+            }
+
+            WeldingMachine machine = machineOpt.get();
+            System.out.println("[REPORT-CALC] 🔍 Расчет по дням для аппарата: " + machine.getName() + " (MAC: " + mac + ")");
+            System.out.println("[REPORT-CALC] 📅 Период: " + startDate + " - " + endDate);
+
+            // Генерируем список дней в периоде
+            LocalDateTime currentDate = startDate.toLocalDate().atStartOfDay();
+            LocalDateTime endOfPeriod = endDate.toLocalDate().atTime(23, 59, 59);
+            
+            while (!currentDate.isAfter(endOfPeriod)) {
+                LocalDateTime dayStart = currentDate;
+                LocalDateTime dayEnd = currentDate.toLocalDate().atTime(23, 59, 59);
+                
+                // Рассчитываем средние значения для этого дня
+                AverageValues dayAverages = calculateAverageValuesForPeriod(machine.getId(), dayStart, dayEnd);
+                
+                // Создаем запись для дня
+                DailyAverageValues dayData = new DailyAverageValues();
+                dayData.setDate(currentDate.toLocalDate());
+                dayData.setStartTime(dayStart);
+                dayData.setEndTime(dayEnd);
+                dayData.setAverageCurrent(dayAverages.getAverageCurrent());
+                dayData.setAverageVoltage(dayAverages.getAverageVoltage());
+                dayData.setWeldingMachineId(machine.getId());
+                dayData.setWeldingMachineName(machine.getName());
+                dayData.setOrganizationUnitName(machine.getOrganizationUnit() != null ? 
+                    machine.getOrganizationUnit().getName() : "Не указано");
+                
+                dailyData.add(dayData);
+                
+                System.out.println("[REPORT-CALC] 📊 " + currentDate.toLocalDate() + 
+                    ": Ток=" + dayAverages.getAverageCurrent() + "А, Напряжение=" + dayAverages.getAverageVoltage() + "В");
+                
+                // Переходим к следующему дню
+                currentDate = currentDate.plusDays(1);
+            }
+            
+            System.out.println("[REPORT-CALC] ✅ Создано " + dailyData.size() + " записей по дням");
+            
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ❌ Ошибка расчета данных по дням: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return dailyData;
+    }
+
+    /**
+     * Рассчитывает средние значения для конкретного периода (вспомогательный метод)
+     */
+    private AverageValues calculateAverageValuesForPeriod(Integer machineId, LocalDateTime startDate, LocalDateTime endDate) {
+        try {
+            // Получаем состояния за указанный период
+            List<WeldingMachineState> states = weldingMachineStateRepository
+                    .findByWeldingMachineIdAndDateRange(machineId, startDate, endDate);
+
+            if (states.isEmpty()) {
+                return new AverageValues(BigDecimal.ZERO, BigDecimal.ZERO);
+            }
+
+            // Собираем ID состояний
+            List<Long> stateIds = states.stream()
+                    .map(WeldingMachineState::getId)
+                    .collect(java.util.stream.Collectors.toList());
+
+            // Получаем значения тока и напряжения
+            List<WeldingMachineParameterValue> currentValues = parameterValueRepository
+                    .findByStateIdsAndPropertyCode(stateIds, "State.I");
+            List<WeldingMachineParameterValue> voltageValues = parameterValueRepository
+                    .findByStateIdsAndPropertyCode(stateIds, "State.U");
+
+            // Рассчитываем средние значения
+            BigDecimal averageCurrent = calculateAverageForActiveWelding(currentValues, "State.I");
+            BigDecimal averageVoltage = calculateAverageForActiveWelding(voltageValues, "State.U");
+
+            return new AverageValues(averageCurrent, averageVoltage);
+
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ❌ Ошибка расчета для периода: " + e.getMessage());
+            return new AverageValues(BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+    }
+
+    /**
+     * Класс для хранения средних значений по дням
+     */
+    public static class DailyAverageValues {
+        private java.time.LocalDate date;
+        private LocalDateTime startTime;
+        private LocalDateTime endTime;
+        private BigDecimal averageCurrent;
+        private BigDecimal averageVoltage;
+        private Integer weldingMachineId;
+        private String weldingMachineName;
+        private String organizationUnitName;
+
+        // Getters and setters
+        public java.time.LocalDate getDate() { return date; }
+        public void setDate(java.time.LocalDate date) { this.date = date; }
+        
+        public LocalDateTime getStartTime() { return startTime; }
+        public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+        
+        public LocalDateTime getEndTime() { return endTime; }
+        public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
+        
+        public BigDecimal getAverageCurrent() { return averageCurrent; }
+        public void setAverageCurrent(BigDecimal averageCurrent) { this.averageCurrent = averageCurrent; }
+        
+        public BigDecimal getAverageVoltage() { return averageVoltage; }
+        public void setAverageVoltage(BigDecimal averageVoltage) { this.averageVoltage = averageVoltage; }
+        
+        public Integer getWeldingMachineId() { return weldingMachineId; }
+        public void setWeldingMachineId(Integer weldingMachineId) { this.weldingMachineId = weldingMachineId; }
+        
+        public String getWeldingMachineName() { return weldingMachineName; }
+        public void setWeldingMachineName(String weldingMachineName) { this.weldingMachineName = weldingMachineName; }
+        
+        public String getOrganizationUnitName() { return organizationUnitName; }
+        public void setOrganizationUnitName(String organizationUnitName) { this.organizationUnitName = organizationUnitName; }
     }
 }

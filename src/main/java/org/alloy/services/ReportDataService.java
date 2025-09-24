@@ -126,30 +126,88 @@ public class ReportDataService {
     }
 
     public List<WorkReportDTO> getWorkReportData(ReportRequestDTO request) {
-        // Моковые данные для демонстрации
         List<WorkReportDTO> data = new ArrayList<>();
         
-        LocalDateTime baseDate = LocalDateTime.now();
-        
-        for (int i = 0; i < 8; i++) {
-            WorkReportDTO item = new WorkReportDTO();
-            item.setWeldingMachineId(1 + i % 3);
-            item.setWeldingMachineName("Аппарат " + (1 + i % 3));
-            item.setWeldingMachineSerialNumber("SN" + (1000 + i));
-            item.setWelderId(1 + i % 2);
-            item.setWelderName("Сварщик " + (1 + i % 2));
-            item.setStartTime(baseDate.minusHours(i * 2));
-            item.setEndTime(baseDate.minusHours(i * 2).plusMinutes(45 + i * 5));
-            item.setWeldingTime(BigDecimal.valueOf(45 + i * 5));
-            item.setCurrent(BigDecimal.valueOf(180 + i * 8));
-            item.setVoltage(BigDecimal.valueOf(22 + i * 0.4));
-            item.setWeldingMode("Ручной");
-            item.setWeldingType("MIG/MAG");
-            item.setWireConsumption(BigDecimal.valueOf(3.2 + i * 0.4));
-            item.setWireFeedRate(BigDecimal.valueOf(5.1 + i * 0.2));
-            item.setOrganizationUnitName("Цех " + (1 + i % 2));
-            item.setNotes("Сессия " + (i + 1));
-            data.add(item);
+        try {
+            // Если указан конкретный аппарат, используем реальные данные
+            if (request.getWeldingMachineId() != null) {
+                Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(request.getWeldingMachineId());
+                if (machineOpt.isPresent()) {
+                    WeldingMachine machine = machineOpt.get();
+                    
+                    // Конвертируем LocalDate в LocalDateTime для расчета
+                    LocalDateTime startDate = request.getDateFrom() != null ? 
+                        request.getDateFrom().atStartOfDay() : 
+                        LocalDateTime.now().minusDays(1);
+                    LocalDateTime endDate = request.getDateTo() != null ? 
+                        request.getDateTo().atTime(23, 59, 59) : 
+                        LocalDateTime.now();
+                    
+                    // Рассчитываем средние значения для блока мониторинга ОГК
+                    if ("8CAAB50C4254".equals(machine.getMac())) {
+                        // Используем расчет по дням для более детального отчета
+                        List<WeldingReportCalculationService.DailyAverageValues> dailyData = 
+                            calculationService.calculateDailyAverageValues(machine.getMac(), startDate, endDate);
+                        
+                        // Конвертируем данные по дням в WorkReportDTO
+                        for (WeldingReportCalculationService.DailyAverageValues dayData : dailyData) {
+                            WorkReportDTO item = new WorkReportDTO();
+                            item.setWeldingMachineId(dayData.getWeldingMachineId());
+                            item.setWeldingMachineName(dayData.getWeldingMachineName());
+                            item.setWeldingMachineSerialNumber(machine.getSerialNumber() != null ? machine.getSerialNumber() : "N/A");
+                            item.setWelderId(1);
+                            item.setWelderName("Оператор блока мониторинга");
+                            item.setStartTime(dayData.getStartTime());
+                            item.setEndTime(dayData.getEndTime());
+                            item.setWeldingTime(BigDecimal.ZERO); // Не применимо для блока мониторинга
+                            item.setCurrent(dayData.getAverageCurrent());
+                            item.setVoltage(dayData.getAverageVoltage());
+                            item.setWeldingMode("Мониторинг");
+                            item.setWeldingType("Блок мониторинга");
+                            item.setWireConsumption(BigDecimal.ZERO); // Не применимо для блока мониторинга
+                            item.setWireFeedRate(BigDecimal.ZERO); // Не применимо для блока мониторинга
+                            item.setOrganizationUnitName(dayData.getOrganizationUnitName());
+                            item.setNotes("Данные за " + dayData.getDate() + 
+                                " (Ток: " + dayData.getAverageCurrent() + "А, Напряжение: " + dayData.getAverageVoltage() + "В)");
+                            data.add(item);
+                        }
+                        
+                        System.out.println("[REPORT-DATA] ✅ Создан отчет по работе оборудования для блока мониторинга ОГК с " + 
+                            dailyData.size() + " записями по дням");
+                        return data;
+                    }
+                }
+            }
+            
+            // Для других аппаратов используем моковые данные (как было)
+            System.out.println("[REPORT-DATA] ⚠️ Используем моковые данные для отчета по работе оборудования");
+            LocalDateTime baseDate = LocalDateTime.now();
+            
+            for (int i = 0; i < 8; i++) {
+                WorkReportDTO item = new WorkReportDTO();
+                item.setWeldingMachineId(1 + i % 3);
+                item.setWeldingMachineName("Аппарат " + (1 + i % 3));
+                item.setWeldingMachineSerialNumber("SN" + (1000 + i));
+                item.setWelderId(1 + i % 2);
+                item.setWelderName("Сварщик " + (1 + i % 2));
+                item.setStartTime(baseDate.minusHours(i * 2));
+                item.setEndTime(baseDate.minusHours(i * 2).plusMinutes(45 + i * 5));
+                item.setWeldingTime(BigDecimal.valueOf(45 + i * 5));
+                item.setCurrent(BigDecimal.valueOf(180 + i * 8));
+                item.setVoltage(BigDecimal.valueOf(22 + i * 0.4));
+                item.setWeldingMode("Ручной");
+                item.setWeldingType("MIG/MAG");
+                item.setWireConsumption(BigDecimal.valueOf(3.2 + i * 0.4));
+                item.setWireFeedRate(BigDecimal.valueOf(5.1 + i * 0.2));
+                item.setOrganizationUnitName("Цех " + (1 + i % 2));
+                item.setNotes("Сессия " + (i + 1));
+                data.add(item);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка получения данных отчета по работе оборудования: " + e.getMessage());
+            e.printStackTrace();
+            // Возвращаем пустой список в случае ошибки
         }
         
         return data;
