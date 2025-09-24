@@ -15,8 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.alloy.models.GeneralStatus;
+import org.alloy.models.entities.WeldingMachineParameterValue;
+import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
 
 @Service
 @Transactional
@@ -36,6 +39,9 @@ public class WeldingMachineStateService {
 
     @Autowired
     private OrganizationRepository organizationRepository;
+
+    @Autowired
+    private WeldingMachineParameterValueService parameterValueService;
 
     // ===== НОВЫЕ МЕТОДЫ ДЛЯ ИНТЕГРАЦИИ СО СВАРОЧНЫМИ АППАРАТАМИ =====
 
@@ -136,6 +142,28 @@ public class WeldingMachineStateService {
             
             // Сохраняем состояние
             weldingMachineStateRepository.save(state);
+            
+            // Сохраняем параметры (State.I, State.U и др.)
+            if (stateSummary.getProperties() != null && !stateSummary.getProperties().isEmpty()) {
+                for (Map.Entry<String, StateSummaryPropertyValue> entry : stateSummary.getProperties().entrySet()) {
+                    try {
+                        WeldingMachineParameterValue paramValue = new WeldingMachineParameterValue();
+                        paramValue.setWeldingMachineStateId(state.getId());
+                        paramValue.setPropertyCode(entry.getKey());
+                        paramValue.setValue(entry.getValue().getValue());
+                        paramValue.setPropertyType(entry.getValue().getPropertyType());
+                        paramValue.setRawValue(entry.getValue().getRawValue());
+                        paramValue.setLimitsExceeded(entry.getValue().isLimitsExceeded());
+                        paramValue.setLimitMin(entry.getValue().getLimitMin());
+                        paramValue.setLimitMax(entry.getValue().getLimitMax());
+                        
+                        parameterValueService.createParameterValue(paramValue);
+                        System.out.println("[STATE-SERVICE] ✅ Параметр " + entry.getKey() + " = " + entry.getValue().getValue() + " сохранен");
+                    } catch (Exception paramError) {
+                        System.err.println("[STATE-SERVICE] ⚠️ Ошибка сохранения параметра " + entry.getKey() + ": " + paramError.getMessage());
+                    }
+                }
+            }
             
             System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата " + mac);
             
