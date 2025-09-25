@@ -19,4 +19,5 @@ public class ReportRequestDTO {
     private List<Integer> welderIds;
     private String sortBy; // MACHINE, WELDER, DATE
     private boolean includeDetails;
+    private List<String> selectedColumns; // Выбранные столбцы для отчета
 } 

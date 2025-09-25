@@ -18,6 +18,7 @@ import org.alloy.services.WeldingMachineService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -214,7 +215,7 @@ public class ReportService {
         System.out.println("✅ Получено " + data.size() + " записей данных");
         
         // Генерируем отчет с реальными данными
-        byte[] reportData = generateEquipmentReportWithRealData(data, request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod());
+        byte[] reportData = generateEquipmentReportWithRealData(data, request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod(), request.getSelectedColumns());
         
         try {
             // Записываем в историю
@@ -241,23 +242,23 @@ public class ReportService {
         return reportData;
     }
 
-    private byte[] generateEquipmentReportWithRealData(List<WorkReportDTO> data, String format, Integer weldingMachineId, String machineName, String period) throws IOException {
+    private byte[] generateEquipmentReportWithRealData(List<WorkReportDTO> data, String format, Integer weldingMachineId, String machineName, String period, List<String> selectedColumns) throws IOException {
         if ("EXCEL".equalsIgnoreCase(format)) {
-            return generateEquipmentExcelWithRealData(data, weldingMachineId, machineName, period);
+            return generateEquipmentExcelWithRealData(data, weldingMachineId, machineName, period, selectedColumns);
         } else if ("PDF".equalsIgnoreCase(format)) {
-            return generateEquipmentPdfWithRealData(data, weldingMachineId, machineName, period);
+            return generateEquipmentPdfWithRealData(data, weldingMachineId, machineName, period, selectedColumns);
         } else if ("CSV".equalsIgnoreCase(format)) {
-            return generateEquipmentCsvWithRealData(data, weldingMachineId, machineName, period);
+            return generateEquipmentCsvWithRealData(data, weldingMachineId, machineName, period, selectedColumns);
         }
         throw new IllegalArgumentException("Unsupported format: " + format);
     }
 
-    private byte[] generateEquipmentPdfWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period) throws IOException {
+    private byte[] generateEquipmentPdfWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period, List<String> selectedColumns) throws IOException {
         // Пока используем старый метод с тестовыми данными
         return generateEquipmentPdfWithData(weldingMachineId, machineName, period);
     }
 
-    private byte[] generateEquipmentCsvWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period) throws IOException {
+    private byte[] generateEquipmentCsvWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period, List<String> selectedColumns) throws IOException {
         // Пока используем старый метод с тестовыми данными
         return generateEquipmentCsvWithData(weldingMachineId, machineName, period);
     }
@@ -633,7 +634,7 @@ public class ReportService {
         }
     }
 
-    private byte[] generateEquipmentExcelWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period) throws IOException {
+    private byte[] generateEquipmentExcelWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period, List<String> selectedColumns) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по работе оборудования");
             
@@ -1972,5 +1973,44 @@ public class ReportService {
         style.setBorderRight(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         return style;
+    }
+    
+    /**
+     * Определяет заголовки столбцов на основе выбранных пользователем
+     */
+    private List<String> getSelectedHeaders(List<String> selectedColumns) {
+        // Все доступные столбцы для отчета по оборудованию
+        Map<String, String> allColumns = new HashMap<>();
+        allColumns.put("Сварщик", "Сварщик");
+        allColumns.put("Режим", "Режим");
+        allColumns.put("Сила тока", "Сила тока, А");
+        allColumns.put("Масса проволоки", "Масса проволоки, кг");
+        allColumns.put("Напряжение", "Напряжение, V");
+        allColumns.put("Проволока", "Проволока, м/мин");
+        allColumns.put("Газ л/мин", "Газ, л/мин");
+        allColumns.put("Время сварки (с)", "Время сварки (с)");
+        
+        // Если не выбраны столбцы или список пустой, используем все
+        if (selectedColumns == null || selectedColumns.isEmpty()) {
+            return Arrays.asList(
+                "Дата", "Время", "Сварщик", "Сила тока, А",
+                "Масса проволоки, кг", "Напряжение, V", "Проволока, м/мин",
+                "Газ, л/мин", "Время сварки (с)"
+            );
+        }
+        
+        // Создаем список заголовков на основе выбранных столбцов
+        List<String> headers = new ArrayList<>();
+        headers.add("Дата"); // Дата всегда первая
+        headers.add("Время"); // Время всегда второе
+        
+        for (String selectedColumn : selectedColumns) {
+            String header = allColumns.get(selectedColumn);
+            if (header != null && !headers.contains(header)) {
+                headers.add(header);
+            }
+        }
+        
+        return headers;
     }
 } 

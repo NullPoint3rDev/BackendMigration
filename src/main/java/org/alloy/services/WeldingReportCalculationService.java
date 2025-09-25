@@ -119,10 +119,19 @@ public class WeldingReportCalculationService {
                 .filter(value -> value != null && !value.trim().isEmpty())
                 .map(value -> {
                     try {
-                        // Конвертируем hex в decimal
-                        int hexValue = Integer.parseInt(value, 16);
-                        return BigDecimal.valueOf(hexValue);
+                        // Сначала пробуем как hex, если не получается - как decimal
+                        int decimalValue;
+                        try {
+                            decimalValue = Integer.parseInt(value, 16);
+                            System.out.println("[REPORT-CALC] 🔍 " + propertyCode + ": hex '" + value + "' -> " + decimalValue);
+                        } catch (NumberFormatException hexException) {
+                            // Если не hex, пробуем как decimal
+                            decimalValue = Integer.parseInt(value, 10);
+                            System.out.println("[REPORT-CALC] 🔍 " + propertyCode + ": decimal '" + value + "' -> " + decimalValue);
+                        }
+                        return BigDecimal.valueOf(decimalValue);
                     } catch (NumberFormatException e) {
+                        System.out.println("[REPORT-CALC] ❌ " + propertyCode + ": не удалось распарсить '" + value + "'");
                         return BigDecimal.ZERO;
                     }
                 })
@@ -277,6 +286,18 @@ public class WeldingReportCalculationService {
 
             System.out.println("[REPORT-CALC] ⚡ Найдено значений тока: " + currentValues.size());
             System.out.println("[REPORT-CALC] 🔌 Найдено значений напряжения: " + voltageValues.size());
+            
+            // Логируем первые несколько значений для отладки
+            if (!currentValues.isEmpty()) {
+                System.out.println("[REPORT-CALC] 🔍 Первые 5 значений тока:");
+                currentValues.stream().limit(5).forEach(value -> 
+                    System.out.println("[REPORT-CALC]   - " + value.getPropertyCode() + ": '" + value.getValue() + "'"));
+            }
+            if (!voltageValues.isEmpty()) {
+                System.out.println("[REPORT-CALC] 🔍 Первые 5 значений напряжения:");
+                voltageValues.stream().limit(5).forEach(value -> 
+                    System.out.println("[REPORT-CALC]   - " + value.getPropertyCode() + ": '" + value.getValue() + "'"));
+            }
 
             // Рассчитываем средние значения
             BigDecimal averageCurrent = calculateAverageForActiveWelding(currentValues, "State.I");
