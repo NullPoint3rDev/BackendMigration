@@ -680,16 +680,14 @@ public class ReportService {
             
             // Создаем заголовки (начиная с 5-й строки)
             Row headerRow = sheet.createRow(5);
-            String[] headers = {
-                "Дата", "Время", "Сварщик", "Сила тока, А",
-                "Масса проволоки, кг", "Напряжение, V", "Проволока, м/мин",
-                "Газ, л/мин", "Время сварки (с)"
-            };
+            
+            // Определяем столбцы на основе выбранных или используем все по умолчанию
+            List<String> headers = getSelectedHeaders(selectedColumns);
 
             CellStyle headerStyle = createHeaderStyle(workbook);
-            for (int i = 0; i < headers.length; i++) {
+            for (int i = 0; i < headers.size(); i++) {
                 Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
+                cell.setCellValue(headers.get(i));
                 cell.setCellStyle(headerStyle);
                 sheet.setColumnWidth(i, 4000);
             }
@@ -698,61 +696,7 @@ public class ReportService {
             int rowNum = 6;
             for (WorkReportDTO item : data) {
                 Row row = sheet.createRow(rowNum++);
-                
-                // Дата
-                if (item.getStartTime() != null) {
-                    row.createCell(0).setCellValue(item.getStartTime().toLocalDate().toString());
-                } else {
-                    row.createCell(0).setCellValue("N/A");
-                }
-                
-                // Время
-                if (item.getStartTime() != null) {
-                    row.createCell(1).setCellValue(item.getStartTime().toLocalTime().toString());
-                } else {
-                    row.createCell(1).setCellValue("N/A");
-                }
-                
-                // Сварщик
-                row.createCell(2).setCellValue(item.getWelderName() != null ? item.getWelderName() : "N/A");
-                
-                // Сила тока
-                if (item.getCurrent() != null) {
-                    row.createCell(3).setCellValue(item.getCurrent().doubleValue());
-                } else {
-                    row.createCell(3).setCellValue(0.0);
-                }
-                
-                // Масса проволоки
-                if (item.getWireConsumption() != null) {
-                    row.createCell(4).setCellValue(item.getWireConsumption().doubleValue());
-                } else {
-                    row.createCell(4).setCellValue(0.0);
-                }
-                
-                // Напряжение
-                if (item.getVoltage() != null) {
-                    row.createCell(5).setCellValue(item.getVoltage().doubleValue());
-                } else {
-                    row.createCell(5).setCellValue(0.0);
-                }
-                
-                // Проволока, м/мин
-                if (item.getWireFeedRate() != null) {
-                    row.createCell(6).setCellValue(item.getWireFeedRate().doubleValue());
-                } else {
-                    row.createCell(6).setCellValue(0.0);
-                }
-                
-                // Газ, л/мин (не применимо для блока мониторинга)
-                row.createCell(7).setCellValue(0.0);
-                
-                // Время сварки
-                if (item.getWeldingTime() != null) {
-                    row.createCell(8).setCellValue(item.getWeldingTime().doubleValue());
-                } else {
-                    row.createCell(8).setCellValue(0.0);
-                }
+                fillRowWithData(row, item, headers);
             }
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -2012,5 +1956,86 @@ public class ReportService {
         }
         
         return headers;
+    }
+    
+    /**
+     * Заполняет строку Excel данными на основе выбранных столбцов
+     */
+    private void fillRowWithData(Row row, WorkReportDTO item, List<String> headers) {
+        int cellIndex = 0;
+        
+        for (String header : headers) {
+            Cell cell = row.createCell(cellIndex++);
+            
+            switch (header) {
+                case "Дата":
+                    if (item.getStartTime() != null) {
+                        cell.setCellValue(item.getStartTime().toLocalDate().toString());
+                    } else {
+                        cell.setCellValue("N/A");
+                    }
+                    break;
+                    
+                case "Время":
+                    if (item.getStartTime() != null) {
+                        cell.setCellValue(item.getStartTime().toLocalTime().toString());
+                    } else {
+                        cell.setCellValue("N/A");
+                    }
+                    break;
+                    
+                case "Сварщик":
+                    cell.setCellValue(item.getWelderName() != null ? item.getWelderName() : "N/A");
+                    break;
+                    
+                case "Сила тока, А":
+                    if (item.getCurrent() != null) {
+                        cell.setCellValue(item.getCurrent().doubleValue());
+                    } else {
+                        cell.setCellValue(0.0);
+                    }
+                    break;
+                    
+                case "Масса проволоки, кг":
+                    if (item.getWireConsumption() != null) {
+                        cell.setCellValue(item.getWireConsumption().doubleValue());
+                    } else {
+                        cell.setCellValue(0.0);
+                    }
+                    break;
+                    
+                case "Напряжение, V":
+                    if (item.getVoltage() != null) {
+                        cell.setCellValue(item.getVoltage().doubleValue());
+                    } else {
+                        cell.setCellValue(0.0);
+                    }
+                    break;
+                    
+                case "Проволока, м/мин":
+                    if (item.getWireFeedRate() != null) {
+                        cell.setCellValue(item.getWireFeedRate().doubleValue());
+                    } else {
+                        cell.setCellValue(0.0);
+                    }
+                    break;
+                    
+                case "Газ, л/мин":
+                    cell.setCellValue(0.0); // Не применимо для блока мониторинга
+                    break;
+                    
+                case "Время сварки (с)":
+                    if (item.getWeldingTime() != null) {
+                        cell.setCellValue(item.getWeldingTime().doubleValue());
+                    } else {
+                        cell.setCellValue(0.0);
+                    }
+                    break;
+                    
+                default:
+                    cell.setCellValue("N/A");
+                    break;
+            }
+        }
     }
 } 
