@@ -243,6 +243,8 @@ public class ReportService {
     }
 
     private byte[] generateEquipmentReportWithRealData(List<WorkReportDTO> data, String format, Integer weldingMachineId, String machineName, String period, List<String> selectedColumns) throws IOException {
+        System.out.println("[REPORT-SERVICE] 🔍 Выбранные столбцы: " + selectedColumns);
+        System.out.println("[REPORT-SERVICE] 🔍 Количество выбранных столбцов: " + (selectedColumns != null ? selectedColumns.size() : "null"));
         if ("EXCEL".equalsIgnoreCase(format)) {
             return generateEquipmentExcelWithRealData(data, weldingMachineId, machineName, period, selectedColumns);
         } else if ("PDF".equalsIgnoreCase(format)) {
@@ -1923,6 +1925,8 @@ public class ReportService {
      * Определяет заголовки столбцов на основе выбранных пользователем
      */
     private List<String> getSelectedHeaders(List<String> selectedColumns) {
+        System.out.println("[REPORT-SERVICE] 🔍 getSelectedHeaders вызван с: " + selectedColumns);
+        
         // Все доступные столбцы для отчета по оборудованию
         Map<String, String> allColumns = new HashMap<>();
         allColumns.put("Сварщик", "Сварщик");
@@ -1955,6 +1959,7 @@ public class ReportService {
             }
         }
         
+        System.out.println("[REPORT-SERVICE] ✅ Итоговые заголовки: " + headers);
         return headers;
     }
     
