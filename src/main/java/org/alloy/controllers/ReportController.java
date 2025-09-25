@@ -138,7 +138,12 @@ public class ReportController {
     @PostMapping("/data/equipment")
     public ResponseEntity<List<WorkReportDTO>> getEquipmentData(@RequestBody ReportRequestDTO request) {
         try {
+            System.out.println("[REPORT-CONTROLLER] 🔍 Получен запрос на данные equipment: " + request);
+            System.out.println("[REPORT-CONTROLLER] 🔍 Выбранные столбцы: " + request.getSelectedColumns());
+            
             List<WorkReportDTO> data = reportDataService.getWorkReportData(request);
+            System.out.println("[REPORT-CONTROLLER] ✅ Получено " + data.size() + " записей");
+            
             return ResponseEntity.ok(data);
         } catch (Exception e) {
             System.err.println("Ошибка получения данных отчета по оборудованию: " + e.getMessage());
