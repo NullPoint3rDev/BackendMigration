@@ -2,7 +2,7 @@ package org.alloy.models.dto;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -10,8 +10,8 @@ import java.util.List;
 public class ReportRequestDTO {
     private String reportType; // WIRE_CONSUMPTION, WELDER_REPORT, WORK_REPORT
     private String format; // EXCEL, PDF
-    private LocalDate dateFrom;
-    private LocalDate dateTo;
+    private LocalDateTime dateFrom;
+    private LocalDateTime dateTo;
     private String period; // DAY, MONTH, YEAR
     private Integer weldingMachineId;
     private Integer welderId;

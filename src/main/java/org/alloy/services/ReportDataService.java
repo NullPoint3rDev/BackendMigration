@@ -60,12 +60,12 @@ public class ReportDataService {
                 if (machineOpt.isPresent()) {
                     WeldingMachine machine = machineOpt.get();
                     
-                    // Конвертируем LocalDate в LocalDateTime для расчета
+                    // Используем переданные даты и время
                     LocalDateTime startDate = request.getDateFrom() != null ? 
-                        request.getDateFrom().atStartOfDay() : 
+                        request.getDateFrom() : 
                         LocalDateTime.now().minusDays(30);
                     LocalDateTime endDate = request.getDateTo() != null ? 
-                        request.getDateTo().atTime(23, 59, 59) : 
+                        request.getDateTo() : 
                         LocalDateTime.now();
                     
                     // Рассчитываем средние значения для блока мониторинга ОГК
@@ -155,12 +155,12 @@ public class ReportDataService {
                         endDate = today.atTime(23, 59, 59);
                         System.out.println("[REPORT-DATA] 📅 Период 'DAY': " + startDate + " - " + endDate);
                     } else {
-                        // Используем переданные даты или по умолчанию
+                        // Используем переданные даты и время или по умолчанию
                         startDate = request.getDateFrom() != null ? 
-                            request.getDateFrom().atStartOfDay() : 
+                            request.getDateFrom() : 
                             LocalDateTime.now().minusDays(1);
                         endDate = request.getDateTo() != null ? 
-                            request.getDateTo().atTime(23, 59, 59) : 
+                            request.getDateTo() : 
                             LocalDateTime.now();
                         System.out.println("[REPORT-DATA] 📅 Период по датам: " + startDate + " - " + endDate);
                     }
