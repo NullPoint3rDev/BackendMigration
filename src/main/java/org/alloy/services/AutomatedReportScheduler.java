@@ -205,8 +205,8 @@ public class AutomatedReportScheduler {
         request.setReportType(automatedReport.getTemplateType());
         request.setFormat("PDF");
         request.setPeriod("DAY"); // По умолчанию за день
-        request.setDateFrom(LocalDateTime.now().minusDays(1).toLocalDate());
-        request.setDateTo(LocalDateTime.now().toLocalDate());
+        request.setDateFrom(LocalDateTime.now().minusDays(1));
+        request.setDateTo(LocalDateTime.now());
         
         return request;
     }
