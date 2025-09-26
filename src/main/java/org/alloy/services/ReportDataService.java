@@ -77,7 +77,7 @@ public class ReportDataService {
                         item.setWelderId(1);
                         item.setWelderName("Оператор блока мониторинга");
                         item.setWelderEmail("operator@company.com");
-                        item.setDate(request.getDateFrom() != null ? request.getDateFrom() : LocalDate.now());
+                        item.setDate(request.getDateFrom() != null ? request.getDateFrom().toLocalDate() : LocalDate.now());
                         item.setTotalWireConsumption(BigDecimal.ZERO); // Не применимо для блока мониторинга
                         item.setTotalWeldingTime(BigDecimal.ZERO); // Не применимо для блока мониторинга
                         item.setTotalWeldingSessions(0); // Не применимо для блока мониторинга
