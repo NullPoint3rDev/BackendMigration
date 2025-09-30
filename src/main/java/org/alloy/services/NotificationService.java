@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.models.entities.Notification;
+import org.alloy.models.entities.UserAccount;
 import org.alloy.repositories.NotificationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,12 @@ import java.util.Optional;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    
+    @Autowired
+    private EmailService emailService;
+    
+    @Autowired
+    private UserAccountService userAccountService;
 
     @Autowired
     public NotificationService(NotificationRepository notificationRepository) {
@@ -52,17 +59,54 @@ public class NotificationService {
             throw new IllegalArgumentException("Message is required");
         }
 
-        // Проверяем, существует ли пользователь (опционально, можно убрать если не нужно)
-        // try {
-        //     userAccountRepository.findById(notification.getUserAccountId())
-        //         .orElseThrow(() -> new IllegalArgumentException("User with ID " + notification.getUserAccountId() + " not found"));
-        // } catch (Exception e) {
-        //     System.err.println("WARN NotificationService: User " + notification.getUserAccountId() + " not found, but creating notification anyway");
-        // }
-
         notification.setDateCreated(LocalDateTime.now());
         notification.setIsRead(false);
-        return notificationRepository.save(notification);
+        
+        // Сохраняем уведомление в БД
+        Notification savedNotification = notificationRepository.save(notification);
+        
+        // Отправляем email уведомление (асинхронно, чтобы не блокировать основной поток)
+        try {
+            sendEmailNotification(savedNotification);
+        } catch (Exception e) {
+            System.err.println("ERROR NotificationService: Failed to send email notification: " + e.getMessage());
+            // Не прерываем выполнение из-за ошибки email
+        }
+        
+        return savedNotification;
+    }
+    
+    /**
+     * Отправляет email уведомление пользователю
+     */
+    private void sendEmailNotification(Notification notification) {
+        try {
+            // Получаем данные пользователя
+            Optional<UserAccount> userOpt = userAccountService.getUserAccountById(notification.getUserAccountId());
+            if (userOpt.isPresent()) {
+                UserAccount user = userOpt.get();
+                
+                // Проверяем, разрешены ли email уведомления для пользователя
+                if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                    // Отправляем email уведомление
+                    emailService.sendSimpleNotification(
+                        user.getEmail(),
+                        user.getName(),
+                        notification.getTitle(),
+                        notification.getMessage()
+                    );
+                    
+                    System.out.println("DEBUG NotificationService: Email notification sent to " + user.getEmail());
+                } else {
+                    System.out.println("DEBUG NotificationService: User " + user.getId() + " has no email address");
+                }
+            } else {
+                System.out.println("WARN NotificationService: User " + notification.getUserAccountId() + " not found for email notification");
+            }
+        } catch (Exception e) {
+            System.err.println("ERROR NotificationService: Failed to send email notification: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public Notification updateNotification(Notification notification) {

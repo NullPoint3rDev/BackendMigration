@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -41,6 +42,9 @@ public class AutomatedReportScheduler {
 
     @Autowired
     private UserAccountService userAccountService;
+
+    @Autowired
+    private EmailService emailService;
 
     /**
      * Проверяет и выполняет автоматические отчеты каждую минуту
@@ -185,6 +189,9 @@ public class AutomatedReportScheduler {
             
             // Создаем уведомление об успешной генерации
             createSuccessNotification(automatedReport, reportHistory);
+            
+            // Отправляем отчет по email
+            sendReportByEmail(automatedReport, reportHistory, reportBytes);
             
             System.out.println("DEBUG AutomatedReportScheduler: Successfully executed automated report: " + automatedReport.getName());
             
@@ -347,6 +354,48 @@ public class AutomatedReportScheduler {
         System.out.println("DEBUG AutomatedReportScheduler: Updated next run time for report " + automatedReport.getName() + " to " + automatedReport.getNextRun());
     }
     
+    /**
+     * Отправляет отчет по email пользователю
+     */
+    private void sendReportByEmail(AutomatedReport automatedReport, ReportHistory reportHistory, byte[] reportBytes) {
+        try {
+            // Получаем пользователя, создавшего отчет
+            Integer userId = getValidUserId(automatedReport.getCreatedBy());
+            if (userId == null) {
+                System.out.println("WARN AutomatedReportScheduler: Cannot send email - no valid user found for report: " + automatedReport.getName());
+                return;
+            }
+            
+            // Получаем данные пользователя
+            Optional<UserAccount> userOpt = userAccountService.getUserAccountById(userId);
+            if (userOpt.isPresent()) {
+                UserAccount user = userOpt.get();
+                
+                // Проверяем, есть ли email у пользователя
+                if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                    // Отправляем отчет по email
+                    emailService.sendAutomatedReportNotification(
+                        user.getEmail(),
+                        user.getName(),
+                        automatedReport.getName(),
+                        automatedReport.getTemplateType(),
+                        reportHistory.getFileName(),
+                        reportBytes
+                    );
+                    
+                    System.out.println("DEBUG AutomatedReportScheduler: Report sent by email to " + user.getEmail());
+                } else {
+                    System.out.println("DEBUG AutomatedReportScheduler: User " + user.getId() + " has no email address for report delivery");
+                }
+            } else {
+                System.out.println("WARN AutomatedReportScheduler: User " + userId + " not found for email report delivery");
+            }
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportScheduler: Failed to send report by email: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     /**
      * Получает валидный user_accountid для уведомления
      * Если переданный ID не существует, возвращает ID первого существующего пользователя
