@@ -1,6 +1,5 @@
 package org.alloy.controllers;
 
-import org.alloy.models.entities.AutomatedReport;
 import org.alloy.services.AutomatedReportService;
 import org.alloy.services.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/automated-reports-test")
@@ -126,7 +126,7 @@ public class AutomatedReportTestController {
                     reportInfo.put("nextRun", report.getNextRun());
                     return reportInfo;
                 })
-                .toList();
+                .collect(Collectors.toList());
             
             response.put("success", true);
             response.put("totalReports", allReports.size());
