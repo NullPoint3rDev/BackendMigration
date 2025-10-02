@@ -13,6 +13,7 @@ import org.alloy.models.entities.UserAccount;
 import org.alloy.models.dto.AutomatedReportDTO;
 import org.alloy.models.dto.mapper.AutomatedReportMapper;
 import org.alloy.services.AutomatedReportService;
+import org.alloy.services.AutomatedReportScheduler;
 import org.alloy.services.AutomatedReportDataFixService;
 import org.alloy.services.UserAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Map;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
@@ -44,12 +46,14 @@ public class AutomatedReportController {
     private final AutomatedReportService automatedReportService;
     private final AutomatedReportDataFixService dataFixService;
     private final UserAccountService userAccountService;
+    private final AutomatedReportScheduler automatedReportScheduler;
 
     @Autowired
-    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService, UserAccountService userAccountService) {
+    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService, UserAccountService userAccountService, AutomatedReportScheduler automatedReportScheduler) {
         this.automatedReportService = automatedReportService;
         this.dataFixService = dataFixService;
         this.userAccountService = userAccountService;
+        this.automatedReportScheduler = automatedReportScheduler;
     }
 
     @Operation(
@@ -139,26 +143,23 @@ public class AutomatedReportController {
         )
     })
     @PostMapping("/{id}/execute")
-    public ResponseEntity<String> executeAutomatedReport(
+    public ResponseEntity<Object> executeAutomatedReport(
         @Parameter(description = "ID автоматического отчета", required = true, example = "1")
         @PathVariable Long id
     ) {
         try {
-            AutomatedReport automatedReport = automatedReportService.getAutomatedReportById(id)
-                .orElse(null);
-            if (automatedReport == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Автоматический отчет с ID " + id + " не найден");
-            }
-            
-            // Принудительно выполняем отчет
-            automatedReportService.executeAutomatedReport(automatedReport);
-            
-            return ResponseEntity.ok("Автоматический отчет '" + automatedReport.getName() + "' успешно выполнен");
+            automatedReportScheduler.executeNow(id);
+            Map<String, Object> resp = new java.util.HashMap<>();
+            resp.put("success", true);
+            resp.put("message", "Автоматический отчет успешно выполнен");
+            resp.put("id", id);
+            return ResponseEntity.ok(resp);
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportController: Failed to execute automated report: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Ошибка при выполнении отчета: " + e.getMessage());
+            Map<String, Object> err = new java.util.HashMap<>();
+            err.put("success", false);
+            err.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }
 

@@ -46,6 +46,23 @@ public class AutomatedReportScheduler {
     private EmailService emailService;
 
     /**
+     * Публичный метод для немедленного выполнения отчета по ID
+     * Использует ту же бизнес-логику, что и планировщик
+     */
+    public void executeNow(Long automatedReportId) {
+        try {
+            AutomatedReport report = automatedReportService.getAutomatedReportById(automatedReportId)
+                .orElseThrow(() -> new IllegalArgumentException("Automated report with id " + automatedReportId + " not found"));
+
+            System.out.println("DEBUG AutomatedReportScheduler: Manual executeNow called for report: " + report.getName());
+            executeAutomatedReport(report);
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportScheduler: executeNow failed for id " + automatedReportId + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
      * Проверяет и выполняет автоматические отчеты каждую минуту
      */
     @Scheduled(fixedRate = 60000) // Каждую минуту
