@@ -12,6 +12,23 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+  # Email/SMTP Configuration
+  mail:
+    host: smtp.yandex.ru
+    port: 587
+    username: weld.telecom@yandex.ru
+    password: mqfhpgzvmgcgmogc
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: smtp.yandex.ru
+        debug: false
+    default-encoding: UTF-8
 
 server:
   port: 8084
@@ -34,25 +51,6 @@ logging:
 app:
   jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
   jwtExpirationInMs: 43200000 # 12 hours in milliseconds
-
-# Email/SMTP Configuration
-spring:
-  mail:
-    host: smtp.yandex.ru
-    port: 587
-    username: weld.telecom@yandex.ru
-    password: mqfhpgzvmgcgmogc
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          ssl:
-            trust: smtp.yandex.ru
-        debug: false
-    default-encoding: UTF-8
 
 # Конфигурация сварочных аппаратов
 welding:

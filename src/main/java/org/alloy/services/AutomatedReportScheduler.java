@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @Transactional
@@ -201,6 +200,9 @@ public class AutomatedReportScheduler {
             
             // Создаем уведомление об ошибке
             createErrorNotification(automatedReport, e.getMessage());
+            
+            // Отправляем email уведомление об ошибке
+            sendErrorEmailNotification(automatedReport, e.getMessage());
         }
     }
 
@@ -359,41 +361,117 @@ public class AutomatedReportScheduler {
      */
     private void sendReportByEmail(AutomatedReport automatedReport, ReportHistory reportHistory, byte[] reportBytes) {
         try {
-            // Получаем пользователя, создавшего отчет
-            Integer userId = getValidUserId(automatedReport.getCreatedBy());
-            if (userId == null) {
-                System.out.println("WARN AutomatedReportScheduler: Cannot send email - no valid user found for report: " + automatedReport.getName());
+            // Проверяем, включены ли email уведомления
+            if (automatedReport.getEmailNotifications() == null || !automatedReport.getEmailNotifications()) {
+                System.out.println("DEBUG AutomatedReportScheduler: Email notifications disabled for report: " + automatedReport.getName());
                 return;
             }
             
-            // Получаем данные пользователя
-            Optional<UserAccount> userOpt = userAccountService.getUserAccountById(userId);
-            if (userOpt.isPresent()) {
-                UserAccount user = userOpt.get();
-                
-                // Проверяем, есть ли email у пользователя
-                if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
-                    // Отправляем отчет по email
-                    emailService.sendAutomatedReportNotification(
-                        user.getEmail(),
-                        user.getName(),
-                        automatedReport.getName(),
-                        automatedReport.getTemplateType(),
-                        reportHistory.getFileName(),
-                        reportBytes
-                    );
-                    
-                    System.out.println("DEBUG AutomatedReportScheduler: Report sent by email to " + user.getEmail());
-                } else {
-                    System.out.println("DEBUG AutomatedReportScheduler: User " + user.getId() + " has no email address for report delivery");
-                }
-            } else {
-                System.out.println("WARN AutomatedReportScheduler: User " + userId + " not found for email report delivery");
+            // Получаем список получателей
+            String emailRecipients = automatedReport.getEmailRecipients();
+            if (emailRecipients == null || emailRecipients.trim().isEmpty()) {
+                System.out.println("WARN AutomatedReportScheduler: No email recipients specified for report: " + automatedReport.getName());
+                return;
             }
+            
+            // Разбиваем список получателей по запятым
+            String[] recipients = emailRecipients.split(",");
+            int sentCount = 0;
+            
+            for (String recipient : recipients) {
+                String email = recipient.trim();
+                if (isValidEmail(email)) {
+                    try {
+                        // Отправляем отчет по email
+                        emailService.sendAutomatedReportNotification(
+                            email,
+                            "Получатель", // Имя получателя (можно улучшить)
+                            automatedReport.getName(),
+                            automatedReport.getTemplateType(),
+                            reportHistory.getFileName(),
+                            reportBytes
+                        );
+                        
+                        sentCount++;
+                        System.out.println("DEBUG AutomatedReportScheduler: Report sent by email to " + email);
+                    } catch (Exception e) {
+                        System.err.println("ERROR AutomatedReportScheduler: Failed to send report to " + email + ": " + e.getMessage());
+                    }
+                } else {
+                    System.out.println("WARN AutomatedReportScheduler: Invalid email address: " + email);
+                }
+            }
+            
+            System.out.println("DEBUG AutomatedReportScheduler: Report sent to " + sentCount + " recipients for report: " + automatedReport.getName());
+            
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportScheduler: Failed to send report by email: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    /**
+     * Отправляет email уведомление об ошибке
+     */
+    private void sendErrorEmailNotification(AutomatedReport automatedReport, String errorMessage) {
+        try {
+            // Проверяем, включены ли email уведомления
+            if (automatedReport.getEmailNotifications() == null || !automatedReport.getEmailNotifications()) {
+                System.out.println("DEBUG AutomatedReportScheduler: Email notifications disabled for error notification: " + automatedReport.getName());
+                return;
+            }
+            
+            // Получаем список получателей
+            String emailRecipients = automatedReport.getEmailRecipients();
+            if (emailRecipients == null || emailRecipients.trim().isEmpty()) {
+                System.out.println("WARN AutomatedReportScheduler: No email recipients specified for error notification: " + automatedReport.getName());
+                return;
+            }
+            
+            // Разбиваем список получателей по запятым
+            String[] recipients = emailRecipients.split(",");
+            int sentCount = 0;
+            
+            for (String recipient : recipients) {
+                String email = recipient.trim();
+                if (isValidEmail(email)) {
+                    try {
+                        // Отправляем уведомление об ошибке по email
+                        emailService.sendReportErrorNotification(
+                            email,
+                            "Получатель", // Имя получателя
+                            automatedReport.getName(),
+                            errorMessage
+                        );
+                        
+                        sentCount++;
+                        System.out.println("DEBUG AutomatedReportScheduler: Error notification sent by email to " + email);
+                    } catch (Exception e) {
+                        System.err.println("ERROR AutomatedReportScheduler: Failed to send error notification to " + email + ": " + e.getMessage());
+                    }
+                } else {
+                    System.out.println("WARN AutomatedReportScheduler: Invalid email address for error notification: " + email);
+                }
+            }
+            
+            System.out.println("DEBUG AutomatedReportScheduler: Error notification sent to " + sentCount + " recipients for report: " + automatedReport.getName());
+            
+        } catch (Exception e) {
+            System.err.println("ERROR AutomatedReportScheduler: Failed to send error email notification: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Проверяет валидность email адреса
+     */
+    private boolean isValidEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Простая проверка формата email
+        return email.contains("@") && email.contains(".") && !email.contains("@test.com");
     }
 
     /**
