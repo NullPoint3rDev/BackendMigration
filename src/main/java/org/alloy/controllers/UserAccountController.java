@@ -164,7 +164,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or @userAccountService.isOwner(#id, authentication.name)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or #userName == authentication.name")
     @GetMapping("/username/{userName}")
     public ResponseEntity<UserAccountDTO> getUserAccountByUserName(
             @Parameter(description = "Имя пользователя", required = true, example = "john.doe")
@@ -207,7 +207,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or @userAccountService.isOwner(#id, authentication.name)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping("/email/{email}")
     public ResponseEntity<UserAccountDTO> getUserAccountByEmail(
             @Parameter(description = "Email адрес", required = true, example = "john.doe@example.com")
@@ -244,7 +244,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or @userAccountService.isOwner(#id, authentication.name)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping("/organization-unit/{organizationUnitId}")
     public ResponseEntity<List<UserAccountDTO>> getUserAccountsByOrganizationUnitId(
             @Parameter(description = "ID организационной единицы", required = true, example = "1")
@@ -639,7 +639,7 @@ public class UserAccountController {
             summary = "Загрузить фото пользователя",
             description = "Загружает фото для текущего пользователя"
     )
-    @PreAuthorize("hasRole('ADMIN') or @userAccountService.isOwner(#id, authentication.name)")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UUID> uploadPhoto(
             @RequestPart("file") MultipartFile file
@@ -657,7 +657,7 @@ public class UserAccountController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    @PreAuthorize("hasRole('ADMIN') or @userAccountService.isOwner(#id, authentication.name)")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/photo/{photoId}")
     public ResponseEntity<byte[]> getPhoto(@PathVariable UUID photoId) {
         try {

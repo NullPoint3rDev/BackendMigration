@@ -1,7 +1,5 @@
 package org.alloy.config;
 
-import static org.springframework.security.config.http.MatcherType.ant;
-
 import org.alloy.security.JwtAuthenticationFilter;
 import org.alloy.security.JwtTokenProvider;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +14,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -89,27 +88,59 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             // Public endpoint are available for all type of users (login page, swagger docs, websocket for welding machines)
             .antMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**").permitAll()
 
-            // Managing user's account - only for admins
-            .antMatchers("/user-accounts/**").hasRole("ADMIN")
+            // User accounts — granular rules
+            // Owner/self and common user endpoints (method-level @PreAuthorize will enforce ownership)
+            .antMatchers(HttpMethod.GET, "/user-accounts/current").authenticated()
+            .antMatchers(HttpMethod.PUT, "/user-accounts/profile").authenticated()
+            .antMatchers(HttpMethod.POST, "/user-accounts/photo").authenticated()
+            .antMatchers(HttpMethod.GET, "/user-accounts/photo/**").authenticated()
+            .antMatchers(HttpMethod.GET, "/user-accounts/username/**").authenticated()
+            .antMatchers(HttpMethod.GET, "/user-accounts/email/**").authenticated()
+
+            // Read endpoints for admins and managers
+            .antMatchers(HttpMethod.GET, "/user-accounts").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.GET, "/user-accounts/search").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.GET, "/user-accounts/user-role/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.GET, "/user-accounts/organization-unit/**").hasAnyRole("ADMIN", "MANAGER")
+
+            // Create/Update/Delete restricted to admins
+            .antMatchers(HttpMethod.POST, "/user-accounts/**").hasRole("ADMIN")
+            .antMatchers(HttpMethod.PUT, "/user-accounts/**").hasRole("ADMIN")
+            .antMatchers(HttpMethod.DELETE, "/user-accounts/**").hasRole("ADMIN")
+
+            // Fallback for any other user-accounts paths (if any remain)
+            .antMatchers("/user-accounts/**").authenticated()
             .antMatchers("/user-roles/**").hasRole("ADMIN")
             .antMatchers("/user-permissions/**").hasRole("ADMIN")
             .antMatchers("/user-role-permissions/**").hasRole("ADMIN")
 
             // Reports - admins and managers
-            .antMatchers("/reports/**").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers("/automated-reports/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.GET, "/reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.POST, "/reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.PUT, "/reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.DELETE, "/reports/**").hasRole("ADMIN")
+            .antMatchers(HttpMethod.DELETE,"/automated-reports/**").hasRole("ADMIN")
+            .antMatchers(HttpMethod.GET, "/automated-reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.POST, "/automated-reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.PUT, "/automated-reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
 
             // Machines - admins, managers, technicians
             .antMatchers("/devices/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
             .antMatchers("/welding-devices/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
             .antMatchers("/welding-machines/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
 
-            // Employees - admins and managers
+            // Employees - admins and managers; Welders granular to match controller
             .antMatchers("/employees/**").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers("/welders/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.GET, "/welders/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.POST, "/welders/**").hasAnyRole("ADMIN", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.PUT, "/welders/**").hasAnyRole("ADMIN", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.DELETE, "/welders/**").hasRole("ADMIN")
 
-            // Organization - admins and managers
-            .antMatchers("/organizations/**").hasAnyRole("ADMIN", "MANAGER")
+            // Organization — granular to include technologist for reads
+            .antMatchers(HttpMethod.GET, "/organizations/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.POST, "/organizations/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.PUT, "/organizations/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.DELETE, "/organizations/**").hasAnyRole("ADMIN", "MANAGER")
             .antMatchers("/organization-units/**").hasAnyRole("ADMIN", "MANAGER")
 
             // System settings - only admins

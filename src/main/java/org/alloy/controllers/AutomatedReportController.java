@@ -19,6 +19,7 @@ import org.alloy.services.UserAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -80,6 +81,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<AutomatedReportDTO>> getAllAutomatedReports() {
         List<AutomatedReportDTO> reports = automatedReportService.getAllAutomatedReports().stream()
@@ -106,6 +108,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/fix-data")
     public ResponseEntity<String> fixAutomatedReportsData() {
         try {
@@ -142,6 +145,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/{id}/execute")
     public ResponseEntity<Object> executeAutomatedReport(
         @Parameter(description = "ID автоматического отчета", required = true, example = "1")
@@ -167,6 +171,7 @@ public class AutomatedReportController {
         summary = "Проверить время выполнения отчета",
         description = "Проверяет, должно ли выполняться указанное время отчета."
     )
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/{id}/check-time")
     public ResponseEntity<String> checkReportTime(
         @Parameter(description = "ID автоматического отчета", required = true, example = "1")
@@ -221,6 +226,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/{id}")
     public ResponseEntity<AutomatedReportDTO> getAutomatedReportById(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
@@ -244,6 +250,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/user/{userAccountId}")
     public ResponseEntity<List<AutomatedReportDTO>> getUserAutomatedReports(
         @Parameter(description = "ID пользователя", required = true, example = "1")
@@ -282,6 +289,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/active")
     public ResponseEntity<List<AutomatedReportDTO>> getActiveAutomatedReports() {
         List<AutomatedReportDTO> reports = automatedReportService.getActiveAutomatedReports().stream()
@@ -308,6 +316,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping
     public ResponseEntity<AutomatedReportDTO> createAutomatedReport(
         @Parameter(description = "Данные автоматизированного отчета", required = true)
@@ -352,6 +361,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PutMapping("/{id}")
     public ResponseEntity<AutomatedReportDTO> updateAutomatedReport(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
@@ -380,6 +390,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAutomatedReport(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
@@ -411,6 +422,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<?> toggleAutomatedReportStatus(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
@@ -454,6 +466,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/{id}/run")
     public ResponseEntity<AutomatedReportDTO> runAutomatedReport(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
@@ -474,6 +487,7 @@ public class AutomatedReportController {
             content = @Content(mediaType = "application/json")
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/{id}/history")
     public ResponseEntity<List<Object>> getAutomatedReportHistory(
         @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
@@ -494,6 +508,7 @@ public class AutomatedReportController {
             content = @Content(mediaType = "application/json")
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/stats")
     public ResponseEntity<Object> getAutomatedReportsStats() {
         Object stats = automatedReportService.getAutomatedReportsStats();
@@ -512,6 +527,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/search")
     public ResponseEntity<List<AutomatedReportDTO>> searchAutomatedReports(
         @Parameter(description = "Поисковый запрос", required = true, example = "еженедельный")
@@ -534,6 +550,7 @@ public class AutomatedReportController {
             content = @Content(mediaType = "application/json")
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/trigger-types")
     public ResponseEntity<List<Object>> getTriggerTypes() {
         List<Object> triggerTypes = automatedReportService.getTriggerTypes();
@@ -551,6 +568,7 @@ public class AutomatedReportController {
             content = @Content(mediaType = "application/json")
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/available-templates")
     public ResponseEntity<List<Object>> getAvailableTemplates() {
         List<Object> templates = automatedReportService.getAvailableTemplates();
@@ -574,6 +592,7 @@ public class AutomatedReportController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/validate-trigger")
     public ResponseEntity<Object> validateTriggerConfig(
         @Parameter(description = "Конфигурация триггера", required = true)
@@ -594,6 +613,7 @@ public class AutomatedReportController {
             content = @Content(mediaType = "application/json")
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/next-run-time")
     public ResponseEntity<Object> getNextRunTime(
         @Parameter(description = "Конфигурация триггера", required = true)
