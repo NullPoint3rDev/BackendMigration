@@ -67,8 +67,8 @@ public class CustomUserDetailsService implements UserDetailsService {
                 authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
             });
 
-            // Get all permissions for this role
-            List<UserRolePermission> rolePermissions = userRolePermissionRepository.findByUserRoleId(user.getUserRoleId());
+            // Get all permissions for this role with JOIN FETCH to avoid LazyInitializationException
+            List<UserRolePermission> rolePermissions = userRolePermissionRepository.findByUserRoleIdWithPermission(user.getUserRoleId());
 
             // Add every permission
             for(UserRolePermission rolePermission : rolePermissions) {
