@@ -9,9 +9,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.UserAccount;
+import org.alloy.models.entities.UserRole;
 import org.alloy.models.dto.UserAccountDTO;
 import org.alloy.models.dto.mapper.UserAccountMapper;
 import org.alloy.services.UserAccountService;
+import org.alloy.repositories.UserRoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -47,10 +49,12 @@ public class UserAccountController {
     }
 
     private final UserAccountService userAccountService;
+    private final UserRoleRepository userRoleRepository;
 
     @Autowired
-    public UserAccountController(UserAccountService userAccountService) {
+    public UserAccountController(UserAccountService userAccountService, UserRoleRepository userRoleRepository) {
         this.userAccountService = userAccountService;
+        this.userRoleRepository = userRoleRepository;
     }
 
     @Operation(
@@ -514,6 +518,76 @@ public class UserAccountController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @Operation(
+            summary = "Назначить роль пользователю",
+            description = "Админ-эндпоинт для назначения роли пользователю по ID. Можно передать roleId или roleName."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Роль успешно назначена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = UserAccountDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Пользователь или роль не найдены",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}/role")
+    public ResponseEntity<UserAccountDTO> assignUserRole(
+            @Parameter(description = "ID учетной записи", required = true, example = "1")
+            @PathVariable Integer id,
+            @Parameter(description = "Данные роли: roleId или roleName")
+            @RequestBody RoleUpdateRequest request
+    ) {
+        Optional<UserAccount> userOpt = userAccountService.getUserAccountById(id);
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Optional<UserRole> roleOpt = Optional.empty();
+        if (request.getRoleId() != null) {
+            roleOpt = userRoleRepository.findById(request.getRoleId());
+        } else if (request.getRoleName() != null && !request.getRoleName().isEmpty()) {
+            roleOpt = userRoleRepository.findByName(request.getRoleName());
+        }
+
+        if (!roleOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        UserAccount user = userOpt.get();
+        user.setUserRoleId(roleOpt.get().getId());
+        UserAccount updated = userAccountService.updateUserAccount(user);
+        return ResponseEntity.ok(UserAccountMapper.toDTO(updated));
+    }
+
+    public static class RoleUpdateRequest {
+        private Integer roleId;
+        private String roleName;
+
+        public Integer getRoleId() { return roleId; }
+        public void setRoleId(Integer roleId) { this.roleId = roleId; }
+        public String getRoleName() { return roleName; }
+        public void setRoleName(String roleName) { this.roleName = roleName; }
     }
 
     @Operation(
