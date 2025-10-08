@@ -5,6 +5,7 @@ import org.alloy.services.WelderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,12 +18,14 @@ public class WelderController {
     @Autowired
     private WelderService welderService;
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping
     public ResponseEntity<List<Welder>> getAllWelders() {
         List<Welder> welders = welderService.getAllWelders();
         return ResponseEntity.ok(welders);
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/{id}")
     public ResponseEntity<Welder> getWelderById(@PathVariable Long id) {
         Optional<Welder> welder = welderService.getWelderById(id);
@@ -30,12 +33,14 @@ public class WelderController {
                 .orElse(ResponseEntity.notFound().build());
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TECHNOLOGIST')")
     @PostMapping
     public ResponseEntity<Welder> createWelder(@RequestBody Welder welder) {
         Welder createdWelder = welderService.createWelder(welder);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdWelder);
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TECHNOLOGIST')")
     @PutMapping("/{id}")
     public ResponseEntity<Welder> updateWelder(@PathVariable Long id, @RequestBody Welder welderDetails) {
         Welder updatedWelder = welderService.updateWelder(id, welderDetails);
@@ -45,6 +50,7 @@ public class WelderController {
         return ResponseEntity.notFound().build();
     }
     
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteWelder(@PathVariable Long id) {
         boolean deleted = welderService.deleteWelder(id);
@@ -54,30 +60,35 @@ public class WelderController {
         return ResponseEntity.notFound().build();
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/status/{status}")
     public ResponseEntity<List<Welder>> getWeldersByStatus(@PathVariable Welder.WelderStatus status) {
         List<Welder> welders = welderService.getWeldersByStatus(status);
         return ResponseEntity.ok(welders);
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/department/{department}")
     public ResponseEntity<List<Welder>> getWeldersByDepartment(@PathVariable String department) {
         List<Welder> welders = welderService.getWeldersByDepartment(department);
         return ResponseEntity.ok(welders);
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/name/{name}")
     public ResponseEntity<List<Welder>> getWeldersByName(@PathVariable String name) {
         List<Welder> welders = welderService.getWeldersByName(name);
         return ResponseEntity.ok(welders);
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/grade/{grade}")
     public ResponseEntity<List<Welder>> getWeldersByGrade(@PathVariable String grade) {
         List<Welder> welders = welderService.getWeldersByGrade(grade);
         return ResponseEntity.ok(welders);
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/rfid/{rfidCode}")
     public ResponseEntity<Welder> getWelderByRfidCode(@PathVariable String rfidCode) {
         Welder welder = welderService.getWelderByRfidCode(rfidCode);
@@ -87,6 +98,7 @@ public class WelderController {
         return ResponseEntity.notFound().build();
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/employee/{employeeId}")
     public ResponseEntity<Welder> getWelderByEmployeeId(@PathVariable String employeeId) {
         Welder welder = welderService.getWelderByEmployeeId(employeeId);
@@ -96,6 +108,7 @@ public class WelderController {
         return ResponseEntity.notFound().build();
     }
     
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/search")
     public ResponseEntity<List<Welder>> searchWelders(
             @RequestParam(required = false) String name,

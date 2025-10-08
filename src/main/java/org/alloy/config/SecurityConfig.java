@@ -1,5 +1,7 @@
 package org.alloy.config;
 
+import static org.springframework.security.config.http.MatcherType.ant;
+
 import org.alloy.security.JwtAuthenticationFilter;
 import org.alloy.security.JwtTokenProvider;
 import org.springframework.context.annotation.Bean;
@@ -84,7 +86,45 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeRequests()
+            // Public endpoint are available for all type of users (login page, swagger docs, websocket for welding machines)
             .antMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**").permitAll()
+
+            // Managing user's account - only for admins
+            .antMatchers("/user-accounts/**").hasRole("ADMIN")
+            .antMatchers("/user-roles/**").hasRole("ADMIN")
+            .antMatchers("/user-permissions/**").hasRole("ADMIN")
+            .antMatchers("/user-role-permissions/**").hasRole("ADMIN")
+
+            // Reports - admins and managers
+            .antMatchers("/reports/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers("/automated-reports/**").hasAnyRole("ADMIN", "MANAGER")
+
+            // Machines - admins, managers, technicians
+            .antMatchers("/devices/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers("/welding-devices/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers("/welding-machines/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+
+            // Employees - admins and managers
+            .antMatchers("/employees/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers("/welders/**").hasAnyRole("ADMIN", "MANAGER")
+
+            // Organization - admins and managers
+            .antMatchers("/organizations/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers("/organization-units/**").hasAnyRole("ADMIN", "MANAGER")
+
+            // System settings - only admins
+            .antMatchers("/system-settings/**").hasRole("ADMIN")
+            .antMatchers("/email-templates/**").hasRole("ADMIN")
+            .antMatchers("/email-test/**").hasRole("ADMIN")
+
+            // Notifications - all authorized users 
+            .antMatchers("/notifications/**").authenticated()
+            .antMatchers("/notification-templates/**").hasAnyRole("ADMIN", "MANAGER")
+
+            // Library (documents) - all authorized users
+            .antMatchers("/library-documents/**").authenticated()
+
+            // The rest of the endpoints are available for all authorized users
             .anyRequest().authenticated()
             .and()
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

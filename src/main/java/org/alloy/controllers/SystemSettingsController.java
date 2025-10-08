@@ -13,6 +13,7 @@ import org.alloy.repositories.SystemSettingsRepository;
 import org.alloy.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,6 +60,7 @@ public class SystemSettingsController {
             description = "Требуется аутентификация"
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<SystemSettings>> getAllSettings() {
         List<SystemSettings> settings = systemSettingsRepository.findAll();
@@ -81,6 +83,7 @@ public class SystemSettingsController {
             description = "Настройка не найдена"
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<SystemSettings> getSettingById(
             @Parameter(description = "ID настройки") @PathVariable Integer id) {
@@ -105,6 +108,7 @@ public class SystemSettingsController {
             description = "Настройка не найдена"
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/key/{key}")
     public ResponseEntity<SystemSettings> getSettingByKey(
             @Parameter(description = "Ключ настройки") @PathVariable String key) {
@@ -125,6 +129,7 @@ public class SystemSettingsController {
                 schema = @Schema(implementation = SystemSettings.class, type = "array"))
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/category/{category}")
     public ResponseEntity<List<SystemSettings>> getSettingsByCategory(
             @Parameter(description = "Категория настроек") @PathVariable String category) {
@@ -136,6 +141,7 @@ public class SystemSettingsController {
         summary = "Получить все настройки в виде карты",
         description = "Возвращает все активные настройки, сгруппированные по категориям."
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/map")
     public ResponseEntity<Map<String, Map<String, String>>> getSettingsMap() {
         List<SystemSettings> allSettings = systemSettingsRepository.findByIsActive(true);
@@ -165,6 +171,7 @@ public class SystemSettingsController {
             description = "Некорректные данные"
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<SystemSettings> createSetting(
             @RequestBody SystemSettings setting) {
@@ -193,6 +200,7 @@ public class SystemSettingsController {
             description = "Настройка не найдена"
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<SystemSettings> updateSetting(
             @Parameter(description = "ID настройки") @PathVariable Integer id,
@@ -228,6 +236,7 @@ public class SystemSettingsController {
             description = "Настройка не найдена"
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/key/{key}")
     public ResponseEntity<SystemSettings> updateSettingByKey(
             @Parameter(description = "Ключ настройки") @PathVariable String key,
@@ -256,6 +265,7 @@ public class SystemSettingsController {
             description = "Настройка не найдена"
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSetting(
             @Parameter(description = "ID настройки") @PathVariable Integer id) {
@@ -270,6 +280,7 @@ public class SystemSettingsController {
         summary = "Поиск настроек",
         description = "Поиск настроек по ключу или описанию."
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/search")
     public ResponseEntity<List<SystemSettings>> searchSettings(
             @Parameter(description = "Поисковый запрос") @RequestParam String query) {
@@ -281,6 +292,7 @@ public class SystemSettingsController {
         summary = "Получить активные настройки",
         description = "Возвращает список всех активных настроек."
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/active")
     public ResponseEntity<List<SystemSettings>> getActiveSettings() {
         List<SystemSettings> settings = systemSettingsRepository.findByIsActive(true);

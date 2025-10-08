@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+import javax.annotation.PostConstruct;
+
 @Service
 public class UserRoleService {
 
@@ -50,4 +52,11 @@ public class UserRoleService {
     public UserRole getDefaultRole() {
         return userRoleRepository.findByName("User").orElse(null);
     }
+
+    // @PostConstruct
+    // public void initializeDefaultData() {
+    //     if(userRoleRepository.count() == 0) {
+    //         createDefaultRoles();
+    //     }
+    // }
 } 

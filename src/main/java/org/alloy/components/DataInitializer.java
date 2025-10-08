@@ -1,3 +1,5 @@
+package org.alloy.components;
+
 import org.alloy.repositories.UserPermissionRepository;
 import org.alloy.repositories.UserRoleRepository;
 import org.alloy.repositories.UserRolePermissionRepository;

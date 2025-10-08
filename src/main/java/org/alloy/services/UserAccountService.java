@@ -66,6 +66,11 @@ public class UserAccountService {
         return userAccountRepository.searchUserAccounts(organizationUnitId, searchTerm);
     }
 
+    public boolean isOwner(Integer userAccountId, String username) {
+        Optional<UserAccount> userAccount = getUserAccountById(userAccountId);
+        return userAccount.isPresent() && userAccount.get().getUserName().equals(username);
+    }
+
     @Transactional
     public UserAccount createUserAccount(UserAccount userAccount) {
         // Set default status if not provided

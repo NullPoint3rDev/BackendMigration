@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -79,6 +80,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping
     public ResponseEntity<List<UserAccountDTO>> getAllUserAccounts() {
         List<UserAccountDTO> userAccounts = userAccountService.getAllUserAccounts().stream()
@@ -119,6 +121,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or @userAccountService.isOwner(#id, authentication.name)")
     @GetMapping("/{id}")
     public ResponseEntity<UserAccountDTO> getUserAccountById(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -161,6 +164,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or @userAccountService.isOwner(#id, authentication.name)")
     @GetMapping("/username/{userName}")
     public ResponseEntity<UserAccountDTO> getUserAccountByUserName(
             @Parameter(description = "Имя пользователя", required = true, example = "john.doe")
@@ -203,6 +207,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or @userAccountService.isOwner(#id, authentication.name)")
     @GetMapping("/email/{email}")
     public ResponseEntity<UserAccountDTO> getUserAccountByEmail(
             @Parameter(description = "Email адрес", required = true, example = "john.doe@example.com")
@@ -239,6 +244,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or @userAccountService.isOwner(#id, authentication.name)")
     @GetMapping("/organization-unit/{organizationUnitId}")
     public ResponseEntity<List<UserAccountDTO>> getUserAccountsByOrganizationUnitId(
             @Parameter(description = "ID организационной единицы", required = true, example = "1")
@@ -275,6 +281,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping("/user-role/{userRoleId}")
     public ResponseEntity<List<UserAccountDTO>> getUserAccountsByUserRoleId(
             @Parameter(description = "ID роли пользователя", required = true, example = "1")
@@ -312,6 +319,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @GetMapping("/search")
     public ResponseEntity<List<UserAccountDTO>> searchUserAccounts(
             @Parameter(description = "ID организационной единицы", required = true, example = "1")
@@ -359,6 +367,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<UserAccountDTO> createUserAccount(
             @Parameter(description = "Данные учетной записи", required = true)
@@ -406,6 +415,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN') or @userAccountService.isOwner(#id, authentication.name)")
     @PutMapping("/{id}")
     public ResponseEntity<UserAccountDTO> updateUserAccount(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -448,6 +458,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUserAccount(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -491,6 +502,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<Void> hardDeleteUserAccount(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -546,6 +558,7 @@ public class UserAccountController {
             summary = "Получить текущего пользователя",
             description = "Возвращает данные текущего авторизованного пользователя"
     )
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/current")
     public ResponseEntity<UserAccountDTO> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -577,6 +590,7 @@ public class UserAccountController {
             summary = "Обновить профиль пользователя",
             description = "Обновляет профиль текущего пользователя"
     )
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/profile")
     public ResponseEntity<UserAccountDTO> updateProfile(@RequestBody UserProfileUpdateDTO profileData) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -625,6 +639,7 @@ public class UserAccountController {
             summary = "Загрузить фото пользователя",
             description = "Загружает фото для текущего пользователя"
     )
+    @PreAuthorize("hasRole('ADMIN') or @userAccountService.isOwner(#id, authentication.name)")
     @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UUID> uploadPhoto(
             @RequestPart("file") MultipartFile file
@@ -642,7 +657,7 @@ public class UserAccountController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-
+    @PreAuthorize("hasRole('ADMIN') or @userAccountService.isOwner(#id, authentication.name)")
     @GetMapping("/photo/{photoId}")
     public ResponseEntity<byte[]> getPhoto(@PathVariable UUID photoId) {
         try {

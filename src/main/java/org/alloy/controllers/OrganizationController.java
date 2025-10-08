@@ -14,6 +14,7 @@ import org.alloy.models.dto.mapper.OrganizationMapper;
 import org.alloy.services.OrganizationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -68,6 +69,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping
     public ResponseEntity<List<OrganizationShortDTO>> getAllOrganizations() {
         List<OrganizationShortDTO> organizations = organizationService.getAllOrganizations().stream()
@@ -107,6 +109,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> getOrganizationById(
         @Parameter(description = "ID организации", required = true, example = "1")
@@ -150,6 +153,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/search")
     public ResponseEntity<List<OrganizationShortDTO>> searchOrganizations(
         @Parameter(description = "Поисковый запрос", required = true, example = "ООО ТехноСварка")
@@ -193,6 +197,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PostMapping
     public ResponseEntity<OrganizationShortDTO> createOrganization(
         @Parameter(description = "Данные организации", required = true)
@@ -244,6 +249,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> updateOrganization(
         @Parameter(description = "ID организации", required = true, example = "1")
@@ -287,6 +293,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrganization(
         @Parameter(description = "ID организации", required = true, example = "1")
@@ -329,6 +336,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<Void> hardDeleteOrganization(
         @Parameter(description = "ID организации", required = true, example = "1")
