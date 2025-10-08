@@ -86,7 +86,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .and()
             .authorizeRequests()
             // Public endpoint are available for all type of users (login page, swagger docs, websocket for welding machines)
-            .antMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**").permitAll()
+            .antMatchers("/auth/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**").permitAll()
 
             // User accounts — granular rules
             // Owner/self and common user endpoints (method-level @PreAuthorize will enforce ownership)
