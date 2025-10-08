@@ -1,53 +1,51 @@
 package org.alloy.security;
 
-import org.alloy.models.GeneralStatus;
-import org.alloy.models.entities.UserAccount;
+import org.alloy.models.User;
 import org.alloy.models.entities.UserRolePermission;
+import org.alloy.repositories.UserRepository;
 import org.alloy.repositories.UserRolePermissionRepository;
-import org.alloy.services.UserAccountService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.alloy.repositories.UserRoleRepository;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserAccountService userAccountService;
-
+    private final UserRepository userRepository;
     private final UserRolePermissionRepository userRolePermissionRepository;
+    private final UserRoleRepository userRoleRepository;
 
-    public CustomUserDetailsService(UserAccountService userAccountService,
-                                    UserRolePermissionRepository userRolePermissionRepository) {
-        this.userAccountService = userAccountService;
+    public CustomUserDetailsService(UserRepository userRepository,
+                                    UserRolePermissionRepository userRolePermissionRepository,
+                                    UserRoleRepository userRoleRepository) {
+        this.userRepository = userRepository;
         this.userRolePermissionRepository = userRolePermissionRepository;
+        this.userRoleRepository = userRoleRepository;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         System.out.println("CustomUserDetailsService: Попытка загрузки пользователя: " + username);
         
-        return userAccountService.getUserAccountByUserName(username)
-                .map(userAccount -> {
-                    System.out.println("CustomUserDetailsService: Пользователь найден в базе: " + username + ", статус: " + userAccount.getStatus());
+        return userRepository.findByUsername(username)
+                .map(user -> {
+                    System.out.println("CustomUserDetailsService: Пользователь найден в базе: " + username + ", статус: " + user.getStatus());
                     
-                    // Проверяем статус пользователя
-                    if (userAccount.getStatus() == GeneralStatus.Deleted || 
-                        userAccount.getStatus() == GeneralStatus.Blocked) {
-                        System.out.println("CustomUserDetailsService: Попытка входа для заблокированного/удаленного пользователя: " + username + " со статусом: " + userAccount.getStatus());
-                        throw new UsernameNotFoundException("User account is " + userAccount.getStatus());
+                    // Проверяем статус пользователя (0 = Active, 1 = Blocked)
+                    if (user.getStatus() != null && user.getStatus() == 1) {
+                        System.out.println("CustomUserDetailsService: Попытка входа для заблокированного пользователя: " + username);
+                        throw new UsernameNotFoundException("User account is blocked");
                     }
                     
                     System.out.println("CustomUserDetailsService: Создаем UserDetails для пользователя: " + username);
-                    return createUserDetails(userAccount);
+                    return createUserDetails(user);
                 })
                 .orElseThrow(() -> {
                     System.out.println("CustomUserDetailsService: Пользователь не найден в базе: " + username);
@@ -55,38 +53,22 @@ public class CustomUserDetailsService implements UserDetailsService {
                 });
     }
 
-    private UserDetails createUserDetails(UserAccount userAccount) {
-        // Convert the password hash from byte[] to String for Spring Security
-        String password = "";
-        if (userAccount.getPasswordHash() != null) {
-            try {
-                // Используем UTF-8 кодировку для корректной конвертации BCrypt хеша
-                password = new String(userAccount.getPasswordHash(), "UTF-8");
-                System.out.println("CustomUserDetailsService: Пароль для пользователя " + userAccount.getUserName() + " успешно конвертирован");
-                System.out.println("CustomUserDetailsService: Длина пароля: " + password.length());
-                System.out.println("CustomUserDetailsService: Начало пароля: " + password.substring(0, Math.min(10, password.length())));
-                
-                // Проверяем, что пароль в правильном формате BCrypt
-                if (!password.startsWith("$2a$")) {
-                    System.err.println("CustomUserDetailsService: ВНИМАНИЕ! Пароль не в формате BCrypt: " + password.substring(0, Math.min(20, password.length())));
-                }
-            } catch (Exception e) {
-                System.err.println("CustomUserDetailsService: Ошибка конвертации пароля для пользователя " + userAccount.getUserName() + ": " + e.getMessage());
-                password = "";
-            }
-        } else {
-            System.err.println("CustomUserDetailsService: Пароль для пользователя " + userAccount.getUserName() + " равен NULL");
-        }
+    private UserDetails createUserDetails(User user) {
+        String password = user.getPassword();
+        System.out.println("CustomUserDetailsService: Пароль для пользователя " + user.getUsername() + " получен");
         
         List<GrantedAuthority> authorities = new ArrayList<>();
 
         // Adding user's role
-        if(userAccount.getUserRole() != null) {
-            String roleName = userAccount.getUserRole().getName();
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
+        if(user.getUserRoleId() != null) {
+            // Get role name
+            userRoleRepository.findById(user.getUserRoleId()).ifPresent(role -> {
+                String roleName = role.getName();
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
+            });
 
             // Get all permissions for this role
-            List<UserRolePermission> rolePermissions = userRolePermissionRepository.findByUserRoleId(userAccount.getUserRole().getId());
+            List<UserRolePermission> rolePermissions = userRolePermissionRepository.findByUserRoleId(user.getUserRoleId());
 
             // Add every permission
             for(UserRolePermission rolePermission : rolePermissions) {
@@ -104,8 +86,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             authorities.add(new SimpleGrantedAuthority("ROLE_GUEST"));
         }
         
-        return new User(
-            userAccount.getUserName(),
+        return new org.springframework.security.core.userdetails.User(
+            user.getUsername(),
             password,
             authorities
         );

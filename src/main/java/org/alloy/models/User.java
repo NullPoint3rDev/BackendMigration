@@ -1,6 +1,7 @@
 package org.alloy.models;
 
 import lombok.Data;
+import org.alloy.models.entities.UserRole;
 import javax.persistence.*;
 
 @Data
@@ -19,4 +20,14 @@ public class User {
 
     @Column(nullable = false)
     private String password;
+
+    @Column(name = "user_role_id")
+    private Integer userRoleId;
+
+    @Column(name = "status")
+    private Integer status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_role_id", insertable = false, updatable = false)
+    private UserRole userRole;
 } 

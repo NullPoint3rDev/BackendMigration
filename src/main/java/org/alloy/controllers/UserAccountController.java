@@ -8,11 +8,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.alloy.models.User;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.models.entities.UserRole;
 import org.alloy.models.dto.UserAccountDTO;
 import org.alloy.models.dto.mapper.UserAccountMapper;
 import org.alloy.services.UserAccountService;
+import org.alloy.repositories.UserRepository;
 import org.alloy.repositories.UserRoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -23,7 +25,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -50,11 +51,13 @@ public class UserAccountController {
 
     private final UserAccountService userAccountService;
     private final UserRoleRepository userRoleRepository;
+    private final UserRepository userRepository;
 
     @Autowired
-    public UserAccountController(UserAccountService userAccountService, UserRoleRepository userRoleRepository) {
+    public UserAccountController(UserAccountService userAccountService, UserRoleRepository userRoleRepository, UserRepository userRepository) {
         this.userAccountService = userAccountService;
         this.userRoleRepository = userRoleRepository;
+        this.userRepository = userRepository;
     }
 
     @Operation(
@@ -580,6 +583,51 @@ public class UserAccountController {
         return ResponseEntity.ok(UserAccountMapper.toDTO(updated));
     }
 
+    @Operation(
+            summary = "Назначить роль пользователю в таблице users",
+            description = "Назначает указанную роль пользователю в таблице users по его ID. Доступно только администраторам."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Роль успешно назначена",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = User.class))),
+            @ApiResponse(responseCode = "404", description = "Пользователь или роль не найдены"),
+            @ApiResponse(responseCode = "403", description = "Недостаточно прав")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/users/{id}/role")
+    public ResponseEntity<User> assignRoleToUserInUsersTable(
+            @Parameter(description = "ID пользователя в таблице users", required = true, example = "1")
+            @PathVariable Long id,
+            @Parameter(description = "Данные для назначения роли (roleId или roleName)", required = true)
+            @RequestBody UserRoleAssignmentRequest request
+    ) {
+        // Найти пользователя
+        Optional<User> userOpt = userRepository.findById(id);
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Найти роль
+        Optional<UserRole> roleOpt;
+        if (request.getRoleId() != null) {
+            roleOpt = userRoleRepository.findById(request.getRoleId());
+        } else if (request.getRoleName() != null) {
+            roleOpt = userRoleRepository.findByName(request.getRoleName());
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
+
+        if (!roleOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Назначить роль
+        User user = userOpt.get();
+        user.setUserRoleId(roleOpt.get().getId());
+        User updated = userRepository.save(user);
+        return ResponseEntity.ok(updated);
+    }
+
     public static class RoleUpdateRequest {
         private Integer roleId;
         private String roleName;
@@ -766,6 +814,31 @@ public class UserAccountController {
 
         public void setMessage(String message) {
             this.message = message;
+        }
+    }
+
+    // DTO для назначения роли пользователю в таблице users
+    public static class UserRoleAssignmentRequest {
+        @Schema(description = "ID роли", example = "10")
+        private Integer roleId;
+
+        @Schema(description = "Имя роли", example = "ADMIN")
+        private String roleName;
+
+        public Integer getRoleId() {
+            return roleId;
+        }
+
+        public void setRoleId(Integer roleId) {
+            this.roleId = roleId;
+        }
+
+        public String getRoleName() {
+            return roleName;
+        }
+
+        public void setRoleName(String roleName) {
+            this.roleName = roleName;
         }
     }
 }
