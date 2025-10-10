@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.models.entities.Employee;
+import org.alloy.models.User;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.UserRole;
 import org.alloy.models.entities.UserAccount;
@@ -10,6 +11,7 @@ import org.alloy.repositories.EmployeeRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.repositories.UserRoleRepository;
 import org.alloy.repositories.UserAccountRepository;
+import org.alloy.repositories.UserRepository;
 import org.alloy.models.GeneralStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +28,7 @@ public class EmployeeService {
     private final OrganizationUnitRepository organizationUnitRepository;
     private final UserRoleRepository userRoleRepository;
     private final UserAccountRepository userAccountRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -33,11 +36,13 @@ public class EmployeeService {
                           OrganizationUnitRepository organizationUnitRepository,
                           UserRoleRepository userRoleRepository,
                           UserAccountRepository userAccountRepository,
+                          UserRepository userRepository,
                           PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
         this.userRoleRepository = userRoleRepository;
         this.userAccountRepository = userAccountRepository;
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -139,6 +144,18 @@ public class EmployeeService {
         UserAccount savedUserAccount = userAccountRepository.save(userAccount);
         System.out.println("UserAccount создан: " + savedUserAccount.getUserName());
 
+        // Дублируем учетную запись в таблицу users для текущей схемы аутентификации (Variant B)
+        User user = new User();
+        user.setUsername(employeeDTO.getUsername());
+        user.setEmail(employeeDTO.getEmail() != null ? employeeDTO.getEmail() : "");
+        // Пароль уже закодирован в employee.getPassword()
+        user.setPassword(employee.getPassword());
+        user.setUserRoleId(employee.getUserRole() != null ? employee.getUserRole().getId() : null);
+        // Статус: 0 - Active, 1 - Blocked (по текущей проверке в CustomUserDetailsService)
+        user.setStatus(0);
+        User savedUser = userRepository.save(user);
+        System.out.println("User (legacy) создан: " + savedUser.getUsername());
+
         return savedEmployee;
     }
 
@@ -193,7 +210,32 @@ public class EmployeeService {
             }
         }
 
-        return employeeRepository.save(employee);
+        Employee updated = employeeRepository.save(employee);
+
+        // Синхронизируем пользователя в таблице users (Variant B)
+        userRepository.findByUsername(employee.getUsername()).ifPresentOrElse(existingUser -> {
+            existingUser.setEmail(employee.getEmail() != null ? employee.getEmail() : existingUser.getEmail());
+            if (employeeDTO.getPassword() != null && !employeeDTO.getPassword().isEmpty()) {
+                existingUser.setPassword(employee.getPassword()); // уже закодирован
+            }
+            existingUser.setUserRoleId(employee.getUserRole() != null ? employee.getUserRole().getId() : existingUser.getUserRoleId());
+            // Если статус меняется на блокировку, отразим это
+            if (employee.getStatus() != null) {
+                existingUser.setStatus(employee.getStatus() == GeneralStatus.Active ? 0 : 1);
+            }
+            userRepository.save(existingUser);
+        }, () -> {
+            // Если запись не найдена (например, была создана ранее до дублирования) — создадим
+            User newUser = new User();
+            newUser.setUsername(employee.getUsername());
+            newUser.setEmail(employee.getEmail() != null ? employee.getEmail() : "");
+            newUser.setPassword(employee.getPassword());
+            newUser.setUserRoleId(employee.getUserRole() != null ? employee.getUserRole().getId() : null);
+            newUser.setStatus(employee.getStatus() == GeneralStatus.Active ? 0 : 1);
+            userRepository.save(newUser);
+        });
+
+        return updated;
     }
 
     @Transactional
@@ -214,6 +256,13 @@ public class EmployeeService {
             } else {
                 System.out.println("UserAccount не найден для пользователя: " + emp.getUsername());
             }
+
+            // Блокируем соответствующую запись в таблице users (soft delete для текущей аутентификации)
+            userRepository.findByUsername(emp.getUsername()).ifPresent(u -> {
+                u.setStatus(1); // 1 = Blocked
+                userRepository.save(u);
+                System.out.println("User (legacy) заблокирован: " + u.getUsername());
+            });
             
             // Удаляем сотрудника
             employeeRepository.delete(emp);
