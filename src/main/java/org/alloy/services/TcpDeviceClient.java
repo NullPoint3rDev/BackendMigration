@@ -23,7 +23,7 @@ public class TcpDeviceClient {
     @Value("${welding.device.port:3000}")
     private int port;
     
-    @Value("${welding.device.macs:8CAAB50C4254,E09806083396}")
+    @Value("${welding.device.macs:8CAAB50C4254}")
     private String macsConfig;
     
     @Value("${welding.connection.timeout_ms:10000}")
