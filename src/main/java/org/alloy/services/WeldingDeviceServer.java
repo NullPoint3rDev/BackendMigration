@@ -20,8 +20,8 @@ public class WeldingDeviceServer {
     @Value("${welding.device.port:3000}")
     private int port;
 
-    @Value("${welding.device.mac:8CAAB50C4254}")
-    private String expectedMac;
+    @Value("${welding.device.macs:8CAAB50C4254,E09806083396}")
+    private String macsConfig;
     
     private volatile boolean running = true;
     private Thread serverThread;
@@ -39,7 +39,7 @@ public class WeldingDeviceServer {
     public void start() {
         System.out.println("[WELDING-SERVER] 🚀 Запуск TCP сервера для Блока мониторинга ОГК");
         System.out.println("[WELDING-SERVER] Порт: " + port);
-        System.out.println("[WELDING-SERVER] Ожидаемый MAC: " + expectedMac);
+        System.out.println("[WELDING-SERVER] Разрешенные MAC: " + macsConfig);
         
         serverThread = new Thread(this::runServer);
         serverThread.setDaemon(true);
@@ -93,15 +93,16 @@ public class WeldingDeviceServer {
                 if (mac != null) {
                     System.out.println("[WELDING-SERVER] MAC из пакета: " + mac);
                     
-                    // Проверяем, что это наша плата
-                    if (expectedMac.equals(mac)) {
+                    // Проверяем, что MAC разрешен
+                    if (isAllowedMac(mac)) {
                         // Пропускаем ping сообщения, логируем только полезные данные
                         if (!line.startsWith("PING:")) {
-                            System.out.println("[WELDING-SERVER] ✅ Данные от Блока мониторинга ОГК: " + line);
+                            String source = mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блока мониторинга ОГК";
+                            System.out.println("[WELDING-SERVER] ✅ Данные от " + source + " (" + mac + "): " + line);
                             deviceManager.processDeviceData(line, mac);
                         }
                     } else {
-                        System.out.println("[WELDING-SERVER] ⚠️ Неизвестный MAC: " + mac + " (ожидался: " + expectedMac + ")");
+                        System.out.println("[WELDING-SERVER] ⚠️ Неизвестный MAC: " + mac + " (разрешены: " + macsConfig + ")");
                     }
                 }
             }
@@ -158,6 +159,19 @@ public class WeldingDeviceServer {
         }
         
         return null;
+    }
+
+    private boolean isAllowedMac(String mac) {
+        if (mac == null) {
+            return false;
+        }
+        String[] parts = macsConfig.split(",");
+        for (String part : parts) {
+            if (mac.equalsIgnoreCase(part.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @PreDestroy
