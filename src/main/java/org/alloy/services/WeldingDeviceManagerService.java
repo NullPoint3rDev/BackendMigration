@@ -70,7 +70,7 @@ public class WeldingDeviceManagerService {
                 System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
                 // Не прерываем обработку данных из-за ошибки БД
             }
-            
+
         } catch (Exception e) {
             System.err.println("[DEVICE-MANAGER] ❌ Ошибка обработки данных от " + mac + ": " + e.getMessage());
             e.printStackTrace();

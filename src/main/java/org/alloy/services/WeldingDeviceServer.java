@@ -19,7 +19,7 @@ public class WeldingDeviceServer {
     
     @Value("${welding.device.port:3000}")
     private int port;
-    
+
     @Value("${welding.device.mac:8CAAB50C4254}")
     private String expectedMac;
     

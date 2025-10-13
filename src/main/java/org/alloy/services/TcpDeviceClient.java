@@ -51,7 +51,7 @@ public class TcpDeviceClient {
     
     @Autowired
     private WeldingMachineStateService stateService;
-    
+
     @Autowired
     private WeldingDeviceManagerService deviceManager;
 

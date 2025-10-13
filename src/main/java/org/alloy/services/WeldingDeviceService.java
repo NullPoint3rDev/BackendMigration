@@ -17,7 +17,7 @@ public class WeldingDeviceService {
     private static final String DEVICE_IP = "95.172.58.219";
     private static final int DEVICE_PORT = 3000;
     private static final String EXPECTED_MAC = "8CAAB579425A";
-    
+
     private volatile boolean running = true;
     private Thread clientThread;
     

@@ -32,7 +32,7 @@ public class WeldingDataParserService {
         StateSummary state = new StateSummary();
         state.setDateCreated(LocalDateTime.now());
         state.setLastDatetimeUpdate(LocalDateTime.now());
-        
+
         String payload = extractPayload(data);
         if (payload != null) {
           //  System.out.println("[PARSER] 📦 Извлеченный payload: " + payload);
