@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 
 @Service
 public class TcpDeviceClient {
+    
+    private static final Logger log = LoggerFactory.getLogger(TcpDeviceClient.class);
     
     @Value("${welding.device.host:95.172.58.219}")
     private String host;
@@ -85,16 +89,22 @@ public class TcpDeviceClient {
                                     lastSeenMac = mac;
                                     if (!data.startsWith("PING:")) {
                                         String source = mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блок мониторинга ОГК";
-                                        System.out.println("[TCP-CLIENT] ✅ Данные от " + source + " (" + mac + "): " + data);
+                                        String msg = "[TCP-CLIENT] ✅ Данные от " + source + " (" + mac + "): " + data;
+                                        System.out.println(msg);
+                                        log.info(msg);
                                         processWeldingData(data, mac);
                                     } else {
                                         System.out.println("[TCP-CLIENT] ⏭️ Пропущен ping от Блока мониторинга ОГК");
                                     }
                                 } else {
-                                    System.out.println("[TCP-CLIENT] ⚠️ Неизвестный MAC: " + mac + " (разрешены: " + macsConfig + ")");
+                                    String warn = "[TCP-CLIENT] ⚠️ Неизвестный MAC: " + mac + " (разрешены: " + macsConfig + ")";
+                                    System.out.println(warn);
+                                    log.warn(warn);
                                 }
                             } else {
-                                System.out.println("[TCP-CLIENT] ❌ Не удалось извлечь MAC из данных: " + data);
+                                String err = "[TCP-CLIENT] ❌ Не удалось извлечь MAC из данных: " + data;
+                                System.out.println(err);
+                                log.warn(err);
                             }
                         }
                         
@@ -107,6 +117,7 @@ public class TcpDeviceClient {
                 } catch (java.net.ConnectException e) {
                     retryCount++;
                     System.err.println("[TCP-CLIENT] ❌ Ошибка подключения: " + e.getMessage());
+                    log.error("[TCP-CLIENT] Ошибка подключения", e);
                     System.err.println("[TCP-CLIENT] 🔄 Повторная попытка через " + retryIntervalMs + "мс (попытка " + retryCount + "/" + maxRetries + ")");
                     
                     if (lastSeenMac != null) {
@@ -124,6 +135,7 @@ public class TcpDeviceClient {
                     
                 } catch (Exception e) {
                     System.err.println("[TCP-CLIENT] ❌ Ошибка: " + e.getMessage());
+                    log.error("[TCP-CLIENT] Ошибка", e);
                     if (lastSeenMac != null) {
                         deviceManager.markDeviceDisconnected(lastSeenMac);
                     }
@@ -223,8 +235,10 @@ public class TcpDeviceClient {
         try {
             deviceManager.processDeviceData(data, mac);
             System.out.println("[TCP-CLIENT] ✅ Данные обработаны и сохранены");
+            log.info("[TCP-CLIENT] Данные обработаны и сохранены для {}", mac);
         } catch (Exception e) {
             System.err.println("[TCP-CLIENT] Ошибка обработки данных: " + e.getMessage());
+            log.error("[TCP-CLIENT] Ошибка обработки данных для " + mac, e);
         }
     }
 

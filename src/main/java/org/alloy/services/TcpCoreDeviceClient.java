@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 
 @Service
 public class TcpCoreDeviceClient {
+    
+    private static final Logger log = LoggerFactory.getLogger(TcpCoreDeviceClient.class);
     
     @Value("${welding.core.host:192.168.10.137}")
     private String host;
@@ -76,16 +80,22 @@ public class TcpCoreDeviceClient {
                                 System.out.println("[TCP-CORE] 🔍 Извлечен MAC: " + mac);
                                 if (coreMac.equalsIgnoreCase(mac)) {
                                     if (!data.startsWith("PING:")) {
-                                        System.out.println("[TCP-CORE] ✅ Данные от Core (" + mac + "): " + data);
+                                        String msg = "[TCP-CORE] ✅ Данные от Core (" + mac + "): " + data;
+                                        System.out.println(msg);
+                                        log.info(msg);
                                         processWeldingData(data, mac);
                                     } else {
                                         System.out.println("[TCP-CORE] ⏭️ Пропущен ping от Core");
                                     }
                                 } else {
-                                    System.out.println("[TCP-CORE] ⚠️ Неизвестный MAC: " + mac + " (ожидался: " + coreMac + ")");
+                                    String warn = "[TCP-CORE] ⚠️ Неизвестный MAC: " + mac + " (ожидался: " + coreMac + ")";
+                                    System.out.println(warn);
+                                    log.warn(warn);
                                 }
                             } else {
-                                System.out.println("[TCP-CORE] ❌ Не удалось извлечь MAC из данных: " + data);
+                                String err = "[TCP-CORE] ❌ Не удалось извлечь MAC из данных: " + data;
+                                System.out.println(err);
+                                log.warn(err);
                             }
                         }
                         
@@ -96,6 +106,7 @@ public class TcpCoreDeviceClient {
                 } catch (java.net.ConnectException e) {
                     retryCount++;
                     System.err.println("[TCP-CORE] ❌ Ошибка подключения: " + e.getMessage());
+                    log.error("[TCP-CORE] Ошибка подключения", e);
                     System.err.println("[TCP-CORE] 🔄 Повторная попытка через " + retryIntervalMs + "мс (попытка " + retryCount + "/" + maxRetries + ")");
                     deviceManager.markDeviceDisconnected(coreMac);
                     if (retryCount >= maxRetries) {
@@ -107,6 +118,7 @@ public class TcpCoreDeviceClient {
                     } catch (InterruptedException ignored) {}
                 } catch (Exception e) {
                     System.err.println("[TCP-CORE] ❌ Ошибка: " + e.getMessage());
+                    log.error("[TCP-CORE] Ошибка", e);
                     deviceManager.markDeviceDisconnected(coreMac);
                     try {
                         Thread.sleep(retryIntervalMs);
@@ -179,8 +191,10 @@ public class TcpCoreDeviceClient {
         try {
             deviceManager.processDeviceData(data, mac);
             System.out.println("[TCP-CORE] ✅ Данные обработаны и сохранены");
+            log.info("[TCP-CORE] Данные обработаны и сохранены для {}", mac);
         } catch (Exception e) {
             System.err.println("[TCP-CORE] Ошибка обработки данных: " + e.getMessage());
+            log.error("[TCP-CORE] Ошибка обработки данных для " + mac, e);
         }
     }
 
