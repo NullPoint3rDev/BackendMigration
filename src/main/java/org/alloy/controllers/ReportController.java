@@ -143,9 +143,9 @@ public class ReportController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/data/welds")
-    public ResponseEntity<List<WorkReportDTO>> getWeldsData(@RequestBody ReportRequestDTO request) {
+    public ResponseEntity<List<WeldSegmentDTO>> getWeldsData(@RequestBody ReportRequestDTO request) {
         try {
-            List<WorkReportDTO> data = reportDataService.getWeldsReportData(request);
+            List<WeldSegmentDTO> data = reportDataService.getWeldsReportData(request);
             return ResponseEntity.ok(data);
         } catch (Exception e) {
             System.err.println("Ошибка получения данных отчета по сварочным швам: " + e.getMessage());

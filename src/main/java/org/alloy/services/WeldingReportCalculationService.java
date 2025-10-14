@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -371,5 +372,141 @@ public class WeldingReportCalculationService {
         
         public String getOrganizationUnitName() { return organizationUnitName; }
         public void setOrganizationUnitName(String organizationUnitName) { this.organizationUnitName = organizationUnitName; }
+    }
+
+    /**
+     * Рассчитывает сегменты швов по порогам: старт при I>3А непрерывно 500мс, стоп при I=0А непрерывно 500мс.
+     * Для каждого сегмента считает средний ток/напряжение (вес по длительности) и длительность (с) с округлением 1 знак.
+     */
+    public List<org.alloy.models.dto.WeldSegmentDTO> calculateWeldSegments(Integer machineId, LocalDateTime startDate, LocalDateTime endDate) {
+        List<org.alloy.models.dto.WeldSegmentDTO> result = new ArrayList<>();
+        try {
+            // Загружаем состояния и сортируем по времени возрастания
+            List<WeldingMachineState> states = weldingMachineStateRepository
+                .findByWeldingMachineIdAndDateRange(machineId, startDate, endDate);
+            if (states.isEmpty()) {
+                return result;
+            }
+            states.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+
+            // Готовим быстрый доступ к параметрам по stateId
+            List<Long> stateIds = states.stream().map(WeldingMachineState::getId).collect(java.util.stream.Collectors.toList());
+            List<WeldingMachineParameterValue> currents = parameterValueRepository.findByStateIdsAndPropertyCode(stateIds, "State.I");
+            List<WeldingMachineParameterValue> voltages = parameterValueRepository.findByStateIdsAndPropertyCode(stateIds, "State.U");
+
+            java.util.Map<Long, Integer> currentByState = new java.util.HashMap<>();
+            for (WeldingMachineParameterValue v : currents) {
+                currentByState.put(v.getWeldingMachineStateId(), parseValueToInt(v.getValue()));
+            }
+            java.util.Map<Long, Integer> voltageByState = new java.util.HashMap<>();
+            for (WeldingMachineParameterValue v : voltages) {
+                voltageByState.put(v.getWeldingMachineStateId(), parseValueToInt(v.getValue()));
+            }
+
+            boolean inWeld = false;
+            long above3AccumMs = 0; // накопитель для старта
+            long zeroAccumMs = 0;   // накопитель для остановки
+            LocalDateTime weldStartTime = null;
+
+            // Для усреднения по длительности в рамках сегмента
+            long segmentDurationMs = 0;
+            long segmentWeightedCurrent = 0; // сумма I*dt (в А*мс)
+            long segmentWeightedVoltage = 0; // сумма U*dt (в В*мс)
+
+            for (int i = 0; i < states.size(); i++) {
+                WeldingMachineState s = states.get(i);
+                long dtMs = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
+                int I = currentByState.getOrDefault(s.getId(), 0);
+                int U = voltageByState.getOrDefault(s.getId(), 0);
+
+                if (!inWeld) {
+                    if (I > 3) {
+                        above3AccumMs += dtMs;
+                        if (above3AccumMs >= 500) {
+                            inWeld = true;
+                            weldStartTime = s.getDateCreated();
+                            // сбрасываем усреднение
+                            segmentDurationMs = 0;
+                            segmentWeightedCurrent = 0;
+                            segmentWeightedVoltage = 0;
+                            zeroAccumMs = 0;
+                        }
+                    } else {
+                        above3AccumMs = 0;
+                    }
+                }
+
+                if (inWeld) {
+                    // накапливаем взвешенные значения
+                    segmentDurationMs += dtMs;
+                    segmentWeightedCurrent += (long) I * dtMs;
+                    segmentWeightedVoltage += (long) U * dtMs;
+
+                    if (I == 0) {
+                        zeroAccumMs += dtMs;
+                        if (zeroAccumMs >= 500) {
+                            // завершить сегмент на текущем состоянии
+                            org.alloy.models.dto.WeldSegmentDTO seg = new org.alloy.models.dto.WeldSegmentDTO();
+                            seg.setStartTime(weldStartTime != null ? weldStartTime : s.getDateCreated());
+                            BigDecimal durationSec = BigDecimal.valueOf(segmentDurationMs / 1000.0).setScale(1, RoundingMode.HALF_UP);
+                            seg.setDurationSeconds(durationSec);
+                            BigDecimal avgI = segmentDurationMs > 0
+                                ? BigDecimal.valueOf((double) segmentWeightedCurrent / segmentDurationMs).setScale(1, RoundingMode.HALF_UP)
+                                : BigDecimal.ZERO;
+                            BigDecimal avgU = segmentDurationMs > 0
+                                ? BigDecimal.valueOf((double) segmentWeightedVoltage / segmentDurationMs).setScale(1, RoundingMode.HALF_UP)
+                                : BigDecimal.ZERO;
+                            seg.setAverageCurrent(avgI);
+                            seg.setAverageVoltage(avgU);
+                            result.add(seg);
+
+                            // сброс состояния
+                            inWeld = false;
+                            above3AccumMs = 0;
+                            zeroAccumMs = 0;
+                            weldStartTime = null;
+                            segmentDurationMs = 0;
+                            segmentWeightedCurrent = 0;
+                            segmentWeightedVoltage = 0;
+                        }
+                    } else {
+                        // внутри шва, ток не нулевой — сбрасываем накопитель остановки
+                        zeroAccumMs = 0;
+                    }
+                }
+            }
+
+            // Если период закончился внутри шва — закрываем сегмент на конце периода
+            if (inWeld && segmentDurationMs > 0 && weldStartTime != null) {
+                org.alloy.models.dto.WeldSegmentDTO seg = new org.alloy.models.dto.WeldSegmentDTO();
+                seg.setStartTime(weldStartTime);
+                BigDecimal durationSec = BigDecimal.valueOf(segmentDurationMs / 1000.0).setScale(1, RoundingMode.HALF_UP);
+                seg.setDurationSeconds(durationSec);
+                BigDecimal avgI = BigDecimal.valueOf((double) segmentWeightedCurrent / segmentDurationMs).setScale(1, RoundingMode.HALF_UP);
+                BigDecimal avgU = BigDecimal.valueOf((double) segmentWeightedVoltage / segmentDurationMs).setScale(1, RoundingMode.HALF_UP);
+                seg.setAverageCurrent(avgI);
+                seg.setAverageVoltage(avgU);
+                result.add(seg);
+            }
+
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ❌ Ошибка расчета сегментов швов: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    private int parseValueToInt(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return 0;
+        try {
+            // пробуем hex
+            return Integer.parseInt(raw, 16);
+        } catch (NumberFormatException e) {
+            try {
+                return Integer.parseInt(raw, 10);
+            } catch (NumberFormatException ex) {
+                return 0;
+            }
+        }
     }
 }
