@@ -259,4 +259,96 @@ public class ReportDataService {
         
         return data;
     }
+
+    /**
+     * Возвращает данные для отчета по сварочным швам. На первом этапе используем ту же структуру, что и WorkReportDTO,
+     * чтобы отобразить реальные измеренные значения (ток, напряжение, время сварки) и выбранное оборудование.
+     */
+    public List<WorkReportDTO> getWeldsReportData(ReportRequestDTO request) {
+        List<WorkReportDTO> data = new ArrayList<>();
+
+        System.out.println("[REPORT-DATA] ========================================");
+        System.out.println("[REPORT-DATA] 🔍 ЗАПРОС ОТЧЕТА ПО СВАРОЧНЫМ ШВАМ");
+        System.out.println("[REPORT-DATA] ========================================");
+        System.out.println("[REPORT-DATA]   WeldingMachineId: " + request.getWeldingMachineId());
+        System.out.println("[REPORT-DATA]   Period: " + request.getPeriod());
+        System.out.println("[REPORT-DATA]   DateFrom: " + request.getDateFrom());
+        System.out.println("[REPORT-DATA]   DateTo: " + request.getDateTo());
+
+        try {
+            if (request.getWeldingMachineId() != null) {
+                Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(request.getWeldingMachineId());
+                if (machineOpt.isPresent()) {
+                    WeldingMachine machine = machineOpt.get();
+
+                    // Определяем границы периода
+                    LocalDateTime startDate = request.getDateFrom() != null ? request.getDateFrom() : LocalDateTime.now().minusDays(1);
+                    LocalDateTime endDate = request.getDateTo() != null ? request.getDateTo() : LocalDateTime.now();
+
+                    // Для блока мониторинга ОГК считаем по дням реальные значения
+                    if ("8CAAB50C4254".equals(machine.getMac())) {
+                        List<WeldingReportCalculationService.DailyAverageValues> dailyData =
+                            calculationService.calculateDailyAverageValues(machine.getMac(), startDate, endDate);
+
+                        for (WeldingReportCalculationService.DailyAverageValues dayData : dailyData) {
+                            WorkReportDTO item = new WorkReportDTO();
+                            item.setWeldingMachineId(dayData.getWeldingMachineId());
+                            item.setWeldingMachineName(dayData.getWeldingMachineName());
+                            item.setWeldingMachineSerialNumber(machine.getSerialNumber() != null ? machine.getSerialNumber() : "N/A");
+                            item.setWelderId(1);
+                            item.setWelderName("Оператор блока мониторинга");
+                            item.setStartTime(dayData.getStartTime());
+                            item.setEndTime(dayData.getEndTime());
+                            item.setWeldingTime(dayData.getWeldingTimeSeconds());
+                            item.setCurrent(dayData.getAverageCurrent());
+                            item.setVoltage(dayData.getAverageVoltage());
+                            item.setWeldingMode("Мониторинг");
+                            item.setWeldingType("Блок мониторинга");
+                            item.setWireConsumption(BigDecimal.ZERO);
+                            item.setWireFeedRate(BigDecimal.ZERO);
+                            item.setOrganizationUnitName(dayData.getOrganizationUnitName());
+                            item.setNotes("Данные по швам за " + dayData.getDate());
+                            data.add(item);
+                        }
+
+                        System.out.println("[REPORT-DATA] ✅ Создан отчет по швам с реальными данными для блока мониторинга ОГК: " + data.size() + " записей");
+                        return data;
+                    }
+                }
+            }
+
+            // Если нет специфичного источника реальных данных — временно используем те же мок-данные, что и Work,
+            // чтобы UI получал корректную структуру и показывал выбранное оборудование в колонке "Оборудование".
+            System.out.println("[REPORT-DATA] ⚠️ Используем временные данные для отчета по швам (не блок ОГК)");
+            LocalDateTime baseDate = LocalDateTime.now();
+            for (int i = 0; i < 8; i++) {
+                WorkReportDTO item = new WorkReportDTO();
+                item.setWeldingMachineId(request.getWeldingMachineId() != null ? request.getWeldingMachineId() : (1 + i % 3));
+                item.setWeldingMachineName(request.getWeldingMachineId() != null ?
+                    (weldingMachineRepository.findById(request.getWeldingMachineId()).map(WeldingMachine::getName).orElse("Аппарат")) :
+                    ("Аппарат " + (1 + i % 3)));
+                item.setWeldingMachineSerialNumber("SN" + (2000 + i));
+                item.setWelderId(1 + i % 2);
+                item.setWelderName("Сварщик " + (1 + i % 2));
+                item.setStartTime(baseDate.minusHours(i * 2));
+                item.setEndTime(baseDate.minusHours(i * 2).plusMinutes(45 + i * 5));
+                item.setWeldingTime(BigDecimal.valueOf(45 + i * 5));
+                item.setCurrent(BigDecimal.valueOf(180 + i * 8));
+                item.setVoltage(BigDecimal.valueOf(22 + i * 0.4));
+                item.setWeldingMode("Ручной");
+                item.setWeldingType("MIG/MAG");
+                item.setWireConsumption(BigDecimal.valueOf(3.2 + i * 0.4));
+                item.setWireFeedRate(BigDecimal.valueOf(5.1 + i * 0.2));
+                item.setOrganizationUnitName("Цех " + (1 + i % 2));
+                item.setNotes("Секция шва " + (i + 1));
+                data.add(item);
+            }
+
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка получения данных отчета по швам: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return data;
+    }
 } 
