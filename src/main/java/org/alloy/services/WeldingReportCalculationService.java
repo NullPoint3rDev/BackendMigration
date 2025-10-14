@@ -416,6 +416,15 @@ public class WeldingReportCalculationService {
             for (int i = 0; i < states.size(); i++) {
                 WeldingMachineState s = states.get(i);
                 long dtMs = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
+                if (dtMs <= 0) {
+                    // Фоллбэк: используем разницу между текущим и следующим состоянием
+                    if (i + 1 < states.size()) {
+                        LocalDateTime t1 = s.getDateCreated();
+                        LocalDateTime t2 = states.get(i + 1).getDateCreated();
+                        long diff = java.time.Duration.between(t1, t2).toMillis();
+                        if (diff > 0) dtMs = diff;
+                    }
+                }
                 int I = currentByState.getOrDefault(s.getId(), 0);
                 int U = voltageByState.getOrDefault(s.getId(), 0);
 
