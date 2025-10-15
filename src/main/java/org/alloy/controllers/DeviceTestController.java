@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/device-test")
+@RequestMapping("/device-test")
 public class DeviceTestController {
 
     @Autowired
