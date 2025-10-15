@@ -63,11 +63,15 @@ public class DeviceController {
             DeviceStateMessage message = new DeviceStateMessage();
             message.setTimestamp(timestamp);
             message.setState(state);
+            message.setMac(mac);
             String jsonData = objectMapper.writeValueAsString(message);
             
             System.out.println("[DEVICE-CONTROLLER] 📤 Отправка состояния для " + mac + ": " + jsonData);
+            // Публикуем в персональный топик устройства, чтобы данные не смешивались
+            messagingTemplate.convertAndSend("/topic/device-state/" + mac, jsonData);
+            // Дополнительно (опционально) общий канал — если фронт ожидает общий поток
             messagingTemplate.convertAndSend("/topic/device-state", jsonData);
-            System.out.println("[DEVICE-CONTROLLER] ✅ Состояние отправлено на /topic/device-state");
+            System.out.println("[DEVICE-CONTROLLER] ✅ Состояние отправлено на /topic/device-state/" + mac);
             
             // Также отправляем данные в формате, который ожидает фронтенд
             if (state.getProperties() != null) {
@@ -151,6 +155,7 @@ public class DeviceController {
     // Внутренний класс для сообщений
     public static class DeviceStateMessage {
         private String timestamp;
+        private String mac;
         private StateSummary state;
 
         public String getTimestamp() {
@@ -159,6 +164,14 @@ public class DeviceController {
 
         public void setTimestamp(String timestamp) {
             this.timestamp = timestamp;
+        }
+
+        public String getMac() {
+            return mac;
+        }
+
+        public void setMac(String mac) {
+            this.mac = mac;
         }
 
         public StateSummary getState() {
