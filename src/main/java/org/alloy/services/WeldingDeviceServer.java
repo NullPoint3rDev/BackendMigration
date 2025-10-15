@@ -34,6 +34,9 @@ public class WeldingDeviceServer {
     
     @Autowired
     private WeldingDeviceManagerService deviceManager;
+
+    @Autowired
+    private CoreOutboundService coreOutboundService;
     
     // @Autowired
     // private DeviceController deviceController; // not used here
@@ -135,6 +138,18 @@ public class WeldingDeviceServer {
                                         System.out.println("[WELDING-SERVER] 📦 Core parsed: " + parsed);
                                         log.info("[WELDING-SERVER] Core parsed: {}", parsed);
                                         // Можно дальше передавать parsed на фронт/в сервисы
+                                        // Сформировать и отправить ответ (если включено)
+                                        String reply = coreOutboundService.buildMessageForMac(mac);
+                                        if (reply != null && !reply.isEmpty()) {
+                                            byte[] respBytes = reply.getBytes(StandardCharsets.US_ASCII);
+                                            try {
+                                                out.write(respBytes);
+                                                out.flush();
+                                                System.out.println("[WELDING-SERVER] ⏫ Core reply sent: " + reply);
+                                            } catch (IOException ex) {
+                                                log.error("[WELDING-SERVER] Ошибка отправки Core ответа", ex);
+                                            }
+                                        }
                                     }
                                 }
                             }
