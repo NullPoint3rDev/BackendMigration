@@ -127,6 +127,16 @@ public class WeldingDeviceServer {
                                 p.data = data;
                                 p.serverDatetime = java.time.Instant.now();
                                 IncomingPacketsQueue.enqueue(p);
+
+                                // Парсинг пакета Core и вывод удобочитаемо
+                                if (mac.equalsIgnoreCase("E09806083396")) {
+                                    CorePacket parsed = CorePacketParser.parse(data);
+                                    if (parsed != null) {
+                                        System.out.println("[WELDING-SERVER] 📦 Core parsed: " + parsed);
+                                        log.info("[WELDING-SERVER] Core parsed: {}", parsed);
+                                        // Можно дальше передавать parsed на фронт/в сервисы
+                                    }
+                                }
                             }
 
                             // Немедленная отправка ответа, если он есть
