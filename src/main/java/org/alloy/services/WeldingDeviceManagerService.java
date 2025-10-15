@@ -24,6 +24,9 @@ public class WeldingDeviceManagerService {
     @Autowired
     private DeviceController deviceController;
 
+    @Autowired
+    private DeviceMessageHistoryService messageHistoryService;
+
     // Хранилище состояний всех аппаратов
     private final Map<String, StateSummary> deviceStates = new ConcurrentHashMap<>();
 
@@ -59,6 +62,9 @@ public class WeldingDeviceManagerService {
             
             // Отправляем через WebSocket
             deviceController.sendDeviceState(stateSummary);
+            
+            // Добавляем сообщение в историю тестирования
+            messageHistoryService.addMessage(mac, data, "received");
             
             System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
             
