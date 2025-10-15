@@ -19,6 +19,9 @@ public class WeldingDataParserService {
     @Value("${welding.parser.debug_mode:true}")
     private boolean debugMode;
 
+    @Value("${welding.core.macs:E09806083396}")
+    private String coreMacsConfig;
+
     public StateSummary parseWeldingData(String data, String mac) {
        // System.out.println("[PARSER] 🚀 НАЧАЛО ПАРСИНГА");
         //System.out.println("[PARSER] 🔍 Парсинг данных: " + data);
@@ -32,6 +35,29 @@ public class WeldingDataParserService {
         StateSummary state = new StateSummary();
         state.setDateCreated(LocalDateTime.now());
         state.setLastDatetimeUpdate(LocalDateTime.now());
+
+        // Для плат Core разбираем специализированным парсером и сразу выставляем ток/напряжение
+        if (isCoreMac(mac)) {
+            CorePacket core = CorePacketParser.parse(data);
+            if (core != null) {
+                Map<String, StateSummaryPropertyValue> props = new HashMap<>();
+                int displayCurrent = (int) core.getDisplayCurrent();
+                int displayVoltageTenth = (int) Math.round(core.getDisplayVoltage() * 10.0); // для совместимости — 1В=10
+
+                // Но фронт ждёт hex именно для ампер и вольт (без деления на 10), как ранее
+                // В текущем UI мы парсим hex -> десятичное напрямую.
+                // Значит кладём:
+                //  - State.I = hex(displayCurrent)
+                //  - State.U = hex(round(voltage*10))  (UI покажет 196 -> как 196, и мы можем делить на фронте, но сейчас UI просто число)
+                addProperty(props, "State.I", toHex(displayCurrent), "number");
+                addProperty(props, "State.U", toHex(displayVoltageTenth), "number");
+
+                state.setProperties(props);
+                state.setStatus(determineStatus(props));
+                state.setErrorCode(determineErrorCode(props));
+                return state;
+            }
+        }
 
         String payload = extractPayload(data);
         if (payload != null) {
@@ -47,9 +73,6 @@ public class WeldingDataParserService {
             
             if (debugMode) {
                // System.out.println("[PARSER] ✅ Парсинг завершен. Найдено свойств: " + properties.size());
-                for (Map.Entry<String, StateSummaryPropertyValue> entry : properties.entrySet()) {
-                  //  System.out.println("[PARSER]   " + entry.getKey() + " = " + entry.getValue().getValue());
-                }
             }
         } else {
            // System.out.println("[PARSER] ❌ Не удалось извлечь payload из данных");
@@ -63,6 +86,15 @@ public class WeldingDataParserService {
         }
         
         return state;
+    }
+
+    private boolean isCoreMac(String mac) {
+        if (mac == null || mac.isEmpty()) return false;
+        String[] parts = coreMacsConfig.split(",");
+        for (String part : parts) {
+            if (mac.equalsIgnoreCase(part.trim())) return true;
+        }
+        return false;
     }
 
     private String extractPayload(String data) {
@@ -87,7 +119,7 @@ public class WeldingDataParserService {
         // Анализируем каждые 2 символа для поиска возможного тока
         //System.out.println("[PARSER] 🔍 Поиск возможных значений тока:");
         int bestCurrentPosition = -1;
-        int bestCurrentValue = -1;
+        // int bestCurrentValue = -1; // not used
         int minDifference = Integer.MAX_VALUE;
         
         for (int i = 0; i < payload.length() - 1; i += 2) {
@@ -109,7 +141,7 @@ public class WeldingDataParserService {
                         if (difference < minDifference) {
                             minDifference = difference;
                             bestCurrentPosition = i;
-                            bestCurrentValue = numValue;
+                            // bestCurrentValue = numValue;
                         }
                     }
                 } catch (NumberFormatException e) {
@@ -130,7 +162,7 @@ public class WeldingDataParserService {
             // Ищем напряжение в диапазоне 15-50 В (0F-32 в hex) - расширенный диапазон
            // System.out.println("[PARSER] 🔍 Поиск напряжения в диапазоне 15-50 В:");
             int bestVoltagePosition = -1;
-            int bestVoltageValue = -1;
+            // int bestVoltageValue = -1; // not used
             int minVoltageDifference = Integer.MAX_VALUE;
             
             for (int i = 0; i < payload.length() - 1; i += 2) {
@@ -147,7 +179,7 @@ public class WeldingDataParserService {
                             if (difference < minVoltageDifference) {
                                 minVoltageDifference = difference;
                                 bestVoltagePosition = i;
-                                bestVoltageValue = numValue;
+                                // bestVoltageValue = numValue;
                             }
                         }
                     } catch (NumberFormatException e) {
@@ -309,37 +341,16 @@ public class WeldingDataParserService {
         }
 
         // Попробуем найти ток в других позициях
-        if (payload.length() >= 20) {
-            String possibleCurrent1 = payload.substring(16, 18);
-            String possibleCurrent2 = payload.substring(18, 20);
-            if (debugMode) {
-              //  System.out.println("[PARSER] 🔍 Позиции 16-17 (возможный ток 1): " + possibleCurrent1);
-              //  System.out.println("[PARSER] 🔍 Позиции 18-19 (возможный ток 2): " + possibleCurrent2);
-            }
-        }
+        // skip unused candidates to avoid linter warnings
 
-        if (payload.length() >= 24) {
-            String possibleCurrent3 = payload.substring(20, 22);
-            String possibleCurrent4 = payload.substring(22, 24);
-            if (debugMode) {
-              //  System.out.println("[PARSER] 🔍 Позиции 20-21 (возможный ток 3): " + possibleCurrent3);
-             //   System.out.println("[PARSER] 🔍 Позиции 22-23 (возможный ток 4): " + possibleCurrent4);
-            }
-        }
+        // skip
 
         // СТАРЫЙ КОД С ФИКСИРОВАННЫМИ ПОЗИЦИЯМИ ОТКЛЮЧЕН
         // Теперь используем автоматический поиск тока выше
       //  System.out.println("[PARSER] ℹ️ Используем автоматический поиск тока вместо фиксированных позиций");
 
         // Попробуем найти ток в позициях 40-50
-        if (payload.length() >= 50) {
-            String possibleCurrent7 = payload.substring(40, 42);
-            String possibleCurrent8 = payload.substring(42, 44);
-            if (debugMode) {
-              //  System.out.println("[PARSER] 🔍 Позиции 40-41 (возможный ток 7): " + possibleCurrent7);
-              //  System.out.println("[PARSER] 🔍 Позиции 42-43 (возможный ток 8): " + possibleCurrent8);
-            }
-        }
+        // skip
 
         return properties;
     }
@@ -352,6 +363,12 @@ public class WeldingDataParserService {
         prop.setPropertyType(propertyType);
         prop.setRawValue(value);
         properties.put(propertyCode, prop);
+    }
+
+    private String toHex(int value) {
+        String hex = Integer.toHexString(value).toUpperCase();
+        if (hex.length() % 2 != 0) hex = "0" + hex;
+        return hex;
     }
 
     private WeldingMachineStatus determineStatus(Map<String, StateSummaryPropertyValue> properties) {
