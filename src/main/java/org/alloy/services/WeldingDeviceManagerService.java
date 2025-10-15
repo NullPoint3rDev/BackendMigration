@@ -60,8 +60,8 @@ public class WeldingDeviceManagerService {
             deviceStates.put(mac, stateSummary);
             connectionStatus.put(mac, true);
             
-            // Отправляем через WebSocket
-            deviceController.sendDeviceState(stateSummary);
+            // Отправляем через WebSocket с MAC адресом
+            deviceController.sendDeviceState(stateSummary, mac);
             
             // Добавляем сообщение в историю тестирования
             messageHistoryService.addMessage(mac, data, "received");

@@ -51,11 +51,29 @@ public class DeviceController {
             messagingTemplate.convertAndSend("/topic/device-state", jsonData);
             System.out.println("[DEVICE-CONTROLLER] ✅ Состояние отправлено на /topic/device-state");
             
+        } catch (Exception e) {
+            System.err.println("[DEVICE-CONTROLLER] ❌ Ошибка отправки состояния: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public void sendDeviceState(StateSummary state, String mac) {
+        try {
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            DeviceStateMessage message = new DeviceStateMessage();
+            message.setTimestamp(timestamp);
+            message.setState(state);
+            String jsonData = objectMapper.writeValueAsString(message);
+            
+            System.out.println("[DEVICE-CONTROLLER] 📤 Отправка состояния для " + mac + ": " + jsonData);
+            messagingTemplate.convertAndSend("/topic/device-state", jsonData);
+            System.out.println("[DEVICE-CONTROLLER] ✅ Состояние отправлено на /topic/device-state");
+            
             // Также отправляем данные в формате, который ожидает фронтенд
             if (state.getProperties() != null) {
                 StringBuilder dataString = new StringBuilder();
                 dataString.append(timestamp).append("|");
-                dataString.append("8CAAB50C4254:"); // MAC адрес
+                dataString.append(mac).append(":"); // Динамический MAC адрес
                 
                 for (Map.Entry<String, StateSummaryPropertyValue> entry : state.getProperties().entrySet()) {
                     dataString.append(entry.getKey()).append(":").append(entry.getValue().getValue()).append(";");
