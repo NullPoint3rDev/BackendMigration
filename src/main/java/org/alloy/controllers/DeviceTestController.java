@@ -2,6 +2,7 @@ package org.alloy.controllers;
 
 import org.alloy.models.weldingmachine.StateSummary;
 import org.alloy.services.WeldingDeviceManagerService;
+import org.alloy.services.DeviceMessageHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 @RestController
 @RequestMapping("/api/device-test")
@@ -22,9 +22,8 @@ public class DeviceTestController {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    // История сообщений (последние 100)
-    private final Queue<DeviceMessage> messageHistory = new ConcurrentLinkedQueue<>();
-    private final int MAX_HISTORY_SIZE = 100;
+    @Autowired
+    private DeviceMessageHistoryService messageHistoryService;
 
     // Список доступных плат
     private final List<DeviceInfo> availableDevices = Arrays.asList(
@@ -62,13 +61,8 @@ public class DeviceTestController {
      * Получить историю сообщений для конкретной платы
      */
     @GetMapping("/devices/{mac}/history")
-    public ResponseEntity<List<DeviceMessage>> getDeviceHistory(@PathVariable String mac) {
-        List<DeviceMessage> deviceHistory = messageHistory.stream()
-            .filter(msg -> msg.getMac().equalsIgnoreCase(mac))
-            .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
-            .limit(100)
-            .collect(java.util.stream.Collectors.toList());
-        
+    public ResponseEntity<List<DeviceMessageHistoryService.DeviceMessage>> getDeviceHistory(@PathVariable String mac) {
+        List<DeviceMessageHistoryService.DeviceMessage> deviceHistory = messageHistoryService.getDeviceHistory(mac);
         return ResponseEntity.ok(deviceHistory);
     }
 
@@ -76,12 +70,8 @@ public class DeviceTestController {
      * Получить всю историю сообщений
      */
     @GetMapping("/history")
-    public ResponseEntity<List<DeviceMessage>> getAllHistory() {
-        List<DeviceMessage> allHistory = messageHistory.stream()
-            .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
-            .limit(100)
-            .collect(java.util.stream.Collectors.toList());
-        
+    public ResponseEntity<List<DeviceMessageHistoryService.DeviceMessage>> getAllHistory() {
+        List<DeviceMessageHistoryService.DeviceMessage> allHistory = messageHistoryService.getAllHistory();
         return ResponseEntity.ok(allHistory);
     }
 
@@ -103,12 +93,7 @@ public class DeviceTestController {
 
         try {
             // Добавляем сообщение в историю
-            DeviceMessage sentMessage = new DeviceMessage();
-            sentMessage.setMac(mac);
-            sentMessage.setType("sent");
-            sentMessage.setData(command);
-            sentMessage.setTimestamp(LocalDateTime.now());
-            addToHistory(sentMessage);
+            messageHistoryService.addMessage(mac, command, "sent");
 
             // Отправляем через WebSocket для отображения на фронтенде
             Map<String, Object> wsMessage = new HashMap<>();
@@ -147,14 +132,10 @@ public class DeviceTestController {
         Map<String, Object> stats = deviceManager.getDeviceStatistics();
         
         // Добавляем статистику по сообщениям
-        Map<String, Long> messageStats = messageHistory.stream()
-            .collect(java.util.stream.Collectors.groupingBy(
-                DeviceMessage::getMac,
-                java.util.stream.Collectors.counting()
-            ));
+        Map<String, Long> messageStats = messageHistoryService.getMessageStatistics();
         
         stats.put("messageHistory", messageStats);
-        stats.put("totalMessages", messageHistory.size());
+        stats.put("totalMessages", messageHistoryService.getTotalMessageCount());
         
         return ResponseEntity.ok(stats);
     }
@@ -164,32 +145,11 @@ public class DeviceTestController {
      */
     @PostMapping("/history/clear")
     public ResponseEntity<Map<String, String>> clearHistory() {
-        messageHistory.clear();
+        messageHistoryService.clearHistory();
         return ResponseEntity.ok(Map.of(
             "message", "История сообщений очищена",
             "timestamp", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         ));
-    }
-
-    /**
-     * Добавить сообщение в историю (вызывается из других сервисов)
-     */
-    public void addDeviceMessage(String mac, String data, String type) {
-        DeviceMessage message = new DeviceMessage();
-        message.setMac(mac);
-        message.setData(data);
-        message.setType(type);
-        message.setTimestamp(LocalDateTime.now());
-        addToHistory(message);
-    }
-
-    private void addToHistory(DeviceMessage message) {
-        messageHistory.offer(message);
-        
-        // Ограничиваем размер истории
-        while (messageHistory.size() > MAX_HISTORY_SIZE) {
-            messageHistory.poll();
-        }
     }
 
     // Внутренние классы
@@ -217,20 +177,4 @@ public class DeviceTestController {
         public void setPort(int port) { this.port = port; }
     }
 
-    public static class DeviceMessage {
-        private String mac;
-        private String data;
-        private String type; // "received" или "sent"
-        private LocalDateTime timestamp;
-
-        // Getters and setters
-        public String getMac() { return mac; }
-        public void setMac(String mac) { this.mac = mac; }
-        public String getData() { return data; }
-        public void setData(String data) { this.data = data; }
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
-        public LocalDateTime getTimestamp() { return timestamp; }
-        public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
-    }
 }
