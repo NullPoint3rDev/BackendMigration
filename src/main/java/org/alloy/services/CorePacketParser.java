@@ -1,8 +1,5 @@
 package org.alloy.services;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
 public class CorePacketParser {
 
     // Ожидается строка вида :<MAC>;HEX_DATA[...]
@@ -18,52 +15,49 @@ public class CorePacketParser {
         byte[] bytes = hexStringToByteArray(hex);
         if (bytes == null) return null;
 
-        // Парсинг little-endian полей, как у STM (уточнено на практике: Index = 4 байта LE и т.д.)
-        ByteBuffer bb = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
-
         CorePacket p = new CorePacket();
         try {
-            // Позиции согласно WTINFO_TypeDef
-            p.index = intToUint(bb.getInt());            // uint32
+            int off = 0;
+            p.index = readU32BE(bytes, off); off += 4;         // uint32 (big-endian)
 
-            p.hours = byteToUint(bb.get());              // uint8
-            p.minutes = byteToUint(bb.get());            // uint8
-            p.seconds = byteToUint(bb.get());            // uint8
-            p.date = byteToUint(bb.get());               // uint8
+            p.hours = readU8(bytes, off++);
+            p.minutes = readU8(bytes, off++);
+            p.seconds = readU8(bytes, off++);
+            p.date = readU8(bytes, off++);
 
-            p.month = byteToUint(bb.get());              // uint8
-            p.year = byteToUint(bb.get());               // uint8
-            p.reserve = shortToUint(bb.getShort());      // uint16
+            p.month = readU8(bytes, off++);
+            p.year = readU8(bytes, off++);
+            p.reserve = readU16BE(bytes, off); off += 2;        // uint16
 
-            p.flags = bb.get();                          // int8
-            p.weldingMachineState = bb.get();            // int8
-            p.gasFlow = bb.getShort();                   // int16
+            p.flags = readI8(bytes, off++);
+            p.weldingMachineState = readI8(bytes, off++);
+            p.gasFlow = readI16BE(bytes, off); off += 2;
 
-            p.weldingCurrent = bb.getShort();            // int16
-            p.weldingVoltage = bb.getShort();            // int16
+            p.weldingCurrent = readI16BE(bytes, off); off += 2;
+            p.weldingVoltage = readI16BE(bytes, off); off += 2;
 
-            p.jobNumber = bb.getShort();                 // int16
-            p.current = bb.getShort();                   // int16
+            p.jobNumber = readI16BE(bytes, off); off += 2;
+            p.current = readI16BE(bytes, off); off += 2;
 
-            p.voltage = bb.getShort();                   // int16
-            p.inductance = bb.getShort();                // int16
+            p.voltage = readI16BE(bytes, off); off += 2;
+            p.inductance = readI16BE(bytes, off); off += 2;
 
-            p.errors1 = bb.getShort();                   // int16
-            p.errors2 = bb.getShort();                   // int16
+            p.errors1 = readI16BE(bytes, off); off += 2;
+            p.errors2 = readI16BE(bytes, off); off += 2;
 
-            p.errors3 = bb.getShort();                   // int16
-            p.voltagePhaseA = bb.getShort();             // int16
+            p.errors3 = readI16BE(bytes, off); off += 2;
+            p.voltagePhaseA = readI16BE(bytes, off); off += 2;
 
-            p.voltagePhaseB = bb.getShort();             // int16
-            p.voltagePhaseC = bb.getShort();             // int16
+            p.voltagePhaseB = readI16BE(bytes, off); off += 2;
+            p.voltagePhaseC = readI16BE(bytes, off); off += 2;
 
-            p.chillerTemperature1 = bb.getShort();       // int16
-            p.chillerTemperature2 = bb.getShort();       // int16
+            p.chillerTemperature1 = readI16BE(bytes, off); off += 2;
+            p.chillerTemperature2 = readI16BE(bytes, off); off += 2;
 
-            p.primaryCoilTemperature = bb.getShort();    // int16
-            p.secondaryCoilTemperature = bb.getShort();  // int16
+            p.primaryCoilTemperature = readI16BE(bytes, off); off += 2;
+            p.secondaryCoilTemperature = readI16BE(bytes, off); off += 2;
 
-            p.wireIndex = intToUint(bb.getInt());        // uint32
+            p.wireIndex = readU32BE(bytes, off); off += 4;
         } catch (Exception ex) {
             // если данных меньше — вернём то, что успели распарсить
         }
@@ -71,16 +65,16 @@ public class CorePacketParser {
         return p;
     }
 
-    private static long intToUint(int v) {
-        return v & 0xFFFFFFFFL;
+    private static int readU8(byte[] b, int off) { return b[off] & 0xFF; }
+    private static int readI8(byte[] b, int off) { return b[off]; }
+    private static int readU16BE(byte[] b, int off) { return ((b[off] & 0xFF) << 8) | (b[off+1] & 0xFF); }
+    private static int readI16BE(byte[] b, int off) {
+        int u = readU16BE(b, off);
+        if ((u & 0x8000) != 0) return u - 0x10000;
+        return u;
     }
-
-    private static int shortToUint(short v) {
-        return v & 0xFFFF;
-    }
-
-    private static int byteToUint(byte v) {
-        return v & 0xFF;
+    private static long readU32BE(byte[] b, int off) {
+        return ((long)(b[off] & 0xFF) << 24) | ((long)(b[off+1] & 0xFF) << 16) | ((long)(b[off+2] & 0xFF) << 8) | (long)(b[off+3] & 0xFF);
     }
 
     public static byte[] hexStringToByteArray(String s) {
