@@ -67,13 +67,11 @@ public class DeviceController {
             String jsonData = objectMapper.writeValueAsString(message);
             
             System.out.println("[DEVICE-CONTROLLER] 📤 Отправка состояния для " + mac + ": " + jsonData);
-            // Публикуем в персональный топик устройства, чтобы данные не смешивались
+            // Публикуем ТОЛЬКО в персональный топик устройства, чтобы данные не смешивались
             messagingTemplate.convertAndSend("/topic/device-state/" + mac, jsonData);
-            // Дополнительно (опционально) общий канал — если фронт ожидает общий поток
-            messagingTemplate.convertAndSend("/topic/device-state", jsonData);
             System.out.println("[DEVICE-CONTROLLER] ✅ Состояние отправлено на /topic/device-state/" + mac);
             
-            // Также отправляем данные в формате, который ожидает фронтенд
+            // Также отправляем данные в старом формате, но ТОЛЬКО в персональный топик устройства
             if (state.getProperties() != null) {
                 StringBuilder dataString = new StringBuilder();
                 dataString.append(timestamp).append("|");
@@ -84,8 +82,8 @@ public class DeviceController {
                 }
                 
                 String rawData = dataString.toString();
-                System.out.println("[DEVICE-CONTROLLER] 📤 Отправка данных в старом формате: " + rawData);
-                messagingTemplate.convertAndSend("/topic/device", rawData);
+                System.out.println("[DEVICE-CONTROLLER] 📤 Отправка данных в старом формате (per-device): " + rawData);
+                messagingTemplate.convertAndSend("/topic/device/" + mac, rawData);
             }
             
         } catch (Exception e) {
