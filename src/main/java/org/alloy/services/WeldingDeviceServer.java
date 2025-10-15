@@ -1,6 +1,5 @@
 package org.alloy.services;
 
-import org.alloy.controllers.DeviceController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,9 +8,9 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -31,13 +30,13 @@ public class WeldingDeviceServer {
     private Thread serverThread;
     private Thread heartbeatThread;
     private ServerSocket serverSocket;
-    private volatile Socket currentClientSocket = null;
+    // private volatile Socket currentClientSocket = null; // not used
     
     @Autowired
     private WeldingDeviceManagerService deviceManager;
     
-    @Autowired
-    private DeviceController deviceController;
+    // @Autowired
+    // private DeviceController deviceController; // not used here
 
     @PostConstruct
     public void start() {
@@ -67,8 +66,7 @@ public class WeldingDeviceServer {
                     System.out.println("[WELDING-SERVER] 🔌 Подключение от: " + clientIp);
                     log.info("[WELDING-SERVER] Подключение от {}", clientIp);
                     
-                    // Сохраняем ссылку на клиентский сокет
-                    currentClientSocket = clientSocket;
+                    // Соединение принято
                     
                     // Обрабатываем подключение в отдельном потоке
                     new Thread(() -> handleClient(clientSocket)).start();
@@ -88,37 +86,71 @@ public class WeldingDeviceServer {
     private void handleClient(Socket clientSocket) {
         String clientIp = clientSocket.getInetAddress().getHostAddress();
         
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream(), StandardCharsets.US_ASCII))) {
-            
-            String line;
+        try {
+            clientSocket.setTcpNoDelay(true);
+        } catch (Exception ignored) {}
+
+        try (InputStream in = clientSocket.getInputStream();
+             OutputStream out = clientSocket.getOutputStream()) {
+
+            byte[] buffer = new byte[4096];
             System.out.println("[WELDING-SERVER] 🔄 Ожидание данных от " + clientIp + "...");
-            while (running && (line = in.readLine()) != null) {
-                System.out.println("[WELDING-SERVER] 📨 Получены данные от " + clientIp + ": " + line);
-                log.info("[WELDING-SERVER] Получены данные от {}: {}", clientIp, line);
-                
-                // Извлечение MAC-адреса из пакета
-                String mac = extractMacFromPacket(line);
-                if (mac != null) {
-                    System.out.println("[WELDING-SERVER] MAC из пакета: " + mac);
-                    log.debug("[WELDING-SERVER] MAC из пакета: {}", mac);
-                    
-                    // Проверяем, что MAC разрешен
-                    if (isAllowedMac(mac)) {
-                        // Пропускаем ping сообщения, логируем только полезные данные
-                        if (!line.startsWith("PING:")) {
-                            String source = mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блока мониторинга ОГК";
-                            String msg = "[WELDING-SERVER] ✅ Данные от " + source + " (" + mac + "): " + line;
-                            System.out.println(msg);
-                            log.info(msg);
-                            deviceManager.processDeviceData(line, mac);
+
+            while (running) {
+                int read = in.read(buffer);
+                if (read == -1) {
+                    break;
+                }
+
+                if (read > 0) {
+                    String data = new String(buffer, 0, read, StandardCharsets.US_ASCII);
+                    System.out.println("[WELDING-SERVER] 📨 Получены данные от " + clientIp + ": " + data);
+                    log.info("[WELDING-SERVER] Получены данные от {}: {}", clientIp, data);
+
+                    String mac = extractMacFromPacket(data);
+                    if (mac != null) {
+                        System.out.println("[WELDING-SERVER] MAC из пакета: " + mac);
+                        log.debug("[WELDING-SERVER] MAC из пакета: {}", mac);
+
+                        if (isAllowedMac(mac)) {
+                            if (!data.startsWith("PING:")) {
+                                String source = mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блока мониторинга ОГК";
+                                String msg = "[WELDING-SERVER] ✅ Данные от " + source + " (" + mac + "): " + data;
+                                System.out.println(msg);
+                                log.info(msg);
+                                deviceManager.processDeviceData(data, mac);
+
+                                // Положим входящий пакет в очередь (для будущей асинхронной обработки)
+                                IncomingPacketsQueue.Packet p = new IncomingPacketsQueue.Packet();
+                                p.ip = clientIp;
+                                p.mac = mac;
+                                p.data = data;
+                                p.serverDatetime = java.time.Instant.now();
+                                IncomingPacketsQueue.enqueue(p);
+                            }
+
+                            // Немедленная отправка ответа, если он есть
+                            OutboundPacketsRepository.Packet outbound = OutboundPacketsRepository.tryGet(mac);
+                            if (outbound != null && outbound.data != null && !outbound.data.isEmpty()) {
+                                byte[] response = outbound.data.getBytes(StandardCharsets.US_ASCII);
+                                try {
+                                    out.write(response);
+                                    out.flush();
+                                    System.out.println("[WELDING-SERVER] ⏫ Отправлен ответ устройству (" + mac + "): " + outbound.data);
+                                    log.debug("[WELDING-SERVER] Отправлен ответ {}", outbound.data);
+                                } catch (IOException ex) {
+                                    log.error("[WELDING-SERVER] Ошибка отправки ответа устройству {}", mac, ex);
+                                }
+                            }
+                        } else {
+                            String warn = "[WELDING-SERVER] ⚠️ Неизвестный MAC: " + mac + " (разрешены: " + macsConfig + ")";
+                            System.out.println(warn);
+                            log.warn(warn);
                         }
-                    } else {
-                        String warn = "[WELDING-SERVER] ⚠️ Неизвестный MAC: " + mac + " (разрешены: " + macsConfig + ")";
-                        System.out.println(warn);
-                        log.warn(warn);
                     }
                 }
             }
+
             System.out.println("[WELDING-SERVER] 🔌 Клиент " + clientIp + " закрыл соединение");
             log.info("[WELDING-SERVER] Клиент {} закрыл соединение", clientIp);
         } catch (IOException e) {
@@ -133,7 +165,7 @@ public class WeldingDeviceServer {
                 System.err.println("[WELDING-SERVER] ❌ Ошибка закрытия соединения: " + e.getMessage());
                 log.error("[WELDING-SERVER] Ошибка закрытия соединения", e);
             }
-                }
+        }
     }
     
     private void startHeartbeatThread() {
