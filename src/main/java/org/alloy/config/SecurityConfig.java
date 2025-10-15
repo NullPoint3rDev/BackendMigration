@@ -128,6 +128,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .antMatchers("/devices/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
             .antMatchers("/welding-devices/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
             .antMatchers("/welding-machines/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers("/device-test/**").hasRole("ADMIN")
 
             // Employees - admins and managers; Welders granular to match controller
             .antMatchers("/employees/**").hasAnyRole("ADMIN", "MANAGER")
