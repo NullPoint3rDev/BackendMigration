@@ -154,6 +154,20 @@ public class WeldingDeviceServer {
                                 }
                             }
 
+                            // Обнаружение посылки синхронизации времени: ":MAC;0101010D0A" или "MAC;0101010D0A"
+                            if (isTimeSyncRequest(data, mac)) {
+                                String ts = coreOutboundService.buildTimeSyncMessage(mac, true);
+                                if (ts != null) {
+                                    try {
+                                        out.write(ts.getBytes(StandardCharsets.US_ASCII));
+                                        out.flush();
+                                        System.out.println("[WELDING-SERVER] ⏫ Отправлена синхронизация времени: " + ts);
+                                    } catch (IOException ex) {
+                                        log.error("[WELDING-SERVER] Ошибка отправки синхронизации времени", ex);
+                                    }
+                                }
+                            }
+
                             // Немедленная отправка ответа, если он есть
                             OutboundPacketsRepository.Packet outbound = OutboundPacketsRepository.tryGet(mac);
                             if (outbound != null && outbound.data != null && !outbound.data.isEmpty()) {
@@ -247,6 +261,17 @@ public class WeldingDeviceServer {
             }
         }
         return false;
+    }
+
+    private boolean isTimeSyncRequest(String data, String mac) {
+        if (data == null) return false;
+        String needle = ";0101010D0A";
+        // допускаем варианты с ведущим ':'
+        int semicolon = data.indexOf(';');
+        if (semicolon < 0) return false;
+        String macIn = extractMacFromPacket(data);
+        if (macIn == null || !macIn.equalsIgnoreCase(mac)) return false;
+        return data.substring(semicolon).toUpperCase().contains(needle);
     }
 
     @PreDestroy
