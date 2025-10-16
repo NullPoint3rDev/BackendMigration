@@ -116,6 +116,23 @@ public class WeldingDeviceServer {
                         log.debug("[WELDING-SERVER] MAC из пакета: {}", mac);
 
                         if (isAllowedMac(mac)) {
+
+                            // 1) Сначала проверяем запрос синхронизации времени и отвечаем сразу
+                            if (isTimeSyncRequest(data, mac)) {
+                                String ts = coreOutboundService.buildTimeSyncMessage(mac, true);
+                                if (ts != null) {
+                                    try {
+                                        out.write(ts.getBytes(StandardCharsets.US_ASCII));
+                                        out.flush();
+                                        System.out.println("[WELDING-SERVER] ⏫ Отправлена синхронизация времени: " + ts);
+                                    } catch (IOException ex) {
+                                        log.error("[WELDING-SERVER] Ошибка отправки синхронизации времени", ex);
+                                    }
+                                }
+                                // Не выполняем остальную логику ответа для этого кадра
+                                continue;
+                            }
+
                             if (!data.startsWith("PING:")) {
                                 String source = mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блока мониторинга ОГК";
                                 String msg = "[WELDING-SERVER] ✅ Данные от " + source + " (" + mac + "): " + data;
@@ -154,19 +171,7 @@ public class WeldingDeviceServer {
                                 }
                             }
 
-                            // Обнаружение посылки синхронизации времени: ":MAC;0101010D0A" или "MAC;0101010D0A"
-                            if (isTimeSyncRequest(data, mac)) {
-                                String ts = coreOutboundService.buildTimeSyncMessage(mac, true);
-                                if (ts != null) {
-                                    try {
-                                        out.write(ts.getBytes(StandardCharsets.US_ASCII));
-                                        out.flush();
-                                        System.out.println("[WELDING-SERVER] ⏫ Отправлена синхронизация времени: " + ts);
-                                    } catch (IOException ex) {
-                                        log.error("[WELDING-SERVER] Ошибка отправки синхронизации времени", ex);
-                                    }
-                                }
-                            }
+                            // timesync уже обработан выше
 
                             // Немедленная отправка ответа, если он есть
                             OutboundPacketsRepository.Packet outbound = OutboundPacketsRepository.tryGet(mac);
@@ -265,13 +270,17 @@ public class WeldingDeviceServer {
 
     private boolean isTimeSyncRequest(String data, String mac) {
         if (data == null) return false;
-        String needle = ";0101010D0A";
+        String[] needles = new String[] { ";0101010D0A", ";010101" };
         // допускаем варианты с ведущим ':'
         int semicolon = data.indexOf(';');
         if (semicolon < 0) return false;
         String macIn = extractMacFromPacket(data);
         if (macIn == null || !macIn.equalsIgnoreCase(mac)) return false;
-        return data.substring(semicolon).toUpperCase().contains(needle);
+        String tail = data.substring(semicolon).toUpperCase();
+        for (String n : needles) {
+            if (tail.contains(n)) return true;
+        }
+        return false;
     }
 
     @PreDestroy
