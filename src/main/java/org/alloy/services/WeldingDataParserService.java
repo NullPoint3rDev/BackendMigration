@@ -159,61 +159,47 @@ public class WeldingDataParserService {
             // Используем найденную позицию для тока
             String current = payload.substring(bestCurrentPosition, bestCurrentPosition + 2);
             
-            // Ищем напряжение в диапазоне 15-50 В (0F-32 в hex) - расширенный диапазон
-           // System.out.println("[PARSER] 🔍 Поиск напряжения в диапазоне 15-50 В:");
-            int bestVoltagePosition = -1;
-            // int bestVoltageValue = -1; // not used
-            int minVoltageDifference = Integer.MAX_VALUE;
-            
-            for (int i = 0; i < payload.length() - 1; i += 2) {
-                if (i + 1 < payload.length()) {
-                    String value = payload.substring(i, i + 2);
-                    try {
-                        int numValue = Integer.parseInt(value, 16);
-                        // Если это число в диапазоне 15-50 В (0F-32 в hex) - расширенный диапазон
-                        if (numValue >= 15 && numValue <= 50) {
-                         //   System.out.println("[PARSER]   Позиции " + i + "-" + (i+1) + ": " + value + " = " + numValue + " В ⚡ ВОЗМОЖНОЕ НАПРЯЖЕНИЕ!");
-                            
-                            // Ищем значение, наиболее близкое к 20 В
-                            int difference = Math.abs(numValue - 20);
-                            if (difference < minVoltageDifference) {
-                                minVoltageDifference = difference;
-                                bestVoltagePosition = i;
-                                // bestVoltageValue = numValue;
-                            }
+            // Напряжение: большинство плат Блока мониторинга отдают напряжение как 2-байтовое число в десятых В (Big-Endian)
+            // Ищем 2-байтовые значения в разумном диапазоне 150..500 (15.0..50.0 В)
+            int bestVoltageWordPos = -1;
+            int bestVoltageWord = -1;
+            int minVoltageWordDiff = Integer.MAX_VALUE;
+
+            for (int i = 0; i + 3 < payload.length(); i += 2) {
+                try {
+                    int hi = Integer.parseInt(payload.substring(i, i + 2), 16);
+                    int lo = Integer.parseInt(payload.substring(i + 2, i + 4), 16);
+                    int word = (hi << 8) | lo; // Big-endian
+                    if (word >= 150 && word <= 500) { // 15.0..50.0 В
+                        int diff = Math.abs(word - 270); // около 27.0 В по вашим наблюдениям
+                        if (diff < minVoltageWordDiff) {
+                            minVoltageWordDiff = diff;
+                            bestVoltageWordPos = i;
+                            bestVoltageWord = word;
                         }
-                    } catch (NumberFormatException e) {
-                        // Не число, пропускаем
                     }
-                }
+                } catch (NumberFormatException ignore) {}
             }
-            
-            String voltage;
-            if (bestVoltagePosition >= 0) {
-                voltage = payload.substring(bestVoltagePosition, bestVoltagePosition + 2);
-               // System.out.println("[PARSER] 🎯 НАИЛУЧШИЙ КАНДИДАТ НА НАПРЯЖЕНИЕ:");
-              //  System.out.println("[PARSER]    Позиция: " + bestVoltagePosition + "-" + (bestVoltagePosition+1));
-              //  System.out.println("[PARSER]    Значение: " + bestVoltageValue + " В");
+
+            String voltageHex;
+            if (bestVoltageWordPos >= 0) {
+                // Переведём десятые В в целые В (округление до ближайшего)
+                int volts = Math.round(bestVoltageWord / 10.0f);
+                voltageHex = toHex(volts);
             } else {
-                // Fallback к позиции рядом с током, но проверяем границы
+                // Fallback: используем байт сразу после найденного тока как приблизительное напряжение в В
                 int voltageStart = bestCurrentPosition + 2;
-                int voltageEnd = bestCurrentPosition + 4;
-                if (voltageEnd <= payload.length()) {
-                    voltage = payload.substring(voltageStart, voltageEnd);
-                  //  System.out.println("[PARSER] ⚠️ Напряжение не найдено в диапазоне 20-50 В, используем позицию рядом с током");
+                if (voltageStart + 2 <= payload.length()) {
+                    voltageHex = payload.substring(voltageStart, voltageStart + 2);
+                } else if (payload.length() >= 80) {
+                    voltageHex = payload.substring(78, 80);
                 } else {
-                    // Если позиция рядом с током выходит за границы, используем фиксированную позицию 78-79
-                    voltage = payload.length() >= 80 ? payload.substring(78, 80) : "00";
-                   // System.out.println("[PARSER] ⚠️ Позиция рядом с током выходит за границы, используем фиксированную позицию 78-79");
+                    voltageHex = "00";
                 }
             }
-            
-           // System.out.println("[PARSER] 🔧 АВТОМАТИЧЕСКИ УСТАНАВЛИВАЕМ:");
-           // System.out.println("[PARSER]   State.I = " + current + " (позиции " + bestCurrentPosition + "-" + (bestCurrentPosition+1) + ")");
-          //  System.out.println("[PARSER]   State.U = " + voltage + " (позиции " + (bestVoltagePosition >= 0 ? bestVoltagePosition : bestCurrentPosition + 2) + "-" + (bestVoltagePosition >= 0 ? bestVoltagePosition + 1 : bestCurrentPosition + 3) + ")");
-            
+
             addProperty(properties, "State.I", current, "number");
-            addProperty(properties, "State.U", voltage, "number");
+            addProperty(properties, "State.U", voltageHex, "number");
         } else {
             // Если ток не найден в диапазоне 100-120, ищем в позициях 72-73 (где был найден ток 112)
           //  System.out.println("[PARSER] ⚠️ Ток не найден в диапазоне 100-120, используем фиксированные позиции 72-73");
