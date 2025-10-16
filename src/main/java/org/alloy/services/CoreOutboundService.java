@@ -52,7 +52,7 @@ public class CoreOutboundService {
         int year2 = now.getYear() % 100;
         String yy = to2Hex(year2);
         String body = hh + mm + ss + dd + mo + yy;
-        if (appendCrlf) body = body + "0D0A";
+       // if (appendCrlf) body = body + "0D0A";
         return ":" + mac.toUpperCase() + ";" + body;
     }
 
