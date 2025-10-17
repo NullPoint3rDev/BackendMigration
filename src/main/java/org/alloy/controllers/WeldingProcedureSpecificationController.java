@@ -59,10 +59,8 @@ public class WeldingProcedureSpecificationController {
     })
     @GetMapping
     public ResponseEntity<List<WeldingProcedureSpecification>> getAllWPS() {
-        // Ограничиваем количество записей для производительности
-        List<WeldingProcedureSpecification> wpsList = wpsRepository.findAll().stream()
-            .limit(100) // Максимум 100 записей
-            .collect(java.util.stream.Collectors.toList());
+        // Возвращаем все записи без ограничений
+        List<WeldingProcedureSpecification> wpsList = wpsRepository.findAll();
         return ResponseEntity.ok(wpsList);
     }
 

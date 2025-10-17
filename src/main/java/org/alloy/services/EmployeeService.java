@@ -47,10 +47,8 @@ public class EmployeeService {
     }
 
     public List<Employee> getAllEmployees() {
-        // Ограничиваем количество записей для производительности
-        return employeeRepository.findAll().stream()
-            .limit(100) // Максимум 100 записей
-            .collect(java.util.stream.Collectors.toList());
+        // Возвращаем все записи без ограничений
+        return employeeRepository.findAll();
     }
 
     public Optional<Employee> getEmployeeById(Long id) {
