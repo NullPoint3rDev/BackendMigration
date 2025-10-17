@@ -2,7 +2,8 @@ package org.alloy.services;
 
 public class CorePacketParser {
 
-    // Ожидается строка вида :<MAC>;HEX_DATA[...]
+    // Ожидается строка вида :<MAC>;INDEX_HEX_DATA[...]
+    // INDEX - это первые 8 символов после точки с запятой
     public static CorePacket parse(String frame) {
         if (frame == null) return null;
 
@@ -10,15 +11,31 @@ public class CorePacketParser {
         if (semi < 0 || semi + 1 >= frame.length()) return null;
 
         String hex = frame.substring(semi + 1).trim();
+        
+        // Проверяем, что есть минимум 8 символов для индекса
+        if (hex.length() < 8) return null;
+        
+        // Извлекаем индекс из первых 8 символов
+        String indexHex = hex.substring(0, 8);
+        String dataHex = hex.substring(8);
+        
+        System.out.println("[CORE-PARSER] 🔍 Индекс пакета: " + indexHex);
+        System.out.println("[CORE-PARSER] 📦 Данные пакета: " + dataHex);
 
-        // Последние 2 байта могут быть CRC/концовка, но структура фиксирована, возьмём минимально нужную длину
-        byte[] bytes = hexStringToByteArray(hex);
+        // Парсим индекс как uint32 (big-endian)
+        byte[] indexBytes = hexStringToByteArray(indexHex);
+        if (indexBytes == null || indexBytes.length != 4) return null;
+        
+        // Парсим остальные данные
+        byte[] bytes = hexStringToByteArray(dataHex);
         if (bytes == null) return null;
 
         CorePacket p = new CorePacket();
         try {
+            // Устанавливаем индекс из первых 8 символов
+            p.index = readU32BE(indexBytes, 0);
+            
             int off = 0;
-            p.index = readU32BE(bytes, off); off += 4;         // uint32 (big-endian)
 
             p.hours = readU8(bytes, off++);
             p.minutes = readU8(bytes, off++);

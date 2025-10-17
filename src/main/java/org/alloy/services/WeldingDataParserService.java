@@ -63,8 +63,10 @@ public class WeldingDataParserService {
                 // Значит кладём:
                 //  - State.I = hex(displayCurrent)
                 //  - State.U = hex(round(voltage*10))  (UI покажет 196 -> как 196, и мы можем делить на фронте, но сейчас UI просто число)
+                //  - Packet.Index = индекс пакета
                 addProperty(props, "State.I", toHex(displayCurrent), "number");
                 addProperty(props, "State.U", toHex(displayVoltageTenth), "number");
+                addProperty(props, "Packet.Index", String.valueOf(core.index), "number");
 
                 state.setProperties(props);
                 state.setStatus(determineStatus(props));

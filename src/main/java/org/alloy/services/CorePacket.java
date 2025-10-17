@@ -54,7 +54,7 @@ public class CorePacket {
     @Override
     public String toString() {
         return "CorePacket{" +
-                "index=" + index +
+                "index=" + index + " (0x" + String.format("%08X", index) + ")" +
                 ", time=" + String.format("%02d:%02d:%02d", hours, minutes, seconds) +
                 ", date=" + String.format("%02d-%02d-%02d", year, month, date) +
                 ", flags=" + flags +
