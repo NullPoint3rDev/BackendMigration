@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -33,7 +34,9 @@ public class WeldingMachineService {
     }
 
     public List<WeldingMachine> getAllWeldingMachines() {
-        return weldingMachineRepository.findAll();
+        return weldingMachineRepository.findAll().stream()
+                .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
+                .collect(Collectors.toList());
     }
 
     public Optional<WeldingMachine> getWeldingMachineById(Integer id) {
@@ -49,18 +52,24 @@ public class WeldingMachineService {
     }
 
     public List<WeldingMachine> getWeldingMachinesByOrganizationId(Integer organizationUnitId) {
-        return weldingMachineRepository.findByOrganizationUnitId(organizationUnitId);
+        return weldingMachineRepository.findByOrganizationUnitId(organizationUnitId).stream()
+                .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
+                .collect(Collectors.toList());
     }
 
     public List<WeldingMachine> getWeldingMachinesByTypeId(Integer typeId) {
-        return weldingMachineRepository.findByWeldingMachineTypeId(typeId);
+        return weldingMachineRepository.findByWeldingMachineTypeId(typeId).stream()
+                .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
+                .collect(Collectors.toList());
     }
 
     public List<WeldingMachine> searchWeldingMachines(Integer organizationUnitId, String searchTerm) {
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
             return getWeldingMachinesByOrganizationId(organizationUnitId);
         }
-        return weldingMachineRepository.searchWeldingMachines(organizationUnitId, searchTerm.trim());
+        return weldingMachineRepository.searchWeldingMachines(organizationUnitId, searchTerm.trim()).stream()
+                .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
+                .collect(Collectors.toList());
     }
 
     public WeldingMachine createWeldingMachine(WeldingMachine weldingMachine) {
