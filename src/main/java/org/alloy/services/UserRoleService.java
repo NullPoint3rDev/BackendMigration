@@ -20,7 +20,6 @@ public class UserRoleService {
     }
 
     public List<UserRole> getAllUserRoles() {
-        // Возвращаем все роли без ограничений
         return userRoleRepository.findAll();
     }
 

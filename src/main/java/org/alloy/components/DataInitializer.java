@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-// @Component  // Временно отключен для ускорения запуска
+@Component  // Временно включен для исправления ошибок 500
 public class DataInitializer implements CommandLineRunner {
 
     @Autowired

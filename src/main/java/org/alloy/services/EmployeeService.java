@@ -47,7 +47,6 @@ public class EmployeeService {
     }
 
     public List<Employee> getAllEmployees() {
-        // Возвращаем все записи без ограничений
         return employeeRepository.findAll();
     }
 

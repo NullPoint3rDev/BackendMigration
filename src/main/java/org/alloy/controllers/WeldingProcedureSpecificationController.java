@@ -59,7 +59,6 @@ public class WeldingProcedureSpecificationController {
     })
     @GetMapping
     public ResponseEntity<List<WeldingProcedureSpecification>> getAllWPS() {
-        // Возвращаем все записи без ограничений
         List<WeldingProcedureSpecification> wpsList = wpsRepository.findAll();
         return ResponseEntity.ok(wpsList);
     }
