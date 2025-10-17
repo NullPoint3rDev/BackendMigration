@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 @Service
 public class WeldingDeviceManagerService {
@@ -73,6 +75,7 @@ public class WeldingDeviceManagerService {
     /**
      * Получает текущее состояние аппарата
      */
+    @Cacheable(value = "deviceStates", key = "#mac")
     public StateSummary getDeviceState(String mac) {
         return deviceStates.get(mac);
     }
