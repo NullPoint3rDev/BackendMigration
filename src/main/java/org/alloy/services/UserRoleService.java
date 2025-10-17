@@ -20,7 +20,10 @@ public class UserRoleService {
     }
 
     public List<UserRole> getAllUserRoles() {
-        return userRoleRepository.findAll();
+        // Ограничиваем количество записей для производительности
+        return userRoleRepository.findAll().stream()
+            .limit(50) // Максимум 50 ролей
+            .collect(java.util.stream.Collectors.toList());
     }
 
     public Optional<UserRole> getUserRoleById(Integer id) {

@@ -45,6 +45,7 @@ public class WeldingMachineStateService {
 
     // ===== НОВЫЕ МЕТОДЫ ДЛЯ ИНТЕГРАЦИИ СО СВАРОЧНЫМИ АППАРАТАМИ =====
 
+    @Transactional
     public void saveMachineState(String mac, StateSummary stateSummary) {
         try {
             // Ищем сварочный аппарат по MAC

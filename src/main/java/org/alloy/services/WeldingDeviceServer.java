@@ -88,7 +88,7 @@ public class WeldingDeviceServer {
                 try {
                     Socket clientSocket = serverSocket.accept();
                     String clientIp = clientSocket.getInetAddress().getHostAddress();
-                    System.out.println("[WELDING-SERVER] 🔌 Подключение от: " + clientIp);
+                    // Убрали логирование для ускорения
                     log.info("[WELDING-SERVER] Подключение от {}", clientIp);
                     
                     // Соединение принято
@@ -119,7 +119,7 @@ public class WeldingDeviceServer {
              OutputStream out = clientSocket.getOutputStream()) {
 
             byte[] buffer = new byte[4096];
-            System.out.println("[WELDING-SERVER] 🔄 Ожидание данных от " + clientIp + "...");
+            // Убрали логирование для ускорения
 
             while (running) {
                 int read = in.read(buffer);
@@ -144,7 +144,7 @@ public class WeldingDeviceServer {
                                     try {
                                         out.write(ts.getBytes(StandardCharsets.US_ASCII));
                                         out.flush();
-                                        System.out.println("[WELDING-SERVER] ⏫ Отправлена синхронизация времени: " + ts);
+                                        // Убрали логирование для ускорения
                                     } catch (IOException ex) {
                                         log.error("[WELDING-SERVER] Ошибка отправки синхронизации времени", ex);
                                     }
@@ -158,13 +158,9 @@ public class WeldingDeviceServer {
                                 org.alloy.models.DeviceModel deviceModel = deviceModelService.getDeviceModelByMac(mac);
                                 String source = deviceModel != null ? deviceModel.getDisplayName() : 
                                               (mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блока мониторинга ОГК");
-                                String msg = "[WELDING-SERVER] ✅ Данные от " + source + " (" + mac + "): " + data;
-                                System.out.println(msg);
-                                log.info(msg);
 
                                 // Проверяем соответствие формата пакета модели устройства
                                 if (deviceModel != null && !deviceModelService.isPacketFormatMatches(mac, data)) {
-                                    System.out.println("[WELDING-SERVER] ❌ ОШИБКА: Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName() + " для MAC " + mac);
                                     
                                     // Создаем уникальный ключ для ошибки
                                     String errorKey = mac + "_" + deviceModel.getDisplayName();
@@ -216,7 +212,7 @@ public class WeldingDeviceServer {
                                 if (deviceModel == org.alloy.models.DeviceModel.CORE || mac.equalsIgnoreCase("E09806083396")) {
                                     CorePacket parsed = CorePacketParser.parse(data);
                                     if (parsed != null) {
-                                        System.out.println("[WELDING-SERVER] 📦 Core parsed: " + parsed);
+                                        // Убрали логирование для ускорения
                                         log.info("[WELDING-SERVER] Core parsed: {}", parsed);
                                         // Можно дальше передавать parsed на фронт/в сервисы
                                         // Сформировать и отправить ответ (если включено)
@@ -226,7 +222,7 @@ public class WeldingDeviceServer {
                                             try {
                                                 out.write(respBytes);
                                                 out.flush();
-                                                System.out.println("[WELDING-SERVER] ⏫ Core reply sent: " + reply);
+                                                // Убрали логирование для ускорения
                                             } catch (IOException ex) {
                                                 log.error("[WELDING-SERVER] Ошибка отправки Core ответа", ex);
                                             }
@@ -244,7 +240,7 @@ public class WeldingDeviceServer {
                                 try {
                                     out.write(response);
                                     out.flush();
-                                    System.out.println("[WELDING-SERVER] ⏫ Отправлен ответ устройству (" + mac + "): " + outbound.data);
+                                    // Убрали логирование для ускорения
                                     log.debug("[WELDING-SERVER] Отправлен ответ {}", outbound.data);
                                 } catch (IOException ex) {
                                     log.error("[WELDING-SERVER] Ошибка отправки ответа устройству {}", mac, ex);
@@ -259,7 +255,7 @@ public class WeldingDeviceServer {
                 }
             }
 
-            System.out.println("[WELDING-SERVER] 🔌 Клиент " + clientIp + " закрыл соединение");
+            // Убрали логирование для ускорения
             log.info("[WELDING-SERVER] Клиент {} закрыл соединение", clientIp);
         } catch (IOException e) {
             System.err.println("[WELDING-SERVER] ❌ Ошибка обработки клиента " + clientIp + ": " + e.getMessage());
@@ -267,7 +263,7 @@ public class WeldingDeviceServer {
         } finally {
             try {
                 clientSocket.close();
-                System.out.println("[WELDING-SERVER] 🔌 Соединение с " + clientIp + " закрыто");
+                // Убрали логирование для ускорения
                 log.info("[WELDING-SERVER] Соединение с {} закрыто", clientIp);
             } catch (IOException e) {
                 System.err.println("[WELDING-SERVER] ❌ Ошибка закрытия соединения: " + e.getMessage());
