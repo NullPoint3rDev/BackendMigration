@@ -15,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
-// @Service  // Временно отключен для ускорения запуска
-// @Transactional
+@Service  // Временно включен для исправления ошибок 500
+@Transactional
 public class DataInitializationService {
 
     private final WeldingMachineRepository weldingMachineRepository;
