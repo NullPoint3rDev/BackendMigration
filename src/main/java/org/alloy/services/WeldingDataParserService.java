@@ -67,6 +67,41 @@ public class WeldingDataParserService {
                 addProperty(props, "State.I", toHex(displayCurrent), "number");
                 addProperty(props, "State.U", toHex(displayVoltageTenth), "number");
                 addProperty(props, "Packet.Index", String.valueOf(core.index), "number");
+                
+                // Добавляем дополнительные свойства Core устройства
+                addProperty(props, "Time.Hours", String.valueOf(core.hours), "number");
+                addProperty(props, "Time.Minutes", String.valueOf(core.minutes), "number");
+                addProperty(props, "Time.Seconds", String.valueOf(core.seconds), "number");
+                addProperty(props, "Date.Day", String.valueOf(core.date), "number");
+                addProperty(props, "Date.Month", String.valueOf(core.month), "number");
+                addProperty(props, "Date.Year", String.valueOf(core.year), "number");
+                
+                addProperty(props, "State.Flags", String.valueOf(core.flags), "number");
+                addProperty(props, "State.WeldingMachineState", String.valueOf(core.weldingMachineState), "number");
+                addProperty(props, "State.GasFlow", String.valueOf(core.gasFlow), "number");
+                
+                addProperty(props, "Welding.Current", String.valueOf(core.weldingCurrent), "number");
+                addProperty(props, "Welding.Voltage", String.valueOf(core.weldingVoltage), "number");
+                addProperty(props, "Welding.JobNumber", String.valueOf(core.jobNumber), "number");
+                
+                addProperty(props, "Current", String.valueOf(core.current), "number");
+                addProperty(props, "Voltage", String.valueOf(core.voltage), "number");
+                addProperty(props, "Inductance", String.valueOf(core.inductance), "number");
+                
+                addProperty(props, "Errors.1", String.valueOf(core.errors1), "number");
+                addProperty(props, "Errors.2", String.valueOf(core.errors2), "number");
+                addProperty(props, "Errors.3", String.valueOf(core.errors3), "number");
+                
+                addProperty(props, "Voltage.PhaseA", String.valueOf(core.voltagePhaseA), "number");
+                addProperty(props, "Voltage.PhaseB", String.valueOf(core.voltagePhaseB), "number");
+                addProperty(props, "Voltage.PhaseC", String.valueOf(core.voltagePhaseC), "number");
+                
+                addProperty(props, "Temperature.Chiller1", String.valueOf(core.chillerTemperature1), "number");
+                addProperty(props, "Temperature.Chiller2", String.valueOf(core.chillerTemperature2), "number");
+                addProperty(props, "Temperature.PrimaryCoil", String.valueOf(core.primaryCoilTemperature), "number");
+                addProperty(props, "Temperature.SecondaryCoil", String.valueOf(core.secondaryCoilTemperature), "number");
+                
+                addProperty(props, "Wire.Index", String.valueOf(core.wireIndex), "number");
 
                 state.setProperties(props);
                 state.setStatus(determineStatus(props));
