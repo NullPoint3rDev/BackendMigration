@@ -73,29 +73,15 @@ public class TcpCoreDeviceClient {
                             lastDataReceived = System.currentTimeMillis();
                             String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
                             
-                            System.out.println("[TCP-CORE] 📨 Получены сырые данные (" + bytesRead + " байт): " + data);
+                            // Убрали логирование для ускорения
                             
                             String mac = extractMacFromPacket(data);
                             if (mac != null) {
-                                System.out.println("[TCP-CORE] 🔍 Извлечен MAC: " + mac);
                                 if (coreMac.equalsIgnoreCase(mac)) {
                                     if (!data.startsWith("PING:")) {
-                                        String msg = "[TCP-CORE] ✅ Данные от Core (" + mac + "): " + data;
-                                        System.out.println(msg);
-                                        log.info(msg);
                                         processWeldingData(data, mac);
-                                    } else {
-                                        System.out.println("[TCP-CORE] ⏭️ Пропущен ping от Core");
                                     }
-                                } else {
-                                    String warn = "[TCP-CORE] ⚠️ Неизвестный MAC: " + mac + " (ожидался: " + coreMac + ")";
-                                    System.out.println(warn);
-                                    log.warn(warn);
                                 }
-                            } else {
-                                String err = "[TCP-CORE] ❌ Не удалось извлечь MAC из данных: " + data;
-                                System.out.println(err);
-                                log.warn(err);
                             }
                         }
                         
@@ -190,11 +176,8 @@ public class TcpCoreDeviceClient {
     private void processWeldingData(String data, String mac) {
         try {
             deviceManager.processDeviceData(data, mac);
-            System.out.println("[TCP-CORE] ✅ Данные обработаны и сохранены");
-            log.info("[TCP-CORE] Данные обработаны и сохранены для {}", mac);
         } catch (Exception e) {
-            System.err.println("[TCP-CORE] Ошибка обработки данных: " + e.getMessage());
-            log.error("[TCP-CORE] Ошибка обработки данных для " + mac, e);
+            // Молча игнорируем ошибки
         }
     }
 

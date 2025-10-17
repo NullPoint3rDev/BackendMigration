@@ -19,13 +19,7 @@ public class CorePacketParser {
         byte[] bytes = hexStringToByteArray(hex);
         if (bytes == null) return null;
         
-        System.out.println("[CORE-PARSER] 📦 Данные пакета: " + hex);
-        System.out.println("[CORE-PARSER] 📏 Длина данных: " + hex.length() + " символов (" + (hex.length()/2) + " байт)");
-        
-        // Отладочный вывод первых 32 символов данных
-        if (hex.length() >= 32) {
-            System.out.println("[CORE-PARSER] 🔍 Первые 32 символа: " + hex.substring(0, 32));
-        }
+        // Убрали логирование для ускорения
 
         CorePacket p = new CorePacket();
         try {
@@ -121,22 +115,7 @@ public class CorePacketParser {
             // 28. uint32_t WireIndex (big-endian)
             if (off + 3 < bytes.length) { p.wireIndex = readU32BE(bytes, off); off += 4; }
             
-            System.out.println("[CORE-PARSER] ✅ Пакет успешно распарсен. Смещение: " + off + " байт");
-            System.out.println("[CORE-PARSER] 📊 Ключевые параметры:");
-            System.out.println("[CORE-PARSER]   - JobNumber: " + p.jobNumber + " (0x" + String.format("%04X", p.jobNumber) + ")");
-            System.out.println("[CORE-PARSER]   - Current: " + p.current + " (0x" + String.format("%04X", p.current) + ")");
-            System.out.println("[CORE-PARSER]   - Voltage: " + p.voltage + " (0x" + String.format("%04X", p.voltage) + ")");
-            System.out.println("[CORE-PARSER]   - WeldingCurrent: " + p.weldingCurrent + " (0x" + String.format("%04X", p.weldingCurrent) + ")");
-            System.out.println("[CORE-PARSER]   - WeldingVoltage: " + p.weldingVoltage + " (0x" + String.format("%04X", p.weldingVoltage) + ")");
-            
-            // Отладочный вывод hex данных для анализа
-            System.out.println("[CORE-PARSER] 🔍 Анализ hex данных:");
-            if (hex.length() >= 32) {
-                System.out.println("[CORE-PARSER]   - Первые 32 символа: " + hex.substring(0, 32));
-            }
-            if (hex.length() >= 48) {
-                System.out.println("[CORE-PARSER]   - Символы 32-48: " + hex.substring(32, 48));
-            }
+            // Убрали логирование для ускорения
         } catch (Exception ex) {
             System.out.println("[CORE-PARSER] ❌ Ошибка парсинга: " + ex.getMessage());
             ex.printStackTrace();

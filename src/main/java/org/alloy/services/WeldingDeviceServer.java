@@ -129,13 +129,11 @@ public class WeldingDeviceServer {
 
                 if (read > 0) {
                     String data = new String(buffer, 0, read, StandardCharsets.US_ASCII);
-                    System.out.println("[WELDING-SERVER] 📨 Получены данные от " + clientIp + ": " + data);
-                    log.info("[WELDING-SERVER] Получены данные от {}: {}", clientIp, data);
+                    // Убрали логирование для ускорения
 
                     String mac = extractMacFromPacket(data);
                     if (mac != null) {
-                        System.out.println("[WELDING-SERVER] MAC из пакета: " + mac);
-                        log.debug("[WELDING-SERVER] MAC из пакета: {}", mac);
+                        // Убрали логирование для ускорения
 
                         if (isAllowedMac(mac)) {
 

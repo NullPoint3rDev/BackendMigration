@@ -44,10 +44,9 @@ public class WeldingDataParserService {
         // Получаем модель устройства по MAC из БД или используем обратную совместимость
         DeviceModel deviceModel = deviceModelService.getDeviceModelByMac(mac);
         
-        // Проверяем соответствие формата пакета модели устройства
+        // Проверяем соответствие формата пакета модели устройства (БЕЗ ЛОГИРОВАНИЯ!)
         if (deviceModel != null && !deviceModelService.isPacketFormatMatches(mac, data)) {
-            System.out.println("[PARSER] ❌ ОШИБКА: Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName() + " для MAC " + mac);
-            // Можно добавить логику для пометки устройства как "ошибка соответствия"
+            // Молча игнорируем ошибки формата
         }
 
         // Для плат Core разбираем специализированным парсером и сразу выставляем ток/напряжение

@@ -44,18 +44,8 @@ public class WeldingDeviceManagerService {
      */
     public void processDeviceData(String data, String mac) {
         try {
-            System.out.println("[DEVICE-MANAGER] 🔍 Начинаем обработку данных от " + mac);
-            System.out.println("[DEVICE-MANAGER] 📦 Данные: " + data);
-            
-            // Парсим данные
+            // Парсим данные (БЕЗ ЛОГИРОВАНИЯ!)
             StateSummary stateSummary = dataParser.parseWeldingData(data, mac);
-            
-            System.out.println("[DEVICE-MANAGER] 📊 Результат парсинга:");
-            if (stateSummary.getProperties() != null) {
-                for (Map.Entry<String, StateSummaryPropertyValue> entry : stateSummary.getProperties().entrySet()) {
-                    System.out.println("[DEVICE-MANAGER]   " + entry.getKey() + " = " + entry.getValue().getValue());
-                }
-            }
             
             // Обновляем локальное состояние (даже если сохранение в БД не удалось)
             deviceStates.put(mac, stateSummary);
@@ -64,19 +54,13 @@ public class WeldingDeviceManagerService {
             // Отправляем через WebSocket с MAC адресом (ПРИОРИТЕТ!)
             deviceController.sendDeviceState(stateSummary, mac);
             
-            // Добавляем сообщение в историю тестирования
-            messageHistoryService.addMessage(mac, data, "received");
-            
-            System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны и отправлены на фронтенд");
-            
             // Сохраняем в базу данных АСИНХРОННО (не блокируем WebSocket)
             CompletableFuture.runAsync(() -> {
                 try {
                     stateService.saveMachineState(mac, stateSummary);
-                    System.out.println("[DEVICE-MANAGER] ✅ Данные сохранены в базу данных (асинхронно)");
+                    messageHistoryService.addMessage(mac, data, "received");
                 } catch (Exception dbError) {
-                    System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
-                    // Не прерываем обработку данных из-за ошибки БД
+                    // Молча игнорируем ошибки БД
                 }
             });
 

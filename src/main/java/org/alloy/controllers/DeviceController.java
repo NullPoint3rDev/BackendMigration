@@ -66,23 +66,20 @@ public class DeviceController {
             message.setMac(mac);
             String jsonData = objectMapper.writeValueAsString(message);
             
-            System.out.println("[DEVICE-CONTROLLER] 📤 Отправка состояния для " + mac + ": " + jsonData);
-            // Публикуем ТОЛЬКО в персональный топик устройства, чтобы данные не смешивались
+            // Публикуем ТОЛЬКО в персональный топик устройства (БЕЗ ЛОГИРОВАНИЯ!)
             messagingTemplate.convertAndSend("/topic/device-state/" + mac, jsonData);
-            System.out.println("[DEVICE-CONTROLLER] ✅ Состояние отправлено на /topic/device-state/" + mac);
             
             // Также отправляем данные в старом формате, но ТОЛЬКО в персональный топик устройства
             if (state.getProperties() != null) {
                 StringBuilder dataString = new StringBuilder();
                 dataString.append(timestamp).append("|");
-                dataString.append(mac).append(":"); // Динамический MAC адрес
+                dataString.append(mac).append(":");
                 
                 for (Map.Entry<String, StateSummaryPropertyValue> entry : state.getProperties().entrySet()) {
                     dataString.append(entry.getKey()).append(":").append(entry.getValue().getValue()).append(";");
                 }
                 
                 String rawData = dataString.toString();
-                System.out.println("[DEVICE-CONTROLLER] 📤 Отправка данных в старом формате (per-device): " + rawData);
                 messagingTemplate.convertAndSend("/topic/device/" + mac, rawData);
             }
             
