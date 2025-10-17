@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-@Component  // Временно включен для исправления ошибок 500
+@Component
 public class DataInitializer implements CommandLineRunner {
 
     @Autowired
@@ -78,32 +78,32 @@ public class DataInitializer implements CommandLineRunner {
 
     private void createDefaultPermissions() {
         List<String> defaultPermissions = Arrays.asList(
-            // Управление пользователями
-            "USER_READ", "USER_WRITE", "USER_DELETE", "USER_ROLE_ASSIGN",
-            
-            // Отчеты
-            "REPORT_READ", "REPORT_CREATE", "REPORT_EDIT", "REPORT_DELETE", "REPORT_EXPORT",
-            
-            // Устройства
-            "DEVICE_READ", "DEVICE_WRITE", "DEVICE_MAINTENANCE", "DEVICE_CALIBRATION",
-            
-            // Система
-            "SYSTEM_SETTINGS", "SYSTEM_LOGS", "SYSTEM_BACKUP", "SYSTEM_USERS",
-            
-            // Организация
-            "ORGANIZATION_READ", "ORGANIZATION_WRITE", "ORGANIZATION_UNITS",
-            
-            // Сварочные машины
-            "WELDING_MACHINE_READ", "WELDING_MACHINE_WRITE", "WELDING_MACHINE_MAINTENANCE",
-            
-            // Сотрудники
-            "EMPLOYEE_READ", "EMPLOYEE_WRITE", "EMPLOYEE_DELETE",
-            
-            // Уведомления
-            "NOTIFICATION_READ", "NOTIFICATION_WRITE", "NOTIFICATION_DELETE",
-            
-            // Библиотека документов
-            "LIBRARY_READ", "LIBRARY_WRITE", "LIBRARY_DELETE"
+                // Управление пользователями
+                "USER_READ", "USER_WRITE", "USER_DELETE", "USER_ROLE_ASSIGN",
+
+                // Отчеты
+                "REPORT_READ", "REPORT_CREATE", "REPORT_EDIT", "REPORT_DELETE", "REPORT_EXPORT",
+
+                // Устройства
+                "DEVICE_READ", "DEVICE_WRITE", "DEVICE_MAINTENANCE", "DEVICE_CALIBRATION",
+
+                // Система
+                "SYSTEM_SETTINGS", "SYSTEM_LOGS", "SYSTEM_BACKUP", "SYSTEM_USERS",
+
+                // Организация
+                "ORGANIZATION_READ", "ORGANIZATION_WRITE", "ORGANIZATION_UNITS",
+
+                // Сварочные машины
+                "WELDING_MACHINE_READ", "WELDING_MACHINE_WRITE", "WELDING_MACHINE_MAINTENANCE",
+
+                // Сотрудники
+                "EMPLOYEE_READ", "EMPLOYEE_WRITE", "EMPLOYEE_DELETE",
+
+                // Уведомления
+                "NOTIFICATION_READ", "NOTIFICATION_WRITE", "NOTIFICATION_DELETE",
+
+                // Библиотека документов
+                "LIBRARY_READ", "LIBRARY_WRITE", "LIBRARY_DELETE"
         );
 
         for (String permissionName : defaultPermissions) {
@@ -151,15 +151,15 @@ public class DataInitializer implements CommandLineRunner {
 
     private void assignAllPermissionsToRole(Integer roleId) {
         List<String> allPermissions = Arrays.asList(
-            "USER_READ", "USER_WRITE", "USER_DELETE", "USER_ROLE_ASSIGN",
-            "REPORT_READ", "REPORT_CREATE", "REPORT_EDIT", "REPORT_DELETE", "REPORT_EXPORT",
-            "DEVICE_READ", "DEVICE_WRITE", "DEVICE_MAINTENANCE", "DEVICE_CALIBRATION",
-            "SYSTEM_SETTINGS", "SYSTEM_LOGS", "SYSTEM_BACKUP", "SYSTEM_USERS",
-            "ORGANIZATION_READ", "ORGANIZATION_WRITE", "ORGANIZATION_UNITS",
-            "WELDING_MACHINE_READ", "WELDING_MACHINE_WRITE", "WELDING_MACHINE_MAINTENANCE",
-            "EMPLOYEE_READ", "EMPLOYEE_WRITE", "EMPLOYEE_DELETE",
-            "NOTIFICATION_READ", "NOTIFICATION_WRITE", "NOTIFICATION_DELETE",
-            "LIBRARY_READ", "LIBRARY_WRITE", "LIBRARY_DELETE"
+                "USER_READ", "USER_WRITE", "USER_DELETE", "USER_ROLE_ASSIGN",
+                "REPORT_READ", "REPORT_CREATE", "REPORT_EDIT", "REPORT_DELETE", "REPORT_EXPORT",
+                "DEVICE_READ", "DEVICE_WRITE", "DEVICE_MAINTENANCE", "DEVICE_CALIBRATION",
+                "SYSTEM_SETTINGS", "SYSTEM_LOGS", "SYSTEM_BACKUP", "SYSTEM_USERS",
+                "ORGANIZATION_READ", "ORGANIZATION_WRITE", "ORGANIZATION_UNITS",
+                "WELDING_MACHINE_READ", "WELDING_MACHINE_WRITE", "WELDING_MACHINE_MAINTENANCE",
+                "EMPLOYEE_READ", "EMPLOYEE_WRITE", "EMPLOYEE_DELETE",
+                "NOTIFICATION_READ", "NOTIFICATION_WRITE", "NOTIFICATION_DELETE",
+                "LIBRARY_READ", "LIBRARY_WRITE", "LIBRARY_DELETE"
         );
 
         for (String permissionName : allPermissions) {
@@ -264,10 +264,10 @@ public class DataInitializer implements CommandLineRunner {
     private void assignPermissionToRole(Integer roleId, String permissionName, Boolean read, Boolean write) {
         Optional<UserPermission> permission = userPermissionRepository.findByName(permissionName);
         if (permission.isPresent()) {
-            // Проверяем, не назначено ли уже это разрешение роли (оптимизированно)
-            boolean alreadyAssigned = userRolePermissionRepository
-                .findByUserRoleIdAndUserPermissionId(roleId, permission.get().getId())
-                .isPresent();
+            // Проверяем, не назначено ли уже это разрешение роли
+            boolean alreadyAssigned = userRolePermissionRepository.findAll().stream()
+                    .anyMatch(rp -> rp.getUserRoleId().equals(roleId) &&
+                            rp.getUserPermissionId().equals(permission.get().getId()));
 
             if (!alreadyAssigned) {
                 UserRolePermission rolePermission = new UserRolePermission();
