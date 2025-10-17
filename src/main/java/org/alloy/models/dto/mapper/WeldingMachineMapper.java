@@ -12,6 +12,7 @@ public class WeldingMachineMapper {
         dto.setId(entity.getId());
         dto.setName(entity.getName());
         dto.setMac(entity.getMac());
+        dto.setDeviceModel(entity.getDeviceModel());
         dto.setSerialNumber(entity.getSerialNumber());
         dto.setInventoryNumber(entity.getInventoryNumber());
         dto.setStatus(entity.getStatus() != null ? entity.getStatus().name() : null);
@@ -47,6 +48,7 @@ public class WeldingMachineMapper {
         entity.setId(dto.getId());
         entity.setName(dto.getName());
         entity.setMac(dto.getMac());
+        entity.setDeviceModel(dto.getDeviceModel());
         entity.setSerialNumber(dto.getSerialNumber());
         entity.setInventoryNumber(dto.getInventoryNumber());
         entity.setYearManufactured(dto.getManufactureYear() != null ? dto.getManufactureYear().toString() : null);

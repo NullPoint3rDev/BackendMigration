@@ -12,6 +12,7 @@ import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.dto.WeldingMachineDTO;
 import org.alloy.models.dto.mapper.WeldingMachineMapper;
 import org.alloy.services.WeldingMachineService;
+import org.alloy.services.DeviceModelService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,10 +37,12 @@ public class WeldingMachineController {
     }
 
     private final WeldingMachineService weldingMachineService;
+    private final DeviceModelService deviceModelService;
 
     @Autowired
-    public WeldingMachineController(WeldingMachineService weldingMachineService) {
+    public WeldingMachineController(WeldingMachineService weldingMachineService, DeviceModelService deviceModelService) {
         this.weldingMachineService = weldingMachineService;
+        this.deviceModelService = deviceModelService;
     }
 
     @Operation(
@@ -329,12 +332,55 @@ public class WeldingMachineController {
         )
     })
     @PostMapping
-    public ResponseEntity<WeldingMachineDTO> createWeldingMachine(
+    public ResponseEntity<?> createWeldingMachine(
         @Parameter(description = "Данные сварочного аппарата", required = true)
         @RequestBody WeldingMachineDTO machineDTO
     ) {
-        WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineMapper.toDTO(weldingMachineService.createWeldingMachine(entity)));
+        // Валидация MAC-адреса
+        if (machineDTO.getMac() == null || machineDTO.getMac().trim().isEmpty()) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("VALIDATION_ERROR");
+            error.setMessage("MAC-адрес обязателен");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Валидация модели устройства
+        if (machineDTO.getDeviceModel() == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("VALIDATION_ERROR");
+            error.setMessage("Модель устройства обязательна");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Нормализация и валидация формата MAC
+        String normalizedMac = deviceModelService.normalizeMac(machineDTO.getMac());
+        if (!deviceModelService.isValidMacFormat(normalizedMac)) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("VALIDATION_ERROR");
+            error.setMessage("MAC-адрес должен содержать 12 символов (только 0-9, A-F)");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Проверка уникальности MAC
+        if (weldingMachineService.getWeldingMachineByMac(normalizedMac).isPresent()) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("DUPLICATE_ERROR");
+            error.setMessage("Устройство с таким MAC-адресом уже существует");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Устанавливаем нормализованный MAC
+        machineDTO.setMac(normalizedMac);
+
+        try {
+            WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineMapper.toDTO(weldingMachineService.createWeldingMachine(entity)));
+        } catch (Exception e) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("CREATION_ERROR");
+            error.setMessage("Ошибка создания устройства: " + e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @Operation(

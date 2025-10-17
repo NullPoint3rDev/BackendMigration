@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -14,6 +16,7 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Service
 public class WeldingDeviceServer {
@@ -37,6 +40,14 @@ public class WeldingDeviceServer {
 
     @Autowired
     private CoreOutboundService coreOutboundService;
+
+    @Autowired
+    private DeviceModelService deviceModelService;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
     // @Autowired
     // private DeviceController deviceController; // not used here
@@ -134,11 +145,47 @@ public class WeldingDeviceServer {
                             }
 
                             if (!data.startsWith("PING:")) {
-                                String source = mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блока мониторинга ОГК";
+                                // Определяем модель устройства по MAC из БД
+                                org.alloy.models.DeviceModel deviceModel = deviceModelService.getDeviceModelByMac(mac);
+                                String source = deviceModel != null ? deviceModel.getDisplayName() : 
+                                              (mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блока мониторинга ОГК");
                                 String msg = "[WELDING-SERVER] ✅ Данные от " + source + " (" + mac + "): " + data;
                                 System.out.println(msg);
                                 log.info(msg);
+
+                                // Проверяем соответствие формата пакета модели устройства
+                                if (deviceModel != null && !deviceModelService.isPacketFormatMatches(mac, data)) {
+                                    System.out.println("[WELDING-SERVER] ❌ ОШИБКА: Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName() + " для MAC " + mac);
+                                    
+                                    // Отправляем событие ошибки соответствия модели
+                                    try {
+                                        String errorMessage = "Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName();
+                                        String errorJson = objectMapper.writeValueAsString(Map.of(
+                                            "mac", mac,
+                                            "expectedModel", deviceModel.getDisplayName(),
+                                            "message", errorMessage,
+                                            "timestamp", System.currentTimeMillis()
+                                        ));
+                                        messagingTemplate.convertAndSend("/topic/device-model-error", errorJson);
+                                    } catch (Exception e) {
+                                        log.error("[WELDING-SERVER] Ошибка отправки события ошибки модели", e);
+                                    }
+                                }
+
                                 deviceManager.processDeviceData(data, mac);
+
+                                // Отправляем событие обновления статуса устройства
+                                try {
+                                    String statusJson = objectMapper.writeValueAsString(Map.of(
+                                        "mac", mac,
+                                        "status", "online",
+                                        "timestamp", System.currentTimeMillis(),
+                                        "model", deviceModel != null ? deviceModel.name() : "UNKNOWN"
+                                    ));
+                                    messagingTemplate.convertAndSend("/topic/device-status", statusJson);
+                                } catch (Exception e) {
+                                    log.error("[WELDING-SERVER] Ошибка отправки статуса устройства", e);
+                                }
 
                                 // Положим входящий пакет в очередь (для будущей асинхронной обработки)
                                 IncomingPacketsQueue.Packet p = new IncomingPacketsQueue.Packet();
@@ -149,7 +196,7 @@ public class WeldingDeviceServer {
                                 IncomingPacketsQueue.enqueue(p);
 
                                 // Парсинг пакета Core и вывод удобочитаемо
-                                if (mac.equalsIgnoreCase("E09806083396")) {
+                                if (deviceModel == org.alloy.models.DeviceModel.CORE || mac.equalsIgnoreCase("E09806083396")) {
                                     CorePacket parsed = CorePacketParser.parse(data);
                                     if (parsed != null) {
                                         System.out.println("[WELDING-SERVER] 📦 Core parsed: " + parsed);

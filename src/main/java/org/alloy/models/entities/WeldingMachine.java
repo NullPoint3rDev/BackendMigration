@@ -2,10 +2,10 @@ package org.alloy.models.entities;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.alloy.models.GeneralStatus;
+import org.alloy.models.DeviceModel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
@@ -48,9 +48,14 @@ public class WeldingMachine {
     @Schema(description = "Название сварочной машины", example = "Сварочная машина #1")
     private String name;
 
-    @Column(name = "MAC")
+    @Column(name = "MAC", unique = true)
     @Schema(description = "MAC-адрес", example = "00:11:22:33:44:55")
     private String mac;
+
+    @Column(name = "DeviceModel")
+    @Enumerated(EnumType.STRING)
+    @Schema(description = "Модель устройства", example = "CORE")
+    private DeviceModel deviceModel;
 
     @Column(name = "SerialNumber")
     @Schema(description = "Серийный номер", example = "SN123456")

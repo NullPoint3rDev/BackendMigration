@@ -1,8 +1,10 @@
 package org.alloy.services;
 
 import org.alloy.models.WeldingMachineStatus;
+import org.alloy.models.DeviceModel;
 import org.alloy.models.weldingmachine.StateSummary;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +24,9 @@ public class WeldingDataParserService {
     @Value("${welding.core.macs:E09806083396}")
     private String coreMacsConfig;
 
+    @Autowired
+    private DeviceModelService deviceModelService;
+
     public StateSummary parseWeldingData(String data, String mac) {
        // System.out.println("[PARSER] 🚀 НАЧАЛО ПАРСИНГА");
         //System.out.println("[PARSER] 🔍 Парсинг данных: " + data);
@@ -36,8 +41,17 @@ public class WeldingDataParserService {
         state.setDateCreated(LocalDateTime.now());
         state.setLastDatetimeUpdate(LocalDateTime.now());
 
+        // Получаем модель устройства по MAC из БД или используем обратную совместимость
+        DeviceModel deviceModel = deviceModelService.getDeviceModelByMac(mac);
+        
+        // Проверяем соответствие формата пакета модели устройства
+        if (deviceModel != null && !deviceModelService.isPacketFormatMatches(mac, data)) {
+            System.out.println("[PARSER] ❌ ОШИБКА: Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName() + " для MAC " + mac);
+            // Можно добавить логику для пометки устройства как "ошибка соответствия"
+        }
+
         // Для плат Core разбираем специализированным парсером и сразу выставляем ток/напряжение
-        if (isCoreMac(mac)) {
+        if (deviceModel == DeviceModel.CORE || isCoreMac(mac)) {
             CorePacket core = CorePacketParser.parse(data);
             if (core != null) {
                 Map<String, StateSummaryPropertyValue> props = new HashMap<>();

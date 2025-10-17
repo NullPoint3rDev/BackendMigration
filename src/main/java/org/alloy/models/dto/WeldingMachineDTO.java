@@ -3,6 +3,7 @@ package org.alloy.models.dto;
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import org.alloy.models.DeviceModel;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class WeldingMachineDTO {
@@ -10,6 +11,7 @@ public class WeldingMachineDTO {
     private String name;
     private String model;
     private String mac;
+    private DeviceModel deviceModel;
     private String serialNumber;
     private String inventoryNumber;
     private String imageUrl;
@@ -32,6 +34,8 @@ public class WeldingMachineDTO {
     public void setModel(String model) { this.model = model; }
     public String getMac() { return mac; }
     public void setMac(String mac) { this.mac = mac; }
+    public DeviceModel getDeviceModel() { return deviceModel; }
+    public void setDeviceModel(DeviceModel deviceModel) { this.deviceModel = deviceModel; }
     public String getSerialNumber() { return serialNumber; }
     public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
     public String getInventoryNumber() { return inventoryNumber; }

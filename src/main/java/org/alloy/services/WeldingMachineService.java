@@ -44,6 +44,10 @@ public class WeldingMachineService {
         return weldingMachineRepository.findBySerialNumber(serialNumber);
     }
 
+    public Optional<WeldingMachine> getWeldingMachineByMac(String mac) {
+        return weldingMachineRepository.findByMac(mac);
+    }
+
     public List<WeldingMachine> getWeldingMachinesByOrganizationId(Integer organizationUnitId) {
         return weldingMachineRepository.findByOrganizationUnitId(organizationUnitId);
     }
