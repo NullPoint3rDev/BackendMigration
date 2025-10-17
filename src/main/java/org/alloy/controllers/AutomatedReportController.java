@@ -50,7 +50,7 @@ public class AutomatedReportController {
     private final AutomatedReportScheduler automatedReportScheduler;
 
     @Autowired
-    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService, UserAccountService userAccountService, AutomatedReportScheduler automatedReportScheduler) {
+    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService, UserAccountService userAccountService, @Autowired(required = false) AutomatedReportScheduler automatedReportScheduler) {
         this.automatedReportService = automatedReportService;
         this.dataFixService = dataFixService;
         this.userAccountService = userAccountService;
@@ -152,12 +152,20 @@ public class AutomatedReportController {
         @PathVariable Long id
     ) {
         try {
-            automatedReportScheduler.executeNow(id);
-            Map<String, Object> resp = new java.util.HashMap<>();
-            resp.put("success", true);
-            resp.put("message", "Автоматический отчет успешно выполнен");
-            resp.put("id", id);
-            return ResponseEntity.ok(resp);
+            if (automatedReportScheduler != null) {
+                automatedReportScheduler.executeNow(id);
+                Map<String, Object> resp = new java.util.HashMap<>();
+                resp.put("success", true);
+                resp.put("message", "Автоматический отчет успешно выполнен");
+                resp.put("id", id);
+                return ResponseEntity.ok(resp);
+            } else {
+                Map<String, Object> resp = new java.util.HashMap<>();
+                resp.put("success", false);
+                resp.put("message", "Автоматический планировщик отключен");
+                resp.put("id", id);
+                return ResponseEntity.ok(resp);
+            }
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportController: Failed to execute automated report: " + e.getMessage());
             Map<String, Object> err = new java.util.HashMap<>();
