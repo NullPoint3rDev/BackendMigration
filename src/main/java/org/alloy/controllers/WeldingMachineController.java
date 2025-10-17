@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -422,7 +423,7 @@ public class WeldingMachineController {
         )
     })
     @PutMapping("/{id}")
-    public ResponseEntity<WeldingMachineDTO> updateWeldingMachine(
+    public ResponseEntity<?> updateWeldingMachine(
         @Parameter(description = "ID сварочного аппарата", required = true, example = "1")
         @PathVariable Integer id,
         @Parameter(description = "Обновленные данные сварочного аппарата", required = true)
@@ -431,9 +432,54 @@ public class WeldingMachineController {
         if (!weldingMachineService.getWeldingMachineById(id).isPresent()) {
             return ResponseEntity.notFound().build();
         }
-        WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
-        entity.setId(id);
-        return ResponseEntity.ok(WeldingMachineMapper.toDTO(weldingMachineService.updateWeldingMachine(entity)));
+
+        // Валидация MAC-адреса
+        if (machineDTO.getMac() == null || machineDTO.getMac().trim().isEmpty()) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("VALIDATION_ERROR");
+            error.setMessage("MAC-адрес обязателен");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Валидация модели устройства
+        if (machineDTO.getDeviceModel() == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("VALIDATION_ERROR");
+            error.setMessage("Модель устройства обязательна");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Нормализация и валидация формата MAC
+        String normalizedMac = deviceModelService.normalizeMac(machineDTO.getMac());
+        if (!deviceModelService.isValidMacFormat(normalizedMac)) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("VALIDATION_ERROR");
+            error.setMessage("MAC-адрес должен содержать 12 символов (только 0-9, A-F)");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Проверка уникальности MAC (исключая текущую машину)
+        Optional<WeldingMachine> existingMachineWithMac = weldingMachineService.getWeldingMachineByMac(normalizedMac);
+        if (existingMachineWithMac.isPresent() && !existingMachineWithMac.get().getId().equals(id)) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("DUPLICATE_ERROR");
+            error.setMessage("Устройство с таким MAC-адресом уже существует");
+            return ResponseEntity.badRequest().body(error);
+        }
+
+        // Устанавливаем нормализованный MAC
+        machineDTO.setMac(normalizedMac);
+
+        try {
+            WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
+            entity.setId(id);
+            return ResponseEntity.ok(WeldingMachineMapper.toDTO(weldingMachineService.updateWeldingMachine(entity)));
+        } catch (Exception e) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("UPDATE_ERROR");
+            error.setMessage("Ошибка обновления устройства: " + e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @Operation(

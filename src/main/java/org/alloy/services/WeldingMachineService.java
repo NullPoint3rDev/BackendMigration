@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -113,8 +114,12 @@ public class WeldingMachineService {
                 .orElseThrow(() -> new IllegalArgumentException("Welding machine not found"));
 
         // Check if new serial number conflicts with existing one
-        if (!existingMachine.getSerialNumber().equals(weldingMachine.getSerialNumber())) {
-            if (weldingMachineRepository.findBySerialNumber(weldingMachine.getSerialNumber()).isPresent()) {
+        String existingSerialNumber = existingMachine.getSerialNumber();
+        String newSerialNumber = weldingMachine.getSerialNumber();
+        
+        // Only check for conflicts if both serial numbers are not null and different
+        if (newSerialNumber != null && !Objects.equals(existingSerialNumber, newSerialNumber)) {
+            if (weldingMachineRepository.findBySerialNumber(newSerialNumber).isPresent()) {
                 throw new IllegalArgumentException("A welding machine with this serial number already exists");
             }
         }
