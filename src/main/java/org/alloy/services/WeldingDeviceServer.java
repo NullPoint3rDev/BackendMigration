@@ -17,6 +17,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class WeldingDeviceServer {
@@ -49,6 +51,9 @@ public class WeldingDeviceServer {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     
+    // Отслеживание отправленных ошибок для предотвращения спама
+    private final Set<String> sentModelErrors = ConcurrentHashMap.newKeySet();
+    
     // @Autowired
     // private DeviceController deviceController; // not used here
 
@@ -59,12 +64,18 @@ public class WeldingDeviceServer {
         System.out.println("[WELDING-SERVER] Разрешенные MAC: " + macsConfig);
         log.info("[WELDING-SERVER] Запуск сервера. Порт: {}, Разрешенные MAC: {}", port, macsConfig);
         
+        // Очищаем отслеживание ошибок при запуске
+        sentModelErrors.clear();
+        
         serverThread = new Thread(this::runServer);
         serverThread.setDaemon(true);
         serverThread.start();
         
         // Запускаем поток для отправки периодических команд
         startHeartbeatThread();
+        
+        // Запускаем поток для периодической очистки отслеживания ошибок
+        startErrorCleanupThread();
     }
 
     private void runServer() {
@@ -157,18 +168,26 @@ public class WeldingDeviceServer {
                                 if (deviceModel != null && !deviceModelService.isPacketFormatMatches(mac, data)) {
                                     System.out.println("[WELDING-SERVER] ❌ ОШИБКА: Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName() + " для MAC " + mac);
                                     
-                                    // Отправляем событие ошибки соответствия модели
-                                    try {
-                                        String errorMessage = "Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName();
-                                        String errorJson = objectMapper.writeValueAsString(Map.of(
-                                            "mac", mac,
-                                            "expectedModel", deviceModel.getDisplayName(),
-                                            "message", errorMessage,
-                                            "timestamp", System.currentTimeMillis()
-                                        ));
-                                        messagingTemplate.convertAndSend("/topic/device-model-error", errorJson);
-                                    } catch (Exception e) {
-                                        log.error("[WELDING-SERVER] Ошибка отправки события ошибки модели", e);
+                                    // Создаем уникальный ключ для ошибки
+                                    String errorKey = mac + "_" + deviceModel.getDisplayName();
+                                    
+                                    // Отправляем событие ошибки только если эта ошибка еще не была отправлена
+                                    if (!sentModelErrors.contains(errorKey)) {
+                                        sentModelErrors.add(errorKey);
+                                        
+                                        try {
+                                            String errorMessage = "Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName();
+                                            String errorJson = objectMapper.writeValueAsString(Map.of(
+                                                "mac", mac,
+                                                "expectedModel", deviceModel.getDisplayName(),
+                                                "message", errorMessage,
+                                                "timestamp", System.currentTimeMillis()
+                                            ));
+                                            messagingTemplate.convertAndSend("/topic/device-model-error", errorJson);
+                                            log.info("[WELDING-SERVER] Отправлено событие ошибки модели для MAC: {}", mac);
+                                        } catch (Exception e) {
+                                            log.error("[WELDING-SERVER] Ошибка отправки события ошибки модели", e);
+                                        }
                                     }
                                 }
 
@@ -328,6 +347,27 @@ public class WeldingDeviceServer {
             if (tail.contains(n)) return true;
         }
         return false;
+    }
+
+    private void startErrorCleanupThread() {
+        Thread cleanupThread = new Thread(() -> {
+            while (running) {
+                try {
+                    // Очищаем отслеживание ошибок каждые 5 минут
+                    Thread.sleep(5 * 60 * 1000);
+                    if (running) {
+                        sentModelErrors.clear();
+                        log.debug("[WELDING-SERVER] Очищено отслеживание ошибок модели");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        });
+        cleanupThread.setName("WeldingDeviceErrorCleanup");
+        cleanupThread.setDaemon(true);
+        cleanupThread.start();
     }
 
     @PreDestroy
