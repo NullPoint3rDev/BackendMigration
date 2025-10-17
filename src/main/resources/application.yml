@@ -11,10 +11,12 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
+      auto-commit: true
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -25,7 +27,7 @@ spring:
         order_updates: true
         batch_versioned_data: true
         connection:
-          provider_disables_autocommit: true
+          provider_disables_autocommit: false
   # Email/SMTP Configuration
   mail:
     host: smtp.yandex.ru

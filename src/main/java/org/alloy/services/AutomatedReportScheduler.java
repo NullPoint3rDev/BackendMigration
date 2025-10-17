@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
-@Service
-@Transactional
+// @Service  // Временно отключен для ускорения запуска
+// @Transactional
 public class AutomatedReportScheduler {
 
     @Autowired

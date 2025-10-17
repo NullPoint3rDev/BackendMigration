@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface UserRolePermissionRepository extends JpaRepository<UserRolePermission, Integer> {
@@ -14,4 +15,6 @@ public interface UserRolePermissionRepository extends JpaRepository<UserRolePerm
     
     @Query("SELECT urp FROM UserRolePermission urp JOIN FETCH urp.userPermission WHERE urp.userRoleId = :userRoleId")
     List<UserRolePermission> findByUserRoleIdWithPermission(@Param("userRoleId") Integer userRoleId);
+    
+    Optional<UserRolePermission> findByUserRoleIdAndUserPermissionId(Integer userRoleId, Integer userPermissionId);
 }

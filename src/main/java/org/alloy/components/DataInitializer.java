@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-@Component
+// @Component  // Временно отключен для ускорения запуска
 public class DataInitializer implements CommandLineRunner {
 
     @Autowired
@@ -264,10 +264,10 @@ public class DataInitializer implements CommandLineRunner {
     private void assignPermissionToRole(Integer roleId, String permissionName, Boolean read, Boolean write) {
         Optional<UserPermission> permission = userPermissionRepository.findByName(permissionName);
         if (permission.isPresent()) {
-            // Проверяем, не назначено ли уже это разрешение роли
-            boolean alreadyAssigned = userRolePermissionRepository.findAll().stream()
-                .anyMatch(rp -> rp.getUserRoleId().equals(roleId) && 
-                               rp.getUserPermissionId().equals(permission.get().getId()));
+            // Проверяем, не назначено ли уже это разрешение роли (оптимизированно)
+            boolean alreadyAssigned = userRolePermissionRepository
+                .findByUserRoleIdAndUserPermissionId(roleId, permission.get().getId())
+                .isPresent();
 
             if (!alreadyAssigned) {
                 UserRolePermission rolePermission = new UserRolePermission();
