@@ -44,7 +44,8 @@ public class CorePacketParser {
             int off = 0;
 
             // Парсим остальные поля согласно структуре WTINFO_TypeDef
-            // БЕЗ пропуска - начинаем с начала данных
+            // Данные смещены на 16 байт (32 символа hex) - пропускаем первые 16 байт
+            off += 12;
             
             p.hours = readU8(bytes, off++);                    // uint8_t Hours
             p.minutes = readU8(bytes, off++);                  // uint8_t Minutes
@@ -53,37 +54,37 @@ public class CorePacketParser {
 
             p.month = readU8(bytes, off++);                    // uint8_t Month
             p.year = readU8(bytes, off++);                     // uint8_t Year
-            p.reserve = readU16LE(bytes, off); off += 2;       // uint16_t reserve (little-endian)
+            p.reserve = readU16BE(bytes, off); off += 2;       // uint16_t reserve (big-endian)
 
             p.flags = readI8(bytes, off++);                    // int8_t flags
             p.weldingMachineState = readI8(bytes, off++);      // int8_t WeldingMachineState
-            p.gasFlow = readI16LE(bytes, off); off += 2;       // int16_t GasFlow (little-endian)
+            p.gasFlow = readI16BE(bytes, off); off += 2;       // int16_t GasFlow (big-endian)
 
-            p.weldingCurrent = readI16LE(bytes, off); off += 2; // int16_t WeldingCurrent (little-endian)
-            p.weldingVoltage = readI16LE(bytes, off); off += 2; // int16_t WeldingVoltage (little-endian)
+            p.weldingCurrent = readI16BE(bytes, off); off += 2; // int16_t WeldingCurrent (big-endian)
+            p.weldingVoltage = readI16BE(bytes, off); off += 2; // int16_t WeldingVoltage (big-endian)
 
-            p.jobNumber = readI16LE(bytes, off); off += 2;     // int16_t JobNumber (little-endian)
-            p.current = readI16LE(bytes, off); off += 2;       // int16_t Current (little-endian)
+            p.jobNumber = readI16BE(bytes, off); off += 2;     // int16_t JobNumber (big-endian)
+            p.current = readI16BE(bytes, off); off += 2;       // int16_t Current (big-endian)
 
-            p.voltage = readI16LE(bytes, off); off += 2;       // int16_t Voltage (little-endian)
-            p.inductance = readI16LE(bytes, off); off += 2;    // int16_t Inductance (little-endian)
+            p.voltage = readI16BE(bytes, off); off += 2;       // int16_t Voltage (big-endian)
+            p.inductance = readI16BE(bytes, off); off += 2;    // int16_t Inductance (big-endian)
 
-            p.errors1 = readI16LE(bytes, off); off += 2;       // int16_t Errors1 (little-endian)
-            p.errors2 = readI16LE(bytes, off); off += 2;       // int16_t Errors2 (little-endian)
+            p.errors1 = readI16BE(bytes, off); off += 2;       // int16_t Errors1 (big-endian)
+            p.errors2 = readI16BE(bytes, off); off += 2;       // int16_t Errors2 (big-endian)
 
-            p.errors3 = readI16LE(bytes, off); off += 2;       // int16_t Errors3 (little-endian)
-            p.voltagePhaseA = readI16LE(bytes, off); off += 2; // int16_t VoltagePhaseA (little-endian)
+            p.errors3 = readI16BE(bytes, off); off += 2;       // int16_t Errors3 (big-endian)
+            p.voltagePhaseA = readI16BE(bytes, off); off += 2; // int16_t VoltagePhaseA (big-endian)
 
-            p.voltagePhaseB = readI16LE(bytes, off); off += 2; // int16_t VoltagePhaseB (little-endian)
-            p.voltagePhaseC = readI16LE(bytes, off); off += 2; // int16_t VoltagePhaseC (little-endian)
+            p.voltagePhaseB = readI16BE(bytes, off); off += 2; // int16_t VoltagePhaseB (big-endian)
+            p.voltagePhaseC = readI16BE(bytes, off); off += 2; // int16_t VoltagePhaseC (big-endian)
 
-            p.chillerTemperature1 = readI16LE(bytes, off); off += 2; // int16_t ChillerTemperature1 (little-endian)
-            p.chillerTemperature2 = readI16LE(bytes, off); off += 2; // int16_t ChillerTemperature2 (little-endian)
+            p.chillerTemperature1 = readI16BE(bytes, off); off += 2; // int16_t ChillerTemperature1 (big-endian)
+            p.chillerTemperature2 = readI16BE(bytes, off); off += 2; // int16_t ChillerTemperature2 (big-endian)
 
-            p.primaryCoilTemperature = readI16LE(bytes, off); off += 2;   // int16_t PrimaryCoilTemperature (little-endian)
-            p.secondaryCoilTemperature = readI16LE(bytes, off); off += 2; // int16_t SecondaryCoilTemperature (little-endian)
+            p.primaryCoilTemperature = readI16BE(bytes, off); off += 2;   // int16_t PrimaryCoilTemperature (big-endian)
+            p.secondaryCoilTemperature = readI16BE(bytes, off); off += 2; // int16_t SecondaryCoilTemperature (big-endian)
 
-            p.wireIndex = readU32LE(bytes, off); off += 4;     // uint32_t WireIndex (little-endian)
+            p.wireIndex = readU32BE(bytes, off); off += 4;     // uint32_t WireIndex (big-endian)
             
             System.out.println("[CORE-PARSER] ✅ Пакет успешно распарсен. Смещение: " + off + " байт");
             System.out.println("[CORE-PARSER] 📊 Ключевые параметры:");
