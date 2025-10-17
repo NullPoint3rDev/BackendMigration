@@ -22,6 +22,7 @@ import org.alloy.models.entities.WeldingMachineParameterValue;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
 
 @Service
+@Transactional
 public class WeldingMachineStateService {
 
     @Autowired
@@ -213,32 +214,26 @@ public class WeldingMachineStateService {
 
     // ===== СТАРЫЕ МЕТОДЫ ДЛЯ WeldingMachineStateController =====
 
-    @Transactional(readOnly = true)
     public List<WeldingMachineState> getAllWeldingMachineStates() {
         return weldingMachineStateRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
     public Optional<WeldingMachineState> getWeldingMachineStateById(Long id) {
         return weldingMachineStateRepository.findById(id);
     }
 
-    @Transactional(readOnly = true)
     public List<WeldingMachineState> getWeldingMachineStatesByMachineId(Integer machineId) {
         return weldingMachineStateRepository.findByWeldingMachineId(machineId);
     }
 
-    @Transactional(readOnly = true)
     public Optional<WeldingMachineState> getLatestWeldingMachineState(Integer machineId) {
         return weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(machineId);
     }
 
-    @Transactional(readOnly = true)
     public List<WeldingMachineState> getWeldingMachineStatesByStatus(Integer machineId, WeldingMachineStatus status) {
         return weldingMachineStateRepository.findByWeldingMachineIdAndWeldingMachineStatus(machineId, status);
     }
 
-    @Transactional
     public WeldingMachineState createWeldingMachineState(WeldingMachineState state) {
         // Validate required fields
         if (state.getWeldingMachineId() == null) {
@@ -254,7 +249,6 @@ public class WeldingMachineStateService {
         return weldingMachineStateRepository.save(state);
     }
 
-    @Transactional
     public WeldingMachineState updateWeldingMachineState(WeldingMachineState state) {
         // Validate ID
         if (state.getId() == null) {
@@ -271,7 +265,6 @@ public class WeldingMachineStateService {
         return weldingMachineStateRepository.save(state);
     }
 
-    @Transactional
     public void deleteWeldingMachineState(Long id) {
         if (!weldingMachineStateRepository.existsById(id)) {
             throw new IllegalArgumentException("Welding machine state not found");
@@ -279,7 +272,6 @@ public class WeldingMachineStateService {
         weldingMachineStateRepository.deleteById(id);
     }
 
-    @Transactional
     public void deleteAllWeldingMachineStates(Integer machineId) {
         List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineId(machineId);
         weldingMachineStateRepository.deleteAll(states);

@@ -11,6 +11,7 @@ import javax.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 
@@ -55,13 +56,15 @@ public class WeldingDeviceManagerService {
             // Отправляем через WebSocket с MAC адресом (ПРИОРИТЕТ!)
             deviceController.sendDeviceState(stateSummary, mac);
             
-            // Сохраняем в базу данных СИНХРОННО (исправляем утечку соединений)
-            try {
-                stateService.saveMachineState(mac, stateSummary);
-                messageHistoryService.addMessage(mac, data, "received");
-            } catch (Exception dbError) {
-                // Молча игнорируем ошибки БД
-            }
+            // Сохраняем в базу данных АСИНХРОННО (не блокируем WebSocket)
+            CompletableFuture.runAsync(() -> {
+                try {
+                    stateService.saveMachineState(mac, stateSummary);
+                    messageHistoryService.addMessage(mac, data, "received");
+                } catch (Exception dbError) {
+                    // Молча игнорируем ошибки БД
+                }
+            });
 
         } catch (Exception e) {
             System.err.println("[DEVICE-MANAGER] ❌ Ошибка обработки данных от " + mac + ": " + e.getMessage());
