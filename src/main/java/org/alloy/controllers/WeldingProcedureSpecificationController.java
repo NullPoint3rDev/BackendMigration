@@ -24,8 +24,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/wps")
 @Tag(name = "Welding Procedure Specifications", description = "API для управления технологическими картами сварки (WPS). " +
-    "Позволяет создавать, просматривать, обновлять и удалять технологические карты сварки, " +
-    "а также выполнять поиск по различным параметрам.")
+        "Позволяет создавать, просматривать, обновлять и удалять технологические карты сварки, " +
+        "а также выполнять поиск по различным параметрам.")
 @SecurityRequirement(name = "JWT")
 public class WeldingProcedureSpecificationController {
 
@@ -42,20 +42,20 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Получить все технологические карты сварки",
-        description = "Возвращает список всех технологических карт сварки в системе."
+            summary = "Получить все технологические карты сварки",
+            description = "Возвращает список всех технологических карт сварки в системе."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Список WPS успешно получен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingProcedureSpecification.class, type = "array"))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация"
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Список WPS успешно получен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = WeldingProcedureSpecification.class, type = "array"))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация"
+            )
     })
     @GetMapping
     public ResponseEntity<List<WeldingProcedureSpecification>> getAllWPS() {
@@ -64,20 +64,20 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Получить WPS по ID",
-        description = "Возвращает технологическую карту сварки по ее уникальному идентификатору."
+            summary = "Получить WPS по ID",
+            description = "Возвращает технологическую карту сварки по ее уникальному идентификатору."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "WPS успешно найден",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingProcedureSpecification.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "WPS не найден"
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "WPS успешно найден",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = WeldingProcedureSpecification.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "WPS не найден"
+            )
     })
     @GetMapping("/{id}")
     public ResponseEntity<WeldingProcedureSpecification> getWPSById(
@@ -88,20 +88,20 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Создать новую технологическую карту сварки",
-        description = "Создает новую технологическую карту сварки в системе."
+            summary = "Создать новую технологическую карту сварки",
+            description = "Создает новую технологическую карту сварки в системе."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "201",
-            description = "WPS успешно создан",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingProcedureSpecification.class))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Некорректные данные"
-        )
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "WPS успешно создан",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = WeldingProcedureSpecification.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Некорректные данные"
+            )
     })
     @PostMapping
     public ResponseEntity<WeldingProcedureSpecification> createWPS(
@@ -116,20 +116,20 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Обновить технологическую карту сварки",
-        description = "Обновляет существующую технологическую карту сварки."
+            summary = "Обновить технологическую карту сварки",
+            description = "Обновляет существующую технологическую карту сварки."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "WPS успешно обновлен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = WeldingProcedureSpecification.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "WPS не найден"
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "WPS успешно обновлен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = WeldingProcedureSpecification.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "WPS не найден"
+            )
     })
     @PutMapping("/{id}")
     public ResponseEntity<WeldingProcedureSpecification> updateWPS(
@@ -137,7 +137,7 @@ public class WeldingProcedureSpecificationController {
             @RequestBody WeldingProcedureSpecification wpsDetails) {
         WeldingProcedureSpecification wps = wpsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("WPS не найден с ID: " + id));
-        
+
         wps.setName(wpsDetails.getName());
         wps.setDescription(wpsDetails.getDescription());
         wps.setWeldingMethod(wpsDetails.getWeldingMethod());
@@ -152,24 +152,24 @@ public class WeldingProcedureSpecificationController {
         wps.setGostStandard(wpsDetails.getGostStandard());
         wps.setStatus(wpsDetails.getStatus());
         wps.setDateUpdated(LocalDateTime.now());
-        
+
         WeldingProcedureSpecification updatedWPS = wpsRepository.save(wps);
         return ResponseEntity.ok(updatedWPS);
     }
 
     @Operation(
-        summary = "Удалить технологическую карту сварки",
-        description = "Удаляет технологическую карту сварки из системы."
+            summary = "Удалить технологическую карту сварки",
+            description = "Удаляет технологическую карту сварки из системы."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "204",
-            description = "WPS успешно удален"
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "WPS не найден"
-        )
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "WPS успешно удален"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "WPS не найден"
+            )
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteWPS(
@@ -182,8 +182,8 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Получить WPS по статусу",
-        description = "Возвращает список WPS с указанным статусом."
+            summary = "Получить WPS по статусу",
+            description = "Возвращает список WPS с указанным статусом."
     )
     @GetMapping("/status/{status}")
     public ResponseEntity<List<WeldingProcedureSpecification>> getWPSByStatus(
@@ -193,8 +193,8 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Получить WPS по методу сварки",
-        description = "Возвращает список WPS с указанным методом сварки."
+            summary = "Получить WPS по методу сварки",
+            description = "Возвращает список WPS с указанным методом сварки."
     )
     @GetMapping("/method/{method}")
     public ResponseEntity<List<WeldingProcedureSpecification>> getWPSByWeldingMethod(
@@ -204,8 +204,8 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Получить WPS по типу материала",
-        description = "Возвращает список WPS для указанного типа материала."
+            summary = "Получить WPS по типу материала",
+            description = "Возвращает список WPS для указанного типа материала."
     )
     @GetMapping("/material/{materialType}")
     public ResponseEntity<List<WeldingProcedureSpecification>> getWPSByMaterialType(
@@ -215,8 +215,8 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Поиск WPS",
-        description = "Поиск WPS по названию или описанию."
+            summary = "Поиск WPS",
+            description = "Поиск WPS по названию или описанию."
     )
     @GetMapping("/search")
     public ResponseEntity<List<WeldingProcedureSpecification>> searchWPS(
@@ -226,8 +226,8 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Получить WPS по диапазону тока",
-        description = "Возвращает список WPS, подходящих для указанного значения тока."
+            summary = "Получить WPS по диапазону тока",
+            description = "Возвращает список WPS, подходящих для указанного значения тока."
     )
     @GetMapping("/current/{current}")
     public ResponseEntity<List<WeldingProcedureSpecification>> getWPSByCurrentRange(
@@ -237,8 +237,8 @@ public class WeldingProcedureSpecificationController {
     }
 
     @Operation(
-        summary = "Получить WPS по диапазону напряжения",
-        description = "Возвращает список WPS, подходящих для указанного значения напряжения."
+            summary = "Получить WPS по диапазону напряжения",
+            description = "Возвращает список WPS, подходящих для указанного значения напряжения."
     )
     @GetMapping("/voltage/{voltage}")
     public ResponseEntity<List<WeldingProcedureSpecification>> getWPSByVoltageRange(

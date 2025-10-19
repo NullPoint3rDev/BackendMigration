@@ -34,8 +34,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/automated-reports")
 @Tag(name = "Automated Reports", description = "API для управления автоматизированными отчетами. " +
-    "Позволяет создавать, настраивать и управлять автоматической генерацией отчетов " +
-    "на основе различных триггеров (время, ошибки оборудования, значения параметров).")
+        "Позволяет создавать, настраивать и управлять автоматической генерацией отчетов " +
+        "на основе различных триггеров (время, ошибки оборудования, значения параметров).")
 @SecurityRequirement(name = "JWT")
 public class AutomatedReportController {
 
@@ -50,7 +50,7 @@ public class AutomatedReportController {
     private final AutomatedReportScheduler automatedReportScheduler;
 
     @Autowired
-    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService, UserAccountService userAccountService, @Autowired(required = false) AutomatedReportScheduler automatedReportScheduler) {
+    public AutomatedReportController(AutomatedReportService automatedReportService, AutomatedReportDataFixService dataFixService, UserAccountService userAccountService, AutomatedReportScheduler automatedReportScheduler) {
         this.automatedReportService = automatedReportService;
         this.dataFixService = dataFixService;
         this.userAccountService = userAccountService;
@@ -58,55 +58,55 @@ public class AutomatedReportController {
     }
 
     @Operation(
-        summary = "Получить все автоматизированные отчеты",
-        description = "Возвращает список всех автоматизированных отчетов в системе."
+            summary = "Получить все автоматизированные отчеты",
+            description = "Возвращает список всех автоматизированных отчетов в системе."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Список автоматизированных отчетов успешно получен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Недостаточно прав для доступа к автоматизированным отчетам",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Список автоматизированных отчетов успешно получен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав для доступа к автоматизированным отчетам",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<AutomatedReportDTO>> getAllAutomatedReports() {
         List<AutomatedReportDTO> reports = automatedReportService.getAllAutomatedReports().stream()
-            .map(AutomatedReportMapper::toDTO)
-            .collect(Collectors.toList());
+                .map(AutomatedReportMapper::toDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(reports);
     }
 
     @Operation(
-        summary = "Исправить данные автоматических отчетов",
-        description = "Исправляет некорректные данные во всех автоматических отчетах (null template_type, template_name, created_by)."
+            summary = "Исправить данные автоматических отчетов",
+            description = "Исправляет некорректные данные во всех автоматических отчетах (null template_type, template_name, created_by)."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Данные успешно исправлены",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = String.class))
-        ),
-        @ApiResponse(
-            responseCode = "500",
-            description = "Ошибка при исправлении данных",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Данные успешно исправлены",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = String.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Ошибка при исправлении данных",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/fix-data")
@@ -117,55 +117,47 @@ public class AutomatedReportController {
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportController: Failed to fix automated reports data: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Ошибка при исправлении данных: " + e.getMessage());
+                    .body("Ошибка при исправлении данных: " + e.getMessage());
         }
     }
 
     @Operation(
-        summary = "Принудительно выполнить автоматический отчет",
-        description = "Принудительно выполняет указанный автоматический отчет независимо от времени."
+            summary = "Принудительно выполнить автоматический отчет",
+            description = "Принудительно выполняет указанный автоматический отчет независимо от времени."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Отчет успешно выполнен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = String.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Автоматический отчет не найден",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "500",
-            description = "Ошибка при выполнении отчета",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Отчет успешно выполнен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = String.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Автоматический отчет не найден",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Ошибка при выполнении отчета",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/{id}/execute")
     public ResponseEntity<Object> executeAutomatedReport(
-        @Parameter(description = "ID автоматического отчета", required = true, example = "1")
-        @PathVariable Long id
+            @Parameter(description = "ID автоматического отчета", required = true, example = "1")
+            @PathVariable Long id
     ) {
         try {
-            if (automatedReportScheduler != null) {
-                automatedReportScheduler.executeNow(id);
-                Map<String, Object> resp = new java.util.HashMap<>();
-                resp.put("success", true);
-                resp.put("message", "Автоматический отчет успешно выполнен");
-                resp.put("id", id);
-                return ResponseEntity.ok(resp);
-            } else {
-                Map<String, Object> resp = new java.util.HashMap<>();
-                resp.put("success", false);
-                resp.put("message", "Автоматический планировщик отключен");
-                resp.put("id", id);
-                return ResponseEntity.ok(resp);
-            }
+            automatedReportScheduler.executeNow(id);
+            Map<String, Object> resp = new java.util.HashMap<>();
+            resp.put("success", true);
+            resp.put("message", "Автоматический отчет успешно выполнен");
+            resp.put("id", id);
+            return ResponseEntity.ok(resp);
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportController: Failed to execute automated report: " + e.getMessage());
             Map<String, Object> err = new java.util.HashMap<>();
@@ -176,93 +168,93 @@ public class AutomatedReportController {
     }
 
     @Operation(
-        summary = "Проверить время выполнения отчета",
-        description = "Проверяет, должно ли выполняться указанное время отчета."
+            summary = "Проверить время выполнения отчета",
+            description = "Проверяет, должно ли выполняться указанное время отчета."
     )
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/{id}/check-time")
     public ResponseEntity<String> checkReportTime(
-        @Parameter(description = "ID автоматического отчета", required = true, example = "1")
-        @PathVariable Long id
+            @Parameter(description = "ID автоматического отчета", required = true, example = "1")
+            @PathVariable Long id
     ) {
         try {
             AutomatedReport automatedReport = automatedReportService.getAutomatedReportById(id)
-                .orElse(null);
+                    .orElse(null);
             if (automatedReport == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Автоматический отчет с ID " + id + " не найден");
+                        .body("Автоматический отчет с ID " + id + " не найден");
             }
-            
+
             LocalDateTime nowUTC = LocalDateTime.now(ZoneOffset.UTC);
             LocalDateTime nextRun = automatedReport.getNextRun();
             LocalDateTime nextRunUTC = nextRun.minusHours(3); // Конвертируем московское время в UTC
             long minutesDiff = java.time.Duration.between(nowUTC, nextRunUTC).toMinutes();
-            
+
             String result = String.format(
-                "Отчет: %s\nТекущее время (UTC): %s\nВремя выполнения (Москва): %s\nВремя выполнения (UTC): %s\nРазница: %d минут\nДолжен выполняться: %s",
-                automatedReport.getName(),
-                nowUTC,
-                nextRun,
-                nextRunUTC,
-                minutesDiff,
-                Math.abs(minutesDiff) <= 2 ? "ДА" : "НЕТ"
+                    "Отчет: %s\nТекущее время (UTC): %s\nВремя выполнения (Москва): %s\nВремя выполнения (UTC): %s\nРазница: %d минут\nДолжен выполняться: %s",
+                    automatedReport.getName(),
+                    nowUTC,
+                    nextRun,
+                    nextRunUTC,
+                    minutesDiff,
+                    Math.abs(minutesDiff) <= 2 ? "ДА" : "НЕТ"
             );
-            
+
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportController: Failed to check report time: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Ошибка при проверке времени: " + e.getMessage());
+                    .body("Ошибка при проверке времени: " + e.getMessage());
         }
     }
 
     @Operation(
-        summary = "Получить автоматизированный отчет по ID",
-        description = "Возвращает автоматизированный отчет по его уникальному идентификатору."
+            summary = "Получить автоматизированный отчет по ID",
+            description = "Возвращает автоматизированный отчет по его уникальному идентификатору."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Автоматизированный отчет успешно найден",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Автоматизированный отчет не найден",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Автоматизированный отчет успешно найден",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Автоматизированный отчет не найден",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/{id}")
     public ResponseEntity<AutomatedReportDTO> getAutomatedReportById(
-        @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Long id
+            @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
+            @PathVariable Long id
     ) {
         return automatedReportService.getAutomatedReportById(id)
-            .map(AutomatedReportMapper::toDTO)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+                .map(AutomatedReportMapper::toDTO)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
-        summary = "Получить автоматизированные отчеты пользователя",
-        description = "Возвращает список всех автоматизированных отчетов для указанного пользователя."
+            summary = "Получить автоматизированные отчеты пользователя",
+            description = "Возвращает список всех автоматизированных отчетов для указанного пользователя."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Список автоматизированных отчетов пользователя успешно получен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Список автоматизированных отчетов пользователя успешно получен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/user/{userAccountId}")
     public ResponseEntity<List<AutomatedReportDTO>> getUserAutomatedReports(
-        @Parameter(description = "ID пользователя", required = true, example = "1")
-        @PathVariable Integer userAccountId
+            @Parameter(description = "ID пользователя", required = true, example = "1")
+            @PathVariable Integer userAccountId
     ) {
         System.out.println("AutomatedReportController: Getting reports for user: " + userAccountId);
         List<AutomatedReport> rawReports = automatedReportService.getUserAutomatedReports(userAccountId);
@@ -270,112 +262,112 @@ public class AutomatedReportController {
         for (AutomatedReport r : rawReports) {
             System.out.println("AutomatedReportController: Report - ID: " + r.getId() + ", Name: " + r.getName() + ", CreatedBy: " + r.getCreatedBy());
         }
-        
+
         // Проверим все отчеты в системе для отладки
         List<AutomatedReport> allReports = automatedReportService.getAllAutomatedReports();
         System.out.println("AutomatedReportController: Total reports in system: " + allReports.size());
         for (AutomatedReport r : allReports) {
             System.out.println("AutomatedReportController: All Report - ID: " + r.getId() + ", Name: " + r.getName() + ", CreatedBy: " + r.getCreatedBy());
         }
-        
+
         List<AutomatedReportDTO> reports = rawReports.stream()
-            .map(AutomatedReportMapper::toDTO)
-            .collect(Collectors.toList());
+                .map(AutomatedReportMapper::toDTO)
+                .collect(Collectors.toList());
         System.out.println("AutomatedReportController: Returning " + reports.size() + " DTO reports");
         return ResponseEntity.ok(reports);
     }
 
     @Operation(
-        summary = "Получить активные автоматизированные отчеты",
-        description = "Возвращает список всех активных автоматизированных отчетов."
+            summary = "Получить активные автоматизированные отчеты",
+            description = "Возвращает список всех активных автоматизированных отчетов."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Список активных автоматизированных отчетов успешно получен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Список активных автоматизированных отчетов успешно получен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/active")
     public ResponseEntity<List<AutomatedReportDTO>> getActiveAutomatedReports() {
         List<AutomatedReportDTO> reports = automatedReportService.getActiveAutomatedReports().stream()
-            .map(AutomatedReportMapper::toDTO)
-            .collect(Collectors.toList());
+                .map(AutomatedReportMapper::toDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(reports);
     }
 
     @Operation(
-        summary = "Создать новый автоматизированный отчет",
-        description = "Создает новый автоматизированный отчет с указанными параметрами и триггерами."
+            summary = "Создать новый автоматизированный отчет",
+            description = "Создает новый автоматизированный отчет с указанными параметрами и триггерами."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "201",
-            description = "Автоматизированный отчет успешно создан",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Некорректные данные автоматизированного отчета",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Автоматизированный отчет успешно создан",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Некорректные данные автоматизированного отчета",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping
     public ResponseEntity<AutomatedReportDTO> createAutomatedReport(
-        @Parameter(description = "Данные автоматизированного отчета", required = true)
-        @RequestBody AutomatedReportDTO automatedReportDTO
+            @Parameter(description = "Данные автоматизированного отчета", required = true)
+            @RequestBody AutomatedReportDTO automatedReportDTO
     ) {
         AutomatedReport entity = AutomatedReportMapper.toEntity(automatedReportDTO);
-        
+
         // Устанавливаем created_by из текущего пользователя
         try {
             String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
             System.out.println("AutomatedReportController: Current user: " + currentUsername);
-            
+
             // Получаем ID пользователя по username
             UserAccount currentUser = userAccountService.getUserAccountByUserName(currentUsername)
-                .orElseThrow(() -> new RuntimeException("Current user not found: " + currentUsername));
-            
+                    .orElseThrow(() -> new RuntimeException("Current user not found: " + currentUsername));
+
             entity.setCreatedBy(currentUser.getId());
             System.out.println("AutomatedReportController: Set created_by to: " + currentUser.getId());
         } catch (Exception e) {
             System.err.println("ERROR AutomatedReportController: Failed to set created_by: " + e.getMessage());
             // Не прерываем выполнение, но логируем ошибку
         }
-        
+
         return new ResponseEntity<>(AutomatedReportMapper.toDTO(automatedReportService.createAutomatedReport(entity)), HttpStatus.CREATED);
     }
 
     @Operation(
-        summary = "Обновить автоматизированный отчет",
-        description = "Обновляет существующий автоматизированный отчет по его ID."
+            summary = "Обновить автоматизированный отчет",
+            description = "Обновляет существующий автоматизированный отчет по его ID."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Автоматизированный отчет успешно обновлен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Автоматизированный отчет не найден",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Автоматизированный отчет успешно обновлен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Автоматизированный отчет не найден",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PutMapping("/{id}")
     public ResponseEntity<AutomatedReportDTO> updateAutomatedReport(
-        @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Long id,
-        @Parameter(description = "Обновленные данные автоматизированного отчета", required = true)
-        @RequestBody AutomatedReportDTO automatedReportDTO
+            @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
+            @PathVariable Long id,
+            @Parameter(description = "Обновленные данные автоматизированного отчета", required = true)
+            @RequestBody AutomatedReportDTO automatedReportDTO
     ) {
         AutomatedReport entity = AutomatedReportMapper.toEntity(automatedReportDTO);
         entity.setId(id);
@@ -383,26 +375,26 @@ public class AutomatedReportController {
     }
 
     @Operation(
-        summary = "Удалить автоматизированный отчет",
-        description = "Удаляет автоматизированный отчет по его ID."
+            summary = "Удалить автоматизированный отчет",
+            description = "Удаляет автоматизированный отчет по его ID."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "204",
-            description = "Автоматизированный отчет успешно удален"
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Автоматизированный отчет не найден",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Автоматизированный отчет успешно удален"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Автоматизированный отчет не найден",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAutomatedReport(
-        @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Long id
+            @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
+            @PathVariable Long id
     ) {
         try {
             automatedReportService.deleteAutomatedReport(id);
@@ -413,28 +405,28 @@ public class AutomatedReportController {
     }
 
     @Operation(
-        summary = "Переключить статус автоматизированного отчета",
-        description = "Активирует или деактивирует автоматизированный отчет."
+            summary = "Переключить статус автоматизированного отчета",
+            description = "Активирует или деактивирует автоматизированный отчет."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Статус автоматизированного отчета успешно изменен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Автоматизированный отчет не найден",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Статус автоматизированного отчета успешно изменен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Автоматизированный отчет не найден",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PutMapping("/{id}/toggle-status")
     public ResponseEntity<?> toggleAutomatedReportStatus(
-        @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Long id
+            @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
+            @PathVariable Long id
     ) {
         try {
             System.out.println("Controller: Received toggle request for ID: " + id);
@@ -457,64 +449,64 @@ public class AutomatedReportController {
     }
 
     @Operation(
-        summary = "Запустить автоматизированный отчет вручную",
-        description = "Принудительно запускает выполнение автоматизированного отчета."
+            summary = "Запустить автоматизированный отчет вручную",
+            description = "Принудительно запускает выполнение автоматизированного отчета."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Автоматизированный отчет успешно запущен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Автоматизированный отчет не найден",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Автоматизированный отчет успешно запущен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Автоматизированный отчет не найден",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/{id}/run")
     public ResponseEntity<AutomatedReportDTO> runAutomatedReport(
-        @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Long id
+            @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
+            @PathVariable Long id
     ) {
         AutomatedReport executed = automatedReportService.runAutomatedReport(id);
         return ResponseEntity.ok(AutomatedReportMapper.toDTO(executed));
     }
 
     @Operation(
-        summary = "Получить историю выполнения автоматизированного отчета",
-        description = "Возвращает историю выполнения указанного автоматизированного отчета."
+            summary = "Получить историю выполнения автоматизированного отчета",
+            description = "Возвращает историю выполнения указанного автоматизированного отчета."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "История выполнения успешно получена",
-            content = @Content(mediaType = "application/json")
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "История выполнения успешно получена",
+                    content = @Content(mediaType = "application/json")
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/{id}/history")
     public ResponseEntity<List<Object>> getAutomatedReportHistory(
-        @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
-        @PathVariable Long id
+            @Parameter(description = "ID автоматизированного отчета", required = true, example = "1")
+            @PathVariable Long id
     ) {
         List<Object> history = automatedReportService.getAutomatedReportHistory(id);
         return ResponseEntity.ok(history);
     }
 
     @Operation(
-        summary = "Получить статистику автоматизированных отчетов",
-        description = "Возвращает общую статистику по автоматизированным отчетам."
+            summary = "Получить статистику автоматизированных отчетов",
+            description = "Возвращает общую статистику по автоматизированным отчетам."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Статистика успешно получена",
-            content = @Content(mediaType = "application/json")
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Статистика успешно получена",
+                    content = @Content(mediaType = "application/json")
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/stats")
@@ -524,39 +516,39 @@ public class AutomatedReportController {
     }
 
     @Operation(
-        summary = "Поиск автоматизированных отчетов",
-        description = "Выполняет поиск автоматизированных отчетов по заданному критерию."
+            summary = "Поиск автоматизированных отчетов",
+            description = "Выполняет поиск автоматизированных отчетов по заданному критерию."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Результаты поиска успешно получены",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Результаты поиска успешно получены",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AutomatedReportDTO.class, type = "array"))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/search")
     public ResponseEntity<List<AutomatedReportDTO>> searchAutomatedReports(
-        @Parameter(description = "Поисковый запрос", required = true, example = "еженедельный")
-        @RequestParam String q
+            @Parameter(description = "Поисковый запрос", required = true, example = "еженедельный")
+            @RequestParam String q
     ) {
         List<AutomatedReportDTO> results = automatedReportService.searchAutomatedReports(q).stream()
-            .map(AutomatedReportMapper::toDTO)
-            .collect(Collectors.toList());
+                .map(AutomatedReportMapper::toDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(results);
     }
 
     @Operation(
-        summary = "Получить доступные типы триггеров",
-        description = "Возвращает список всех доступных типов триггеров для автоматизированных отчетов."
+            summary = "Получить доступные типы триггеров",
+            description = "Возвращает список всех доступных типов триггеров для автоматизированных отчетов."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Список типов триггеров успешно получен",
-            content = @Content(mediaType = "application/json")
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Список типов триггеров успешно получен",
+                    content = @Content(mediaType = "application/json")
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/trigger-types")
@@ -566,15 +558,15 @@ public class AutomatedReportController {
     }
 
     @Operation(
-        summary = "Получить доступные шаблоны отчетов",
-        description = "Возвращает список шаблонов отчетов, доступных для автоматизации."
+            summary = "Получить доступные шаблоны отчетов",
+            description = "Возвращает список шаблонов отчетов, доступных для автоматизации."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Список доступных шаблонов успешно получен",
-            content = @Content(mediaType = "application/json")
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Список доступных шаблонов успешно получен",
+                    content = @Content(mediaType = "application/json")
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @GetMapping("/available-templates")
@@ -584,48 +576,48 @@ public class AutomatedReportController {
     }
 
     @Operation(
-        summary = "Валидация конфигурации триггера",
-        description = "Проверяет корректность конфигурации триггера."
+            summary = "Валидация конфигурации триггера",
+            description = "Проверяет корректность конфигурации триггера."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Конфигурация триггера валидна",
-            content = @Content(mediaType = "application/json")
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Конфигурация триггера некорректна",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Конфигурация триггера валидна",
+                    content = @Content(mediaType = "application/json")
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Конфигурация триггера некорректна",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/validate-trigger")
     public ResponseEntity<Object> validateTriggerConfig(
-        @Parameter(description = "Конфигурация триггера", required = true)
-        @RequestBody Object triggerConfig
+            @Parameter(description = "Конфигурация триггера", required = true)
+            @RequestBody Object triggerConfig
     ) {
         Object validationResult = automatedReportService.validateTriggerConfig(triggerConfig);
         return ResponseEntity.ok(validationResult);
     }
 
     @Operation(
-        summary = "Получить следующее время выполнения",
-        description = "Вычисляет следующее время выполнения для указанной конфигурации триггера."
+            summary = "Получить следующее время выполнения",
+            description = "Вычисляет следующее время выполнения для указанной конфигурации триггера."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Следующее время выполнения успешно вычислено",
-            content = @Content(mediaType = "application/json")
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Следующее время выполнения успешно вычислено",
+                    content = @Content(mediaType = "application/json")
+            )
     })
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
     @PostMapping("/next-run-time")
     public ResponseEntity<Object> getNextRunTime(
-        @Parameter(description = "Конфигурация триггера", required = true)
-        @RequestBody Object triggerConfig
+            @Parameter(description = "Конфигурация триггера", required = true)
+            @RequestBody Object triggerConfig
     ) {
         Object nextRunTime = automatedReportService.getNextRunTime(triggerConfig);
         return ResponseEntity.ok(nextRunTime);
@@ -655,5 +647,5 @@ public class AutomatedReportController {
             this.message = message;
         }
     }
-    
+
 }

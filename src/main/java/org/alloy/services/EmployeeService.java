@@ -33,11 +33,11 @@ public class EmployeeService {
 
     @Autowired
     public EmployeeService(EmployeeRepository employeeRepository,
-                          OrganizationUnitRepository organizationUnitRepository,
-                          UserRoleRepository userRoleRepository,
-                          UserAccountRepository userAccountRepository,
-                          UserRepository userRepository,
-                          PasswordEncoder passwordEncoder) {
+                           OrganizationUnitRepository organizationUnitRepository,
+                           UserRoleRepository userRoleRepository,
+                           UserAccountRepository userAccountRepository,
+                           UserRepository userRepository,
+                           PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
         this.userRoleRepository = userRoleRepository;
@@ -83,7 +83,7 @@ public class EmployeeService {
     }
 
     public List<Employee> searchEmployees(String fullName, String email, String position,
-                                        Long organizationUnitId, Long userRoleId, GeneralStatus status) {
+                                          Long organizationUnitId, Long userRoleId, GeneralStatus status) {
         return employeeRepository.findByFilters(fullName, email, position, organizationUnitId, userRoleId, status);
     }
 
@@ -94,7 +94,7 @@ public class EmployeeService {
         if (existingEmployee.isPresent()) {
             throw new IllegalArgumentException("Сотрудник с логином '" + employeeDTO.getUsername() + "' уже существует");
         }
-        
+
         Optional<UserAccount> existingUserAccount = userAccountRepository.findByUserName(employeeDTO.getUsername());
         if (existingUserAccount.isPresent()) {
             throw new IllegalArgumentException("Пользователь с логином '" + employeeDTO.getUsername() + "' уже существует в системе");
@@ -140,7 +140,7 @@ public class EmployeeService {
         userAccount.setStatus(employeeDTO.getStatus());
         userAccount.setFailedLoginsCount(0);
         // userAccount.setPhoto(employeeDTO.getPhoto()); // Пропускаем фото, так как типы не совпадают
-        
+
         UserAccount savedUserAccount = userAccountRepository.save(userAccount);
         System.out.println("UserAccount создан: " + savedUserAccount.getUserName());
 
@@ -244,7 +244,7 @@ public class EmployeeService {
         if (employee.isPresent()) {
             Employee emp = employee.get();
             System.out.println("Удаляем сотрудника: " + emp.getUsername());
-            
+
             // Удаляем соответствующую запись из UserAccount (soft delete)
             Optional<UserAccount> userAccount = userAccountRepository.findByUserName(emp.getUsername());
             if (userAccount.isPresent()) {
@@ -263,7 +263,7 @@ public class EmployeeService {
                 userRepository.save(u);
                 System.out.println("User (legacy) заблокирован: " + u.getUsername());
             });
-            
+
             // Удаляем сотрудника
             employeeRepository.delete(emp);
             System.out.println("Employee удален успешно");

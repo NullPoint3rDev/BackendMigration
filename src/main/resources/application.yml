@@ -8,83 +8,79 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: false
-    open-in-view: false
+    show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+    # Email/SMTP Configuration
+    mail:
+      host: smtp.yandex.ru
+      port: 587
+      username: weld.telecom@yandex.ru
+      password: mqfhpgzvmgcgmogc
+      properties:
+        mail:
+          smtp:
+            auth: true
+            starttls:
+              enable: true
+              required: true
+            ssl:
+              trust: smtp.yandex.ru
+          debug: false
+      default-encoding: UTF-8
 
-  # Email/SMTP Configuration
-  mail:
-    host: smtp.yandex.ru
-    port: 587
-    username: weld.telecom@yandex.ru
-    password: mqfhpgzvmgcgmogc
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          ssl:
-            trust: smtp.yandex.ru
-        debug: false
-    default-encoding: UTF-8
+  server:
+    port: 8084
+    address: 0.0.0.0
+    servlet:
+      context-path: /api
+    # Добавляем настройки для CORS
+    compression:
+      enabled: true
+      mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+      min-response-size: 1024
 
-server:
-  port: 8084
-  address: 0.0.0.0
-  servlet:
-    context-path: /api
-  # Добавляем настройки для CORS
-  compression:
-    enabled: true
-    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
-    min-response-size: 1024
+  logging:
+    level:
+      root: INFO
+      org.alloy: DEBUG
+      org.springframework.web: INFO
+      org.hibernate: INFO
 
-logging:
-  level:
-    root: WARN
-    org.alloy: INFO
-    org.springframework.web: WARN
-    org.hibernate: WARN
-    org.springframework.cache: DEBUG
+  app:
+    jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
+    jwtExpirationInMs: 43200000 # 12 hours in milliseconds
 
-
-app:
-  jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
-  jwtExpirationInMs: 43200000 # 12 hours in milliseconds
-
-# Конфигурация сварочных аппаратов
-welding:
-  device:
-    host: 95.172.58.219
-    port: 3000
-    mac: 8CAAB50C4254
-  # Настройки для множественных аппаратов
-  devices:
-    - mac: 8CAAB50C4254
-      type: MP-500
-      ip: 95.172.58.219
+  # Конфигурация сварочных аппаратов
+  welding:
+    device:
+      host: 95.172.58.219
       port: 3000
-      description: Основной сварочный аппарат
-    - mac: DC4F220AC7D4
-      type: MX-Pulse
-      ip: 95.172.58.220
-      port: 3000
-      description: Дополнительный сварочный аппарат
-  # Тестовый режим для демонстрации
-  test:
-    enabled: false
-    simulate_data: false
-    interval_ms: 5000
-  # Альтернативные настройки подключения
-  connection:
-    timeout_ms: 10000
-    retry_interval_ms: 5000
-    max_retries: 3
-  parser:
-    current_position: 36 # Позиция тока в payload (найдена автоматически как оптимальная)
-    debug_mode: false # Отключить детальное логирование парсера (позиция найдена)
+      mac: 8CAAB50C4254
+    # Настройки для множественных аппаратов
+    devices:
+      - mac: 8CAAB50C4254
+        type: MP-500
+        ip: 95.172.58.219
+        port: 3000
+        description: Основной сварочный аппарат
+      - mac: DC4F220AC7D4
+        type: MX-Pulse
+        ip: 95.172.58.220
+        port: 3000
+        description: Дополнительный сварочный аппарат
+    # Тестовый режим для демонстрации
+    test:
+      enabled: false
+      simulate_data: false
+      interval_ms: 5000
+    # Альтернативные настройки подключения
+    connection:
+      timeout_ms: 10000
+      retry_interval_ms: 5000
+      max_retries: 3
+    parser:
+      current_position: 36 # Позиция тока в payload (найдена автоматически как оптимальная)
+      debug_mode: false # Отключить детальное логирование парсера (позиция найдена)

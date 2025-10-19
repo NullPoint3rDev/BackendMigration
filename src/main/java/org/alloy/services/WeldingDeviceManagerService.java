@@ -11,9 +11,6 @@ import javax.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CompletableFuture;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.CacheEvict;
 
 @Service
 public class WeldingDeviceManagerService {
@@ -26,9 +23,6 @@ public class WeldingDeviceManagerService {
 
     @Autowired
     private DeviceController deviceController;
-
-    @Autowired
-    private DeviceMessageHistoryService messageHistoryService;
 
     // Хранилище состояний всех аппаратов
     private final Map<String, StateSummary> deviceStates = new ConcurrentHashMap<>();
@@ -46,25 +40,36 @@ public class WeldingDeviceManagerService {
      */
     public void processDeviceData(String data, String mac) {
         try {
-            // Парсим данные (БЕЗ ЛОГИРОВАНИЯ!)
+            System.out.println("[DEVICE-MANAGER] 🔍 Начинаем обработку данных от " + mac);
+            System.out.println("[DEVICE-MANAGER] 📦 Данные: " + data);
+
+            // Парсим данные
             StateSummary stateSummary = dataParser.parseWeldingData(data, mac);
-            
+
+            System.out.println("[DEVICE-MANAGER] 📊 Результат парсинга:");
+            if (stateSummary.getProperties() != null) {
+                for (Map.Entry<String, StateSummaryPropertyValue> entry : stateSummary.getProperties().entrySet()) {
+                    System.out.println("[DEVICE-MANAGER]   " + entry.getKey() + " = " + entry.getValue().getValue());
+                }
+            }
+
             // Обновляем локальное состояние (даже если сохранение в БД не удалось)
             deviceStates.put(mac, stateSummary);
             connectionStatus.put(mac, true);
-            
-            // Отправляем через WebSocket с MAC адресом (ПРИОРИТЕТ!)
-            deviceController.sendDeviceState(stateSummary, mac);
-            
-            // Сохраняем в базу данных АСИНХРОННО (не блокируем WebSocket)
-            CompletableFuture.runAsync(() -> {
-                try {
-                    stateService.saveMachineState(mac, stateSummary);
-                    messageHistoryService.addMessage(mac, data, "received");
-                } catch (Exception dbError) {
-                    // Молча игнорируем ошибки БД
-                }
-            });
+
+            // Отправляем через WebSocket
+            deviceController.sendDeviceState(stateSummary);
+
+            System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
+
+            // Пытаемся сохранить в базу данных (но не блокируем основной поток)
+            try {
+                stateService.saveMachineState(mac, stateSummary);
+                System.out.println("[DEVICE-MANAGER] ✅ Данные сохранены в базу данных");
+            } catch (Exception dbError) {
+                System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
+                // Не прерываем обработку данных из-за ошибки БД
+            }
 
         } catch (Exception e) {
             System.err.println("[DEVICE-MANAGER] ❌ Ошибка обработки данных от " + mac + ": " + e.getMessage());
@@ -75,7 +80,6 @@ public class WeldingDeviceManagerService {
     /**
      * Получает текущее состояние аппарата
      */
-    @Cacheable(value = "deviceStates", key = "#mac")
     public StateSummary getDeviceState(String mac) {
         return deviceStates.get(mac);
     }
@@ -106,17 +110,17 @@ public class WeldingDeviceManagerService {
      */
     public void markDeviceDisconnected(String mac) {
         connectionStatus.put(mac, false);
-        
+
         // Обновляем состояние как Offline
         StateSummary state = deviceStates.get(mac);
         if (state != null) {
             state.setStatus(WeldingMachineStatus.Offline);
             deviceStates.put(mac, state);
-            
+
             // Отправляем обновление через WebSocket
             deviceController.sendDeviceState(state);
         }
-        
+
         System.out.println("[DEVICE-MANAGER] Аппарат " + mac + " отмечен как отключенный");
     }
 
@@ -125,7 +129,7 @@ public class WeldingDeviceManagerService {
      */
     public Map<String, Object> getDeviceStatistics() {
         Map<String, Object> stats = new HashMap<>();
-        
+
         int totalDevices = deviceStates.size();
         int connectedDevices = (int) connectionStatus.values().stream().filter(Boolean::booleanValue).count();
         int workingDevices = (int) deviceStates.values().stream()
@@ -134,13 +138,13 @@ public class WeldingDeviceManagerService {
         int errorDevices = (int) deviceStates.values().stream()
                 .filter(state -> state.getStatus() == WeldingMachineStatus.Error)
                 .count();
-        
+
         stats.put("totalDevices", totalDevices);
         stats.put("connectedDevices", connectedDevices);
         stats.put("workingDevices", workingDevices);
         stats.put("errorDevices", errorDevices);
         stats.put("disconnectedDevices", totalDevices - connectedDevices);
-        
+
         return stats;
     }
 } 
