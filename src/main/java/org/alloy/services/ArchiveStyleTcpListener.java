@@ -67,7 +67,7 @@ public class ArchiveStyleTcpListener {
     // @Autowired
     // private ArchiveStyleOutboundService outboundService;
     
-    @Autowired
+    @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
     
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -312,6 +312,10 @@ public class ArchiveStyleTcpListener {
      * Отправка события подключения через WebSocket
      */
     private void sendConnectionEvent(String ip, String mac, String eventType, String data) {
+        // Если WebSocket отключен (нет SimpMessagingTemplate), просто выходим
+        if (messagingTemplate == null) {
+            return;
+        }
         try {
             Map<String, Object> event = Map.of(
                 "ip", ip,
