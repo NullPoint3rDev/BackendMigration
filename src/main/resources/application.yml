@@ -94,8 +94,8 @@ welding:
       port: 3000  # Порт для TCP сервера (принимает все устройства)
       ip: 192.168.10.137 # IP адрес локального сервера
     allowed:
-      macs: 8CAAB50C4254,E09806083396  # Разрешенные MAC-адреса (все устройства)
-    parser:
+      macs: 8CAAB50C4254,E09806083396  #Разрешенные MAC-адреса (все устройства)
+    parser: 
       debug: false  # Отладочный режим парсера
     outbound:
       enabled: true  # Включить исходящие пакеты
@@ -106,5 +106,5 @@ welding:
   core:
     voltage_scale_idle: 16   # Масштаб для напряжения без сварки (idle)
     voltage_scale_welding: 10  # Масштаб для напряжения при сварке (welding)
-    voltage_offset_idle: 2    # Калибровочный сдвиг в десятых вольта для idle (например, +2 => +0.2В)
-    voltage_offset_welding: 0 # Калибровочный сдвиг в десятых вольта для welding
+    voltage_offset_idle: 0    # Калибровочный сдвиг (отключен)
+    voltage_offset_welding: 0 # Калибровочный сдвиг (отключен)
