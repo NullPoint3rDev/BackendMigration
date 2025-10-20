@@ -1,6 +1,7 @@
 package org.alloy.controllers;
 
 import org.alloy.services.*;
+import org.alloy.models.weldingmachine.StateSummary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,45 @@ public class ArchiveDeviceController {
     
     @Autowired
     private ArchiveIncomingPacketsWorker packetsWorker;
+    
+    @Autowired
+    private WeldingDeviceManagerService deviceManager;
+    
+    /**
+     * Получить текущее состояние устройства (как в archive проекте)
+     */
+    @GetMapping("/panel-state")
+    public ResponseEntity<Map<String, Object>> getPanelState(@RequestParam String mac) {
+        try {
+            // Получаем текущее состояние устройства из кэша
+            StateSummary state = deviceManager.getDeviceState(mac);
+            
+            if (state != null) {
+                Map<String, Object> response = Map.of(
+                    "success", true,
+                    "mac", mac,
+                    "state", state,
+                    "timestamp", System.currentTimeMillis()
+                );
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, Object> response = Map.of(
+                    "success", false,
+                    "message", "Состояние устройства не найдено",
+                    "mac", mac
+                );
+                return ResponseEntity.status(404).body(response);
+            }
+            
+        } catch (Exception e) {
+            Map<String, Object> response = Map.of(
+                "success", false,
+                "message", "Ошибка получения состояния: " + e.getMessage(),
+                "mac", mac
+            );
+            return ResponseEntity.status(500).body(response);
+        }
+    }
     
     /**
      * Получить статистику подключений

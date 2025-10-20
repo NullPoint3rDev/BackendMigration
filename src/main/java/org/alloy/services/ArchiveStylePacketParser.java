@@ -36,7 +36,8 @@ public class ArchiveStylePacketParser {
         }
         
         try {
-            System.out.println("[ARCHIVE-PARSER] 🔍 Обработка пакета от " + packet.getMac());
+            long startTime = System.currentTimeMillis();
+            System.out.println("[ARCHIVE-PARSER] 🔍 Обработка пакета от " + packet.getMac() + " в " + startTime);
             System.out.println("[ARCHIVE-PARSER] 📦 Данные: " + packet.getData());
             
             // Проверяем, что это не Core устройство
@@ -57,10 +58,12 @@ public class ArchiveStylePacketParser {
                 }
                 
                 // Передаем в существующий менеджер устройств
-                System.out.println("[ARCHIVE-PARSER] 🔄 Передача данных в deviceManager для MAC: " + packet.getMac());
+                long beforeDeviceManager = System.currentTimeMillis();
+                System.out.println("[ARCHIVE-PARSER] 🔄 Передача данных в deviceManager для MAC: " + packet.getMac() + " в " + beforeDeviceManager);
                 deviceManager.processDeviceData(packet.getData(), packet.getMac());
+                long afterDeviceManager = System.currentTimeMillis();
                 
-                System.out.println("[ARCHIVE-PARSER] ✅ Пакет от " + packet.getMac() + " обработан");
+                System.out.println("[ARCHIVE-PARSER] ✅ Пакет от " + packet.getMac() + " обработан. Время обработки: " + (afterDeviceManager - startTime) + "ms, deviceManager: " + (afterDeviceManager - beforeDeviceManager) + "ms");
             } else {
                 System.out.println("[ARCHIVE-PARSER] ❌ Не удалось распарсить данные от " + packet.getMac());
             }

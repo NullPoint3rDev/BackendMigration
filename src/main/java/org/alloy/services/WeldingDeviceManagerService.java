@@ -149,4 +149,11 @@ public class WeldingDeviceManagerService {
 
         return stats;
     }
+    
+    /**
+     * Получить текущее состояние устройства по MAC (для API polling)
+     */
+    public StateSummary getDeviceState(String mac) {
+        return deviceStates.get(mac);
+    }
 } 
