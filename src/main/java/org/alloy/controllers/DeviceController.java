@@ -19,19 +19,20 @@ import org.alloy.services.WeldingDataParserService;
 
 @Controller
 public class DeviceController {
-    private final SimpMessagingTemplate messagingTemplate;
+    @Autowired(required = false)
+    private SimpMessagingTemplate messagingTemplate; // optional when WebSocket disabled
     private final ObjectMapper objectMapper;
     private final WeldingDataParserService weldingDataParserService;
 
     @Autowired
-    public DeviceController(SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper, WeldingDataParserService weldingDataParserService) {
-        this.messagingTemplate = messagingTemplate;
+    public DeviceController(ObjectMapper objectMapper, WeldingDataParserService weldingDataParserService) {
         this.objectMapper = objectMapper;
         this.weldingDataParserService = weldingDataParserService;
     }
 
     public void sendDeviceData(String data) {
         try {
+            if (messagingTemplate == null) return; // WebSocket disabled
             messagingTemplate.convertAndSend("/topic/device", data);
             System.out.println("[DEVICE-CONTROLLER] 📤 Отправка сырых данных: " + data);
         } catch (Exception e) {
@@ -41,6 +42,7 @@ public class DeviceController {
     
     public void sendDeviceState(StateSummary state) {
         try {
+            if (messagingTemplate == null) return; // WebSocket disabled
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             DeviceStateMessage message = new DeviceStateMessage();
             message.setTimestamp(timestamp);
@@ -59,6 +61,7 @@ public class DeviceController {
 
     public void sendDeviceState(StateSummary state, String mac) {
         try {
+            if (messagingTemplate == null) return; // WebSocket disabled
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             DeviceStateMessage message = new DeviceStateMessage();
             message.setTimestamp(timestamp);
