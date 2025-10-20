@@ -45,7 +45,7 @@ public class TcpCoreDeviceClient {
     @Autowired
     private WeldingDeviceManagerService deviceManager;
 
-    // @PostConstruct - отключен, Core устройства теперь работают через archive-style TCP сервер
+    @PostConstruct
     public void start() {
         System.out.println("[TCP-CORE] 🚀 Запуск TCP клиента для Core");
         System.out.println("[TCP-CORE] Хост: " + host + ":" + port);

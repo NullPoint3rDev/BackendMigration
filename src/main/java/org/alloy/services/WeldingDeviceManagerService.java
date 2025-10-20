@@ -151,4 +151,5 @@ public class WeldingDeviceManagerService {
         return deviceStates.get(mac);
     }
     
+    
 } 
