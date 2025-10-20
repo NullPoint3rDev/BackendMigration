@@ -19,7 +19,7 @@ public class DeviceTestController {
     @Autowired
     private WeldingDeviceManagerService deviceManager;
 
-    @Autowired
+    @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
 
     @Autowired
@@ -102,7 +102,9 @@ public class DeviceTestController {
             wsMessage.put("command", command);
             wsMessage.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             
-            messagingTemplate.convertAndSend("/topic/device-test", wsMessage);
+            if (messagingTemplate != null) {
+                messagingTemplate.convertAndSend("/topic/device-test", wsMessage);
+            }
 
             // Здесь можно добавить реальную отправку команды плате
             // Пока просто логируем
