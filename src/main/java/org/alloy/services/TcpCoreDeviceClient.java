@@ -73,15 +73,24 @@ public class TcpCoreDeviceClient {
                             lastDataReceived = System.currentTimeMillis();
                             String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
                             
-                            // Убрали логирование для ускорения
+                            System.out.println("[TCP-CORE] 📡 Получены данные: " + data.trim());
                             
                             String mac = extractMacFromPacket(data);
                             if (mac != null) {
+                                System.out.println("[TCP-CORE] 🔍 Извлечен MAC: " + mac);
                                 if (coreMac.equalsIgnoreCase(mac)) {
                                     if (!data.startsWith("PING:")) {
+                                        String msg = "[TCP-CORE] ✅ Данные от Core (" + mac + "): " + data;
+                                        System.out.println(msg);
                                         processWeldingData(data, mac);
+                                    } else {
+                                        System.out.println("[TCP-CORE] ⏭️ Пропущен ping от Core");
                                     }
+                                } else {
+                                    System.out.println("[TCP-CORE] ❌ MAC не совпадает. Ожидался: " + coreMac + ", получен: " + mac);
                                 }
+                            } else {
+                                System.out.println("[TCP-CORE] ❌ Не удалось извлечь MAC из данных: " + data);
                             }
                         }
                         
