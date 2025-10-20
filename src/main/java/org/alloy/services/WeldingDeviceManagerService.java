@@ -12,6 +12,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import javax.annotation.PreDestroy;
 
 @Service
 public class WeldingDeviceManagerService {
@@ -31,6 +34,12 @@ public class WeldingDeviceManagerService {
     // Хранилище статусов подключения
     private final Map<String, Boolean> connectionStatus = new ConcurrentHashMap<>();
 
+    // Последнее время сохранения состояния по MAC (для троттлинга)
+    private final Map<String, Long> lastSaveTimestampMs = new ConcurrentHashMap<>();
+
+    // Отдельный executor для операций с БД, чтобы не блокировать общий пул
+    private final ExecutorService dbExecutor = Executors.newFixedThreadPool(3);
+
     @PostConstruct
     public void init() {
         System.out.println("[DEVICE-MANAGER] Сервис управления аппаратами инициализирован");
@@ -41,18 +50,12 @@ public class WeldingDeviceManagerService {
      */
     public void processDeviceData(String data, String mac) {
         try {
-            System.out.println("[DEVICE-MANAGER] 🔍 Начинаем обработку данных от " + mac);
-            System.out.println("[DEVICE-MANAGER] 📦 Данные: " + data);
+            // Горячий путь: без подробных логов
 
             // Парсим данные
             StateSummary stateSummary = dataParser.parseWeldingData(data, mac);
 
-            System.out.println("[DEVICE-MANAGER] 📊 Результат парсинга:");
-            if (stateSummary.getProperties() != null) {
-                for (Map.Entry<String, StateSummaryPropertyValue> entry : stateSummary.getProperties().entrySet()) {
-                    System.out.println("[DEVICE-MANAGER]   " + entry.getKey() + " = " + entry.getValue().getValue());
-                }
-            }
+            // Подробные логи отключены для производительности
 
             // Обновляем локальное состояние (даже если сохранение в БД не удалось)
             deviceStates.put(mac, stateSummary);
@@ -61,17 +64,23 @@ public class WeldingDeviceManagerService {
             // WebSocket отключен - все устройства работают через polling API (как в archive проекте)
             // deviceController.sendDeviceState(stateSummary, mac);
 
-            System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
+            // Короткий лог
+            // System.out.println("[DEVICE-MANAGER] ✅ Обновлено состояние для " + mac);
 
-            // Сохраняем в БД асинхронно (не блокируем основной поток)
-            CompletableFuture.runAsync(() -> {
-                try {
-                    stateService.saveMachineState(mac, stateSummary);
-                    System.out.println("[DEVICE-MANAGER] ✅ Данные сохранены в базу данных");
-                } catch (Exception dbError) {
-                    System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
-                }
-            });
+            // Троттлинг сохранений в БД: не чаще раза в 400мс на устройство
+            long now = System.currentTimeMillis();
+            Long lastSaved = lastSaveTimestampMs.getOrDefault(mac, 0L);
+            if (now - lastSaved >= 400) {
+                lastSaveTimestampMs.put(mac, now);
+                // Сохраняем в БД асинхронно (выделенный executor)
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        stateService.saveMachineState(mac, stateSummary);
+                    } catch (Exception dbError) {
+                        System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
+                    }
+                }, dbExecutor);
+            }
 
         } catch (Exception e) {
             System.err.println("[DEVICE-MANAGER] ❌ Ошибка обработки данных от " + mac + ": " + e.getMessage());
@@ -113,11 +122,15 @@ public class WeldingDeviceManagerService {
             state.setStatus(WeldingMachineStatus.Offline);
             deviceStates.put(mac, state);
 
-            // Отправляем обновление через WebSocket
-            deviceController.sendDeviceState(state, mac);
+            // WebSocket отключен в текущей архитектуре (polling)
         }
 
         System.out.println("[DEVICE-MANAGER] Аппарат " + mac + " отмечен как отключенный");
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        dbExecutor.shutdownNow();
     }
 
     /**
