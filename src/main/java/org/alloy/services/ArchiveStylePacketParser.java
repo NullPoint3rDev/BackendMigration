@@ -17,6 +17,8 @@ import java.util.Map;
  */
 @Service
 public class ArchiveStylePacketParser {
+    // Отдельный логгер для сырых CORE-посылок (маршрутизируется в отдельный файл конфигом)
+    private static final org.slf4j.Logger CORE_RAW_LOG = org.slf4j.LoggerFactory.getLogger("org.alloy.core.raw");
     
     @Value("${welding.archive.parser.debug:false}")
     private boolean debugMode;
@@ -47,6 +49,10 @@ public class ArchiveStylePacketParser {
                 if (debugMode) {
                     System.out.println("[ARCHIVE-PARSER] 🔄 Передача CORE пакета напрямую в deviceManager: " + packet.getMac());
                 }
+                // Логируем сырую CORE-посылку в отдельный файл
+                try {
+                    CORE_RAW_LOG.info("mac={}, data={}", packet.getMac(), packet.getData());
+                } catch (Exception ignore) {}
                 deviceManager.processDeviceData(packet.getData(), packet.getMac());
                 return;
             }
