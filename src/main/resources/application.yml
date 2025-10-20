@@ -103,13 +103,3 @@ welding:
       append_crc8: false  # Добавлять CRC8 к пакетам
     timesync:
       enabled: true  # Включить синхронизацию времени
-  
-  # Конфигурация Core устройств
-  core:
-    host: 95.172.58.219  # IP адрес Core устройств (внешний IP)
-    port: 3000  # Порт для подключения к Core устройствам
-    macs: E09806083396,DC4F22763D5C  # MAC адреса Core устройств
-    connection:
-      timeout_ms: 10000  # Таймаут подключения
-      retry_interval_ms: 5000  # Интервал переподключения
-      max_retries: 5  # Максимальное количество попыток
