@@ -58,8 +58,8 @@ public class WeldingDeviceManagerService {
             deviceStates.put(mac, stateSummary);
             connectionStatus.put(mac, true);
 
-            // Отправляем через WebSocket СРАЗУ (приоритет реальному времени)
-            deviceController.sendDeviceState(stateSummary, mac);
+            // WebSocket отключен - все устройства работают через polling API (как в archive проекте)
+            // deviceController.sendDeviceState(stateSummary, mac);
 
             System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
 
@@ -150,4 +150,5 @@ public class WeldingDeviceManagerService {
     public StateSummary getDeviceState(String mac) {
         return deviceStates.get(mac);
     }
+    
 } 

@@ -94,7 +94,7 @@ welding:
       port: 3000  # Порт для archive-style сервера (отдельно от основного)
       ip: 95.172.58.219 # IP адрес для прослушивания
     allowed:
-      macs: 8CAAB50C4254,E09806083396  # Разрешенные MAC-адреса
+      macs: 8CAAB50C4254,E09806083396,DC4F22763D5C  # Разрешенные MAC-адреса (Monitoring Block + Core + Core2)
     parser:
       debug: false  # Отладочный режим парсера
     outbound:
@@ -105,11 +105,11 @@ welding:
       enabled: true  # Включить синхронизацию времени
   
   # Конфигурация Core устройств
-  core:
-    host: 192.168.10.137  # IP адрес Core устройств
-    port: 3000  # Порт для подключения к Core устройствам
-    macs: E09806083396,DC4F22763D5C  # MAC адреса Core устройств
-    connection:
-      timeout_ms: 10000  # Таймаут подключения
-      retry_interval_ms: 5000  # Интервал переподключения
-      max_retries: 5  # Максимальное количество попыток
+  # core:
+  #   host: 192.168.10.137  # IP адрес Core устройств
+  #   port: 3000  # Порт для подключения к Core устройствам
+  #   macs: E09806083396,DC4F22763D5C  # MAC адреса Core устройств
+  #   connection:
+  #     timeout_ms: 10000  # Таймаут подключения
+  #     retry_interval_ms: 5000  # Интервал переподключения
+  #     max_retries: 5  # Максимальное количество попыток
