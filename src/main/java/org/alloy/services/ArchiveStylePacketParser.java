@@ -36,16 +36,12 @@ public class ArchiveStylePacketParser {
         }
         
         try {
-            if (debugMode) {
-                System.out.println("[ARCHIVE-PARSER] 🔍 Обработка пакета от " + packet.getMac());
-                System.out.println("[ARCHIVE-PARSER] 📦 Данные: " + packet.getData());
-            }
+            System.out.println("[ARCHIVE-PARSER] 🔍 Обработка пакета от " + packet.getMac());
+            System.out.println("[ARCHIVE-PARSER] 📦 Данные: " + packet.getData());
             
             // Проверяем, что это не Core устройство
             if (isCoreDevice(packet.getMac())) {
-                if (debugMode) {
-                    System.out.println("[ARCHIVE-PARSER] ⚠️ Пропускаем Core устройство " + packet.getMac());
-                }
+                System.out.println("[ARCHIVE-PARSER] ⚠️ Пропускаем Core устройство " + packet.getMac());
                 return;
             }
             
@@ -53,21 +49,20 @@ public class ArchiveStylePacketParser {
             StateSummary stateSummary = parseMonitoringBlockData(packet.getData(), packet.getMac());
             
             if (stateSummary != null) {
-                if (debugMode) {
-                    System.out.println("[ARCHIVE-PARSER] 📊 Результат парсинга:");
-                    if (stateSummary.getProperties() != null) {
-                        for (Map.Entry<String, StateSummaryPropertyValue> entry : stateSummary.getProperties().entrySet()) {
-                            System.out.println("[ARCHIVE-PARSER]   " + entry.getKey() + " = " + entry.getValue().getValue());
-                        }
+                System.out.println("[ARCHIVE-PARSER] 📊 Результат парсинга:");
+                if (stateSummary.getProperties() != null) {
+                    for (Map.Entry<String, StateSummaryPropertyValue> entry : stateSummary.getProperties().entrySet()) {
+                        System.out.println("[ARCHIVE-PARSER]   " + entry.getKey() + " = " + entry.getValue().getValue());
                     }
                 }
                 
                 // Передаем в существующий менеджер устройств
+                System.out.println("[ARCHIVE-PARSER] 🔄 Передача данных в deviceManager для MAC: " + packet.getMac());
                 deviceManager.processDeviceData(packet.getData(), packet.getMac());
                 
-                if (debugMode) {
-                    System.out.println("[ARCHIVE-PARSER] ✅ Пакет от " + packet.getMac() + " обработан");
-                }
+                System.out.println("[ARCHIVE-PARSER] ✅ Пакет от " + packet.getMac() + " обработан");
+            } else {
+                System.out.println("[ARCHIVE-PARSER] ❌ Не удалось распарсить данные от " + packet.getMac());
             }
             
         } catch (Exception e) {

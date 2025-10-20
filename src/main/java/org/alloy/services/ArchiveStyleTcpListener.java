@@ -213,6 +213,7 @@ public class ArchiveStyleTcpListener {
                         
                         // Добавляем в очередь для обработки
                         ArchiveIncomingPacketsQueue.enqueue(packet);
+                        log.debug("[ARCHIVE-TCP-LISTENER] Пакет добавлен в очередь обработки: MAC={}, IP={}", macAddress, clientIp);
                         
                         // Проверяем исходящие пакеты
                         ArchivePacket outboundPacket = ArchiveOutboundPacketsRepository.tryGet(macAddress);
