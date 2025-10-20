@@ -30,6 +30,10 @@ public class WeldingDataParserService {
     private int coreVoltageScaleIdle;
     @Value("${welding.core.voltage_scale_welding:10}")
     private int coreVoltageScaleWelding;
+    @Value("${welding.core.voltage_offset_idle:0}")
+    private int coreVoltageOffsetIdle;
+    @Value("${welding.core.voltage_offset_welding:0}")
+    private int coreVoltageOffsetWelding;
 
     @Autowired
     private DeviceModelService deviceModelService;
@@ -70,7 +74,9 @@ public class WeldingDataParserService {
                 double scale = (stateVal == 1
                         ? (coreVoltageScaleWelding <= 0 ? 10.0 : coreVoltageScaleWelding)
                         : (coreVoltageScaleIdle <= 0 ? 16.0 : coreVoltageScaleIdle));
-                int displayVoltageTenth = (int) Math.round(displayVoltageRaw / scale);
+                int baseUTenths = (int) Math.round(displayVoltageRaw / scale);
+                int offset = (stateVal == 1 ? coreVoltageOffsetWelding : coreVoltageOffsetIdle);
+                int displayVoltageTenth = baseUTenths + offset;
 
                 // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
                 // Для тока кладём как есть (А)
@@ -123,13 +129,14 @@ public class WeldingDataParserService {
                     // Логируем альтернативные оценки для диагностики масштаба
                     int u_1_16 = (int) Math.round(displayVoltageRaw / 16.0);
                     int u_1_10 = (int) Math.round(displayVoltageRaw / 10.0);
-                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_tenths={} (scale={}), U_1_16={}, U_1_10={}, job={}",
+                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_tenths={} (scale={}, offset={}), U_1_16={}, U_1_10={}, job={}",
                             mac,
                             core.index,
                             stateVal,
                             displayCurrent,
                             displayVoltageTenth,
                             (int) scale,
+                            offset,
                             u_1_16,
                             u_1_10,
                             core.jobNumber);

@@ -106,3 +106,5 @@ welding:
   core:
     voltage_scale_idle: 16   # Масштаб для напряжения без сварки (idle)
     voltage_scale_welding: 10  # Масштаб для напряжения при сварке (welding)
+    voltage_offset_idle: 2    # Калибровочный сдвиг в десятых вольта для idle (например, +2 => +0.2В)
+    voltage_offset_welding: 0 # Калибровочный сдвиг в десятых вольта для welding
