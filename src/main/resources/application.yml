@@ -104,4 +104,5 @@ welding:
     timesync:
       enabled: true  # Включить синхронизацию времени
   core:
-    voltage_scale: 10  # Масштаб напряжения Core: 10 = 0.1 В/ед. (по логам 00FC -> 25.2 В)
+    voltage_scale_idle: 16   # Масштаб для напряжения без сварки (idle)
+    voltage_scale_welding: 10  # Масштаб для напряжения при сварке (welding)

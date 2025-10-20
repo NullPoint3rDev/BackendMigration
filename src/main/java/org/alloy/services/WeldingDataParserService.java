@@ -26,8 +26,10 @@ public class WeldingDataParserService {
     @Value("${welding.core.macs:E09806083396,DC4F22763D5C}")
     private String coreMacsConfig;
 
-    @Value("${welding.core.voltage_scale:16}")
-    private int coreVoltageScale;
+    @Value("${welding.core.voltage_scale_idle:16}")
+    private int coreVoltageScaleIdle;
+    @Value("${welding.core.voltage_scale_welding:10}")
+    private int coreVoltageScaleWelding;
 
     @Autowired
     private DeviceModelService deviceModelService;
@@ -64,8 +66,10 @@ public class WeldingDataParserService {
                 int displayCurrent = (stateVal == 1 ? core.weldingCurrent : core.current);
                 // Core отдаёт напряжение как слово в единицах 1/16 В. Приводим к десятым вольта
                 int displayVoltageRaw = (stateVal == 1 ? core.weldingVoltage : core.voltage);
-                // Преобразуем к десятым В по настраиваемому масштабу
-                double scale = (coreVoltageScale <= 0 ? 16.0 : coreVoltageScale);
+                // Преобразуем к десятым В по различным масштабам: сварка/холостой ход
+                double scale = (stateVal == 1
+                        ? (coreVoltageScaleWelding <= 0 ? 10.0 : coreVoltageScaleWelding)
+                        : (coreVoltageScaleIdle <= 0 ? 16.0 : coreVoltageScaleIdle));
                 int displayVoltageTenth = (int) Math.round(displayVoltageRaw / scale);
 
                 // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
@@ -119,12 +123,13 @@ public class WeldingDataParserService {
                     // Логируем альтернативные оценки для диагностики масштаба
                     int u_1_16 = (int) Math.round(displayVoltageRaw / 16.0);
                     int u_1_10 = (int) Math.round(displayVoltageRaw / 10.0);
-                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_tenths={}, U_1_16={}, U_1_10={}, job={}",
+                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_tenths={} (scale={}), U_1_16={}, U_1_10={}, job={}",
                             mac,
                             core.index,
                             stateVal,
                             displayCurrent,
                             displayVoltageTenth,
+                            (int) scale,
                             u_1_16,
                             u_1_10,
                             core.jobNumber);
