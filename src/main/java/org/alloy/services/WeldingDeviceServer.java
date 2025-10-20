@@ -46,7 +46,7 @@ public class WeldingDeviceServer {
     @Autowired
     private DeviceModelService deviceModelService;
 
-    @Autowired
+    @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -168,14 +168,16 @@ public class WeldingDeviceServer {
                                         sentModelErrors.add(errorKey);
                                         
                                         try {
-                                            String errorMessage = "Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName();
+                                        String errorMessage = "Формат пакета не соответствует модели устройства " + deviceModel.getDisplayName();
                                             String errorJson = objectMapper.writeValueAsString(Map.of(
                                                 "mac", mac,
                                                 "expectedModel", deviceModel.getDisplayName(),
                                                 "message", errorMessage,
                                                 "timestamp", System.currentTimeMillis()
                                             ));
-                                            messagingTemplate.convertAndSend("/topic/device-model-error", errorJson);
+                                            if (messagingTemplate != null) {
+                                                messagingTemplate.convertAndSend("/topic/device-model-error", errorJson);
+                                            }
                                             log.info("[WELDING-SERVER] Отправлено событие ошибки модели для MAC: {}", mac);
                                         } catch (Exception e) {
                                             log.error("[WELDING-SERVER] Ошибка отправки события ошибки модели", e);
@@ -193,7 +195,9 @@ public class WeldingDeviceServer {
                                         "timestamp", System.currentTimeMillis(),
                                         "model", deviceModel != null ? deviceModel.name() : "UNKNOWN"
                                     ));
-                                    messagingTemplate.convertAndSend("/topic/device-status", statusJson);
+                                    if (messagingTemplate != null) {
+                                        messagingTemplate.convertAndSend("/topic/device-status", statusJson);
+                                    }
                                 } catch (Exception e) {
                                     log.error("[WELDING-SERVER] Ошибка отправки статуса устройства", e);
                                 }
