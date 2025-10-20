@@ -42,11 +42,12 @@ public class ArchiveStylePacketParser {
                 System.out.println("[ARCHIVE-PARSER] 📦 Данные: " + packet.getData());
             }
             
-            // Проверяем, что это не Core устройство
+            // Core устройства: сразу передаем данные в общий менеджер (как в archive, без WS)
             if (isCoreDevice(packet.getMac())) {
                 if (debugMode) {
-                    System.out.println("[ARCHIVE-PARSER] ⚠️ Пропускаем Core устройство " + packet.getMac());
+                    System.out.println("[ARCHIVE-PARSER] 🔄 Передача CORE пакета напрямую в deviceManager: " + packet.getMac());
                 }
+                deviceManager.processDeviceData(packet.getData(), packet.getMac());
                 return;
             }
             
