@@ -7,128 +7,112 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Воркер для обработки входящих пакетов в стиле archive проекта
+ * Реализует параллельную обработку с семафором как в оригинальном C# коде
  */
 @Service
 public class ArchiveIncomingPacketsWorker {
     
     private static final Logger log = LoggerFactory.getLogger(ArchiveIncomingPacketsWorker.class);
     
-    private volatile boolean running = true;
-    private ScheduledExecutorService executorService;
+    // Максимальное количество одновременных задач (как в archive проекте)
+    private static final int MAX_CONCURRENCY = 50;
+    
+    private final AtomicBoolean running = new AtomicBoolean(true);
+    private ExecutorService executorService;
+    private Semaphore concurrencySemaphore;
     
     @Autowired
     private ArchiveStylePacketParser packetParser;
     
     @PostConstruct
     public void start() {
-        System.out.println("[ARCHIVE-PACKETS-WORKER] 🚀 Запуск воркера обработки входящих пакетов");
-        log.info("[ARCHIVE-PACKETS-WORKER] Запуск воркера обработки входящих пакетов");
+        System.out.println("[ARCHIVE-PACKETS-WORKER] 🚀 Запуск воркера обработки входящих пакетов (параллельная обработка)");
+        log.info("[ARCHIVE-PACKETS-WORKER] Запуск воркера с максимальной параллельностью: {}", MAX_CONCURRENCY);
+        
+        // Создаем семафор для контроля параллельности (как в archive проекте)
+        concurrencySemaphore = new Semaphore(MAX_CONCURRENCY);
         
         // Создаем пул потоков для обработки пакетов
-        executorService = Executors.newScheduledThreadPool(2);
+        executorService = Executors.newCachedThreadPool();
         
         // Запускаем основной поток обработки пакетов
         executorService.submit(this::processPacketsLoop);
-        
-        // Запускаем поток для периодической очистки очереди
-        executorService.scheduleWithFixedDelay(this::cleanupQueue, 5, 5, TimeUnit.MINUTES);
     }
     
     /**
-     * Основной цикл обработки пакетов
+     * Основной цикл обработки пакетов (точно как в archive проекте)
      */
     private void processPacketsLoop() {
-        log.info("[ARCHIVE-PACKETS-WORKER] Основной цикл обработки пакетов запущен");
+        log.info("[ARCHIVE-PACKETS-WORKER] Основной цикл обработки пакетов запущен (параллельная обработка)");
         
-        while (running) {
-            try {
-                // Извлекаем пакет из очереди
-                ArchivePacket packet = ArchiveIncomingPacketsQueue.tryDequeue();
+        do {
+            // Проверяем очередь (как в archive проекте)
+            ArchivePacket packet;
+            while ((packet = ArchiveIncomingPacketsQueue.tryDequeue()) != null) {
+                // Создаем финальную копию для использования в лямбде
+                final ArchivePacket finalPacket = packet;
                 
-                if (packet != null) {
-                    // Обрабатываем пакет
-                    processPacket(packet);
-                } else {
-                    // Если очередь пуста, ждем немного
-                    Thread.sleep(100);
+                // Получаем разрешение семафора
+                try {
+                    concurrencySemaphore.acquire();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.info("[ARCHIVE-PACKETS-WORKER] Поток обработки пакетов прерван");
+                    return;
                 }
                 
+                // Запускаем обработку пакета в отдельной задаче (как Task.Factory.StartNew в C#)
+                executorService.submit(() -> {
+                    try {
+                        // Используем Spring bean парсер (как в archive проекте)
+                        packetParser.processPacket(finalPacket);
+                    } catch (Exception e) {
+                        log.error("[ARCHIVE-PACKETS-WORKER] Ошибка обработки пакета от {}: {}", 
+                                finalPacket.getMac(), e.getMessage(), e);
+                    } finally {
+                        // Освобождаем семафор
+                        concurrencySemaphore.release();
+                    }
+                });
+            }
+            
+            // Минимальная задержка (как m_exit.WaitOne(1) в C#)
+            try {
+                Thread.sleep(1);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.info("[ARCHIVE-PACKETS-WORKER] Поток обработки пакетов прерван");
-                break;
-            } catch (Exception e) {
-                log.error("[ARCHIVE-PACKETS-WORKER] Ошибка в цикле обработки пакетов", e);
-                try {
-                    Thread.sleep(1000); // Ждем секунду при ошибке
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+                return;
             }
-        }
+            
+        } while (running.get());
         
         log.info("[ARCHIVE-PACKETS-WORKER] Основной цикл обработки пакетов завершен");
     }
     
-    /**
-     * Обработка отдельного пакета
-     */
-    private void processPacket(ArchivePacket packet) {
-        try {
-            log.debug("[ARCHIVE-PACKETS-WORKER] Обработка пакета от {}: {}", 
-                    packet.getMac(), packet.getData());
-            
-            // Передаем пакет в парсер
-            packetParser.processPacket(packet);
-            
-            log.debug("[ARCHIVE-PACKETS-WORKER] Пакет от {} обработан успешно", packet.getMac());
-            
-        } catch (Exception e) {
-            log.error("[ARCHIVE-PACKETS-WORKER] Ошибка обработки пакета от {}: {}", 
-                    packet.getMac(), e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * Периодическая очистка очереди
-     */
-    private void cleanupQueue() {
-        try {
-            int queueSize = ArchiveIncomingPacketsQueue.size();
-            if (queueSize > 1000) {
-                log.warn("[ARCHIVE-PACKETS-WORKER] Очередь переполнена: {} пакетов", queueSize);
-                // Можно добавить логику очистки старых пакетов
-            }
-            
-            log.debug("[ARCHIVE-PACKETS-WORKER] Размер очереди: {} пакетов", queueSize);
-            
-        } catch (Exception e) {
-            log.error("[ARCHIVE-PACKETS-WORKER] Ошибка очистки очереди", e);
-        }
-    }
     
     /**
      * Получить статистику воркера
      */
     public java.util.Map<String, Object> getWorkerStatistics() {
         return java.util.Map.of(
-            "running", running,
+            "running", running.get(),
+            "maxConcurrency", MAX_CONCURRENCY,
+            "availablePermits", concurrencySemaphore != null ? concurrencySemaphore.availablePermits() : 0,
             "queueSize", ArchiveIncomingPacketsQueue.size(),
             "queueEmpty", ArchiveIncomingPacketsQueue.isEmpty(),
-            "threadPoolActive", executorService != null ? executorService.toString() : "null"
+            "threadPoolActive", executorService != null ? !executorService.isShutdown() : false
         );
     }
     
     @PreDestroy
     public void stop() {
-        running = false;
+        running.set(false);
         
         if (executorService != null) {
             executorService.shutdown();

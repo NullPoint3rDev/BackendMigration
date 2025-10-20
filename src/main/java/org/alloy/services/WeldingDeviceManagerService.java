@@ -11,6 +11,7 @@ import javax.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class WeldingDeviceManagerService {
@@ -57,19 +58,20 @@ public class WeldingDeviceManagerService {
             deviceStates.put(mac, stateSummary);
             connectionStatus.put(mac, true);
 
-            // Отправляем через WebSocket
+            // Отправляем через WebSocket СРАЗУ (приоритет реальному времени)
             deviceController.sendDeviceState(stateSummary, mac);
 
             System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
 
-            // Пытаемся сохранить в базу данных (но не блокируем основной поток)
-            try {
-                stateService.saveMachineState(mac, stateSummary);
-                System.out.println("[DEVICE-MANAGER] ✅ Данные сохранены в базу данных");
-            } catch (Exception dbError) {
-                System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
-                // Не прерываем обработку данных из-за ошибки БД
-            }
+            // Сохраняем в БД асинхронно (не блокируем основной поток)
+            CompletableFuture.runAsync(() -> {
+                try {
+                    stateService.saveMachineState(mac, stateSummary);
+                    System.out.println("[DEVICE-MANAGER] ✅ Данные сохранены в базу данных");
+                } catch (Exception dbError) {
+                    System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
+                }
+            });
 
         } catch (Exception e) {
             System.err.println("[DEVICE-MANAGER] ❌ Ошибка обработки данных от " + mac + ": " + e.getMessage());
