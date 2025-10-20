@@ -37,23 +37,23 @@ public class CoreOutboundService {
         return ":" + mac.toUpperCase() + ";" + body;
     }
 
-    /**
-     * Возвращает сообщение синхронизации времени формата :MAC;HHMMSSDDMMYY[0D0A]
-     * где каждая компонента записана как 2-символьный HEX (00-FF).
-     */
-    public String buildTimeSyncMessage(String mac, boolean appendCrlf) {
-        if (!timeSyncEnabled) return null;
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        String hh = to2Hex(now.getHour());
-        String mm = to2Hex(now.getMinute());
-        String ss = to2Hex(now.getSecond());
-        String dd = to2Hex(now.getDayOfMonth());
-        String mo = to2Hex(now.getMonthValue());
-        int year2 = now.getYear() % 100;
-        String yy = to2Hex(year2);
-        String body = hh + mm + ss + dd + mo + yy;
-       // if (appendCrlf) body = body + "0D0A";
-        return ":" + mac.toUpperCase() + ";" + body;
+        /**
+         * Возвращает сообщение синхронизации времени формата :MAC;HHMMSSDDMMYY[0D0A]
+         * где каждая компонента записана как 2-символьный HEX (00-FF).
+         */
+        public String buildTimeSyncMessage(String mac, boolean appendCrlf) {
+            if (!timeSyncEnabled) return null;
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            String hh = to2Hex(now.getHour());
+            String mm = to2Hex(now.getMinute());
+            String ss = to2Hex(now.getSecond());
+            String dd = to2Hex(now.getDayOfMonth());
+            String mo = to2Hex(now.getMonthValue());
+            int year2 = now.getYear() % 100;
+            String yy = to2Hex(year2);
+            String body = hh + mm + ss + dd + mo + yy;
+           // if (appendCrlf) body = body + "0D0A";
+            return ":" + mac.toUpperCase() + ";" + body;
     }
 
     public static String to2Hex(int value) {

@@ -66,6 +66,9 @@ public class ArchiveStyleTcpListener {
     
     // @Autowired
     // private ArchiveStyleOutboundService outboundService;
+
+    @Autowired(required = false)
+    private CoreOutboundService coreOutboundService;
     
     @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
@@ -204,6 +207,21 @@ public class ArchiveStyleTcpListener {
                     
                     // Проверяем разрешенные MAC-адреса
                     if (isAllowedMac(macAddress)) {
+                        // Немедленно отвечаем на запрос синхронизации времени от Core
+                        if (isTimeSyncRequest(data, macAddress) && coreOutboundService != null) {
+                            try {
+                                String ts = coreOutboundService.buildTimeSyncMessage(macAddress, true);
+                                if (ts != null && !ts.isEmpty()) {
+                                    byte[] tsBytes = ts.getBytes(StandardCharsets.US_ASCII);
+                                    out.write(tsBytes);
+                                    out.flush();
+                                    log.debug("[ARCHIVE-TCP-LISTENER] ⏱️ Отправлена синхронизация времени {}", ts);
+                                }
+                                // Продолжаем дальнейшую обработку кадра без возврата
+                            } catch (Exception ex) {
+                                log.error("[ARCHIVE-TCP-LISTENER] Ошибка отправки синхронизации времени", ex);
+                            }
+                        }
                         // Создаем пакет
                         ArchivePacket packet = new ArchivePacket();
                         packet.setIp(clientIp);
@@ -289,6 +307,19 @@ public class ArchiveStyleTcpListener {
         }
         
         return null;
+    }
+    
+    /**
+     * Определение запроса синхронизации времени от Core (например, содержит 01010131 после ';')
+     */
+    private boolean isTimeSyncRequest(String data, String mac) {
+        if (data == null) return false;
+        int semicolon = data.indexOf(';');
+        if (semicolon < 0) return false;
+        String macIn = extractMacFromPacket(data);
+        if (macIn == null || !macIn.equalsIgnoreCase(mac)) return false;
+        String tail = data.substring(semicolon).toUpperCase();
+        return tail.contains("01010131");
     }
     
     /**
