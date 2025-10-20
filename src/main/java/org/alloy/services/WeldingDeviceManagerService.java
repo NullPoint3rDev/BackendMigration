@@ -79,12 +79,6 @@ public class WeldingDeviceManagerService {
         }
     }
 
-    /**
-     * Получает текущее состояние аппарата
-     */
-    public StateSummary getDeviceState(String mac) {
-        return deviceStates.get(mac);
-    }
 
     /**
      * Получает статус подключения аппарата
@@ -151,7 +145,7 @@ public class WeldingDeviceManagerService {
     }
     
     /**
-     * Получить текущее состояние устройства по MAC (для API polling)
+     * Получает текущее состояние аппарата по MAC адресу
      */
     public StateSummary getDeviceState(String mac) {
         return deviceStates.get(mac);
