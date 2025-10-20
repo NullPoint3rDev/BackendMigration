@@ -8,6 +8,23 @@
         </encoder>
     </appender>
 
+    <!-- Core RAW packets dedicated rolling file appender -->
+    <appender name="CORE_RAW_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/core-raw.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/core-raw.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>10MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>256MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger - %msg%n</pattern>
+        </encoder>
+        <append>true</append>
+    </appender>
+
     <appender name="WELDING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_DIR}/welding-devices.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -33,6 +50,11 @@
     </logger>
     <logger name="org.alloy.services.WeldingDeviceServer" level="INFO" additivity="true">
         <appender-ref ref="WELDING_FILE"/>
+    </logger>
+
+    <!-- Logger for raw CORE packets (used in ArchiveStylePacketParser as org.alloy.core.raw) -->
+    <logger name="org.alloy.core.raw" level="INFO" additivity="false">
+        <appender-ref ref="CORE_RAW_FILE"/>
     </logger>
 
     <root level="INFO">
