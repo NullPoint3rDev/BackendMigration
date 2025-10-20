@@ -14,6 +14,8 @@ import java.util.Map;
 
 @Service
 public class WeldingDataParserService {
+    // Отдельный логгер для разобранных CORE-пакетов (настраивается в logback)
+    private static final org.slf4j.Logger CORE_PARSED_LOG = org.slf4j.LoggerFactory.getLogger("org.alloy.core.parsed");
 
     @Value("${welding.parser.current_position:6}")
     private int currentPosition;
@@ -54,17 +56,15 @@ public class WeldingDataParserService {
             CorePacket core = CorePacketParser.parse(data);
             if (core != null) {
                 Map<String, StateSummaryPropertyValue> props = new HashMap<>();
-                int displayCurrent = (int) core.getDisplayCurrent();
-                int displayVoltageTenth = (int) Math.round(core.getDisplayVoltage() * 10.0); // для совместимости — 1В=10
+                // Отображаемые значения в зависимости от состояния: 1 — сварка, 0 — холостой ход
+                int stateVal = core.weldingMachineState;
+                int displayCurrent = (stateVal == 1 ? core.weldingCurrent : core.current);
+                int displayVoltageTenth = (stateVal == 1 ? core.weldingVoltage : core.voltage);
 
-                // Но фронт ждёт hex именно для ампер и вольт (без деления на 10), как ранее
-                // В текущем UI мы парсим hex -> десятичное напрямую.
-                // Значит кладём:
-                //  - State.I = hex(displayCurrent)
-                //  - State.U = hex(round(voltage*10))  (UI покажет 196 -> как 196, и мы можем делить на фронте, но сейчас UI просто число)
-                //  - Packet.Index = индекс пакета
-                addProperty(props, "State.I", toHex(displayCurrent), "number");
-                addProperty(props, "State.U", toHex(displayVoltageTenth), "number");
+                // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
+                // Для тока кладём как есть (А)
+                addProperty(props, "Current", String.valueOf(displayCurrent), "number");
+                addProperty(props, "Voltage", String.valueOf(displayVoltageTenth), "number");
                 addProperty(props, "Packet.Index", String.valueOf(core.index), "number");
                 
                 // Добавляем дополнительные свойства Core устройства
@@ -83,8 +83,9 @@ public class WeldingDataParserService {
                 addProperty(props, "Welding.Voltage", String.valueOf(core.weldingVoltage), "number");
                 addProperty(props, "Welding.JobNumber", String.valueOf(core.jobNumber), "number");
                 
-                addProperty(props, "Current", String.valueOf(core.current), "number");
-                addProperty(props, "Voltage", String.valueOf(core.voltage), "number");
+                // Базовые (без сварки) значения также сохраняем для аналитики (не используются фронтом для отображения)
+                addProperty(props, "Idle.Current", String.valueOf(core.current), "number");
+                addProperty(props, "Idle.Voltage", String.valueOf(core.voltage), "number");
                 addProperty(props, "Inductance", String.valueOf(core.inductance), "number");
                 
                 addProperty(props, "Errors.1", String.valueOf(core.errors1), "number");
@@ -105,6 +106,17 @@ public class WeldingDataParserService {
                 state.setProperties(props);
                 state.setStatus(determineStatus(props));
                 state.setErrorCode(determineErrorCode(props));
+
+                // Логируем разобранные ключевые поля в отдельный лог (для диагностики несоответствий)
+                try {
+                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U={}, job={}",
+                            mac,
+                            core.index,
+                            stateVal,
+                            displayCurrent,
+                            displayVoltageTenth,
+                            core.jobNumber);
+                } catch (Exception ignore) {}
                 return state;
             }
         }
