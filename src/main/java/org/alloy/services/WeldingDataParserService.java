@@ -26,6 +26,9 @@ public class WeldingDataParserService {
     @Value("${welding.core.macs:E09806083396,DC4F22763D5C}")
     private String coreMacsConfig;
 
+    @Value("${welding.core.voltage_scale:16}")
+    private int coreVoltageScale;
+
     @Autowired
     private DeviceModelService deviceModelService;
 
@@ -61,7 +64,9 @@ public class WeldingDataParserService {
                 int displayCurrent = (stateVal == 1 ? core.weldingCurrent : core.current);
                 // Core отдаёт напряжение как слово в единицах 1/16 В. Приводим к десятым вольта
                 int displayVoltageRaw = (stateVal == 1 ? core.weldingVoltage : core.voltage);
-                int displayVoltageTenth = (int) Math.round(displayVoltageRaw / 16.0); // 4098 -> 256 (~25.6 В)
+                // Преобразуем к десятым В по настраиваемому масштабу
+                double scale = (coreVoltageScale <= 0 ? 16.0 : coreVoltageScale);
+                int displayVoltageTenth = (int) Math.round(displayVoltageRaw / scale);
 
                 // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
                 // Для тока кладём как есть (А)
@@ -111,12 +116,17 @@ public class WeldingDataParserService {
 
                 // Логируем разобранные ключевые поля в отдельный лог (для диагностики несоответствий)
                 try {
-                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_tenths={}, job={}",
+                    // Логируем альтернативные оценки для диагностики масштаба
+                    int u_1_16 = (int) Math.round(displayVoltageRaw / 16.0);
+                    int u_1_10 = (int) Math.round(displayVoltageRaw / 10.0);
+                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_tenths={}, U_1_16={}, U_1_10={}, job={}",
                             mac,
                             core.index,
                             stateVal,
                             displayCurrent,
                             displayVoltageTenth,
+                            u_1_16,
+                            u_1_10,
                             core.jobNumber);
                 } catch (Exception ignore) {}
                 return state;

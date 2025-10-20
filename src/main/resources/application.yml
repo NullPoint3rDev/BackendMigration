@@ -103,3 +103,5 @@ welding:
       append_crc8: false  # Добавлять CRC8 к пакетам
     timesync:
       enabled: true  # Включить синхронизацию времени
+  core:
+    voltage_scale: 16  # Масштаб напряжения Core: 16 = 1/16 В (дефолт), можно 10 = 0.1 В/ед.
