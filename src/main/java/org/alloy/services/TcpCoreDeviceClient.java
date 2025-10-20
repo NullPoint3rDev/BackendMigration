@@ -45,7 +45,7 @@ public class TcpCoreDeviceClient {
     @Autowired
     private WeldingDeviceManagerService deviceManager;
 
-    @PostConstruct
+    // @PostConstruct - отключен, Core устройства подключаются напрямую к TCP серверу
     public void start() {
         System.out.println("[TCP-CORE] 🚀 Запуск TCP клиента для Core");
         System.out.println("[TCP-CORE] Хост: " + host + ":" + port);
