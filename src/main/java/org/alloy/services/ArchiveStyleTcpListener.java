@@ -47,7 +47,9 @@ public class ArchiveStyleTcpListener {
     // Маппинг IP адресов на MAC адреса для случаев, когда MAC не извлекается из данных
     private final Map<String, String> ipToMacMapping = Map.of(
         "192.168.10.137", "E09806083396", // Core
-        "192.168.10.1", "8CAAB50C4254"    // Блок мониторинга (через роутер)
+        "192.168.10.1", "8CAAB50C4254",   // Блок мониторинга (через роутер)
+        "192.168.10.104", "E09806083396", // Core (альтернативный IP)
+        "89.109.8.59", "8CAAB50C4254"     // Блок мониторинга (внешний IP)
     );
     
     private volatile boolean running = true;

@@ -58,7 +58,7 @@ public class WeldingDeviceManagerService {
             connectionStatus.put(mac, true);
 
             // Отправляем через WebSocket
-            deviceController.sendDeviceState(stateSummary);
+            deviceController.sendDeviceState(stateSummary, mac);
 
             System.out.println("[DEVICE-MANAGER] ✅ Данные от аппарата " + mac + " обработаны");
 
@@ -118,7 +118,7 @@ public class WeldingDeviceManagerService {
             deviceStates.put(mac, state);
 
             // Отправляем обновление через WebSocket
-            deviceController.sendDeviceState(state);
+            deviceController.sendDeviceState(state, mac);
         }
 
         System.out.println("[DEVICE-MANAGER] Аппарат " + mac + " отмечен как отключенный");
