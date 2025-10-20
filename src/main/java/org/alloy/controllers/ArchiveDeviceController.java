@@ -13,6 +13,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/archive-devices")
+@CrossOrigin(origins = "*")
 public class ArchiveDeviceController {
     
     @Autowired
