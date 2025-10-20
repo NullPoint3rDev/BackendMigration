@@ -21,7 +21,7 @@ public class WeldingDataParserService {
     @Value("${welding.parser.debug_mode:true}")
     private boolean debugMode;
 
-    @Value("${welding.core.macs:E09806083396}")
+    @Value("${welding.core.macs:E09806083396,DC4F22763D5C}")
     private String coreMacsConfig;
 
     @Autowired

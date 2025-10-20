@@ -23,16 +23,16 @@ public class TcpCore2DeviceClient {
     @Value("${welding.core.port:3000}")
     private int port;
 
-    @Value("${welding.core.mac:DC4F22763D5C }")
+    @Value("${welding.core.mac:DC4F22763D5C}")
     private String coreMac;
 
-    @Value("${welding.connection.timeout_ms:10000}")
+    @Value("${welding.core.connection.timeout_ms:10000}")
     private int timeoutMs;
 
-    @Value("${welding.connection.retry_interval_ms:5000}")
+    @Value("${welding.core.connection.retry_interval_ms:5000}")
     private int retryIntervalMs;
 
-    @Value("${welding.connection.max_retries:5}")
+    @Value("${welding.core.connection.max_retries:5}")
     private int maxRetries;
 
     private volatile boolean running = true;
