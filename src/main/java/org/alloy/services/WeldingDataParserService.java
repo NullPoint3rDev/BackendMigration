@@ -59,7 +59,9 @@ public class WeldingDataParserService {
                 // Отображаемые значения в зависимости от состояния: 1 — сварка, 0 — холостой ход
                 int stateVal = core.weldingMachineState;
                 int displayCurrent = (stateVal == 1 ? core.weldingCurrent : core.current);
-                int displayVoltageTenth = (stateVal == 1 ? core.weldingVoltage : core.voltage);
+                // Core отдаёт напряжение как слово в единицах 1/16 В. Приводим к десятым вольта
+                int displayVoltageRaw = (stateVal == 1 ? core.weldingVoltage : core.voltage);
+                int displayVoltageTenth = (int) Math.round(displayVoltageRaw / 16.0); // 4098 -> 256 (~25.6 В)
 
                 // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
                 // Для тока кладём как есть (А)
@@ -109,7 +111,7 @@ public class WeldingDataParserService {
 
                 // Логируем разобранные ключевые поля в отдельный лог (для диагностики несоответствий)
                 try {
-                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U={}, job={}",
+                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_tenths={}, job={}",
                             mac,
                             core.index,
                             stateVal,
