@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import javax.annotation.PostConstruct;
+// import javax.annotation.PostConstruct; // Отключен
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,7 +57,7 @@ public class WeldingDeviceServer {
     // @Autowired
     // private DeviceController deviceController; // not used here
 
-    @PostConstruct
+    // @PostConstruct
     public void start() {
         System.out.println("[WELDING-SERVER] 🚀 Запуск TCP сервера для Блока мониторинга ОГК");
         System.out.println("[WELDING-SERVER] Порт: " + port);
@@ -156,8 +156,6 @@ public class WeldingDeviceServer {
                             if (!data.startsWith("PING:")) {
                                 // Определяем модель устройства по MAC из БД
                                 org.alloy.models.DeviceModel deviceModel = deviceModelService.getDeviceModelByMac(mac);
-                                String source = deviceModel != null ? deviceModel.getDisplayName() : 
-                                              (mac.equalsIgnoreCase("E09806083396") ? "Core" : "Блока мониторинга ОГК");
 
                                 // Проверяем соответствие формата пакета модели устройства
                                 if (deviceModel != null && !deviceModelService.isPacketFormatMatches(mac, data)) {

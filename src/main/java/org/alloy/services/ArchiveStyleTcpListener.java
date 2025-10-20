@@ -44,6 +44,12 @@ public class ArchiveStyleTcpListener {
     @Value("${welding.archive.allowed.macs:8CAAB50C4254,E09806083396}")
     private String allowedMacs;
     
+    // Маппинг IP адресов на MAC адреса для случаев, когда MAC не извлекается из данных
+    private final Map<String, String> ipToMacMapping = Map.of(
+        "192.168.10.137", "E09806083396", // Core
+        "192.168.10.1", "8CAAB50C4254"    // Блок мониторинга (через роутер)
+    );
+    
     private volatile boolean running = true;
     private Thread listenerThread;
     private ServerSocket serverSocket;
@@ -134,7 +140,13 @@ public class ArchiveStyleTcpListener {
         // Время таймаута (обновляется при каждом пакете)
         LocalDateTime timeoutTime = connectionStartTime.plusSeconds(TIMEOUT_SECONDS);
         
-        String macAddress = "";
+        // Пытаемся определить MAC по IP адресу
+        String macAddress = ipToMacMapping.get(clientIp);
+        if (macAddress == null) {
+            macAddress = ""; // MAC будет извлечен из первого пакета
+        } else {
+            log.debug("[ARCHIVE-TCP-LISTENER] MAC определен по IP {}: {}", clientIp, macAddress);
+        }
         
         log.info("[ARCHIVE-TCP-LISTENER] CONNECTED: IP: {}; Thread: {}", clientIp, threadId);
         
@@ -177,6 +189,14 @@ public class ArchiveStyleTcpListener {
                         if (extractedMac != null && !extractedMac.isEmpty()) {
                             macAddress = extractedMac;
                             log.debug("[ARCHIVE-TCP-LISTENER] MAC из пакета: {}", macAddress);
+                        }
+                    }
+                    
+                    // Если MAC не извлечен из данных, пытаемся определить по IP
+                    if (macAddress == null || macAddress.isEmpty()) {
+                        macAddress = ipToMacMapping.get(clientIp);
+                        if (macAddress != null) {
+                            log.debug("[ARCHIVE-TCP-LISTENER] MAC определен по IP {}: {}", clientIp, macAddress);
                         }
                     }
                     

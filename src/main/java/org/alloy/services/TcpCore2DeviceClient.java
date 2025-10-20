@@ -29,7 +29,7 @@ public class TcpCore2DeviceClient {
     @Value("${welding.connection.timeout_ms:10000}")
     private int timeoutMs;
 
-    @Value("${welding.connection.retry_interval_ms:2000}")
+    @Value("${welding.connection.retry_interval_ms:5000}")
     private int retryIntervalMs;
 
     @Value("${welding.connection.max_retries:5}")
