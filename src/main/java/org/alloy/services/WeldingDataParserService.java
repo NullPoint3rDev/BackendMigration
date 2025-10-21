@@ -72,10 +72,10 @@ public class WeldingDataParserService {
                 double displayVoltageDouble = core.getDisplayVoltage();
                 int displayVoltageTenth = (int) Math.round(displayVoltageDouble * 10);
 
-                // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
-                // Для тока кладём как есть (А)
-                addProperty(props, "Current", String.valueOf(displayCurrent), "number");
-                addProperty(props, "Voltage", String.valueOf(displayVoltageTenth), "number");
+                // Фронт ожидает hex-строки для Current и Voltage (как в обычных устройствах)
+                // Преобразуем десятичные значения в hex-строки
+                addProperty(props, "Current", toHex(displayCurrent), "number");
+                addProperty(props, "Voltage", toHex(displayVoltageTenth), "number");
                 addProperty(props, "Packet.Index", String.valueOf(core.index), "number");
                 
                 // Добавляем дополнительные свойства Core устройства
