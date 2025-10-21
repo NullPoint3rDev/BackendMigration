@@ -43,34 +43,34 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createDefaultRoles() {
-        if(userRoleRepository.findByName("ADMIN").isEmpty()) {
+        if(userRoleRepository.findByName("Администратор").isEmpty()) {
             UserRole adminRole = new UserRole();
-            adminRole.setName("ADMIN");
-            adminRole.setDescription("Администратор");
+            adminRole.setName("Администратор");
+            adminRole.setDescription("Администратор системы");
             adminRole.setStatus(GeneralStatus.Active);
             userRoleRepository.save(adminRole);
 
             UserRole managerRole = new UserRole();
-            managerRole.setName("MANAGER");
+            managerRole.setName("Менеджер");
             managerRole.setDescription("Менеджер");
             managerRole.setStatus(GeneralStatus.Active);
             userRoleRepository.save(managerRole);
 
             UserRole welderRole = new UserRole();
-            welderRole.setName("WELDER");
+            welderRole.setName("Сварщик");
             welderRole.setDescription("Сварщик");
             welderRole.setStatus(GeneralStatus.Active);
             userRoleRepository.save(welderRole);
 
             UserRole technologistRole = new UserRole();
-            technologistRole.setName("TECHNOLOGIST");
-            technologistRole.setDescription("Технолог");
+            technologistRole.setName("Технолог");
+            technologistRole.setDescription("Технолог предприятия");
             technologistRole.setStatus(GeneralStatus.Active);
             userRoleRepository.save(technologistRole);
 
             UserRole guestRole = new UserRole();
-            guestRole.setName("GUEST");
-            guestRole.setDescription("Гость");
+            guestRole.setName("Гость");
+            guestRole.setDescription("Гость системы");
             guestRole.setStatus(GeneralStatus.Active);
             userRoleRepository.save(guestRole);
         }
@@ -117,11 +117,11 @@ public class DataInitializer implements CommandLineRunner {
 
     private void assignPermissionsToRoles() {
         // Получаем роли
-        Optional<UserRole> adminRole = userRoleRepository.findByName("ADMIN");
-        Optional<UserRole> managerRole = userRoleRepository.findByName("MANAGER");
-        Optional<UserRole> welderRole = userRoleRepository.findByName("WELDER");
-        Optional<UserRole> technologistRole = userRoleRepository.findByName("TECHNOLOGIST");
-        Optional<UserRole> guestRole = userRoleRepository.findByName("GUEST");
+        Optional<UserRole> adminRole = userRoleRepository.findByName("Администратор");
+        Optional<UserRole> managerRole = userRoleRepository.findByName("Менеджер");
+        Optional<UserRole> welderRole = userRoleRepository.findByName("Сварщик");
+        Optional<UserRole> technologistRole = userRoleRepository.findByName("Технолог");
+        Optional<UserRole> guestRole = userRoleRepository.findByName("Гость");
 
         // ADMIN - все права
         if (adminRole.isPresent()) {

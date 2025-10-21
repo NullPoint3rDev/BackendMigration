@@ -71,7 +71,7 @@ public class EmployeeMapper {
         if (entity.getUserRole() != null) {
             UserRoleShortDTO roleDto = new UserRoleShortDTO();
             roleDto.setId(entity.getUserRole().getId());
-            roleDto.setName(entity.getUserRole().getDescription());
+            roleDto.setName(entity.getUserRole().getName());
             dto.setUserRole(roleDto);
         }
         
