@@ -92,9 +92,28 @@ public class WeldingDataParserService {
                 addProperty(props, "Номер сварочного задания", String.valueOf(core.jobNumber), "number");
                 addProperty(props, "Inductance", String.valueOf(core.inductance), "number");
                 
-                // Объединяем все ошибки в один параметр
-                String errorsCombined = core.errors1 + "," + core.errors2 + "," + core.errors3;
-                addProperty(props, "Ошибки", errorsCombined, "text");
+                // Парсим битовые поля ошибок и объединяем в текстовые описания
+                StringBuilder allErrors = new StringBuilder();
+                
+                String errors1Text = parseErrorBits(core.errors1);
+                String errors2Text = parseErrorBits(core.errors2);
+                String errors3Text = parseErrorBits(core.errors3);
+                
+                if (!errors1Text.isEmpty()) {
+                    if (allErrors.length() > 0) allErrors.append("; ");
+                    allErrors.append("Errors1: ").append(errors1Text);
+                }
+                if (!errors2Text.isEmpty()) {
+                    if (allErrors.length() > 0) allErrors.append("; ");
+                    allErrors.append("Errors2: ").append(errors2Text);
+                }
+                if (!errors3Text.isEmpty()) {
+                    if (allErrors.length() > 0) allErrors.append("; ");
+                    allErrors.append("Errors3: ").append(errors3Text);
+                }
+                
+                String finalErrors = allErrors.length() > 0 ? allErrors.toString() : "Нет ошибок";
+                addProperty(props, "Ошибки", finalErrors, "text");
                 
                 addProperty(props, "Напряжение фазы А", String.valueOf(core.voltagePhaseA), "number");
                 addProperty(props, "Напряжение фазы B", String.valueOf(core.voltagePhaseB), "number");
@@ -433,6 +452,56 @@ public class WeldingDataParserService {
      */
     private float uint32ToFloat(long uint32Value) {
         return Float.intBitsToFloat((int) uint32Value);
+    }
+
+    /**
+     * Массив описаний ошибок (индекс соответствует номеру бита)
+     */
+    private static final String[] ERROR_MESSAGES = {
+        "Перегрузка драйвера подающего механизма",
+        "Реверс энкодера подающего механизма", 
+        "Нет сигнала от энк. подающего механизма",
+        "Отказ связи с подающим механизмом",
+        "Отказ драйвера платы сварки",
+        "Отказ связи с платой сварки",
+        "Ошибка 6",
+        "Ошибка 7",
+        "Ошибка 8",
+        "Ошибка 9",
+        "Ошибка 10",
+        "Ошибка 11",
+        "Ошибка 12",
+        "Ошибка 13",
+        "Ошибка 14",
+        "Ошибка 15",
+        "Перегрев БВО",
+        "Отказ связи с БВО",
+        "Отсутствует охл. жидкость в БВО",
+        "Отказ датчика темп. жидкости в БВО",
+        "Замыкание датчика темп. жидкости БВО",
+        "Ошибка 21",
+        "Ошибка 22",
+        "Ошибка 23"
+    };
+
+    /**
+     * Парсит битовое поле ошибок и возвращает список текстовых описаний
+     */
+    private String parseErrorBits(int errorValue) {
+        if (errorValue == 0) return "";
+        
+        StringBuilder errors = new StringBuilder();
+        for (int i = 0; i < 32; i++) {
+            if ((errorValue & (1 << i)) != 0) {
+                if (errors.length() > 0) errors.append(", ");
+                if (i < ERROR_MESSAGES.length) {
+                    errors.append(ERROR_MESSAGES[i]);
+                } else {
+                    errors.append("Неизвестная ошибка ").append(i);
+                }
+            }
+        }
+        return errors.toString();
     }
 
     private WeldingMachineStatus determineStatus(Map<String, StateSummaryPropertyValue> properties) {
