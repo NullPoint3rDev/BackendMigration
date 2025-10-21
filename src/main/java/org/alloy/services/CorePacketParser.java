@@ -117,7 +117,7 @@ public class CorePacketParser {
             
             // Убрали логирование для ускорения
         } catch (Exception ex) {
-            System.out.println("[CORE-PARSER] ❌ Ошибка парсинга: " + ex.getMessage());
+           // System.out.println("[CORE-PARSER] ❌ Ошибка парсинга: " + ex.getMessage());
             ex.printStackTrace();
             // если данных меньше — вернём то, что успели распарсить
         }

@@ -15,7 +15,7 @@ import java.util.Map;
 @Service
 public class WeldingDataParserService {
     // Отдельный логгер для разобранных CORE-пакетов (настраивается в logback)
-    private static final org.slf4j.Logger CORE_PARSED_LOG = org.slf4j.LoggerFactory.getLogger("org.alloy.core.parsed");
+  //  private static final org.slf4j.Logger CORE_PARSED_LOG = org.slf4j.LoggerFactory.getLogger("org.alloy.core.parsed");
 
     @Value("${welding.parser.current_position:6}")
     private int currentPosition;
@@ -134,17 +134,17 @@ public class WeldingDataParserService {
                 state.setErrorCode(determineErrorCode(props));
 
                 // Логируем разобранные ключевые поля в отдельный лог (для диагностики несоответствий)
-                try {
-                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_display={}, U_raw_welding={}, U_raw_idle={}, job={}",
-                            mac,
-                            core.index,
-                            stateVal,
-                            displayCurrent,
-                            displayVoltageDouble,
-                            core.weldingVoltage,
-                            core.voltage,
-                            core.jobNumber);
-                } catch (Exception ignore) {}
+//                try {
+//                  //  CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_display={}, U_raw_welding={}, U_raw_idle={}, job={}",
+//                            mac,
+//                            core.index,
+//                            stateVal,
+//                            displayCurrent,
+//                            displayVoltageDouble,
+//                            core.weldingVoltage,
+//                            core.voltage,
+//                            core.jobNumber);
+//                } catch (Exception ignore) {}
                 return state;
             }
         }
