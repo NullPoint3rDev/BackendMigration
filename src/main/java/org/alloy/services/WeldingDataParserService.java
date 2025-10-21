@@ -105,7 +105,9 @@ public class WeldingDataParserService {
                 addProperty(props, "Температура первичной обмотки", String.valueOf(core.primaryCoilTemperature), "number");
                 addProperty(props, "Температура вторичной обмотки", String.valueOf(core.secondaryCoilTemperature), "number");
                 
-                addProperty(props, "Расход проволоки", String.valueOf(core.wireIndex), "number");
+                // Преобразуем uint32 в float для отображения расхода проволоки
+                float wireConsumption = uint32ToFloat(core.wireIndex);
+                addProperty(props, "Расход проволоки", String.format("%.1f", wireConsumption), "number");
 
                 state.setProperties(props);
                 state.setStatus(determineStatus(props));
@@ -423,6 +425,14 @@ public class WeldingDataParserService {
         String hex = Integer.toHexString(value).toUpperCase();
         if (hex.length() % 2 != 0) hex = "0" + hex;
         return hex;
+    }
+
+    /**
+     * Преобразует uint32 значение в float (для union структур)
+     * Используется для расхода проволоки, где uint32 интерпретируется как float
+     */
+    private float uint32ToFloat(long uint32Value) {
+        return Float.intBitsToFloat((int) uint32Value);
     }
 
     private WeldingMachineStatus determineStatus(Map<String, StateSummaryPropertyValue> properties) {
