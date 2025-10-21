@@ -86,33 +86,26 @@ public class WeldingDataParserService {
                 addProperty(props, "Date.Month", String.valueOf(core.month), "number");
                 addProperty(props, "Date.Year", String.valueOf(core.year), "number");
                 
-                addProperty(props, "State.Flags", String.valueOf(core.flags), "number");
-                addProperty(props, "State.WeldingMachineState", String.valueOf(core.weldingMachineState), "number");
+                addProperty(props, "Состояние аппарата", String.valueOf(core.weldingMachineState), "number");
                 addProperty(props, "State.GasFlow", String.valueOf(core.gasFlow), "number");
                 
-                addProperty(props, "Welding.Current", String.valueOf(core.weldingCurrent), "number");
-                addProperty(props, "Welding.Voltage", String.valueOf(core.weldingVoltage), "number");
-                addProperty(props, "Welding.JobNumber", String.valueOf(core.jobNumber), "number");
-                
-                // Базовые (без сварки) значения также сохраняем для аналитики (не используются фронтом для отображения)
-                addProperty(props, "Idle.Current", String.valueOf(core.current), "number");
-                addProperty(props, "Idle.Voltage", String.valueOf(core.voltage), "number");
+                addProperty(props, "Номер сварочного задания", String.valueOf(core.jobNumber), "number");
                 addProperty(props, "Inductance", String.valueOf(core.inductance), "number");
                 
-                addProperty(props, "Errors.1", String.valueOf(core.errors1), "number");
-                addProperty(props, "Errors.2", String.valueOf(core.errors2), "number");
-                addProperty(props, "Errors.3", String.valueOf(core.errors3), "number");
+                // Объединяем все ошибки в один параметр
+                String errorsCombined = core.errors1 + "," + core.errors2 + "," + core.errors3;
+                addProperty(props, "Ошибки", errorsCombined, "text");
                 
-                addProperty(props, "Voltage.PhaseA", String.valueOf(core.voltagePhaseA), "number");
-                addProperty(props, "Voltage.PhaseB", String.valueOf(core.voltagePhaseB), "number");
-                addProperty(props, "Voltage.PhaseC", String.valueOf(core.voltagePhaseC), "number");
+                addProperty(props, "Напряжение фазы А", String.valueOf(core.voltagePhaseA), "number");
+                addProperty(props, "Напряжение фазы B", String.valueOf(core.voltagePhaseB), "number");
+                addProperty(props, "Напряжение фазы С", String.valueOf(core.voltagePhaseC), "number");
                 
-                addProperty(props, "Temperature.Chiller1", String.valueOf(core.chillerTemperature1), "number");
-                addProperty(props, "Temperature.Chiller2", String.valueOf(core.chillerTemperature2), "number");
-                addProperty(props, "Temperature.PrimaryCoil", String.valueOf(core.primaryCoilTemperature), "number");
-                addProperty(props, "Temperature.SecondaryCoil", String.valueOf(core.secondaryCoilTemperature), "number");
+                addProperty(props, "Температура охлаждающей жидкости на входе", String.valueOf(core.chillerTemperature1), "number");
+                addProperty(props, "Температура охлаждающей жидкости на выходе", String.valueOf(core.chillerTemperature2), "number");
+                addProperty(props, "Температура первичной обмотки", String.valueOf(core.primaryCoilTemperature), "number");
+                addProperty(props, "Температура вторичной обмотки", String.valueOf(core.secondaryCoilTemperature), "number");
                 
-                addProperty(props, "Wire.Index", String.valueOf(core.wireIndex), "number");
+                addProperty(props, "Расход проволоки", String.valueOf(core.wireIndex), "number");
 
                 state.setProperties(props);
                 state.setStatus(determineStatus(props));
