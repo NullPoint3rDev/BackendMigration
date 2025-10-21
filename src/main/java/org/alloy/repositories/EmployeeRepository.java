@@ -42,4 +42,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
         @Param("userRoleId") Long userRoleId,
         @Param("status") GeneralStatus status
     );
+    
+    @Query("SELECT e FROM Employee e LEFT JOIN FETCH e.userRole LEFT JOIN FETCH e.organizationUnit")
+    List<Employee> findAllWithRoles();
 }

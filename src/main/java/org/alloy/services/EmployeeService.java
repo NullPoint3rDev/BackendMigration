@@ -47,7 +47,7 @@ public class EmployeeService {
     }
 
     public List<Employee> getAllEmployees() {
-        return employeeRepository.findAll();
+        return employeeRepository.findAllWithRoles();
     }
 
     public Optional<Employee> getEmployeeById(Long id) {
