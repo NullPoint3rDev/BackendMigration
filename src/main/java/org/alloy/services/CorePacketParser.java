@@ -16,7 +16,7 @@ public class CorePacketParser {
         if (hex.length() < 8) return null;
         
         // Парсим все данные как единую структуру WTINFO_TypeDef
-        byte[] bytes = hexStringToByteArray(hex);
+        int[] bytes = hexStringToIntArray(hex);
         if (bytes == null) return null;
         
         // Убрали логирование для ускорения
@@ -125,41 +125,41 @@ public class CorePacketParser {
         return p;
     }
 
-    private static int readU8(byte[] b, int off) { return b[off] & 0xFF; }
-    private static int readI8(byte[] b, int off) { return b[off]; }
+    private static int readU8(int[] b, int off) { return b[off] & 0xFF; }
+    private static int readI8(int[] b, int off) { return b[off]; }
     
     // Big-endian для индекса и других uint32
-    private static int readU16BE(byte[] b, int off) { return ((b[off] & 0xFF) << 8) | (b[off+1] & 0xFF); }
-    private static int readI16BE(byte[] b, int off) {
+    private static int readU16BE(int[] b, int off) { return ((b[off] & 0xFF) << 8) | (b[off+1] & 0xFF); }
+    private static int readI16BE(int[] b, int off) {
         int u = readU16BE(b, off);
         if ((u & 0x8000) != 0) return u - 0x10000;
         return u;
     }
-    private static long readU32BE(byte[] b, int off) {
+    private static long readU32BE(int[] b, int off) {
         return ((long)(b[off] & 0xFF) << 24) | ((long)(b[off+1] & 0xFF) << 16) | ((long)(b[off+2] & 0xFF) << 8) | (long)(b[off+3] & 0xFF);
     }
     
     // Little-endian для данных пакета
-    private static int readU16LE(byte[] b, int off) { return (b[off] & 0xFF) | ((b[off+1] & 0xFF) << 8); }
-    private static int readI16LE(byte[] b, int off) {
+    private static int readU16LE(int[] b, int off) { return (b[off] & 0xFF) | ((b[off+1] & 0xFF) << 8); }
+    private static int readI16LE(int[] b, int off) {
         int u = readU16LE(b, off);
         if ((u & 0x8000) != 0) return u - 0x10000;
         return u;
     }
-    private static long readU32LE(byte[] b, int off) {
+    private static long readU32LE(int[] b, int off) {
         return (long)(b[off] & 0xFF) | ((long)(b[off+1] & 0xFF) << 8) | ((long)(b[off+2] & 0xFF) << 16) | ((long)(b[off+3] & 0xFF) << 24);
     }
 
-    public static byte[] hexStringToByteArray(String s) {
+    public static int[] hexStringToIntArray(String s) {
         if (s == null) return null;
         int len = s.length();
         if (len % 2 != 0) return null;
-        byte[] data = new byte[len / 2];
+        int[] data = new int[len / 2];
         for (int i = 0; i < len; i += 2) {
             int hi = Character.digit(s.charAt(i), 16);
             int lo = Character.digit(s.charAt(i + 1), 16);
             if (hi < 0 || lo < 0) return null;
-            data[i / 2] = (byte) ((hi << 4) + lo);
+            data[i / 2] = (hi << 4) + lo; // Убираем приведение к byte
         }
         return data;
     }
