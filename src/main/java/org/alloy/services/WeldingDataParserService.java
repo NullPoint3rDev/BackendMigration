@@ -101,15 +101,15 @@ public class WeldingDataParserService {
                 
                 if (!errors1Text.isEmpty()) {
                     if (allErrors.length() > 0) allErrors.append("; ");
-                    allErrors.append("Errors1: ").append(errors1Text);
+                    allErrors.append(" ").append(errors1Text);
                 }
                 if (!errors2Text.isEmpty()) {
                     if (allErrors.length() > 0) allErrors.append("; ");
-                    allErrors.append("Errors2: ").append(errors2Text);
+                    allErrors.append(" ").append(errors2Text);
                 }
                 if (!errors3Text.isEmpty()) {
                     if (allErrors.length() > 0) allErrors.append("; ");
-                    allErrors.append("Errors3: ").append(errors3Text);
+                    allErrors.append(" ").append(errors3Text);
                 }
                 
                 String finalErrors = allErrors.length() > 0 ? allErrors.toString() : "Нет ошибок";
