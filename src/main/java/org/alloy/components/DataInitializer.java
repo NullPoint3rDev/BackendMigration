@@ -46,7 +46,7 @@ public class DataInitializer implements CommandLineRunner {
         if(userRoleRepository.findByName("ADMIN").isEmpty()) {
             UserRole adminRole = new UserRole();
             adminRole.setName("ADMIN");
-            adminRole.setDescription("Администратор системы");
+            adminRole.setDescription("Администратор");
             adminRole.setStatus(GeneralStatus.Active);
             userRoleRepository.save(adminRole);
 
@@ -64,13 +64,13 @@ public class DataInitializer implements CommandLineRunner {
 
             UserRole technologistRole = new UserRole();
             technologistRole.setName("TECHNOLOGIST");
-            technologistRole.setDescription("Технолог предприятия");
+            technologistRole.setDescription("Технолог");
             technologistRole.setStatus(GeneralStatus.Active);
             userRoleRepository.save(technologistRole);
 
             UserRole guestRole = new UserRole();
             guestRole.setName("GUEST");
-            guestRole.setDescription("Гость системы");
+            guestRole.setDescription("Гость");
             guestRole.setStatus(GeneralStatus.Active);
             userRoleRepository.save(guestRole);
         }
