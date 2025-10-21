@@ -119,8 +119,9 @@ public class WeldingDataParserService {
                 addProperty(props, "Напряжение фазы B", String.valueOf(core.voltagePhaseB), "number");
                 addProperty(props, "Напряжение фазы С", String.valueOf(core.voltagePhaseC), "number");
                 
-                addProperty(props, "Температура охлаждающей жидкости на входе", String.valueOf(core.chillerTemperature1), "number");
-                addProperty(props, "Температура охлаждающей жидкости на выходе", String.valueOf(core.chillerTemperature2), "number");
+                // Температуры охлаждающей жидкости нужно делить на 10
+                addProperty(props, "Температура охлаждающей жидкости на входе", String.format("%.1f", core.chillerTemperature1 / 10.0), "number");
+                addProperty(props, "Температура охлаждающей жидкости на выходе", String.format("%.1f", core.chillerTemperature2 / 10.0), "number");
                 addProperty(props, "Температура первичной обмотки", String.valueOf(core.primaryCoilTemperature), "number");
                 addProperty(props, "Температура вторичной обмотки", String.valueOf(core.secondaryCoilTemperature), "number");
                 
