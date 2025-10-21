@@ -69,7 +69,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @GetMapping
     public ResponseEntity<List<OrganizationShortDTO>> getAllOrganizations() {
         List<OrganizationShortDTO> organizations = organizationService.getAllOrganizations().stream()
@@ -109,7 +109,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @GetMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> getOrganizationById(
         @Parameter(description = "ID организации", required = true, example = "1")
@@ -153,7 +153,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @GetMapping("/search")
     public ResponseEntity<List<OrganizationShortDTO>> searchOrganizations(
         @Parameter(description = "Поисковый запрос", required = true, example = "ООО ТехноСварка")
@@ -197,7 +197,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
     @PostMapping
     public ResponseEntity<OrganizationShortDTO> createOrganization(
         @Parameter(description = "Данные организации", required = true)
@@ -249,7 +249,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
     @PutMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> updateOrganization(
         @Parameter(description = "ID организации", required = true, example = "1")
@@ -293,7 +293,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrganization(
         @Parameter(description = "ID организации", required = true, example = "1")
@@ -336,7 +336,7 @@ public class OrganizationController {
                 schema = @Schema(implementation = ErrorResponse.class))
         )
     })
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<Void> hardDeleteOrganization(
         @Parameter(description = "ID организации", required = true, example = "1")

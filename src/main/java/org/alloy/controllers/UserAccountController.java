@@ -87,7 +87,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
     @GetMapping
     public ResponseEntity<List<UserAccountDTO>> getAllUserAccounts() {
         List<UserAccountDTO> userAccounts = userAccountService.getAllUserAccounts().stream()
@@ -128,7 +128,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or @userAccountService.isOwner(#id, authentication.name)")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or @userAccountService.isOwner(#id, authentication.name)")
     @GetMapping("/{id}")
     public ResponseEntity<UserAccountDTO> getUserAccountById(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -171,7 +171,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or #userName == authentication.name")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or #userName == authentication.name")
     @GetMapping("/username/{userName}")
     public ResponseEntity<UserAccountDTO> getUserAccountByUserName(
             @Parameter(description = "Имя пользователя", required = true, example = "john.doe")
@@ -214,7 +214,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
     @GetMapping("/email/{email}")
     public ResponseEntity<UserAccountDTO> getUserAccountByEmail(
             @Parameter(description = "Email адрес", required = true, example = "john.doe@example.com")
@@ -251,7 +251,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
     @GetMapping("/organization-unit/{organizationUnitId}")
     public ResponseEntity<List<UserAccountDTO>> getUserAccountsByOrganizationUnitId(
             @Parameter(description = "ID организационной единицы", required = true, example = "1")
@@ -288,7 +288,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
     @GetMapping("/user-role/{userRoleId}")
     public ResponseEntity<List<UserAccountDTO>> getUserAccountsByUserRoleId(
             @Parameter(description = "ID роли пользователя", required = true, example = "1")
@@ -326,7 +326,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
     @GetMapping("/search")
     public ResponseEntity<List<UserAccountDTO>> searchUserAccounts(
             @Parameter(description = "ID организационной единицы", required = true, example = "1")
@@ -374,7 +374,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @PostMapping
     public ResponseEntity<UserAccountDTO> createUserAccount(
             @Parameter(description = "Данные учетной записи", required = true)
@@ -422,7 +422,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN') or @userAccountService.isOwner(#id, authentication.name)")
+    @PreAuthorize("hasRole('Администратор') or @userAccountService.isOwner(#id, authentication.name)")
     @PutMapping("/{id}")
     public ResponseEntity<UserAccountDTO> updateUserAccount(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -465,7 +465,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUserAccount(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -509,7 +509,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<Void> hardDeleteUserAccount(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -553,7 +553,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @PutMapping("/{id}/role")
     public ResponseEntity<UserAccountDTO> assignUserRole(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -593,7 +593,7 @@ public class UserAccountController {
             @ApiResponse(responseCode = "404", description = "Пользователь или роль не найдены"),
             @ApiResponse(responseCode = "403", description = "Недостаточно прав")
     })
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @PutMapping("/users/{id}/role")
     public ResponseEntity<User> assignRoleToUserInUsersTable(
             @Parameter(description = "ID пользователя в таблице users", required = true, example = "1")

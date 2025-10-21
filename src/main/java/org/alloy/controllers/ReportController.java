@@ -29,7 +29,7 @@ public class ReportController {
     @Autowired
     private ReportHistoryService reportHistoryService;
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/wire-consumption")
     public ResponseEntity<byte[]> generateWireConsumptionReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -53,7 +53,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/welder")
     public ResponseEntity<byte[]> generateWelderReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -77,7 +77,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/work")
     public ResponseEntity<byte[]> generateWorkReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -102,7 +102,7 @@ public class ReportController {
     }
 
     // Новые endpoints для получения данных отчетов для просмотра онлайн
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/data/wire-consumption")
     public ResponseEntity<List<WireConsumptionReportDTO>> getWireConsumptionData(@RequestBody ReportRequestDTO request) {
         try {
@@ -115,7 +115,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/data/welder")
     public ResponseEntity<List<WelderReportDTO>> getWelderData(@RequestBody ReportRequestDTO request) {
         try {
@@ -128,7 +128,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/data/work")
     public ResponseEntity<List<WorkReportDTO>> getWorkData(@RequestBody ReportRequestDTO request) {
         try {
@@ -141,7 +141,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/data/welds")
     public ResponseEntity<List<WeldSegmentDTO>> getWeldsData(@RequestBody ReportRequestDTO request) {
         try {
@@ -154,7 +154,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/data/equipment")
     public ResponseEntity<List<WorkReportDTO>> getEquipmentData(@RequestBody ReportRequestDTO request) {
         try {
@@ -167,21 +167,21 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @GetMapping("/types")
     public ResponseEntity<List<String>> getReportTypes() {
         List<String> reportTypes = List.of("WIRE_CONSUMPTION", "WELDER_REPORT", "WORK_REPORT");
         return ResponseEntity.ok(reportTypes);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @GetMapping("/formats")
     public ResponseEntity<List<String>> getReportFormats() {
         List<String> formats = List.of("EXCEL", "PDF", "CSV");
         return ResponseEntity.ok(formats);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @GetMapping("/periods")
     public ResponseEntity<List<String>> getReportPeriods() {
         List<String> periods = List.of("DAY", "WEEK", "MONTH", "QUARTER", "YEAR", "CUSTOM");
@@ -190,7 +190,7 @@ public class ReportController {
 
     // Новые эндпоинты для отчетов согласно требованиям
     
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/equipment")
     public ResponseEntity<byte[]> generateEquipmentReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -216,7 +216,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/welders")
     public ResponseEntity<byte[]> generateWeldersReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -242,7 +242,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/materials")
     public ResponseEntity<byte[]> generateMaterialsReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -268,7 +268,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/welds")
     public ResponseEntity<byte[]> generateWeldsReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -294,7 +294,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/errors")
     public ResponseEntity<byte[]> generateErrorsReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -320,7 +320,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/violations")
     public ResponseEntity<byte[]> generateViolationsReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -346,7 +346,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @PostMapping("/tasks")
     public ResponseEntity<byte[]> generateTasksReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -377,7 +377,7 @@ public class ReportController {
     /**
      * Получить последние отчеты для определенного типа
      */
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('TECHNOLOGIST')")
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
     @GetMapping("/history/{reportType}")
     public ResponseEntity<List<ReportHistory>> getRecentReports(@PathVariable String reportType) {
         System.out.println("ReportController: Запрос истории для типа '" + reportType + "'");
@@ -408,7 +408,7 @@ public class ReportController {
     /**
      * Получить все отчеты из истории
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @GetMapping("/history")
     public ResponseEntity<List<ReportHistory>> getAllReports() {
         System.out.println("ReportController: Запрос всех отчетов из истории");
@@ -438,7 +438,7 @@ public class ReportController {
     /**
      * Очистить все отчеты из истории
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @DeleteMapping("/history/clear")
     public ResponseEntity<String> clearAllReports() {
         try {
@@ -455,7 +455,7 @@ public class ReportController {
     /**
      * Получить информацию о том, откуда берутся отчеты
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @GetMapping("/history/debug")
     public ResponseEntity<String> debugReports() {
         try {
@@ -483,7 +483,7 @@ public class ReportController {
     /**
      * Получить все типы отчетов, для которых есть история
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @GetMapping("/history/types")
     public ResponseEntity<java.util.Set<String>> getHistoryReportTypes() {
         java.util.Set<String> types = reportHistoryService.getReportTypes();
@@ -493,7 +493,7 @@ public class ReportController {
     /**
      * Получить общее количество отчетов в истории
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @GetMapping("/history/count")
     public ResponseEntity<Integer> getTotalReportsCount() {
         int count = reportHistoryService.getTotalReportsCount();
@@ -503,7 +503,7 @@ public class ReportController {
     /**
      * Очистить историю для определенного типа отчета
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @DeleteMapping("/history/{reportType}")
     public ResponseEntity<Void> clearHistory(@PathVariable String reportType) {
         reportHistoryService.clearHistory(reportType);
@@ -513,7 +513,7 @@ public class ReportController {
     /**
      * Очистить всю историю
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('Администратор')")
     @DeleteMapping("/history/all")
     public ResponseEntity<Void> clearAllHistory() {
         reportHistoryService.clearAllHistory();

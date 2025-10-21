@@ -98,60 +98,60 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .antMatchers(HttpMethod.GET, "/user-accounts/email/**").authenticated()
 
             // Read endpoints for admins and managers
-            .antMatchers(HttpMethod.GET, "/user-accounts").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers(HttpMethod.GET, "/user-accounts/search").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers(HttpMethod.GET, "/user-accounts/user-role/**").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers(HttpMethod.GET, "/user-accounts/organization-unit/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.GET, "/user-accounts").hasAnyRole("Администратор", "Менеджер")
+            .antMatchers(HttpMethod.GET, "/user-accounts/search").hasAnyRole("Администратор", "Менеджер")
+            .antMatchers(HttpMethod.GET, "/user-accounts/user-role/**").hasAnyRole("Администратор", "Менеджер")
+            .antMatchers(HttpMethod.GET, "/user-accounts/organization-unit/**").hasAnyRole("Администратор", "Менеджер")
 
             // Create/Update/Delete restricted to admins
-            .antMatchers(HttpMethod.POST, "/user-accounts/**").hasRole("ADMIN")
-            .antMatchers(HttpMethod.PUT, "/user-accounts/**").hasRole("ADMIN")
-            .antMatchers(HttpMethod.DELETE, "/user-accounts/**").hasRole("ADMIN")
+            .antMatchers(HttpMethod.POST, "/user-accounts/**").hasRole("Администратор")
+            .antMatchers(HttpMethod.PUT, "/user-accounts/**").hasRole("Администратор")
+            .antMatchers(HttpMethod.DELETE, "/user-accounts/**").hasRole("Администратор")
 
             // Fallback for any other user-accounts paths (if any remain)
             .antMatchers("/user-accounts/**").authenticated()
-            .antMatchers("/user-roles/**").hasRole("ADMIN")
-            .antMatchers("/user-permissions/**").hasRole("ADMIN")
-            .antMatchers("/user-role-permissions/**").hasRole("ADMIN")
+            .antMatchers("/user-roles/**").hasRole("Администратор")
+            .antMatchers("/user-permissions/**").hasRole("Администратор")
+            .antMatchers("/user-role-permissions/**").hasRole("Администратор")
 
             // Reports - admins and managers
-            .antMatchers(HttpMethod.GET, "/reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.POST, "/reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.PUT, "/reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.DELETE, "/reports/**").hasRole("ADMIN")
-            .antMatchers(HttpMethod.DELETE,"/automated-reports/**").hasRole("ADMIN")
-            .antMatchers(HttpMethod.GET, "/automated-reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.POST, "/automated-reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.PUT, "/automated-reports/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
+            .antMatchers(HttpMethod.GET, "/reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers(HttpMethod.POST, "/reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers(HttpMethod.PUT, "/reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers(HttpMethod.DELETE, "/reports/**").hasRole("Администратор")
+            .antMatchers(HttpMethod.DELETE,"/automated-reports/**").hasRole("Администратор")
+            .antMatchers(HttpMethod.GET, "/automated-reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers(HttpMethod.POST, "/automated-reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers(HttpMethod.PUT, "/automated-reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
 
             // Machines - admins, managers, technicians
-            .antMatchers("/devices/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers("/welding-devices/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers("/welding-machines/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers("/device-test/**").hasRole("ADMIN")
+            .antMatchers("/devices/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers("/welding-devices/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers("/welding-machines/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers("/device-test/**").hasRole("Администратор")
 
             // Employees - admins and managers; Welders granular to match controller
-            .antMatchers("/employees/**").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers(HttpMethod.GET, "/welders/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.POST, "/welders/**").hasAnyRole("ADMIN", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.PUT, "/welders/**").hasAnyRole("ADMIN", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.DELETE, "/welders/**").hasRole("ADMIN")
+            .antMatchers("/employees/**").hasAnyRole("Администратор", "Менеджер")
+            .antMatchers(HttpMethod.GET, "/welders/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers(HttpMethod.POST, "/welders/**").hasAnyRole("Администратор", "Технолог")
+            .antMatchers(HttpMethod.PUT, "/welders/**").hasAnyRole("Администратор", "Технолог")
+            .antMatchers(HttpMethod.DELETE, "/welders/**").hasRole("Администратор")
 
             // Organization — granular to include technologist for reads
-            .antMatchers(HttpMethod.GET, "/organizations/**").hasAnyRole("ADMIN", "MANAGER", "TECHNOLOGIST")
-            .antMatchers(HttpMethod.POST, "/organizations/**").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers(HttpMethod.PUT, "/organizations/**").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers(HttpMethod.DELETE, "/organizations/**").hasAnyRole("ADMIN", "MANAGER")
-            .antMatchers("/organization-units/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers(HttpMethod.GET, "/organizations/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
+            .antMatchers(HttpMethod.POST, "/organizations/**").hasAnyRole("Администратор", "Менеджер")
+            .antMatchers(HttpMethod.PUT, "/organizations/**").hasAnyRole("Администратор", "Менеджер")
+            .antMatchers(HttpMethod.DELETE, "/organizations/**").hasAnyRole("Администратор", "Менеджер")
+            .antMatchers("/organization-units/**").hasAnyRole("Администратор", "Менеджер")
 
             // System settings - only admins
-            .antMatchers("/system-settings/**").hasRole("ADMIN")
-            .antMatchers("/email-templates/**").hasRole("ADMIN")
-            .antMatchers("/email-test/**").hasRole("ADMIN")
+            .antMatchers("/system-settings/**").hasRole("Администратор")
+            .antMatchers("/email-templates/**").hasRole("Администратор")
+            .antMatchers("/email-test/**").hasRole("Администратор")
 
             // Notifications - all authorized users 
             .antMatchers("/notifications/**").authenticated()
-            .antMatchers("/notification-templates/**").hasAnyRole("ADMIN", "MANAGER")
+            .antMatchers("/notification-templates/**").hasAnyRole("Администратор", "Менеджер")
 
             // Library (documents) - all authorized users
             .antMatchers("/library-documents/**").authenticated()
