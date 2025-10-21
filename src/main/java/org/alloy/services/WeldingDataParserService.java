@@ -68,15 +68,9 @@ public class WeldingDataParserService {
                 // Отображаемые значения в зависимости от состояния: 1 — сварка, 0 — холостой ход
                 int stateVal = core.weldingMachineState;
                 int displayCurrent = (stateVal == 1 ? core.weldingCurrent : core.current);
-                // Core отдаёт напряжение как слово в единицах 1/16 В. Приводим к десятым вольта
-                int displayVoltageRaw = (stateVal == 1 ? core.weldingVoltage : core.voltage);
-                // Преобразуем к десятым В по различным масштабам: сварка/холостой ход
-                double scale = (stateVal == 1
-                        ? (coreVoltageScaleWelding <= 0 ? 10.0 : coreVoltageScaleWelding)
-                        : (coreVoltageScaleIdle <= 0 ? 16.0 : coreVoltageScaleIdle));
-                int baseUTenths = (int) Math.round(displayVoltageRaw / scale);
-                int offset = (stateVal == 1 ? coreVoltageOffsetWelding : coreVoltageOffsetIdle);
-                int displayVoltageTenth = baseUTenths + offset;
+                // Core отдаёт напряжение как слово в единицах 1/10 В. Используем готовое значение из CorePacket
+                double displayVoltageDouble = core.getDisplayVoltage();
+                int displayVoltageTenth = (int) Math.round(displayVoltageDouble * 10);
 
                 // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
                 // Для тока кладём как есть (А)
@@ -126,19 +120,14 @@ public class WeldingDataParserService {
 
                 // Логируем разобранные ключевые поля в отдельный лог (для диагностики несоответствий)
                 try {
-                    // Логируем альтернативные оценки для диагностики масштаба
-                    int u_1_16 = (int) Math.round(displayVoltageRaw / 16.0);
-                    int u_1_10 = (int) Math.round(displayVoltageRaw / 10.0);
-                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_tenths={} (scale={}, offset={}), U_1_16={}, U_1_10={}, job={}",
+                    CORE_PARSED_LOG.info("mac={}, idx={}, state={}, I={}, U_display={}, U_raw_welding={}, U_raw_idle={}, job={}",
                             mac,
                             core.index,
                             stateVal,
                             displayCurrent,
-                            displayVoltageTenth,
-                            (int) scale,
-                            offset,
-                            u_1_16,
-                            u_1_10,
+                            displayVoltageDouble,
+                            core.weldingVoltage,
+                            core.voltage,
                             core.jobNumber);
                 } catch (Exception ignore) {}
                 return state;
