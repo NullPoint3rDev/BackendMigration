@@ -98,9 +98,9 @@ public class WeldingDataParserService {
                 // Временное логирование для отладки ошибок
                 System.out.println("[DEBUG] Errors1=" + core.errors1 + ", Errors2=" + core.errors2 + ", Errors3=" + core.errors3);
                 
-                String errors1Text = parseErrorBits(core.errors1);
-                String errors2Text = parseErrorBits(core.errors2);
-                String errors3Text = parseErrorBits(core.errors3);
+                String errors1Text = parseErrorBits(core.errors1, 0);   // ошибки 1-16
+                String errors2Text = parseErrorBits(core.errors2, 16);   // ошибки 17-32 (БВО)
+                String errors3Text = parseErrorBits(core.errors3, 32);   // ошибки 33-48 (если есть)
                 
                 if (!errors1Text.isEmpty()) {
                     if (allErrors.length() > 0) allErrors.append("; ");
@@ -490,22 +490,32 @@ public class WeldingDataParserService {
 
     /**
      * Парсит битовое поле ошибок и возвращает список текстовых описаний
+     * @param errorValue значение ошибки
+     * @param offset смещение для индексации (0 для Errors1, 16 для Errors2, 32 для Errors3)
      */
-    private String parseErrorBits(int errorValue) {
+    private String parseErrorBits(int errorValue, int offset) {
         if (errorValue == 0) return "";
         
         StringBuilder errors = new StringBuilder();
         for (int i = 0; i < 32; i++) {
             if ((errorValue & (1 << i)) != 0) {
                 if (errors.length() > 0) errors.append(", ");
-                if (i < ERROR_MESSAGES.length) {
-                    errors.append(ERROR_MESSAGES[i]);
+                int errorIndex = i + offset;
+                if (errorIndex < ERROR_MESSAGES.length) {
+                    errors.append(ERROR_MESSAGES[errorIndex]);
                 } else {
-                    errors.append("Неизвестная ошибка ").append(i);
+                    errors.append("Неизвестная ошибка ").append(errorIndex);
                 }
             }
         }
         return errors.toString();
+    }
+
+    /**
+     * Парсит битовое поле ошибок без смещения (для обратной совместимости)
+     */
+    private String parseErrorBits(int errorValue) {
+        return parseErrorBits(errorValue, 0);
     }
 
     private WeldingMachineStatus determineStatus(Map<String, StateSummaryPropertyValue> properties) {
