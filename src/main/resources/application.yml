@@ -99,7 +99,7 @@ welding:
       debug: false  # Отладочный режим парсера
     outbound:
       enabled: true  # Включить исходящие пакеты
-      payload: "00"  # HEX payload для отправки
+      payload: ""  # HEX payload для отправки
       append_crc8: false  # Добавлять CRC8 к пакетам
     timesync:
       enabled: true  # Включить синхронизацию времени

@@ -184,6 +184,9 @@ public class TcpCoreDeviceClient {
 
     private void processWeldingData(String data, String mac) {
         try {
+            // Устанавливаем ответ 0100 для Core устройства
+            OutboundPacketsRepository.set(mac, "0100");
+            
             deviceManager.processDeviceData(data, mac);
         } catch (Exception e) {
             // Молча игнорируем ошибки
