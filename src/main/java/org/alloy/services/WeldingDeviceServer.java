@@ -138,7 +138,8 @@ public class WeldingDeviceServer {
                         if (isAllowedMac(mac)) {
 
                             // 1) Сначала проверяем запрос синхронизации времени и отвечаем сразу
-                            if (isTimeSyncRequest(data, mac)) {
+                            boolean isTimeSync = isTimeSyncRequest(data, mac);
+                            if (isTimeSync) {
                                 String ts = coreOutboundService.buildTimeSyncMessage(mac, true);
                                 if (ts != null) {
                                     try {
@@ -149,8 +150,7 @@ public class WeldingDeviceServer {
                                         log.error("[WELDING-SERVER] Ошибка отправки синхронизации времени", ex);
                                     }
                                 }
-                                // Не выполняем остальную логику ответа для этого кадра
-                                continue;
+                                // Продолжаем выполнение для отправки обычного ответа
                             }
 
                             if (!data.startsWith("PING:")) {
