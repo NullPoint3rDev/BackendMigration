@@ -95,6 +95,9 @@ public class WeldingDataParserService {
                 // Парсим битовые поля ошибок и объединяем в текстовые описания
                 StringBuilder allErrors = new StringBuilder();
                 
+                // Временное логирование для отладки ошибок
+                System.out.println("[DEBUG] Errors1=" + core.errors1 + ", Errors2=" + core.errors2 + ", Errors3=" + core.errors3);
+                
                 String errors1Text = parseErrorBits(core.errors1);
                 String errors2Text = parseErrorBits(core.errors2);
                 String errors3Text = parseErrorBits(core.errors3);
@@ -478,7 +481,7 @@ public class WeldingDataParserService {
         "Перегрев БВО",                                    // ошибка 16
         "Отказ связи с БВО",                               // ошибка 17
         "Отсутствует охл. жидкость в БВО",                // ошибка 18
-        "Отказ датчика темп. жидкости в БВО",              // ошибка 19
+        "Нет протока жидкости БВО",                        // ошибка 19
         "Замыкание датчика темп. жидкости БВО",            // ошибка 20
         "Ошибка 21",                                       // ошибка 21
         "Ошибка 22",                                       // ошибка 22
