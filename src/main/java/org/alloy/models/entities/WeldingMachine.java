@@ -30,7 +30,7 @@ public class WeldingMachine {
     @Schema(description = "ID подразделения", example = "1")
     private Integer organizationUnitId;
 
-    @Column(name = "WeldingMachineTypeID", nullable = false)
+    @Column(name = "WeldingMachineTypeID", nullable = true)
     @Schema(description = "ID типа сварочной машины", example = "1")
     private Integer weldingMachineTypeId;
 

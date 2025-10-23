@@ -353,6 +353,7 @@ public class WeldingMachineController {
             return ResponseEntity.badRequest().body(error);
         }
 
+
         // Нормализация и валидация формата MAC
         String normalizedMac = deviceModelService.normalizeMac(machineDTO.getMac());
         if (!deviceModelService.isValidMacFormat(normalizedMac)) {
