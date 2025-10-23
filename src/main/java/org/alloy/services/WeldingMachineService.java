@@ -84,20 +84,23 @@ public class WeldingMachineService {
         if (weldingMachine.getOrganizationUnitId() == null) {
             throw new IllegalArgumentException("Organization Unit ID is required");
         }
-        if (weldingMachine.getWeldingMachineTypeId() == null) {
-            throw new IllegalArgumentException("Type ID is required");
-        }
+        // WeldingMachineTypeId is now optional
+        // if (weldingMachine.getWeldingMachineTypeId() == null) {
+        //     throw new IllegalArgumentException("Type ID is required");
+        // }
 
         // Verify that the referenced entities exist
-        WeldingMachineType type = weldingMachineTypeRepository.findById(weldingMachine.getWeldingMachineTypeId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid welding machine type ID"));
+        if (weldingMachine.getWeldingMachineTypeId() != null) {
+            weldingMachineTypeRepository.findById(weldingMachine.getWeldingMachineTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid welding machine type ID"));
+        }
         OrganizationUnit orgUnit = organizationUnitRepository.findById(weldingMachine.getOrganizationUnitId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid organization unit ID"));
 
         // Set creation date and status
         weldingMachine.setDateCreated(LocalDateTime.now());
         weldingMachine.setStatus(GeneralStatus.Active);
-        weldingMachine.setWeldingMachineType(type);
+        // weldingMachineType is now optional, so we don't set it here
         weldingMachine.setOrganizationUnit(orgUnit);
 
         return weldingMachineRepository.save(weldingMachine);
