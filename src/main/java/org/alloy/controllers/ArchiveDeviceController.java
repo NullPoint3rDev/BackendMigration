@@ -34,6 +34,21 @@ public class ArchiveDeviceController {
     @GetMapping("/panel-state")
     public ResponseEntity<Map<String, Object>> getPanelState(@RequestParam String mac) {
         try {
+            // Проверяем, подключено ли устройство
+            boolean isConnected = deviceManager.isDeviceConnected(mac);
+            
+            if (!isConnected) {
+                // Если устройство отключено, возвращаем статус отключения
+                Map<String, Object> response = Map.of(
+                    "success", false,
+                    "message", "Устройство отключено",
+                    "mac", mac,
+                    "isConnected", false,
+                    "status", "disconnected"
+                );
+                return ResponseEntity.ok(response);
+            }
+            
             // Получаем текущее состояние устройства из кэша
             StateSummary state = deviceManager.getDeviceState(mac);
             
@@ -42,6 +57,8 @@ public class ArchiveDeviceController {
                     "success", true,
                     "mac", mac,
                     "state", state,
+                    "isConnected", true,
+                    "status", "connected",
                     "timestamp", System.currentTimeMillis()
                 );
                 return ResponseEntity.ok(response);
@@ -49,7 +66,9 @@ public class ArchiveDeviceController {
                 Map<String, Object> response = Map.of(
                     "success", false,
                     "message", "Состояние устройства не найдено",
-                    "mac", mac
+                    "mac", mac,
+                    "isConnected", false,
+                    "status", "not_found"
                 );
                 return ResponseEntity.status(404).body(response);
             }
@@ -58,7 +77,9 @@ public class ArchiveDeviceController {
             Map<String, Object> response = Map.of(
                 "success", false,
                 "message", "Ошибка получения состояния: " + e.getMessage(),
-                "mac", mac
+                "mac", mac,
+                "isConnected", false,
+                "status", "error"
             );
             return ResponseEntity.status(500).body(response);
         }

@@ -73,6 +73,9 @@ public class ArchiveStyleTcpListener {
     @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
     
+    @Autowired
+    private WeldingDeviceManagerService deviceManager;
+    
     private final ObjectMapper objectMapper = new ObjectMapper();
     
     @PostConstruct
@@ -343,6 +346,12 @@ public class ArchiveStyleTcpListener {
      * Отправка события подключения через WebSocket
      */
     private void sendConnectionEvent(String ip, String mac, String eventType, String data) {
+        // Обрабатываем отключение устройства
+        if ("disconnected".equals(eventType) && mac != null) {
+            deviceManager.markDeviceDisconnected(mac);
+            log.info("[ARCHIVE-TCP-LISTENER] Устройство {} отмечено как отключенное", mac);
+        }
+        
         // Если WebSocket отключен (нет SimpMessagingTemplate), просто выходим
         if (messagingTemplate == null) {
             return;
