@@ -90,6 +90,28 @@ public class CoreOutboundService {
         }
         return data;
     }
+    
+    /**
+     * Проверяет, является ли устройство Core по MAC-адресу
+     */
+    public boolean isCoreDevice(String mac) {
+        if (mac == null) return false;
+        
+        // Проверяем по MAC-адресу
+        return mac.equalsIgnoreCase("E09806083396") || mac.equalsIgnoreCase("ECFABCCA42E8");
+    }
+    
+    /**
+     * Создает эхо-ответ для Core устройства (возвращает те же данные, что получили)
+     */
+    public String buildEchoResponse(String originalData) {
+        if (originalData == null || originalData.isEmpty()) {
+            return null;
+        }
+        
+        // Просто возвращаем те же данные, что получили
+        return originalData;
+    }
 }
 
 

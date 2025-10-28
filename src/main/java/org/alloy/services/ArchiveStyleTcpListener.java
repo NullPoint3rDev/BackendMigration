@@ -225,6 +225,22 @@ public class ArchiveStyleTcpListener {
                                 log.error("[ARCHIVE-TCP-LISTENER] Ошибка отправки синхронизации времени", ex);
                             }
                         }
+                        
+                        // Эхо-ответ для Core устройств: отправляем те же данные обратно
+                        if (coreOutboundService != null && coreOutboundService.isCoreDevice(macAddress)) {
+                            try {
+                                String echoResponse = coreOutboundService.buildEchoResponse(data);
+                                if (echoResponse != null) {
+                                    byte[] echoData = echoResponse.getBytes(StandardCharsets.US_ASCII);
+                                    out.write(echoData);
+                                    out.flush();
+                                    log.debug("[ARCHIVE-TCP-LISTENER] 🔄 Эхо-ответ для Core {}: {}", macAddress, echoResponse);
+                                }
+                            } catch (IOException e) {
+                                log.error("[ARCHIVE-TCP-LISTENER] Ошибка отправки эхо-ответа для Core {}: {}", macAddress, e.getMessage());
+                            }
+                        }
+                        
                         // Создаем пакет
                         ArchivePacket packet = new ArchivePacket();
                         packet.setIp(clientIp);
@@ -341,6 +357,7 @@ public class ArchiveStyleTcpListener {
         }
         return false;
     }
+    
     
     /**
      * Отправка события подключения через WebSocket
