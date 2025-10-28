@@ -93,7 +93,21 @@ public class WeldingDeviceManagerService {
      * Получает статус подключения аппарата
      */
     public boolean isDeviceConnected(String mac) {
-        return connectionStatus.getOrDefault(mac, false);
+        StateSummary state = deviceStates.get(mac);
+        if (state == null) {
+            System.out.println("[DEVICE-MANAGER] isDeviceConnected для MAC: " + mac + " - нет данных");
+            return false;
+        }
+        
+        // Проверяем, есть ли данные в последние 10 секунд (как в archive проекте)
+        long now = System.currentTimeMillis();
+        long lastUpdate = state.getLastDatetimeUpdate().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+        long timeDiff = now - lastUpdate;
+        
+        boolean connected = timeDiff < 10000; // 10 секунд (как в archive)
+        System.out.println("[DEVICE-MANAGER] isDeviceConnected для MAC: " + mac + " - разница времени: " + timeDiff + "мс, подключен: " + connected);
+        
+        return connected;
     }
 
     /**
@@ -161,7 +175,15 @@ public class WeldingDeviceManagerService {
      * Получает текущее состояние аппарата по MAC адресу
      */
     public StateSummary getDeviceState(String mac) {
-        return deviceStates.get(mac);
+        StateSummary state = deviceStates.get(mac);
+        System.out.println("[DEVICE-MANAGER] getDeviceState для MAC: " + mac + ", результат: " + (state != null ? "найден" : "не найден"));
+        if (state != null) {
+            long now = System.currentTimeMillis();
+            long lastUpdate = state.getLastDatetimeUpdate().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+            long timeDiff = now - lastUpdate;
+            System.out.println("[DEVICE-MANAGER] Время последнего обновления: " + lastUpdate + ", разница: " + timeDiff + "мс");
+        }
+        return state;
     }
     
     
