@@ -32,58 +32,30 @@ public class ArchiveDeviceController {
      * Получить текущее состояние устройства (как в archive проекте)
      */
     @GetMapping("/panel-state")
-    public ResponseEntity<Map<String, Object>> getPanelState(@RequestParam String mac) {
+    public ResponseEntity<Object> getPanelState(@RequestParam String mac) {
         try {
             // Получаем состояние устройства (как в archive проекте)
             StateSummary state = deviceManager.getDeviceState(mac);
             
             if (state == null) {
-                // Если нет данных - возвращаем статус отключения
-                Map<String, Object> response = Map.of(
-                    "success", false,
-                    "message", "Устройство отключено",
-                    "mac", mac,
-                    "isConnected", false,
-                    "status", "disconnected"
-                );
-                return ResponseEntity.ok(response);
+                // Если нет данных - возвращаем null (как в archive проекте)
+                return ResponseEntity.ok(null);
             }
             
             // Проверяем, свежие ли данные (как в archive проекте - 10 секунд)
             boolean isConnected = deviceManager.isDeviceConnected(mac);
             
             if (!isConnected) {
-                // Если данные устарели - возвращаем статус отключения
-                Map<String, Object> response = Map.of(
-                    "success", false,
-                    "message", "Устройство отключено",
-                    "mac", mac,
-                    "isConnected", false,
-                    "status", "disconnected"
-                );
-                return ResponseEntity.ok(response);
+                // Если данные устарели - возвращаем null (как в archive проекте)
+                return ResponseEntity.ok(null);
             }
             
-            // Если данные свежие - возвращаем их
-            Map<String, Object> response = Map.of(
-                "success", true,
-                "mac", mac,
-                "state", state,
-                "isConnected", true,
-                "status", "connected",
-                "timestamp", System.currentTimeMillis()
-            );
-            return ResponseEntity.ok(response);
+            // Если данные свежие - возвращаем state (как в archive проекте)
+            return ResponseEntity.ok(state);
             
         } catch (Exception e) {
-            Map<String, Object> response = Map.of(
-                "success", false,
-                "message", "Ошибка получения состояния: " + e.getMessage(),
-                "mac", mac,
-                "isConnected", false,
-                "status", "error"
-            );
-            return ResponseEntity.status(500).body(response);
+            // При ошибке возвращаем null (как в archive проекте)
+            return ResponseEntity.ok(null);
         }
     }
     
