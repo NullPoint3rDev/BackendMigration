@@ -114,6 +114,9 @@ public class CorePacketParser {
             
             // 28. uint32_t WireIndex (big-endian)
             if (off + 3 < bytes.length) { p.wireIndex = readU32BE(bytes, off); off += 4; }
+
+            // 29. uint64_t RFID_Data (little-endian)
+            if(off + 7 <bytes.length) {p.rfidData = readU64LE(bytes, off); off += 8;}
             
             // Убрали логирование для ускорения
         } catch (Exception ex) {
@@ -148,6 +151,17 @@ public class CorePacketParser {
     }
     private static long readU32LE(int[] b, int off) {
         return (long)(b[off] & 0xFF) | ((long)(b[off+1] & 0xFF) << 8) | ((long)(b[off+2] & 0xFF) << 16) | ((long)(b[off+3] & 0xFF) << 24);
+    }
+
+    private static long readU64LE(int[] b, int off) {
+        return ((long)(b[off] & 0xFF))
+                | ((long)(b[off + 1] & 0xFF) << 8)
+                | ((long)(b[off + 2] & 0xFF) << 16)
+                | ((long)(b[off + 3] & 0xFF) << 24)
+                | ((long)(b[off + 4] & 0xFF) << 32)
+                | ((long)(b[off + 5] & 0xFF) << 40)
+                | ((long)(b[off + 6] & 0xFF) << 48)
+                | ((long)(b[off + 7] & 0xFF) << 56);
     }
 
     public static int[] hexStringToIntArray(String s) {

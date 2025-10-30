@@ -42,6 +42,8 @@ public class CorePacket {
 
     public long wireIndex;             // uint32
 
+    public long rfidData;               // uint64
+
     public double getDisplayCurrent() {
         return (weldingMachineState == 1) ? weldingCurrent : current;
     }
@@ -71,6 +73,7 @@ public class CorePacket {
                 ", chiller=[" + chillerTemperature1 + "," + chillerTemperature2 + "]" +
                 ", coils=[" + primaryCoilTemperature + "," + secondaryCoilTemperature + "]" +
                 ", wireIndex=" + wireIndex +
+                ", rfidData=" + rfidData + " (0x" + String.format("%016X", rfidData) + ")" +
                 ", displayCurrent=" + getDisplayCurrent() +
                 ", displayVoltage=" + getDisplayVoltage() +
                 '}';

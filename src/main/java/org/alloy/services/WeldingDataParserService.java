@@ -132,6 +132,12 @@ public class WeldingDataParserService {
                 float wireConsumption = uint32ToFloat(core.wireIndex);
                 addProperty(props, "Расход проволоки", String.format("%.1f", wireConsumption), "number");
 
+                // RFID: добавим в двух представлениях — десятичном и шестнадцатеричном
+                if (core.rfidData != 0L) {
+                   // addProperty(props, "RFID", String.valueOf(core.rfidData), "number");
+                    addProperty(props, "RFID.Hex", String.format("%016X", core.rfidData), "text");
+                }
+
                 state.setProperties(props);
                 state.setStatus(determineStatus(props));
                 state.setErrorCode(determineErrorCode(props));
