@@ -86,7 +86,11 @@ public class WeldingDataParserService {
                 addProperty(props, "Date.Month", String.valueOf(core.month), "number");
                 addProperty(props, "Date.Year", String.valueOf(core.year), "number");
                 
-                addProperty(props, "Состояние аппарата", String.valueOf(core.weldingMachineState), "number");
+                // Преобразуем состояние аппарата из числа в текст
+                String machineStateText = getMachineStateText(core.weldingMachineState);
+                addProperty(props, "Состояние аппарата", machineStateText, "text");
+                // Также добавляем под ключом WeldingMachineState для совместимости с фронтендом
+                addProperty(props, "WeldingMachineState", machineStateText, "text");
                 addProperty(props, "State.GasFlow", String.valueOf(core.gasFlow), "number");
                 
                 addProperty(props, "Номер сварочного задания", String.valueOf(core.jobNumber), "number");
@@ -522,6 +526,30 @@ public class WeldingDataParserService {
      */
     private String parseErrorBits(int errorValue) {
         return parseErrorBits(errorValue, 0);
+    }
+
+    /**
+     * Преобразует числовое состояние аппарата в текстовое описание
+     * @param state числовое значение состояния (0-5)
+     * @return текстовое описание состояния
+     */
+    private String getMachineStateText(int state) {
+        switch (state) {
+            case 0:
+                return "Аппарат включен с периферией";
+            case 1:
+                return "Сварка";
+            case 2:
+                return "Авария";
+            case 3:
+                return "Аппарат в режиме ожидания";
+            case 4:
+                return "Аппарат включен в дежурном режиме";
+            case 5:
+                return "Аппарат заблокирован";
+            default:
+                return "Неизвестное состояние (" + state + ")";
+        }
     }
 
     private WeldingMachineStatus determineStatus(Map<String, StateSummaryPropertyValue> properties) {
