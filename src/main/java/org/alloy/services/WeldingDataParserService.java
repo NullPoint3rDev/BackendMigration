@@ -143,19 +143,19 @@ public class WeldingDataParserService {
                 }
 
                 // New Core tail parameters (uint8 each)
-                addProperty(props, "Welding.Mode.Code", String.valueOf(core.weldingMode), "number");
+             //   addProperty(props, "Welding.Mode.Code", String.valueOf(core.weldingMode), "number");
                 addProperty(props, "Метод сварки", mapWeldingMode(core.weldingMode), "enum");
                 
-                addProperty(props, "Welding.Material.Code", String.valueOf(core.weldingMaterial), "number");
+             //   addProperty(props, "Welding.Material.Code", String.valueOf(core.weldingMaterial), "number");
                 addProperty(props, "Материал проволоки", mapWeldingMaterial(core.weldingMaterial), "enum");
                 
-                addProperty(props, "Welding.Gas.Code", String.valueOf(core.weldingGas), "number");
+             //   addProperty(props, "Welding.Gas.Code", String.valueOf(core.weldingGas), "number");
                 addProperty(props, "Газ", mapWeldingGas(core.weldingGas), "enum");
                 
-                addProperty(props, "Welding.WireDiameter.Code", String.valueOf(core.weldingWireDiameter), "number");
+             //   addProperty(props, "Welding.WireDiameter.Code", String.valueOf(core.weldingWireDiameter), "number");
                 addProperty(props, "Диаметр проволоки", mapWireDiameter(core.weldingWireDiameter), "enum");
                 
-                addProperty(props, "Welding.BurnerMode.Code", String.valueOf(core.burnerMode), "number");
+              //  addProperty(props, "Welding.BurnerMode.Code", String.valueOf(core.burnerMode), "number");
                 addProperty(props, "Режим горелки", mapBurnerMode(core.burnerMode), "enum");
                 
                 addProperty(props, "Номер ячейки памяти", String.valueOf(core.memoryCellNumber), "number");
