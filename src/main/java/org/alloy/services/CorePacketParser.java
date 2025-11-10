@@ -118,6 +118,14 @@ public class CorePacketParser {
             // 29. uint64_t RFID_Data (little-endian)
             if(off + 7 <bytes.length) {p.rfidData = readU64LE(bytes, off); off += 8;}
             
+            // 30-35. six uint8 tail parameters (each 1 byte)
+            if (off < bytes.length) p.weldingMode = readU8(bytes, off++);
+            if (off < bytes.length) p.weldingMaterial = readU8(bytes, off++);
+            if (off < bytes.length) p.weldingGas = readU8(bytes, off++);
+            if (off < bytes.length) p.weldingWireDiameter = readU8(bytes, off++);
+            if (off < bytes.length) p.burnerMode = readU8(bytes, off++);
+            if (off < bytes.length) p.memoryCellNumber = readU8(bytes, off++);
+            
             // Убрали логирование для ускорения
         } catch (Exception ex) {
            // System.out.println("[CORE-PARSER] ❌ Ошибка парсинга: " + ex.getMessage());

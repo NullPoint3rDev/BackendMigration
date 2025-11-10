@@ -142,6 +142,24 @@ public class WeldingDataParserService {
                     addProperty(props, "RFID.Hex", String.format("%016X", core.rfidData), "text");
                 }
 
+                // New Core tail parameters (uint8 each)
+                addProperty(props, "Welding.Mode.Code", String.valueOf(core.weldingMode), "number");
+                addProperty(props, "Метод сварки", mapWeldingMode(core.weldingMode), "enum");
+                
+                addProperty(props, "Welding.Material.Code", String.valueOf(core.weldingMaterial), "number");
+                addProperty(props, "Материал проволоки", mapWeldingMaterial(core.weldingMaterial), "enum");
+                
+                addProperty(props, "Welding.Gas.Code", String.valueOf(core.weldingGas), "number");
+                addProperty(props, "Газ", mapWeldingGas(core.weldingGas), "enum");
+                
+                addProperty(props, "Welding.WireDiameter.Code", String.valueOf(core.weldingWireDiameter), "number");
+                addProperty(props, "Диаметр проволоки", mapWireDiameter(core.weldingWireDiameter), "enum");
+                
+                addProperty(props, "Welding.BurnerMode.Code", String.valueOf(core.burnerMode), "number");
+                addProperty(props, "Режим горелки", mapBurnerMode(core.burnerMode), "enum");
+                
+                addProperty(props, "Номер ячейки памяти", String.valueOf(core.memoryCellNumber), "number");
+
                 state.setProperties(props);
                 state.setStatus(determineStatus(props));
                 state.setErrorCode(determineErrorCode(props));
@@ -466,6 +484,107 @@ public class WeldingDataParserService {
      */
     private float uint32ToFloat(long uint32Value) {
         return Float.intBitsToFloat((int) uint32Value);
+    }
+
+    // ===== Mapping helpers for Core tail parameters =====
+    private String mapWeldingMode(int code) {
+        switch (code) {
+            case 0:  return "MMA";
+            case 1:  return "Строжка";
+            case 2:  return "TIG";
+            case 3:  return "MIG/MAG";
+            case 4:  return "MAG";
+            case 5:  return "MIG";
+            case 6:  return "P-MIG (Пульс)";
+            case 7:  return "FLUX";
+            case 8:  return "Х-Свар";
+            case 9:  return "К-Свар";
+            case 10: return "ВВ-Свар";
+            case 11: return "ВС-Свар";
+            case 12: return "Резерв 1";
+            case 13: return "Резерв 2";
+            case 14: return "Резерв 3";
+            case 15: return "Резерв 4";
+            case 16: return "Резерв 5";
+            default: return "Неизвестно (" + code + ")";
+        }
+    }
+
+    private String mapWeldingMaterial(int code) {
+        switch (code) {
+            case 0:  return "Ручной (любой)";
+            case 1:  return "Сталь";
+            case 2:  return "Нерж. ER304";
+            case 3:  return "Хромоникель ER308";
+            case 4:  return "Аустенитная ER316";
+            case 5:  return "AlMg";
+            case 6:  return "AlSi";
+            case 7:  return "Al99";
+            case 8:  return "CuSi3";
+            case 9:  return "CuSn";
+            case 10: return "CuAl";
+            case 11: return "E71T (порошковая)";
+            case 12: return "E308T (самозащитная)";
+            case 13: return "Рутиловый электрод";
+            case 14: return "Основной электрод";
+            case 15: return "Целлюлозный электрод";
+            case 16: return "Без материала";
+            case 17: return "Резерв 1";
+            case 18: return "Резерв 2";
+            case 19: return "Резерв 3";
+            case 20: return "Резерв 4";
+            case 21: return "Резерв 5";
+            default: return "Неизвестно (" + code + ")";
+        }
+    }
+
+    private String mapWeldingGas(int code) {
+        switch (code) {
+            case 0:  return "CO2";
+            case 1:  return "Ar82/CO2";
+            case 2:  return "Ar92/CO2";
+            case 3:  return "Ar98/CO2";
+            case 4:  return "Ar";
+            case 5:  return "Без газа";
+            case 6:  return "Резерв 1";
+            case 7:  return "Резерв 2";
+            case 8:  return "Резерв 3";
+            case 9:  return "Резерв 4";
+            case 10: return "Резерв 5";
+            default: return "Неизвестно (" + code + ")";
+        }
+    }
+
+    private String mapWireDiameter(int code) {
+        switch (code) {
+            case 0:  return "0.6 мм";
+            case 1:  return "0.7 мм";
+            case 2:  return "0.8 мм";
+            case 3:  return "1.0 мм";
+            case 4:  return "1.2 мм";
+            case 5:  return "1.4 мм";
+            case 6:  return "1.6 мм";
+            case 7:  return "1.7 мм";
+            case 8:  return "1.9 мм";
+            case 9:  return "2.0 мм";
+            case 10: return "2.4 мм";
+            case 11: return "Без диаметра";
+            case 12: return "Резерв 1";
+            case 13: return "Резерв 2";
+            default: return "Неизвестно (" + code + ")";
+        }
+    }
+
+    private String mapBurnerMode(int code) {
+        switch (code) {
+            case 0: return "2T";
+            case 1: return "4T";
+            case 2: return "SPt (точечный)";
+            case 3: return "S2T (2T со стартом)";
+            case 4: return "S4T (4T со стартом)";
+            case 5: return "4УП (две методики)";
+            default: return "Неизвестно (" + code + ")";
+        }
     }
 
     /**

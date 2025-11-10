@@ -43,6 +43,14 @@ public class CorePacket {
     public long wireIndex;             // uint32
 
     public long rfidData;               // uint64
+    
+    // New tail parameters (each is uint8)
+    public int weldingMode;             // uint8 (modes_t)
+    public int weldingMaterial;         // uint8 (materials_t)
+    public int weldingGas;              // uint8 (gases_t)
+    public int weldingWireDiameter;     // uint8 (diameters_t)
+    public int burnerMode;              // uint8 (burnerMode_t)
+    public int memoryCellNumber;        // uint8 (0 means not using memory cell)
 
     public double getDisplayCurrent() {
         return (weldingMachineState == 1) ? weldingCurrent : current;
@@ -76,6 +84,12 @@ public class CorePacket {
                 ", rfidData=" + rfidData + " (0x" + String.format("%016X", rfidData) + ")" +
                 ", displayCurrent=" + getDisplayCurrent() +
                 ", displayVoltage=" + getDisplayVoltage() +
+                ", weldingMode=" + weldingMode +
+                ", weldingMaterial=" + weldingMaterial +
+                ", weldingGas=" + weldingGas +
+                ", weldingWireDiameter=" + weldingWireDiameter +
+                ", burnerMode=" + burnerMode +
+                ", memoryCellNumber=" + memoryCellNumber +
                 '}';
     }
 }
