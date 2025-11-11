@@ -43,6 +43,12 @@ public class WeldingMachineStateService {
     @Autowired
     private WeldingMachineParameterValueService parameterValueService;
 
+    // Черный список MAC-адресов, для которых запрещено автоматическое создание аппаратов
+    private static final java.util.Set<String> BLOCKED_MAC_ADDRESSES = java.util.Set.of(
+        "ECFABCCA42E8"  // Тестовый MAC, не должен автоматически создаваться
+        // Добавьте сюда другие MAC-адреса, которые не должны автоматически создаваться
+    );
+
     // ===== НОВЫЕ МЕТОДЫ ДЛЯ ИНТЕГРАЦИИ СО СВАРОЧНЫМИ АППАРАТАМИ =====
 
      @Transactional
@@ -53,6 +59,12 @@ public class WeldingMachineStateService {
             WeldingMachine machine;
             
             if (!machineOpt.isPresent()) {
+                // Проверяем, не находится ли MAC в черном списке
+                if (mac != null && BLOCKED_MAC_ADDRESSES.contains(mac.toUpperCase())) {
+                    System.out.println("[STATE-SERVICE] ⚠️ Попытка создать аппарат с заблокированным MAC: " + mac + " - пропускаем");
+                    return; // Не создаем аппарат для заблокированных MAC-адресов
+                }
+                
                 // Создаем новый сварочный аппарат если не найден
                // System.out.println("[STATE-SERVICE] 🔧 Создание нового сварочного аппарата с MAC: " + mac);
                 machine = new WeldingMachine();

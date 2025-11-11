@@ -116,6 +116,11 @@ public class WeldingMachineService {
         WeldingMachine existingMachine = weldingMachineRepository.findById(weldingMachine.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Welding machine not found"));
 
+        // Preserve not-null fields if they are not provided in the update payload
+        if (weldingMachine.getStatus() == null) {
+            weldingMachine.setStatus(existingMachine.getStatus());
+        }
+
         // Check if new serial number conflicts with existing one
         String existingSerialNumber = existingMachine.getSerialNumber();
         String newSerialNumber = weldingMachine.getSerialNumber();
