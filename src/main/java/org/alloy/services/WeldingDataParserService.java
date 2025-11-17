@@ -655,7 +655,7 @@ public class WeldingDataParserService {
     private String getMachineStateText(int state) {
         switch (state) {
             case 0:
-                return "Аппарат включен с периферией";
+                return "Аппарат включен";
             case 1:
                 return "Сварка";
             case 2:
