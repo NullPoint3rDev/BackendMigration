@@ -495,7 +495,7 @@ public class WeldingDataParserService {
             case 3:  return "MIG/MAG";
             case 4:  return "MAG";
             case 5:  return "MIG";
-            case 6:  return "P-MIG (Пульс)";
+            case 6:  return "P-MIG";
             case 7:  return "FLUX";
             case 8:  return "Х-Свар";
             case 9:  return "К-Свар";
