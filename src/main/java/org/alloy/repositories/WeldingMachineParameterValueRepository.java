@@ -24,4 +24,9 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
     List<WeldingMachineParameterValue> findByStateIdsAndPropertyCode(
             @Param("stateIds") List<Long> stateIds,
             @Param("propertyCode") String propertyCode);
+
+    // Найти все уникальные ID состояний, которые содержат RFID код в properties
+    @Query("SELECT DISTINCT wmpv.weldingMachineStateId FROM WeldingMachineParameterValue wmpv " +
+            "WHERE wmpv.propertyCode IN ('RFID.Hex', 'RFID', 'Rfid', 'rfid') AND wmpv.value = :rfidCode")
+    List<Long> findStateIdsByRfidInProperties(@Param("rfidCode") String rfidCode);
 }

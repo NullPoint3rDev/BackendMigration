@@ -45,28 +45,28 @@ public class WeldingMachineStateService {
 
     // Черный список MAC-адресов, для которых запрещено автоматическое создание аппаратов
     private static final java.util.Set<String> BLOCKED_MAC_ADDRESSES = java.util.Set.of(
-        "ECFABCCA42E8"  // Тестовый MAC, не должен автоматически создаваться
-        // Добавьте сюда другие MAC-адреса, которые не должны автоматически создаваться
+            "ECFABCCA42E8"  // Тестовый MAC, не должен автоматически создаваться
+            // Добавьте сюда другие MAC-адреса, которые не должны автоматически создаваться
     );
 
     // ===== НОВЫЕ МЕТОДЫ ДЛЯ ИНТЕГРАЦИИ СО СВАРОЧНЫМИ АППАРАТАМИ =====
 
-     @Transactional
+    @Transactional
     public void saveMachineState(String mac, StateSummary stateSummary) {
         try {
             // Ищем сварочный аппарат по MAC
             Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
             WeldingMachine machine;
-            
+
             if (!machineOpt.isPresent()) {
                 // Проверяем, не находится ли MAC в черном списке
                 if (mac != null && BLOCKED_MAC_ADDRESSES.contains(mac.toUpperCase())) {
                     System.out.println("[STATE-SERVICE] ⚠️ Попытка создать аппарат с заблокированным MAC: " + mac + " - пропускаем");
                     return; // Не создаем аппарат для заблокированных MAC-адресов
                 }
-                
+
                 // Создаем новый сварочный аппарат если не найден
-               // System.out.println("[STATE-SERVICE] 🔧 Создание нового сварочного аппарата с MAC: " + mac);
+                // System.out.println("[STATE-SERVICE] 🔧 Создание нового сварочного аппарата с MAC: " + mac);
                 machine = new WeldingMachine();
                 machine.setMac(mac);
                 machine.setName("Сварочный аппарат " + mac);
@@ -74,33 +74,33 @@ public class WeldingMachineStateService {
                 machine.setStatus(GeneralStatus.Active);
                 machine.setDateCreated(LocalDateTime.now());
                 machine.setLastOnlineOn(LocalDateTime.now());
-                
+
                 // Ищем существующие записи для обязательных полей
                 List<org.alloy.models.entities.OrganizationUnit> orgUnits = organizationUnitRepository.findAll();
                 if (!orgUnits.isEmpty()) {
                     machine.setOrganizationUnitId(orgUnits.get(0).getId());
-                   // System.out.println("[STATE-SERVICE] Используем организационную единицу: " + orgUnits.get(0).getName());
+                    // System.out.println("[STATE-SERVICE] Используем организационную единицу: " + orgUnits.get(0).getName());
                 } else {
                     // Создаем организационную единицу если её нет
-                  //  System.out.println("[STATE-SERVICE] Создаем организационную единицу...");
-                    
+                    //  System.out.println("[STATE-SERVICE] Создаем организационную единицу...");
+
                     // Сначала создаем организацию
                     List<org.alloy.models.entities.Organization> organizations = organizationRepository.findAll();
                     org.alloy.models.entities.Organization organization;
                     if (!organizations.isEmpty()) {
                         organization = organizations.get(0);
-                      //  System.out.println("[STATE-SERVICE] Используем существующую организацию: " + organization.getName());
+                        //  System.out.println("[STATE-SERVICE] Используем существующую организацию: " + organization.getName());
                     } else {
-                     //   System.out.println("[STATE-SERVICE] Создаем организацию...");
+                        //   System.out.println("[STATE-SERVICE] Создаем организацию...");
                         organization = new org.alloy.models.entities.Organization();
                         organization.setName("Основная организация");
                         organization.setDescription("Автоматически созданная организация");
                         organization.setStatus(GeneralStatus.Active);
                         organization.setDateCreated(LocalDateTime.now());
                         organization = organizationRepository.save(organization);
-                      //  System.out.println("[STATE-SERVICE] ✅ Организация создана с ID: " + organization.getId());
+                        //  System.out.println("[STATE-SERVICE] ✅ Организация создана с ID: " + organization.getId());
                     }
-                    
+
                     // Теперь создаем организационную единицу
                     org.alloy.models.entities.OrganizationUnit orgUnit = new org.alloy.models.entities.OrganizationUnit();
                     orgUnit.setName("Основная организационная единица");
@@ -110,16 +110,16 @@ public class WeldingMachineStateService {
                     orgUnit.setOrganizationId(organization.getId());
                     orgUnit = organizationUnitRepository.save(orgUnit);
                     machine.setOrganizationUnitId(orgUnit.getId());
-                  //  System.out.println("[STATE-SERVICE] ✅ Организационная единица создана с ID: " + orgUnit.getId());
+                    //  System.out.println("[STATE-SERVICE] ✅ Организационная единица создана с ID: " + orgUnit.getId());
                 }
-                
+
                 List<org.alloy.models.entities.WeldingMachineType> machineTypes = weldingMachineTypeRepository.findAll();
                 if (!machineTypes.isEmpty()) {
                     machine.setWeldingMachineTypeId(machineTypes.get(0).getId());
-                  //  System.out.println("[STATE-SERVICE] Используем тип аппарата: " + machineTypes.get(0).getName());
+                    //  System.out.println("[STATE-SERVICE] Используем тип аппарата: " + machineTypes.get(0).getName());
                 } else {
                     // Создаем тип сварочного аппарата если его нет
-                   // System.out.println("[STATE-SERVICE] Создаем тип сварочного аппарата...");
+                    // System.out.println("[STATE-SERVICE] Создаем тип сварочного аппарата...");
                     org.alloy.models.entities.WeldingMachineType machineType = new org.alloy.models.entities.WeldingMachineType();
                     machineType.setName("MP-500");
                     machineType.setDescription("Автоматически созданный тип аппарата");
@@ -127,34 +127,55 @@ public class WeldingMachineStateService {
                     machineType.setDateCreated(LocalDateTime.now());
                     machineType = weldingMachineTypeRepository.save(machineType);
                     machine.setWeldingMachineTypeId(machineType.getId());
-                  //  System.out.println("[STATE-SERVICE] ✅ Тип аппарата создан с ID: " + machineType.getId());
+                    //  System.out.println("[STATE-SERVICE] ✅ Тип аппарата создан с ID: " + machineType.getId());
                 }
-                
+
                 // Сохраняем аппарат
                 machine = weldingMachineRepository.save(machine);
-               // System.out.println("[STATE-SERVICE] ✅ Сварочный аппарат создан с ID: " + machine.getId());
+                // System.out.println("[STATE-SERVICE] ✅ Сварочный аппарат создан с ID: " + machine.getId());
             } else {
                 machine = machineOpt.get();
                 // Обновляем время последнего подключения
                 machine.setLastOnlineOn(LocalDateTime.now());
                 weldingMachineRepository.save(machine);
             }
-            
+
             // Создаем состояние
             WeldingMachineState state = new WeldingMachineState();
             state.setWeldingMachineId(machine.getId());
-            state.setDateCreated(LocalDateTime.now());
-            state.setDateUpdated(LocalDateTime.now());
+            LocalDateTime now = LocalDateTime.now();
+            state.setDateCreated(now);
+            state.setDateUpdated(now);
             state.setWeldingMachineStatus(stateSummary.getStatus());
             state.setControl(stateSummary.getControl());
             state.setControlState(stateSummary.getControlState());
             state.setErrorCode(stateSummary.getErrorCode());
             state.setLimitsExceeded(stateSummary.isLimitsExceeded());
             state.setStateDurationMs(0L);
-            
+
+            // Сохраняем RFID код из properties в поле rfid для поиска по RFID
+            if (stateSummary.getProperties() != null) {
+                // Проверяем разные варианты ключей для RFID
+                StateSummaryPropertyValue rfidProperty = stateSummary.getProperties().get("RFID.Hex");
+                if (rfidProperty == null) {
+                    rfidProperty = stateSummary.getProperties().get("RFID");
+                }
+                if (rfidProperty == null) {
+                    rfidProperty = stateSummary.getProperties().get("Rfid");
+                }
+                if (rfidProperty == null) {
+                    rfidProperty = stateSummary.getProperties().get("rfid");
+                }
+
+                if (rfidProperty != null && rfidProperty.getValue() != null && !rfidProperty.getValue().trim().isEmpty()) {
+                    state.setRfid(rfidProperty.getValue().trim());
+                }
+            }
+
             // Сохраняем состояние
             weldingMachineStateRepository.save(state);
-            
+            System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата ID=" + machine.getId() + " (MAC=" + mac + "), дата=" + now);
+
             // Сохраняем параметры (State.I, State.U и др.)
             if (stateSummary.getProperties() != null && !stateSummary.getProperties().isEmpty()) {
                 for (Map.Entry<String, StateSummaryPropertyValue> entry : stateSummary.getProperties().entrySet()) {
@@ -168,19 +189,19 @@ public class WeldingMachineStateService {
                         paramValue.setLimitsExceeded(entry.getValue().isLimitsExceeded());
                         paramValue.setLimitMin(entry.getValue().getLimitMin());
                         paramValue.setLimitMax(entry.getValue().getLimitMax());
-                        
+
                         parameterValueService.createParameterValue(paramValue);
-                       // System.out.println("[STATE-SERVICE] ✅ Параметр " + entry.getKey() + " = " + entry.getValue().getValue() + " сохранен");
+                        // System.out.println("[STATE-SERVICE] ✅ Параметр " + entry.getKey() + " = " + entry.getValue().getValue() + " сохранен");
                     } catch (Exception paramError) {
-                     //   System.err.println("[STATE-SERVICE] ⚠️ Ошибка сохранения параметра " + entry.getKey() + ": " + paramError.getMessage());
+                        //   System.err.println("[STATE-SERVICE] ⚠️ Ошибка сохранения параметра " + entry.getKey() + ": " + paramError.getMessage());
                     }
                 }
             }
-            
-          //  System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата " + mac);
-            
+
+            //  System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата " + mac);
+
         } catch (Exception e) {
-          //  System.err.println("[STATE-SERVICE] ❌ Ошибка сохранения состояния: " + e.getMessage());
+            //  System.err.println("[STATE-SERVICE] ❌ Ошибка сохранения состояния: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -202,7 +223,7 @@ public class WeldingMachineStateService {
             }
 
         } catch (Exception e) {
-           // System.err.println("[STATE-SERVICE] Ошибка получения состояния: " + e.getMessage());
+            // System.err.println("[STATE-SERVICE] Ошибка получения состояния: " + e.getMessage());
         }
 
         return null;
@@ -287,5 +308,13 @@ public class WeldingMachineStateService {
     public void deleteAllWeldingMachineStates(Integer machineId) {
         List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineId(machineId);
         weldingMachineStateRepository.deleteAll(states);
+    }
+
+    // Получить список уникальных ID аппаратов по RFID кодам
+    public List<Integer> getWeldingMachineIdsByRfidCodes(List<String> rfidCodes) {
+        if (rfidCodes == null || rfidCodes.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        return weldingMachineStateRepository.findDistinctWeldingMachineIdsByRfidCodes(rfidCodes);
     }
 }

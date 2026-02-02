@@ -25,7 +25,7 @@ public class WeldingDeviceServer {
     
     private static final Logger log = LoggerFactory.getLogger(WeldingDeviceServer.class);
     
-    @Value("${welding.device.port:3000}")
+    @Value("${welding.device.port:3003}")
     private int port;
 
     @Value("${welding.device.macs:8CAAB50C4254,E09806083396}")

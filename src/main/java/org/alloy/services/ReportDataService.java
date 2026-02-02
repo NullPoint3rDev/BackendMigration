@@ -2,16 +2,28 @@ package org.alloy.services;
 
 import org.alloy.models.dto.*;
 import org.alloy.models.entities.WeldingMachine;
+import org.alloy.models.entities.Employee;
+import org.alloy.models.entities.WeldingMachineState;
+import org.alloy.models.entities.WeldingMachineParameterValue;
+import org.alloy.models.entities.Welder;
 import org.alloy.repositories.WeldingMachineRepository;
+import org.alloy.repositories.EmployeeRepository;
+import org.alloy.repositories.WeldingMachineStateRepository;
+import org.alloy.repositories.WeldingMachineParameterValueRepository;
+import org.alloy.repositories.WelderRepository;
+import org.alloy.repositories.OrganizationUnitRepository;
+import org.alloy.models.entities.OrganizationUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ReportDataService {
@@ -22,57 +34,71 @@ public class ReportDataService {
     @Autowired
     private WeldingMachineRepository weldingMachineRepository;
 
+    @Autowired
+    private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private WeldingMachineStateRepository weldingMachineStateRepository;
+
+    @Autowired
+    private WeldingMachineParameterValueRepository parameterValueRepository;
+
+    @Autowired
+    private WelderRepository welderRepository;
+
+    @Autowired
+    private OrganizationUnitRepository organizationUnitRepository;
+
     public List<WireConsumptionReportDTO> getWireConsumptionData(ReportRequestDTO request) {
-        // Моковые данные для демонстрации
+        // Моковые данные для демонстрации (старый формат для обратной совместимости)
         List<WireConsumptionReportDTO> data = new ArrayList<>();
-        
-        LocalDateTime baseDate = LocalDateTime.now();
-        
+
         for (int i = 0; i < 10; i++) {
             WireConsumptionReportDTO item = new WireConsumptionReportDTO();
             item.setWeldingMachineId(1 + i % 3);
             item.setWeldingMachineName("Аппарат " + (1 + i % 3));
-            item.setWeldingMachineSerialNumber("SN" + (1000 + i));
             item.setWelderId(1 + i % 2);
             item.setWelderName("Сварщик " + (1 + i % 2));
-            item.setDate(baseDate.minusDays(i));
-            item.setWireConsumption(BigDecimal.valueOf(2.5 + i * 0.3));
-            item.setWireFeedRate(BigDecimal.valueOf(5.0 + i * 0.2));
-            item.setWeldingTime(BigDecimal.valueOf(30 + i * 5));
-            item.setCurrent(BigDecimal.valueOf(180 + i * 10));
-            item.setVoltage(BigDecimal.valueOf(22 + i * 0.5));
-            item.setWeldingMode("Ручной");
-            item.setWeldingType("MIG/MAG");
+            item.setTabNumber("0" + (458 + i * 100));
+            item.setProfession("Электросварщик");
             item.setOrganizationUnitName("Цех " + (1 + i % 2));
+            item.setTimeInNetwork(Duration.ofHours(3).plusMinutes(4).plusSeconds(52));
+            item.setArcBurningTime(Duration.ofHours(22).plusMinutes(5).plusSeconds(36));
+            item.setEquipmentEfficiency(BigDecimal.valueOf(29.33 + i * 5));
+            item.setTimeOutsideSetCurrentRange(Duration.ofHours(12).plusMinutes(35));
+            item.setTimeOutsideActualCurrentRange(Duration.ofHours(1).plusMinutes(5));
+            item.setEnergyConsumed(BigDecimal.valueOf(74.3 + i * 20));
+            item.setWire("1.2 Св08Г2С");
+            item.setWireConsumption(BigDecimal.valueOf(159.18 + i * 50));
             data.add(item);
         }
-        
+
         return data;
     }
 
     public List<WelderReportDTO> getWelderReportData(ReportRequestDTO request) {
         List<WelderReportDTO> data = new ArrayList<>();
-        
+
         try {
             // Если указан конкретный аппарат, используем реальные данные
             if (request.getWeldingMachineId() != null) {
                 Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(request.getWeldingMachineId());
                 if (machineOpt.isPresent()) {
                     WeldingMachine machine = machineOpt.get();
-                    
+
                     // Используем переданные даты и время
-                    LocalDateTime startDate = request.getDateFrom() != null ? 
-                        request.getDateFrom() : 
-                        LocalDateTime.now().minusDays(30);
-                    LocalDateTime endDate = request.getDateTo() != null ? 
-                        request.getDateTo() : 
-                        LocalDateTime.now();
-                    
+                    LocalDateTime startDate = request.getDateFrom() != null ?
+                            request.getDateFrom() :
+                            LocalDateTime.now().minusDays(30);
+                    LocalDateTime endDate = request.getDateTo() != null ?
+                            request.getDateTo() :
+                            LocalDateTime.now();
+
                     // Рассчитываем средние значения для блока мониторинга ОГК
                     if ("8CAAB50C4254".equals(machine.getMac())) {
-                        WeldingReportCalculationService.AverageValues averages = 
-                            calculationService.calculateAverageValues(machine.getMac(), startDate, endDate);
-                        
+                        WeldingReportCalculationService.AverageValues averages =
+                                calculationService.calculateAverageValues(machine.getMac(), startDate, endDate);
+
                         WelderReportDTO item = new WelderReportDTO();
                         item.setWelderId(1);
                         item.setWelderName("Оператор блока мониторинга");
@@ -84,21 +110,19 @@ public class ReportDataService {
                         item.setAverageCurrent(averages.getAverageCurrent());
                         item.setAverageVoltage(averages.getAverageVoltage());
                         item.setAverageWireFeedRate(BigDecimal.ZERO); // Не применимо для блока мониторинга
-                        item.setOrganizationUnitName(machine.getOrganizationUnit() != null ? 
-                            machine.getOrganizationUnit().getName() : "Не указано");
+                        item.setOrganizationUnitName(machine.getOrganizationUnit() != null ?
+                                machine.getOrganizationUnit().getName() : "Не указано");
                         item.setWeldingMachineName(machine.getName());
                         data.add(item);
-                        
-                        System.out.println("[REPORT-DATA] ✅ Создан отчет для блока мониторинга ОГК с реальными данными");
+
                         return data;
                     }
                 }
             }
-            
+
             // Для других аппаратов используем моковые данные (как было)
-            System.out.println("[REPORT-DATA] ⚠️ Используем моковые данные для аппарата");
             LocalDate baseDate = LocalDate.now();
-            
+
             for (int i = 0; i < 5; i++) {
                 WelderReportDTO item = new WelderReportDTO();
                 item.setWelderId(1 + i);
@@ -115,37 +139,27 @@ public class ReportDataService {
                 item.setWeldingMachineName("Аппарат " + (1 + i % 3));
                 data.add(item);
             }
-            
+
         } catch (Exception e) {
             System.err.println("[REPORT-DATA] ❌ Ошибка получения данных отчета: " + e.getMessage());
             e.printStackTrace();
             // Возвращаем пустой список в случае ошибки
         }
-        
+
         return data;
     }
 
     public List<WorkReportDTO> getWorkReportData(ReportRequestDTO request) {
         List<WorkReportDTO> data = new ArrayList<>();
-        
-        System.out.println("[REPORT-DATA] ========================================");
-        System.out.println("[REPORT-DATA] 🔍 ЗАПРОС ОТЧЕТА ПО РАБОТЕ ОБОРУДОВАНИЯ");
-        System.out.println("[REPORT-DATA] ========================================");
-        System.out.println("[REPORT-DATA]   WeldingMachineId: " + request.getWeldingMachineId());
-        System.out.println("[REPORT-DATA]   Period: " + request.getPeriod());
-        System.out.println("[REPORT-DATA]   DateFrom: " + request.getDateFrom());
-        System.out.println("[REPORT-DATA]   DateTo: " + request.getDateTo());
-        System.out.println("[REPORT-DATA]   ReportType: " + request.getReportType());
-        System.out.println("[REPORT-DATA]   Format: " + request.getFormat());
-        
+
+
         try {
             // Если указан конкретный аппарат, используем реальные данные
             if (request.getWeldingMachineId() != null) {
                 Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(request.getWeldingMachineId());
                 if (machineOpt.isPresent()) {
                     WeldingMachine machine = machineOpt.get();
-                    System.out.println("[REPORT-DATA] 🔍 Найден аппарат: " + machine.getName() + " (MAC: " + machine.getMac() + ")");
-                    
+
                     // Определяем период на основе параметра period
                     LocalDateTime startDate, endDate;
                     if ("DAY".equals(request.getPeriod())) {
@@ -153,24 +167,22 @@ public class ReportDataService {
                         LocalDate today = LocalDate.now();
                         startDate = today.atStartOfDay();
                         endDate = today.atTime(23, 59, 59);
-                        System.out.println("[REPORT-DATA] 📅 Период 'DAY': " + startDate + " - " + endDate);
                     } else {
                         // Используем переданные даты и время или по умолчанию
-                        startDate = request.getDateFrom() != null ? 
-                            request.getDateFrom() : 
-                            LocalDateTime.now().minusDays(1);
-                        endDate = request.getDateTo() != null ? 
-                            request.getDateTo() : 
-                            LocalDateTime.now();
-                        System.out.println("[REPORT-DATA] 📅 Период по датам: " + startDate + " - " + endDate);
+                        startDate = request.getDateFrom() != null ?
+                                request.getDateFrom() :
+                                LocalDateTime.now().minusDays(1);
+                        endDate = request.getDateTo() != null ?
+                                request.getDateTo() :
+                                LocalDateTime.now();
                     }
-                    
+
                     // Рассчитываем средние значения для блока мониторинга ОГК
                     if ("8CAAB50C4254".equals(machine.getMac())) {
                         // Используем расчет по дням для более детального отчета
-                        List<WeldingReportCalculationService.DailyAverageValues> dailyData = 
-                            calculationService.calculateDailyAverageValues(machine.getMac(), startDate, endDate);
-                        
+                        List<WeldingReportCalculationService.DailyAverageValues> dailyData =
+                                calculationService.calculateDailyAverageValues(machine.getMac(), startDate, endDate);
+
                         // Конвертируем данные по дням в WorkReportDTO
                         for (WeldingReportCalculationService.DailyAverageValues dayData : dailyData) {
                             WorkReportDTO item = new WorkReportDTO();
@@ -189,38 +201,31 @@ public class ReportDataService {
                             item.setWireConsumption(BigDecimal.ZERO); // Не применимо для блока мониторинга
                             item.setWireFeedRate(BigDecimal.ZERO); // Не применимо для блока мониторинга
                             item.setOrganizationUnitName(dayData.getOrganizationUnitName());
-                            item.setNotes("Данные за " + dayData.getDate() + 
-                                " (Ток: " + dayData.getAverageCurrent() + "А, Напряжение: " + dayData.getAverageVoltage() + "В, Время сварки: " + dayData.getWeldingTimeSeconds() + "с)");
+                            item.setNotes("Данные за " + dayData.getDate() +
+                                    " (Ток: " + dayData.getAverageCurrent() + "А, Напряжение: " + dayData.getAverageVoltage() + "В, Время сварки: " + dayData.getWeldingTimeSeconds() + "с)");
                             data.add(item);
                         }
-                        
-                        System.out.println("[REPORT-DATA] ✅ Создан отчет по работе оборудования для блока мониторинга ОГК с " + 
-                            dailyData.size() + " записями по дням");
+
                         return data;
                     } else {
-                        System.out.println("[REPORT-DATA] ⚠️ Аппарат не является блоком мониторинга ОГК (MAC: " + machine.getMac() + ")");
                     }
                 } else {
-                    System.out.println("[REPORT-DATA] ❌ Аппарат с ID " + request.getWeldingMachineId() + " не найден");
                 }
             } else {
-                System.out.println("[REPORT-DATA] ⚠️ WeldingMachineId не указан в запросе");
             }
-            
+
             // Для других аппаратов используем моковые данные (как было)
-            System.out.println("[REPORT-DATA] ⚠️ Используем моковые данные для отчета по работе оборудования");
-            
+
             // Определяем базовую дату в зависимости от периода
             LocalDateTime baseDate;
             if ("DAY".equals(request.getPeriod())) {
                 // За день - используем только сегодняшний день
                 baseDate = LocalDateTime.now().withHour(15).withMinute(13).withSecond(0);
-                System.out.println("[REPORT-DATA] 📅 Моковые данные за день: " + baseDate.toLocalDate());
             } else {
                 // Для других периодов - используем разные даты
                 baseDate = LocalDateTime.now();
             }
-            
+
             for (int i = 0; i < 8; i++) {
                 WorkReportDTO item = new WorkReportDTO();
                 item.setWeldingMachineId(1 + i % 3);
@@ -228,7 +233,7 @@ public class ReportDataService {
                 item.setWeldingMachineSerialNumber("SN" + (1000 + i));
                 item.setWelderId(1 + i % 2);
                 item.setWelderName("Сварщик " + (1 + i % 2));
-                
+
                 if ("DAY".equals(request.getPeriod())) {
                     // За день - все записи в один день, но в разное время
                     item.setStartTime(baseDate.plusMinutes(i * 30));
@@ -238,7 +243,7 @@ public class ReportDataService {
                     item.setStartTime(baseDate.minusHours(i * 2));
                     item.setEndTime(baseDate.minusHours(i * 2).plusMinutes(45 + i * 5));
                 }
-                
+
                 item.setWeldingTime(BigDecimal.valueOf(45 + i * 5));
                 item.setCurrent(BigDecimal.valueOf(180 + i * 8));
                 item.setVoltage(BigDecimal.valueOf(22 + i * 0.4));
@@ -250,13 +255,13 @@ public class ReportDataService {
                 item.setNotes("Сессия " + (i + 1));
                 data.add(item);
             }
-            
+
         } catch (Exception e) {
             System.err.println("[REPORT-DATA] ❌ Ошибка получения данных отчета по работе оборудования: " + e.getMessage());
             e.printStackTrace();
             // Возвращаем пустой список в случае ошибки
         }
-        
+
         return data;
     }
 
@@ -267,13 +272,6 @@ public class ReportDataService {
     public List<WeldSegmentDTO> getWeldsReportData(ReportRequestDTO request) {
         List<WeldSegmentDTO> data = new ArrayList<>();
 
-        System.out.println("[REPORT-DATA] ========================================");
-        System.out.println("[REPORT-DATA] 🔍 ЗАПРОС ОТЧЕТА ПО СВАРОЧНЫМ ШВАМ");
-        System.out.println("[REPORT-DATA] ========================================");
-        System.out.println("[REPORT-DATA]   WeldingMachineId: " + request.getWeldingMachineId());
-        System.out.println("[REPORT-DATA]   Period: " + request.getPeriod());
-        System.out.println("[REPORT-DATA]   DateFrom: " + request.getDateFrom());
-        System.out.println("[REPORT-DATA]   DateTo: " + request.getDateTo());
 
         try {
             if (request.getWeldingMachineId() != null) {
@@ -290,7 +288,6 @@ public class ReportDataService {
                         // Для швов нам нужны сегменты с усреднениями и длительностями
                         List<WeldSegmentDTO> segments = calculationService.calculateWeldSegments(machine.getId(), startDate, endDate);
                         data.addAll(segments);
-                        System.out.println("[REPORT-DATA] ✅ Создан отчет по швам: " + data.size() + " сегментов");
                         return data;
                     }
                 }
@@ -304,7 +301,6 @@ public class ReportDataService {
                     LocalDateTime endDate = request.getDateTo() != null ? request.getDateTo() : LocalDateTime.now();
                     List<WeldSegmentDTO> segments = calculationService.calculateWeldSegments(machineOpt.get().getId(), startDate, endDate);
                     data.addAll(segments);
-                    System.out.println("[REPORT-DATA] ✅ Создан отчет по швам (общий): " + data.size() + " сегментов");
                     return data;
                 }
             }
@@ -315,5 +311,1232 @@ public class ReportDataService {
         }
 
         return data;
+    }
+
+    /**
+     * Получает данные для отчета по расходу проволоки с новой структурой
+     * Группирует по сварщикам, сортирует по суммарным значениям
+     */
+    public List<WireConsumptionReportDTO> getWireConsumptionDataNew(
+            WireConsumptionReportTemplateDTO template,
+            LocalDate periodStartDate,
+            LocalDate periodEndDate,
+            LocalTime periodStartTime,
+            LocalTime periodEndTime) {
+
+        List<WireConsumptionReportDTO> result = new ArrayList<>();
+
+        try {
+            LocalDateTime startDateTime = LocalDateTime.of(periodStartDate, periodStartTime != null ? periodStartTime : LocalTime.MIN);
+            LocalDateTime endDateTime = LocalDateTime.of(periodEndDate, periodEndTime != null ? periodEndTime : LocalTime.MAX);
+
+            // Получаем список сварщиков на основе шаблона
+            Set<Integer> welderIds = getSelectedWelderIds(template);
+
+            // Получаем данные по каждому сварщику
+            Map<Integer, List<WireConsumptionReportDTO>> welderDataMap = new HashMap<>();
+
+            for (Integer welderId : welderIds) {
+                List<WireConsumptionReportDTO> welderData = getWireConsumptionDataForWelder(
+                        welderId, startDateTime, endDateTime, template);
+
+                // Если данных нет, создаем записи с нулевыми значениями для выбранных аппаратов
+                if (welderData.isEmpty()) {
+                    List<WireConsumptionReportDTO> emptyRecords = createEmptyRecordsForWelder(welderId, template);
+                    if (!emptyRecords.isEmpty()) {
+                        welderData.addAll(emptyRecords);
+                    }
+                }
+
+                if (!welderData.isEmpty()) {
+                    welderDataMap.put(welderId, welderData);
+                }
+            }
+
+            // Если сварщиков нет, но выбраны аппараты, создаем записи для аппаратов без сварщика
+            if (welderIds.isEmpty() && template.getSelectedEquipmentModels() != null && !template.getSelectedEquipmentModels().isEmpty()) {
+                List<WireConsumptionReportDTO> equipmentOnlyData = createRecordsForEquipmentWithoutWelder(
+                        startDateTime, endDateTime, template);
+                if (!equipmentOnlyData.isEmpty()) {
+                    // Используем специальный ключ для записей без сварщика
+                    welderDataMap.put(-1, equipmentOnlyData);
+                }
+            }
+
+            // Группируем и сортируем данные
+            result = groupAndSortWireConsumptionData(welderDataMap, template);
+
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка получения данных отчета по расходу проволоки: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return result;
+    }
+
+    /**
+     * Получает данные для отчета "По работе сварщика" (новый тип, пока заглушка).
+     *
+     * Требования, которые будут реализованы по мере уточнения ТЗ:
+     * - при отсутствии информации в БД ячейка оставляется пустой
+     * - при работе сварщика на нескольких аппаратах сортировка производится по суммарным значениям
+     * - строки с аппаратом, относящиеся к одному сварщику, не разрываются
+     */
+    public List<WelderWorkReportDTO> getWelderWorkDataNew(
+            WelderWorkReportTemplateDTO template,
+            LocalDate periodStartDate,
+            LocalDate periodEndDate,
+            LocalTime periodStartTime,
+            LocalTime periodEndTime) {
+        return new ArrayList<>();
+    }
+
+    /**
+     * Получает список ID сварщиков на основе шаблона
+     */
+    private Set<Integer> getSelectedWelderIds(WireConsumptionReportTemplateDTO template) {
+        Set<Integer> welderIds = new HashSet<>();
+
+        // Если выбраны конкретные сварщики
+        if (template.getSelectedWelderIds() != null && !template.getSelectedWelderIds().isEmpty()) {
+            welderIds.addAll(template.getSelectedWelderIds());
+        }
+
+        // Если выбраны подразделения
+        if (template.getSelectedOrganizationUnitIds() != null && !template.getSelectedOrganizationUnitIds().isEmpty()) {
+            for (Integer orgUnitId : template.getSelectedOrganizationUnitIds()) {
+                if (orgUnitId == null) {
+                    continue;
+                }
+                // Ищем подразделение по ID, затем находим всех Employee с этой связью
+                Optional<OrganizationUnit> orgUnitOpt = organizationUnitRepository.findById(orgUnitId);
+                if (!orgUnitOpt.isPresent()) {
+                    continue;
+                }
+                // Используем специальный метод репозитория для поиска по Integer ID
+                // Это более эффективно, чем findAll() с фильтрацией в памяти
+                List<Employee> employees = employeeRepository.findByOrganizationUnitIdInteger(orgUnitId);
+                for (Employee emp : employees) {
+                    // Пробуем найти сварщика по employeeId
+                    if (emp.getId() != null) {
+                        // Ищем в таблице Welders по employeeId
+                        Welder welder = welderRepository.findByEmployeeId(String.valueOf(emp.getId()));
+                        if (welder != null) {
+                            welderIds.add(welder.getId().intValue());
+                        } else {
+                            // Если не найден в Welders, но является сварщиком по типу, используем ID Employee
+                            if (emp.getEmployeeType() != null && emp.getEmployeeType().name().equals("WELDER")) {
+                                welderIds.add(emp.getId().intValue());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Если ничего не выбрано, возвращаем всех сварщиков
+        if (welderIds.isEmpty()) {
+            List<Welder> allWelders = welderRepository.findAll();
+            for (Welder welder : allWelders) {
+                welderIds.add(welder.getId().intValue());
+            }
+
+            // Также добавляем сварщиков из Employee
+            List<Employee> allEmployees = employeeRepository.findAll();
+            for (Employee emp : allEmployees) {
+                if (emp.getEmployeeType() != null) {
+                    // Проверяем, является ли сотрудник сварщиком
+                    String employeeTypeName = emp.getEmployeeType().name();
+                    if (employeeTypeName.equals("WELDER")) {
+                        welderIds.add(emp.getId().intValue());
+                    }
+                }
+            }
+        }
+
+        return welderIds;
+    }
+
+    /**
+     * Получает данные по расходу проволоки для конкретного сварщика из БД
+     */
+    private List<WireConsumptionReportDTO> getWireConsumptionDataForWelder(
+            Integer welderId,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime,
+            WireConsumptionReportTemplateDTO template) {
+
+        List<WireConsumptionReportDTO> data = new ArrayList<>();
+
+        try {
+            // Получаем сварщика
+            Optional<Welder> welderOpt = welderRepository.findById(welderId.longValue());
+            if (!welderOpt.isPresent()) {
+                // Пробуем найти через Employee
+                Optional<Employee> employeeOpt = employeeRepository.findById(welderId.longValue());
+                if (!employeeOpt.isPresent()) {
+                    return data;
+                }
+                // Используем Employee как сварщика
+                return getWireConsumptionDataForEmployee(employeeOpt.get(), startDateTime, endDateTime, template);
+            }
+
+            Welder welder = welderOpt.get();
+
+            // Получаем все RFID коды сварщика (из rfidPasses и rfidCode для обратной совместимости)
+            List<String> rfidCodes = new ArrayList<>();
+            if (welder.getRfidPasses() != null && !welder.getRfidPasses().isEmpty()) {
+                // Используем новые RFID пропуска
+                for (org.alloy.models.entities.RfidPass pass : welder.getRfidPasses()) {
+                    if (pass.getCode() != null && !pass.getCode().trim().isEmpty()) {
+                        rfidCodes.add(pass.getCode().trim());
+                    }
+                }
+            }
+            // Обратная совместимость: если есть старый rfidCode, добавляем его
+            if (welder.getRfidCode() != null && !welder.getRfidCode().trim().isEmpty()) {
+                String oldRfid = welder.getRfidCode().trim();
+                if (!rfidCodes.contains(oldRfid)) {
+                    rfidCodes.add(oldRfid);
+                }
+            }
+
+            // Получаем список выбранных моделей оборудования (названия аппаратов)
+            List<String> selectedEquipmentModels = template.getSelectedEquipmentModels() != null
+                    ? template.getSelectedEquipmentModels() : new ArrayList<>();
+
+            // Если у сварщика есть RFID коды, ищем состояния по всем RFID
+            if (!rfidCodes.isEmpty()) {
+                // Находим все состояния машин с этими RFID за период
+                List<WeldingMachineState> states = new ArrayList<>();
+                Set<Integer> foundMachineIds = new HashSet<>(); // Для отслеживания найденных аппаратов
+
+                for (String rfid : rfidCodes) {
+                    // Используем метод репозитория для фильтрации по дате на уровне БД (более эффективно)
+                    // Ищем в поле rfid таблицы WeldingMachineState
+                    List<WeldingMachineState> statesForRfid = weldingMachineStateRepository
+                            .findByRfidAndDateRange(rfid, startDateTime, endDateTime);
+                    states.addAll(statesForRfid);
+
+                    // Также ищем в properties через WeldingMachineParameterValue (для старых записей, где RFID сохранен только в properties)
+                    List<Long> stateIdsWithRfid = parameterValueRepository.findStateIdsByRfidInProperties(rfid);
+                    if (!stateIdsWithRfid.isEmpty()) {
+                        // Получаем состояния по найденным ID и фильтруем по дате
+                        for (Long stateId : stateIdsWithRfid) {
+                            Optional<WeldingMachineState> stateOpt = weldingMachineStateRepository.findById(stateId);
+                            if (stateOpt.isPresent()) {
+                                WeldingMachineState state = stateOpt.get();
+                                // Фильтруем по дате
+                                if ((state.getDateCreated().isAfter(startDateTime) || state.getDateCreated().isEqual(startDateTime))
+                                        && (state.getDateCreated().isBefore(endDateTime) || state.getDateCreated().isEqual(endDateTime))) {
+                                    if (!states.contains(state)) {
+                                        states.add(state);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Также находим все уникальные ID аппаратов, которые использовали этот RFID (даже если нет состояний за период)
+                    // Ищем в поле rfid
+                    List<Integer> machineIdsForRfid = weldingMachineStateRepository
+                            .findDistinctWeldingMachineIdsByRfidCodes(Collections.singletonList(rfid));
+                    foundMachineIds.addAll(machineIdsForRfid);
+
+                    // Также ищем в properties для получения всех аппаратов, которые использовали этот RFID
+                    if (!stateIdsWithRfid.isEmpty()) {
+                        for (Long stateId : stateIdsWithRfid) {
+                            Optional<WeldingMachineState> stateOpt = weldingMachineStateRepository.findById(stateId);
+                            if (stateOpt.isPresent()) {
+                                foundMachineIds.add(stateOpt.get().getWeldingMachineId());
+                            }
+                        }
+                    }
+                }
+
+                if (!states.isEmpty()) {
+                    // Группируем по аппаратам
+                    Map<Integer, List<WeldingMachineState>> statesByMachine = states.stream()
+                            .collect(Collectors.groupingBy(WeldingMachineState::getWeldingMachineId));
+
+                    // Для каждого аппарата создаем запись
+                    for (Map.Entry<Integer, List<WeldingMachineState>> entry : statesByMachine.entrySet()) {
+                        Integer machineId = entry.getKey();
+                        List<WeldingMachineState> machineStates = entry.getValue();
+
+                        Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(machineId);
+                        if (!machineOpt.isPresent()) {
+                            continue;
+                        }
+
+                        WeldingMachine machine = machineOpt.get();
+                        String machineName = machine.getName();
+
+                        // Фильтруем по выбранным моделям оборудования (названиям аппаратов)
+                        if (!selectedEquipmentModels.isEmpty()) {
+                            boolean isSelected = selectedEquipmentModels.stream()
+                                    .anyMatch(selected -> selected != null && selected.equals(machineName));
+
+                            if (!isSelected) {
+                                continue;
+                            }
+                        }
+
+                        WireConsumptionReportDTO item = calculateWireConsumptionForMachine(
+                                welder, machine, machineStates, startDateTime, endDateTime, template);
+
+                        if (item != null) {
+                            data.add(item);
+                        }
+                    }
+                } else if (!foundMachineIds.isEmpty()) {
+                    // Если нет состояний за период, но есть аппараты, которые использовали RFID коды,
+                    // создаем записи с наименованием оборудования, но без данных
+                    // ВАЖНО: Если selectedEquipmentModels пустой (модели не выбраны вручную),
+                    // показываем ВСЕ аппараты, найденные по RFID кодам сварщика
+                    for (Integer machineId : foundMachineIds) {
+                        Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(machineId);
+                        if (!machineOpt.isPresent()) {
+                            continue;
+                        }
+
+                        WeldingMachine machine = machineOpt.get();
+                        String machineName = machine.getName();
+
+                        // Фильтруем по выбранным моделям оборудования (названиям аппаратов), если они указаны
+                        // Если модели НЕ выбраны (selectedEquipmentModels пустой), показываем ВСЕ аппараты, найденные по RFID
+                        if (!selectedEquipmentModels.isEmpty()) {
+                            boolean isSelected = selectedEquipmentModels.stream()
+                                    .anyMatch(selected -> selected != null && selected.equals(machineName));
+
+                            if (!isSelected) {
+                                continue; // Пропускаем, если модель не выбрана вручную
+                            }
+                        }
+                        // Если selectedEquipmentModels пустой, НЕ пропускаем - показываем все найденные по RFID
+
+                        // Создаем запись с наименованием оборудования, но без данных за период
+                        WireConsumptionReportDTO item = calculateWireConsumptionForMachine(
+                                welder, machine, new ArrayList<>(), startDateTime, endDateTime, template);
+
+                        if (item != null) {
+                            data.add(item);
+                        }
+                    }
+                }
+            }
+
+            // Если данных нет (нет RFID или нет состояний по RFID), получаем данные по выбранным аппаратам
+            if (data.isEmpty() && !selectedEquipmentModels.isEmpty()) {
+                for (String selectedModelName : selectedEquipmentModels) {
+                    // Ищем аппарат с таким названием (оптимизированный запрос)
+                    List<WeldingMachine> machines = weldingMachineRepository.findByNames(Collections.singletonList(selectedModelName));
+                    if (!machines.isEmpty()) {
+                        WeldingMachine machine = machines.get(0);
+
+                        // Находим все состояния этого аппарата за период (независимо от RFID)
+                        // Используем метод репозитория для фильтрации по дате на уровне БД (более эффективно)
+                        List<WeldingMachineState> machineStates = weldingMachineStateRepository
+                                .findByWeldingMachineIdAndDateRange(machine.getId(), startDateTime, endDateTime);
+
+                        if (!machineStates.isEmpty()) {
+                            WireConsumptionReportDTO item = calculateWireConsumptionForMachine(
+                                    welder, machine, machineStates, startDateTime, endDateTime, template);
+
+                            if (item != null) {
+                                data.add(item);
+                            }
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка получения данных для сварщика " + welderId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return data;
+    }
+
+    /**
+     * Получает данные для Employee (если сварщик не найден в таблице Welders)
+     */
+    private List<WireConsumptionReportDTO> getWireConsumptionDataForEmployee(
+            Employee employee,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime,
+            WireConsumptionReportTemplateDTO template) {
+
+        List<WireConsumptionReportDTO> data = new ArrayList<>();
+
+        // Для Employee пока возвращаем пустой список или используем моковые данные
+        // В реальной системе нужно связать Employee с Welder или использовать другую логику
+
+        return data;
+    }
+
+    /**
+     * Создает пустые записи с нулевыми значениями для сварщика, у которого нет данных
+     * Если в шаблоне выбраны модели оборудования, создает запись для каждого выбранного аппарата
+     */
+    private List<WireConsumptionReportDTO> createEmptyRecordsForWelder(Integer welderId, WireConsumptionReportTemplateDTO template) {
+        List<WireConsumptionReportDTO> records = new ArrayList<>();
+
+        try {
+            // Получаем базовую информацию о сварщике
+            WireConsumptionReportDTO baseRecord = createEmptyRecordForWelder(welderId);
+            if (baseRecord == null) {
+                return records;
+            }
+
+            // Получаем список выбранных моделей оборудования (названия аппаратов)
+            List<String> selectedEquipmentModels = template.getSelectedEquipmentModels() != null
+                    ? template.getSelectedEquipmentModels() : new ArrayList<>();
+
+            // Если выбраны модели оборудования, создаем запись для каждого выбранного аппарата
+            if (!selectedEquipmentModels.isEmpty()) {
+                for (String selectedModelName : selectedEquipmentModels) {
+                    // Ищем аппарат с таким названием (оптимизированный запрос)
+                    List<WeldingMachine> machines = weldingMachineRepository.findByNames(Collections.singletonList(selectedModelName));
+                    if (!machines.isEmpty()) {
+                        WeldingMachine machine = machines.get(0);
+
+                        WireConsumptionReportDTO record = new WireConsumptionReportDTO();
+                        // Копируем базовую информацию о сварщике
+                        record.setWelderId(baseRecord.getWelderId());
+                        record.setWelderName(baseRecord.getWelderName());
+                        record.setTabNumber(baseRecord.getTabNumber());
+                        record.setProfession(baseRecord.getProfession());
+                        record.setOrganizationUnitId(baseRecord.getOrganizationUnitId());
+                        record.setOrganizationUnitName(baseRecord.getOrganizationUnitName());
+
+                        // Заполняем информацию об оборудовании
+                        record.setWeldingMachineId(machine.getId());
+                        record.setWeldingMachineName(machine.getName()); // Наименование оборудования
+                        record.setEquipmentModel(machine.getDeviceModel() != null ? machine.getDeviceModel().name() : ""); // Модель оборудования
+
+                        // Пытаемся получить проволоку из последних состояний аппарата (даже если нет данных за период)
+                        String wire = getWireFromLastStates(machine.getId());
+                        record.setWire(wire != null && !wire.isEmpty() ? wire : "0");
+
+                        // Все остальные поля - нули
+                        record.setTimeInNetwork(Duration.ZERO);
+                        record.setArcBurningTime(Duration.ZERO);
+                        record.setEquipmentEfficiency(BigDecimal.ZERO);
+                        record.setTimeOutsideSetCurrentRange(Duration.ZERO);
+                        record.setTimeOutsideActualCurrentRange(Duration.ZERO);
+                        record.setEnergyConsumed(BigDecimal.ZERO);
+                        record.setWireConsumption(BigDecimal.ZERO);
+
+                        records.add(record);
+                    }
+                }
+            } else {
+                // Если модели не выбраны, создаем одну запись без информации об оборудовании
+                records.add(baseRecord);
+            }
+
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка создания пустых записей для сварщика " + welderId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return records;
+    }
+
+    /**
+     * Создает базовую пустую запись с нулевыми значениями для сварщика (без информации об оборудовании)
+     */
+    private WireConsumptionReportDTO createEmptyRecordForWelder(Integer welderId) {
+        try {
+            // Пробуем найти сварщика
+            Optional<Welder> welderOpt = welderRepository.findById(welderId.longValue());
+            if (!welderOpt.isPresent()) {
+                // Пробуем найти через Employee
+                Optional<Employee> employeeOpt = employeeRepository.findById(welderId.longValue());
+                if (!employeeOpt.isPresent()) {
+                    return null;
+                }
+                Employee employee = employeeOpt.get();
+                WireConsumptionReportDTO dto = new WireConsumptionReportDTO();
+                dto.setWelderId(employee.getId().intValue());
+                dto.setWelderName(employee.getFullName() != null ? employee.getFullName() : "");
+                dto.setTabNumber(String.valueOf(employee.getId()));
+                dto.setProfession(employee.getPosition() != null ? employee.getPosition() : "Электросварщик");
+                if (employee.getOrganizationUnit() != null) {
+                    dto.setOrganizationUnitId(employee.getOrganizationUnit().getId());
+                    dto.setOrganizationUnitName(employee.getOrganizationUnit().getName());
+                }
+                // Все остальные поля - нули
+                dto.setTimeInNetwork(Duration.ZERO);
+                dto.setArcBurningTime(Duration.ZERO);
+                dto.setEquipmentEfficiency(BigDecimal.ZERO);
+                dto.setTimeOutsideSetCurrentRange(Duration.ZERO);
+                dto.setTimeOutsideActualCurrentRange(Duration.ZERO);
+                dto.setEnergyConsumed(BigDecimal.ZERO);
+                dto.setWire("0");
+                dto.setWireConsumption(BigDecimal.ZERO);
+                return dto;
+            }
+
+            Welder welder = welderOpt.get();
+            WireConsumptionReportDTO dto = new WireConsumptionReportDTO();
+            dto.setWelderId(welder.getId().intValue());
+            dto.setWelderName(welder.getName());
+            dto.setTabNumber(welder.getEmployeeId());
+            dto.setProfession(welder.getPosition() != null ? welder.getPosition() : "Электросварщик");
+            // Welder имеет department как строку, а не связь с OrganizationUnit
+            if (welder.getDepartment() != null) {
+                dto.setOrganizationUnitName(welder.getDepartment());
+            }
+            // Все остальные поля - нули
+            dto.setTimeInNetwork(Duration.ZERO);
+            dto.setArcBurningTime(Duration.ZERO);
+            dto.setEquipmentEfficiency(BigDecimal.ZERO);
+            dto.setTimeOutsideSetCurrentRange(Duration.ZERO);
+            dto.setTimeOutsideActualCurrentRange(Duration.ZERO);
+            dto.setEnergyConsumed(BigDecimal.ZERO);
+            dto.setWire("0");
+            dto.setWireConsumption(BigDecimal.ZERO);
+            return dto;
+
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка создания пустой записи для сварщика " + welderId + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Создает записи для выбранных аппаратов без сварщика
+     */
+    private List<WireConsumptionReportDTO> createRecordsForEquipmentWithoutWelder(
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime,
+            WireConsumptionReportTemplateDTO template) {
+
+        List<WireConsumptionReportDTO> result = new ArrayList<>();
+
+        try {
+            List<String> selectedEquipmentModels = template.getSelectedEquipmentModels();
+            if (selectedEquipmentModels == null || selectedEquipmentModels.isEmpty()) {
+                return result;
+            }
+
+            for (String selectedModelName : selectedEquipmentModels) {
+                // Ищем аппарат с таким названием (оптимизированный запрос)
+                List<WeldingMachine> machines = weldingMachineRepository.findByNames(Collections.singletonList(selectedModelName));
+                if (!machines.isEmpty()) {
+                    WeldingMachine machine = machines.get(0);
+
+                    // Находим все состояния этого аппарата за период
+                    // Используем метод репозитория для фильтрации по дате на уровне БД (более эффективно)
+                    List<WeldingMachineState> machineStates = weldingMachineStateRepository
+                            .findByWeldingMachineIdAndDateRange(machine.getId(), startDateTime, endDateTime);
+
+                    if (!machineStates.isEmpty()) {
+                        // Создаем запись без сварщика
+                        WireConsumptionReportDTO dto = calculateWireConsumptionForMachine(
+                                null, machine, machineStates, startDateTime, endDateTime, template);
+
+                        if (dto != null) {
+                            result.add(dto);
+                        }
+                    } else {
+                        // Создаем пустую запись для аппарата без данных
+                        WireConsumptionReportDTO emptyRecord = createEmptyRecordForEquipment(machine, template);
+                        if (emptyRecord != null) {
+                            result.add(emptyRecord);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка создания записей для аппаратов без сварщика: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return result;
+    }
+
+    /**
+     * Создает пустую запись для аппарата без сварщика
+     */
+    private WireConsumptionReportDTO createEmptyRecordForEquipment(
+            WeldingMachine machine,
+            WireConsumptionReportTemplateDTO template) {
+
+        try {
+            WireConsumptionReportDTO dto = new WireConsumptionReportDTO();
+
+            // Поля сварщика оставляем пустыми
+            dto.setWelderId(null);
+            dto.setWelderName(null);
+            dto.setTabNumber(null);
+            dto.setProfession(null);
+
+            // Заполняем информацию об оборудовании
+            dto.setWeldingMachineId(machine.getId());
+            dto.setWeldingMachineName(machine.getName());
+            dto.setEquipmentModel(machine.getDeviceModel() != null ? machine.getDeviceModel().name() : "");
+
+            // Подразделение берем из машины
+            if (machine.getOrganizationUnit() != null) {
+                dto.setOrganizationUnitId(machine.getOrganizationUnit().getId());
+                dto.setOrganizationUnitName(machine.getOrganizationUnit().getName());
+            }
+
+            // Пытаемся получить проволоку из последних состояний аппарата
+            String wire = getWireFromLastStates(machine.getId());
+            dto.setWire(wire != null && !wire.isEmpty() ? wire : "0");
+
+            // Все остальные поля - нули
+            dto.setTimeInNetwork(Duration.ZERO);
+            dto.setArcBurningTime(Duration.ZERO);
+            dto.setEquipmentEfficiency(BigDecimal.ZERO);
+            dto.setTimeOutsideSetCurrentRange(Duration.ZERO);
+            dto.setTimeOutsideActualCurrentRange(Duration.ZERO);
+            dto.setEnergyConsumed(BigDecimal.ZERO);
+            dto.setWireConsumption(BigDecimal.ZERO);
+
+            return dto;
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка создания пустой записи для аппарата: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Рассчитывает расход проволоки для конкретного аппарата
+     */
+    private WireConsumptionReportDTO calculateWireConsumptionForMachine(
+            Welder welder,
+            WeldingMachine machine,
+            List<WeldingMachineState> states,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime,
+            WireConsumptionReportTemplateDTO template) {
+
+        try {
+            WireConsumptionReportDTO dto = new WireConsumptionReportDTO();
+
+            // Базовая информация о сварщике (может быть null, если сварщика нет)
+            if (welder != null) {
+                dto.setWelderId(welder.getId().intValue());
+                dto.setWelderName(welder.getName());
+                dto.setTabNumber(welder.getEmployeeId());
+                dto.setProfession(welder.getPosition() != null ? welder.getPosition() : "Электросварщик");
+            } else {
+                // Если сварщика нет, поля остаются null
+                dto.setWelderId(null);
+                dto.setWelderName(null);
+                dto.setTabNumber(null);
+                dto.setProfession(null);
+            }
+            dto.setWeldingMachineId(machine.getId());
+            // Наименование оборудования - это название аппарата, выбранное в шаблоне
+            dto.setWeldingMachineName(machine.getName());
+            // Модель оборудования - это модель устройства (deviceModel), соответствующая этому названию
+            dto.setEquipmentModel(machine.getDeviceModel() != null ? machine.getDeviceModel().name() : "");
+
+            // Подразделение берем из машины, если не указано - из сварщика (если сварщик есть)
+            if (machine.getOrganizationUnit() != null) {
+                dto.setOrganizationUnitId(machine.getOrganizationUnit().getId());
+                dto.setOrganizationUnitName(machine.getOrganizationUnit().getName());
+            } else if (welder != null && welder.getDepartment() != null) {
+                dto.setOrganizationUnitName(welder.getDepartment());
+            }
+
+            // Собираем ID состояний
+            List<Long> stateIds = states.stream()
+                    .map(WeldingMachineState::getId)
+                    .collect(Collectors.toList());
+
+            // Получаем параметры (разбиваем на батчи, если список слишком большой)
+            // PostgreSQL не поддерживает более 32767 параметров в одном запросе
+            List<WeldingMachineParameterValue> currentValues = getParameterValuesInBatches(stateIds, "Current");
+            List<WeldingMachineParameterValue> voltageValues = getParameterValuesInBatches(stateIds, "Voltage");
+            List<WeldingMachineParameterValue> wireMaterialValues = getParameterValuesInBatches(stateIds, "Материал проволоки");
+            List<WeldingMachineParameterValue> wireDiameterValues = getParameterValuesInBatches(stateIds, "Диаметр проволоки");
+
+            // Рассчитываем время в сети (сумма всех состояний, когда аппарат включен)
+            // Время в сети = сумма всех состояний, независимо от статуса (аппарат включен)
+            // Если state_duration_ms = 0, используем разницу между датами состояний
+            long totalMs = 0;
+            if (states.size() > 1) {
+                // Сортируем состояния по дате
+                List<WeldingMachineState> sortedStates = new ArrayList<>(states);
+                sortedStates.sort((s1, s2) -> s1.getDateCreated().compareTo(s2.getDateCreated()));
+
+                // Рассчитываем время как разницу между первым и последним состоянием
+                LocalDateTime firstState = sortedStates.get(0).getDateCreated();
+                LocalDateTime lastState = sortedStates.get(sortedStates.size() - 1).getDateCreated();
+                totalMs = java.time.Duration.between(firstState, lastState).toMillis();
+            } else if (states.size() == 1) {
+                // Если только одно состояние, используем его duration или минимальное значение
+                WeldingMachineState state = states.get(0);
+                if (state.getStateDurationMs() != null && state.getStateDurationMs() > 0) {
+                    totalMs = state.getStateDurationMs();
+                } else {
+                    // Если duration = 0, используем минимальное значение (например, 1 секунда)
+                    totalMs = 1000;
+                }
+            }
+
+            Duration totalTimeInNetwork = Duration.ofMillis(totalMs);
+            dto.setTimeInNetwork(totalTimeInNetwork);
+
+            // Рассчитываем время горения дуги (только когда идет сварка - статус Welding)
+            Duration arcBurningTime = calculateArcBurningTime(states, currentValues);
+            dto.setArcBurningTime(arcBurningTime);
+
+            // Эффективность использования оборудования (%)
+            // Эффективность = (время горения дуги / время в сети) * 100
+            // Пример: время в сети = 8ч, время горения дуги = 4ч, эффективность = 4/8*100 = 50%
+            if (totalTimeInNetwork.toSeconds() > 0) {
+                double efficiency = 0.0;
+                if (arcBurningTime.toSeconds() > 0) {
+                    efficiency = (double) arcBurningTime.toSeconds() / totalTimeInNetwork.toSeconds() * 100.0;
+                }
+                dto.setEquipmentEfficiency(BigDecimal.valueOf(efficiency).setScale(2, RoundingMode.HALF_UP));
+            } else {
+                dto.setEquipmentEfficiency(BigDecimal.ZERO);
+            }
+
+            // Время работы вне диапазона тока
+            Duration timeOutsideSetCurrent = calculateTimeOutsideCurrentRange(
+                    states, currentValues, template.getSetCurrentMin(), template.getSetCurrentMax(), true);
+            Duration timeOutsideActualCurrent = calculateTimeOutsideCurrentRange(
+                    states, currentValues, template.getActualCurrentMin(), template.getActualCurrentMax(), false);
+            dto.setTimeOutsideSetCurrentRange(timeOutsideSetCurrent);
+            dto.setTimeOutsideActualCurrentRange(timeOutsideActualCurrent);
+
+            // Затраченная энергия (расчет: средний ток * среднее напряжение / 1000 * время в сети)
+            BigDecimal energyConsumed = calculateEnergyConsumed(voltageValues, currentValues, totalTimeInNetwork);
+            dto.setEnergyConsumed(energyConsumed);
+
+            // Проволока (комбинация материала и диаметра из параметров состояния)
+            String wire = getWireFromStates(wireMaterialValues, wireDiameterValues, states);
+            dto.setWire(wire != null && !wire.isEmpty() ? wire : "0");
+
+            // Расход проволоки - пока всегда 0, так как логика расчета еще не определена
+            dto.setWireConsumption(BigDecimal.ZERO);
+
+            return dto;
+
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка расчета для аппарата " + (machine != null ? machine.getName() : "null") + " (ID=" + (machine != null ? machine.getId() : "null") + "): " + e.getMessage());
+            System.err.println("[REPORT-DATA] ❌ Stack trace:");
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Получает параметры значений для большого списка ID состояний, разбивая на батчи
+     * PostgreSQL не поддерживает более 32767 параметров в одном запросе
+     */
+    private List<WeldingMachineParameterValue> getParameterValuesInBatches(List<Long> stateIds, String propertyCode) {
+        if (stateIds == null || stateIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Максимальное количество параметров в одном запросе (оставляем запас)
+        // Увеличиваем размер батча для уменьшения количества запросов к БД
+        // PostgreSQL поддерживает до 32767 параметров, используем 10000 для баланса между производительностью и надежностью
+        final int BATCH_SIZE = 10000;
+
+        // Всегда обрабатываем в батчах, даже для небольших списков, чтобы избежать зависаний
+        List<WeldingMachineParameterValue> allValues = new ArrayList<>();
+
+        // Разбиваем список на батчи
+        for (int i = 0; i < stateIds.size(); i += BATCH_SIZE) {
+            int endIndex = Math.min(i + BATCH_SIZE, stateIds.size());
+            List<Long> batch = stateIds.subList(i, endIndex);
+
+            try {
+                List<WeldingMachineParameterValue> batchValues = parameterValueRepository
+                        .findByStateIdsAndPropertyCode(batch, propertyCode);
+                allValues.addAll(batchValues);
+            } catch (Exception e) {
+                System.err.println("[REPORT-DATA] ⚠️ Ошибка получения параметров для батча (" + i + "-" + endIndex + "): " + e.getMessage());
+                // Продолжаем обработку следующих батчей
+            }
+        }
+
+        return allValues;
+    }
+
+    /**
+     * Получает проволоку из последних состояний аппарата (даже если нет данных за период)
+     */
+    private String getWireFromLastStates(Integer machineId) {
+        try {
+            // Получаем последние 10 состояний аппарата (оптимизированный запрос через БД)
+            List<WeldingMachineState> lastStates = weldingMachineStateRepository
+                    .findByWeldingMachineId(machineId).stream()
+                    .sorted((s1, s2) -> s2.getDateCreated().compareTo(s1.getDateCreated()))
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            if (lastStates.isEmpty()) {
+                return null;
+            }
+
+            // Собираем ID состояний
+            List<Long> stateIds = lastStates.stream()
+                    .map(WeldingMachineState::getId)
+                    .collect(Collectors.toList());
+
+            // Получаем параметры проволоки (разбиваем на батчи, если список слишком большой)
+            List<WeldingMachineParameterValue> wireMaterialValues = getParameterValuesInBatches(stateIds, "Материал проволоки");
+            List<WeldingMachineParameterValue> wireDiameterValues = getParameterValuesInBatches(stateIds, "Диаметр проволоки");
+
+            return getWireFromStates(wireMaterialValues, wireDiameterValues, lastStates);
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] ❌ Ошибка получения проволоки из последних состояний: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Получает проволоку (материал и диаметр) из состояний
+     */
+    private String getWireFromStates(List<WeldingMachineParameterValue> wireMaterialValues,
+                                     List<WeldingMachineParameterValue> wireDiameterValues,
+                                     List<WeldingMachineState> states) {
+        String material = null;
+        String diameter = null;
+
+        // Получаем материал проволоки
+        if (wireMaterialValues != null && !wireMaterialValues.isEmpty()) {
+            for (WeldingMachineParameterValue paramValue : wireMaterialValues) {
+                if (paramValue.getValue() != null && !paramValue.getValue().trim().isEmpty()) {
+                    material = paramValue.getValue();
+                    break;
+                }
+            }
+        }
+
+        // Получаем диаметр проволоки
+        if (wireDiameterValues != null && !wireDiameterValues.isEmpty()) {
+            for (WeldingMachineParameterValue paramValue : wireDiameterValues) {
+                if (paramValue.getValue() != null && !paramValue.getValue().trim().isEmpty()) {
+                    diameter = paramValue.getValue();
+                    break;
+                }
+            }
+        }
+
+        // Комбинируем материал и диаметр
+        if (material != null && diameter != null) {
+            return diameter + " " + material;
+        } else if (diameter != null) {
+            return diameter;
+        } else if (material != null) {
+            return material;
+        }
+
+        return null;
+    }
+
+    /**
+     * Рассчитывает время горения дуги (время, когда идет сварка)
+     * Сварка определяется ТОЛЬКО по статусу состояния (Welding)
+     * Не проверяем ток, так как аппарат может быть включен с установленным током, но не варить
+     */
+    private Duration calculateArcBurningTime(List<WeldingMachineState> states,
+                                             List<WeldingMachineParameterValue> currentValues) {
+        if (states == null || states.isEmpty()) {
+            return Duration.ZERO;
+        }
+
+        // Фильтруем состояния со статусом Welding
+        List<WeldingMachineState> weldingStates = states.stream()
+                .filter(state -> state.getWeldingMachineStatus() != null &&
+                        state.getWeldingMachineStatus() == org.alloy.models.WeldingMachineStatus.Welding)
+                .sorted((s1, s2) -> s1.getDateCreated().compareTo(s2.getDateCreated()))
+                .collect(Collectors.toList());
+
+        if (weldingStates.isEmpty()) {
+            return Duration.ZERO;
+        }
+
+        // Если stateDurationMs = 0 для всех состояний, используем интервалы между последовательными состояниями
+        boolean allDurationsZero = weldingStates.stream()
+                .allMatch(s -> s.getStateDurationMs() == null || s.getStateDurationMs() == 0L);
+
+        if (allDurationsZero) {
+            if (weldingStates.size() > 1) {
+                // Рассчитываем время как сумму интервалов между последовательными состояниями
+                // Но только если промежуток между состояниями не слишком большой (максимум 5 минут = 300000 мс)
+                // Если промежуток больше, значит это разные сеансы сварки, и мы не учитываем этот промежуток
+                // Для последнего состояния используем средний интервал между состояниями
+                long totalMs = 0;
+                final long MAX_GAP_MS = 5 * 60 * 1000; // 5 минут
+
+                // Сначала считаем сумму всех промежутков, которые меньше MAX_GAP_MS
+                long sumOfSmallGaps = 0;
+                int countOfSmallGaps = 0;
+
+                for (int i = 1; i < weldingStates.size(); i++) {
+                    LocalDateTime prevState = weldingStates.get(i - 1).getDateCreated();
+                    LocalDateTime currentState = weldingStates.get(i).getDateCreated();
+                    long gapMs = java.time.Duration.between(prevState, currentState).toMillis();
+
+                    // Если промежуток небольшой (в пределах 5 минут), считаем это частью одного сеанса
+                    if (gapMs <= MAX_GAP_MS) {
+                        sumOfSmallGaps += gapMs;
+                        countOfSmallGaps++;
+                    }
+                    // Если промежуток большой, игнорируем его (это разные сеансы сварки)
+                }
+
+                // Если есть промежутки, используем их сумму
+                if (countOfSmallGaps > 0) {
+                    totalMs = sumOfSmallGaps;
+
+                    // Для последнего состояния добавляем средний интервал между состояниями
+                    // (так как у последнего состояния нет следующего состояния)
+                    long avgGap = sumOfSmallGaps / countOfSmallGaps;
+                    totalMs += avgGap;
+                } else {
+                    // Если все промежутки были большими, используем минимальное значение для каждого состояния
+                    totalMs = weldingStates.size() * 1000; // 1 секунда на каждое состояние
+                }
+
+                return Duration.ofMillis(totalMs);
+            } else if (weldingStates.size() == 1) {
+                // Если только одно состояние, используем минимальное значение (например, 1 секунда)
+                return Duration.ofSeconds(1);
+            }
+        } else {
+            // Используем stateDurationMs, если они есть
+            long totalMs = 0;
+            for (WeldingMachineState state : weldingStates) {
+                if (state.getStateDurationMs() != null && state.getStateDurationMs() > 0) {
+                    totalMs += state.getStateDurationMs();
+                }
+            }
+            return Duration.ofMillis(totalMs);
+        }
+
+        return Duration.ZERO;
+    }
+
+    /**
+     * Проверяет, является ли значение активной сваркой (ток > 0)
+     */
+    private boolean isActiveWelding(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            int intValue;
+            try {
+                intValue = Integer.parseInt(value, 16);
+            } catch (NumberFormatException e) {
+                intValue = Integer.parseInt(value, 10);
+            }
+            return intValue > 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Рассчитывает время работы вне диапазона тока
+     */
+    private Duration calculateTimeOutsideCurrentRange(List<WeldingMachineState> states,
+                                                      List<WeldingMachineParameterValue> currentValues,
+                                                      Integer minCurrent,
+                                                      Integer maxCurrent,
+                                                      boolean isSetCurrent) {
+        if (minCurrent == null || maxCurrent == null) {
+            return Duration.ZERO;
+        }
+
+        long totalSeconds = 0;
+
+        // Оптимизация: создаем Map для быстрого поиска параметров по stateId
+        Map<Long, List<WeldingMachineParameterValue>> currentValuesByStateId = currentValues.stream()
+                .collect(Collectors.groupingBy(WeldingMachineParameterValue::getWeldingMachineStateId));
+
+        for (WeldingMachineState state : states) {
+            List<WeldingMachineParameterValue> stateCurrents = currentValuesByStateId.getOrDefault(state.getId(), Collections.emptyList());
+
+            boolean isOutsideRange = stateCurrents.stream()
+                    .anyMatch(pv -> {
+                        int current = parseCurrentValue(pv.getValue());
+                        return current < minCurrent || current > maxCurrent;
+                    });
+
+            if (isOutsideRange) {
+                totalSeconds += state.getStateDurationMs() != null ? state.getStateDurationMs() / 1000 : 0;
+            }
+        }
+
+        return Duration.ofSeconds(totalSeconds);
+    }
+
+    /**
+     * Парсит значение тока
+     */
+    private int parseCurrentValue(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return 0;
+        }
+        try {
+            try {
+                return Integer.parseInt(value, 16);
+            } catch (NumberFormatException e) {
+                return Integer.parseInt(value, 10);
+            }
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Рассчитывает затраченную энергию (кВт*ч)
+     * Формула: средний ток * среднее напряжение / 1000 (кВт, округляем до 1 знака) * время в сети (ч)
+     * Пример: ток=235А, напряжение=17.5В, время=8ч
+     * 235 * 17.5 = 4112.5 Вт
+     * 4112.5 / 1000 = 4.1125 кВт -> округляем до 4.1 кВт
+     * 4.1 * 8 = 32.8 кВт*ч
+     */
+    private BigDecimal calculateEnergyConsumed(List<WeldingMachineParameterValue> voltageValues,
+                                               List<WeldingMachineParameterValue> currentValues,
+                                               Duration timeInNetwork) {
+        if (voltageValues.isEmpty() || currentValues.isEmpty() || timeInNetwork.toSeconds() == 0) {
+            return BigDecimal.ZERO;
+        }
+
+        // Рассчитываем среднее напряжение и средний ток
+        BigDecimal avgVoltage = calculateAverage(voltageValues);
+        BigDecimal avgCurrent = calculateAverage(currentValues);
+
+        // P = U * I (Вт)
+        BigDecimal powerWatts = avgVoltage.multiply(avgCurrent);
+
+        // Переводим в кВт и округляем до 1 знака после запятой
+        BigDecimal powerKilowatts = powerWatts.divide(BigDecimal.valueOf(1000), 1, RoundingMode.HALF_UP);
+
+        // Переводим время в сети в часы
+        BigDecimal timeHours = BigDecimal.valueOf(timeInNetwork.toSeconds())
+                .divide(BigDecimal.valueOf(3600), 4, RoundingMode.HALF_UP);
+
+        // E (кВт*ч) = P (кВт) * t (ч)
+        BigDecimal energyConsumed = powerKilowatts.multiply(timeHours);
+
+        // Округляем результат до 1 знака после запятой
+        return energyConsumed.setScale(1, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Рассчитывает среднее значение параметра
+     */
+    private BigDecimal calculateAverage(List<WeldingMachineParameterValue> values) {
+        if (values.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        List<BigDecimal> numericValues = values.stream()
+                .map(pv -> BigDecimal.valueOf(parseCurrentValue(pv.getValue())))
+                .filter(v -> v.compareTo(BigDecimal.ZERO) > 0)
+                .collect(Collectors.toList());
+
+        if (numericValues.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal sum = numericValues.stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return sum.divide(BigDecimal.valueOf(numericValues.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Рассчитывает расход проволоки (кг) на основе времени горения дуги
+     * ВРЕМЕННО: всегда возвращает 0, так как логика расчета еще не определена
+     */
+    private BigDecimal calculateWireConsumption(Duration arcBurningTime) {
+        // TODO: Определить логику расчета расхода проволоки
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * Группирует данные по сварщикам и сортирует по суммарным значениям
+     */
+    private List<WireConsumptionReportDTO> groupAndSortWireConsumptionData(
+            Map<Integer, List<WireConsumptionReportDTO>> welderDataMap,
+            WireConsumptionReportTemplateDTO template) {
+
+        List<WireConsumptionReportDTO> result = new ArrayList<>();
+
+        // Вычисляем суммарные значения для каждого сварщика
+        Map<Integer, WireConsumptionReportDTO> summaryMap = new HashMap<>();
+
+        for (Map.Entry<Integer, List<WireConsumptionReportDTO>> entry : welderDataMap.entrySet()) {
+            Integer welderId = entry.getKey();
+            List<WireConsumptionReportDTO> welderData = entry.getValue();
+
+            // Создаем суммарную строку
+            WireConsumptionReportDTO summary = createSummaryRow(welderData);
+            summaryMap.put(welderId, summary);
+        }
+
+        // Сортируем сварщиков по выбранной колонке
+        List<Integer> sortedWelderIds = new ArrayList<>(summaryMap.keySet());
+        sortedWelderIds.sort((id1, id2) -> {
+            WireConsumptionReportDTO s1 = summaryMap.get(id1);
+            WireConsumptionReportDTO s2 = summaryMap.get(id2);
+            return compareByColumn(s1, s2, template.getSortByColumn(), template.getSortDirection());
+        });
+
+        // Формируем итоговый список: для каждого сварщика сначала все его ИП, затем суммарная строка
+        for (Integer welderId : sortedWelderIds) {
+            List<WireConsumptionReportDTO> welderData = welderDataMap.get(welderId);
+            result.addAll(welderData);
+
+            // Добавляем суммарную строку (только если это не записи без сварщика)
+            if (welderId != -1) {
+                WireConsumptionReportDTO summary = summaryMap.get(welderId);
+                if (summary != null) {
+                    summary.setIsSummaryRow(true);
+                    result.add(summary);
+                }
+            }
+            // Для записей без сварщика (welderId = -1) не добавляем суммарную строку
+        }
+
+        return result;
+    }
+
+    /**
+     * Создает суммарную строку для сварщика
+     */
+    private WireConsumptionReportDTO createSummaryRow(List<WireConsumptionReportDTO> welderData) {
+        if (welderData.isEmpty()) {
+            return null;
+        }
+
+        WireConsumptionReportDTO first = welderData.get(0);
+        WireConsumptionReportDTO summary = new WireConsumptionReportDTO();
+
+        // Копируем информацию о сварщике (может быть null, если сварщика нет)
+        summary.setWelderId(first.getWelderId());
+        summary.setWelderName(first.getWelderName());
+        summary.setTabNumber(first.getTabNumber());
+        summary.setProfession(first.getProfession());
+        summary.setOrganizationUnitId(first.getOrganizationUnitId());
+        summary.setOrganizationUnitName(first.getOrganizationUnitName());
+
+        // Суммируем значения
+        Duration totalTimeInNetwork = Duration.ZERO;
+        Duration totalArcBurningTime = Duration.ZERO;
+        Duration totalTimeOutsideSetCurrent = Duration.ZERO;
+        Duration totalTimeOutsideActualCurrent = Duration.ZERO;
+        BigDecimal totalEnergy = BigDecimal.ZERO;
+        BigDecimal totalWireConsumption = BigDecimal.ZERO;
+        BigDecimal avgEfficiency = BigDecimal.ZERO;
+
+        for (WireConsumptionReportDTO item : welderData) {
+            if (item.getTimeInNetwork() != null) {
+                totalTimeInNetwork = totalTimeInNetwork.plus(item.getTimeInNetwork());
+            }
+            if (item.getArcBurningTime() != null) {
+                totalArcBurningTime = totalArcBurningTime.plus(item.getArcBurningTime());
+            }
+            if (item.getTimeOutsideSetCurrentRange() != null) {
+                totalTimeOutsideSetCurrent = totalTimeOutsideSetCurrent.plus(item.getTimeOutsideSetCurrentRange());
+            }
+            if (item.getTimeOutsideActualCurrentRange() != null) {
+                totalTimeOutsideActualCurrent = totalTimeOutsideActualCurrent.plus(item.getTimeOutsideActualCurrentRange());
+            }
+            if (item.getEnergyConsumed() != null) {
+                totalEnergy = totalEnergy.add(item.getEnergyConsumed());
+            }
+            if (item.getWireConsumption() != null) {
+                totalWireConsumption = totalWireConsumption.add(item.getWireConsumption());
+            }
+            if (item.getEquipmentEfficiency() != null) {
+                avgEfficiency = avgEfficiency.add(item.getEquipmentEfficiency());
+            }
+        }
+
+        summary.setTimeInNetwork(totalTimeInNetwork);
+        summary.setArcBurningTime(totalArcBurningTime);
+        summary.setTimeOutsideSetCurrentRange(totalTimeOutsideSetCurrent);
+        summary.setTimeOutsideActualCurrentRange(totalTimeOutsideActualCurrent);
+        summary.setEnergyConsumed(totalEnergy);
+        summary.setWireConsumption(totalWireConsumption);
+
+        // Эффективность рассчитываем на основе общих значений времени в сети и времени горения дуги
+        // Эффективность = (время горения дуги / время в сети) * 100
+        if (totalTimeInNetwork.toSeconds() > 0) {
+            double efficiency = 0.0;
+            if (totalArcBurningTime.toSeconds() > 0) {
+                efficiency = (double) totalArcBurningTime.toSeconds() / totalTimeInNetwork.toSeconds() * 100.0;
+            }
+            summary.setEquipmentEfficiency(BigDecimal.valueOf(efficiency).setScale(2, RoundingMode.HALF_UP));
+        } else {
+            summary.setEquipmentEfficiency(BigDecimal.ZERO);
+        }
+
+        summary.setWire(first.getWire()); // Используем проволоку из первой записи
+
+        // Для суммарной строки очищаем поля оборудования (они должны быть пустыми)
+        summary.setWeldingMachineId(null);
+        summary.setWeldingMachineName(null);
+        summary.setEquipmentModel(null);
+
+        return summary;
+    }
+
+    /**
+     * Сравнивает две строки по указанной колонке
+     */
+    private int compareByColumn(WireConsumptionReportDTO dto1, WireConsumptionReportDTO dto2,
+                                String sortByColumn, String sortDirection) {
+        int result = 0;
+
+        if (sortByColumn == null || sortByColumn.isEmpty()) {
+            // По умолчанию сортируем по имени сварщика
+            String name1 = dto1.getWelderName() != null ? dto1.getWelderName() : "";
+            String name2 = dto2.getWelderName() != null ? dto2.getWelderName() : "";
+            result = name1.compareTo(name2);
+        } else {
+            switch (sortByColumn.toUpperCase()) {
+                case "WELDER_NAME":
+                case "СВАРЩИК":
+                    String name1 = dto1.getWelderName() != null ? dto1.getWelderName() : "";
+                    String name2 = dto2.getWelderName() != null ? dto2.getWelderName() : "";
+                    result = name1.compareTo(name2);
+                    break;
+                case "WIRE_CONSUMPTION":
+                case "РАСХОД":
+                    BigDecimal wc1 = dto1.getWireConsumption() != null ? dto1.getWireConsumption() : BigDecimal.ZERO;
+                    BigDecimal wc2 = dto2.getWireConsumption() != null ? dto2.getWireConsumption() : BigDecimal.ZERO;
+                    result = wc1.compareTo(wc2);
+                    break;
+                case "ARC_BURNING_TIME":
+                case "ВРЕМЯ_ГОРЕНИЯ_ДУГИ":
+                    Duration abt1 = dto1.getArcBurningTime() != null ? dto1.getArcBurningTime() : Duration.ZERO;
+                    Duration abt2 = dto2.getArcBurningTime() != null ? dto2.getArcBurningTime() : Duration.ZERO;
+                    result = abt1.compareTo(abt2);
+                    break;
+                case "TIME_IN_NETWORK":
+                case "ВРЕМЯ_В_СЕТИ":
+                    Duration tin1 = dto1.getTimeInNetwork() != null ? dto1.getTimeInNetwork() : Duration.ZERO;
+                    Duration tin2 = dto2.getTimeInNetwork() != null ? dto2.getTimeInNetwork() : Duration.ZERO;
+                    result = tin1.compareTo(tin2);
+                    break;
+                default:
+                    result = 0;
+            }
+        }
+
+        return "DESC".equalsIgnoreCase(sortDirection) ? -result : result;
     }
 } 

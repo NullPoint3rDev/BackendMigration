@@ -28,4 +28,13 @@ public interface WeldingMachineStateRepository extends JpaRepository<WeldingMach
 
     @Query("SELECT wms FROM WeldingMachineState wms WHERE wms.weldingMachineId = :weldingMachineId AND wms.limitsExceeded = true ORDER BY wms.dateCreated DESC")
     List<WeldingMachineState> findStatesWithExceededLimits(@Param("weldingMachineId") Integer weldingMachineId);
+
+    @Query("SELECT wms FROM WeldingMachineState wms WHERE wms.rfid = :rfid AND wms.dateCreated BETWEEN :startDate AND :endDate ORDER BY wms.dateCreated ASC")
+    List<WeldingMachineState> findByRfidAndDateRange(
+            @Param("rfid") String rfid,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT DISTINCT wms.weldingMachineId FROM WeldingMachineState wms WHERE wms.rfid IN :rfidCodes")
+    List<Integer> findDistinctWeldingMachineIdsByRfidCodes(@Param("rfidCodes") List<String> rfidCodes);
 }

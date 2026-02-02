@@ -18,8 +18,10 @@ import org.alloy.services.WeldingMachineService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.*;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -41,7 +43,7 @@ public class ReportService {
     private String[] generateDatesForPeriod(String period, int count) {
         String[] dates = new String[count];
         java.time.LocalDate baseDate = java.time.LocalDate.now();
-        
+
         switch (period.toUpperCase()) {
             case "DAY":
                 // За день - все даты одинаковые
@@ -50,7 +52,7 @@ public class ReportService {
                     dates[i] = dayDate;
                 }
                 break;
-                
+
             case "WEEK":
                 // За неделю - даты в пределах текущей недели
                 java.time.LocalDate weekStart = baseDate.minusDays(baseDate.getDayOfWeek().getValue() - 1);
@@ -58,7 +60,7 @@ public class ReportService {
                     dates[i] = weekStart.plusDays(i % 7).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                 }
                 break;
-                
+
             case "MONTH":
                 // За месяц - даты в пределах текущего месяца
                 for (int i = 0; i < count; i++) {
@@ -66,7 +68,7 @@ public class ReportService {
                     dates[i] = baseDate.withDayOfMonth(dayOfMonth).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                 }
                 break;
-                
+
             case "QUARTER":
                 // За квартал - даты в пределах текущего квартала
                 int quarter = (baseDate.getMonthValue() - 1) / 3;
@@ -75,7 +77,7 @@ public class ReportService {
                     dates[i] = quarterStart.plusDays(i % 90).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                 }
                 break;
-                
+
             case "YEAR":
                 // За год - даты в пределах текущего года
                 java.time.LocalDate yearStart = baseDate.withMonth(1).withDayOfMonth(1);
@@ -83,7 +85,7 @@ public class ReportService {
                     dates[i] = yearStart.plusDays(i % 365).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                 }
                 break;
-                
+
             default:
                 // По умолчанию - случайные даты в текущем году
                 for (int i = 0; i < count; i++) {
@@ -91,7 +93,7 @@ public class ReportService {
                 }
                 break;
         }
-        
+
         return dates;
     }
 
@@ -102,27 +104,27 @@ public class ReportService {
         java.time.LocalDate baseDate = java.time.LocalDate.now();
         java.time.LocalDateTime startDateTime, endDateTime;
         String periodDescription;
-        
+
         switch (period.toUpperCase()) {
             case "DAY":
                 startDateTime = baseDate.atTime(4, 0, 0); // 04:00:00
                 endDateTime = baseDate.plusDays(1).atTime(4, 0, 0); // 04:00:00 следующего дня
                 periodDescription = "Отчёт за целый день";
                 break;
-                
+
             case "WEEK":
                 java.time.LocalDate weekStart = baseDate.minusDays(baseDate.getDayOfWeek().getValue() - 1);
                 startDateTime = weekStart.atTime(4, 0, 0);
                 endDateTime = weekStart.plusDays(7).atTime(4, 0, 0);
                 periodDescription = "Отчёт за неделю";
                 break;
-                
+
             case "MONTH":
                 startDateTime = baseDate.withDayOfMonth(1).atTime(4, 0, 0);
                 endDateTime = baseDate.withDayOfMonth(baseDate.lengthOfMonth()).plusDays(1).atTime(4, 0, 0);
                 periodDescription = "Отчёт за месяц";
                 break;
-                
+
             case "QUARTER":
                 int quarter = (baseDate.getMonthValue() - 1) / 3;
                 java.time.LocalDate quarterStart = baseDate.withMonth(quarter * 3 + 1).withDayOfMonth(1);
@@ -130,27 +132,27 @@ public class ReportService {
                 endDateTime = quarterStart.plusMonths(3).atTime(4, 0, 0);
                 periodDescription = "Отчёт за квартал";
                 break;
-                
+
             case "YEAR":
                 startDateTime = baseDate.withMonth(1).withDayOfMonth(1).atTime(4, 0, 0);
                 endDateTime = baseDate.withMonth(12).withDayOfMonth(31).plusDays(1).atTime(4, 0, 0);
                 periodDescription = "Отчёт за год";
                 break;
-                
+
             default:
                 startDateTime = baseDate.atTime(4, 0, 0);
                 endDateTime = baseDate.plusDays(1).atTime(4, 0, 0);
                 periodDescription = "Отчёт за день";
                 break;
         }
-        
+
         java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss");
         String startStr = startDateTime.format(formatter);
         String endStr = endDateTime.format(formatter);
-        
+
         return new String[]{
-            "Отчёт по расходам за период с " + startStr + " по " + endStr,
-            periodDescription
+                "Отчёт по расходам за период с " + startStr + " по " + endStr,
+                periodDescription
         };
     }
 
@@ -182,16 +184,9 @@ public class ReportService {
     }
 
     // Новые методы для отчетов согласно требованиям
-    
+
     public byte[] generateEquipmentReport(ReportRequestDTO request) throws IOException {
-        // Добавляем отладочную информацию
-        System.out.println("=== DEBUG: generateEquipmentReport ===");
-        System.out.println("Format: " + request.getFormat());
-        System.out.println("Period: " + request.getPeriod());
-        System.out.println("WeldingMachineId: " + request.getWeldingMachineId());
-        System.out.println("WeldingMachineId type: " + (request.getWeldingMachineId() != null ? request.getWeldingMachineId().getClass().getSimpleName() : "null"));
-        System.out.println("=====================================");
-        
+
         // Получаем название аппарата по ID
         String machineName = "Неизвестный аппарат";
         if (request.getWeldingMachineId() != null) {
@@ -199,46 +194,41 @@ public class ReportService {
                 var machine = weldingMachineService.getWeldingMachineById(request.getWeldingMachineId());
                 if (machine.isPresent()) {
                     machineName = machine.get().getName();
-                    System.out.println("Найден аппарат: " + machineName);
                 } else {
                     machineName = "Аппарат ID: " + request.getWeldingMachineId() + " (не найден)";
-                    System.out.println("Аппарат с ID " + request.getWeldingMachineId() + " не найден в базе");
                 }
             } catch (Exception e) {
                 machineName = "Аппарат ID: " + request.getWeldingMachineId() + " (ошибка загрузки)";
                 System.err.println("Ошибка при получении названия аппарата: " + e.getMessage());
             }
         }
-        
+
         // Получаем реальные данные из ReportDataService
         List<WorkReportDTO> data = reportDataService.getWorkReportData(request);
-        System.out.println("✅ Получено " + data.size() + " записей данных");
-        
+
         // Генерируем отчет с реальными данными
         byte[] reportData = generateEquipmentReportWithRealData(data, request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod(), request.getSelectedColumns());
-        
+
         try {
             // Записываем в историю
             String fileName = "equipment_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
             ReportHistory history = new ReportHistory(
-                "equipment", 
-                "Отчет по работе оборудования", 
-                request.getFormat(), 
-                request.getPeriod(), 
-                fileName, 
-                (long) reportData.length, 
-                "Система"
+                    "equipment",
+                    "Отчет по работе оборудования",
+                    request.getFormat(),
+                    request.getPeriod(),
+                    fileName,
+                    (long) reportData.length,
+                    "Система"
             );
-            
-            System.out.println("Добавляем отчет в историю: " + history.getReportName() + " (" + history.getFormat() + ")");
+
             reportHistoryService.addReportToHistory(history);
-            System.out.println("Отчет успешно добавлен в историю");
-            
+
         } catch (Exception e) {
             System.err.println("Ошибка при добавлении отчета в историю: " + e.getMessage());
             e.printStackTrace();
         }
-        
+
         return reportData;
     }
 
@@ -277,32 +267,25 @@ public class ReportService {
     public byte[] generateWeldersReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по работе сварщиков с тестовыми данными
         byte[] reportData = generateWeldersReportWithData(request.getFormat());
-        
+
         // Записываем в историю
         String fileName = "welders_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
         ReportHistory history = new ReportHistory(
-            "welders", 
-            "Отчет по работе сварщиков", 
-            request.getFormat(), 
-            request.getPeriod(), 
-            fileName, 
-            (long) reportData.length, 
-            "Система"
+                "welders",
+                "Отчет по работе сварщиков",
+                request.getFormat(),
+                request.getPeriod(),
+                fileName,
+                (long) reportData.length,
+                "Система"
         );
         reportHistoryService.addReportToHistory(history);
-        
+
         return reportData;
     }
 
     public byte[] generateMaterialsReport(ReportRequestDTO request) throws IOException {
-        // Добавляем отладочную информацию
-        System.out.println("=== DEBUG: generateMaterialsReport ===");
-        System.out.println("Format: " + request.getFormat());
-        System.out.println("Period: " + request.getPeriod());
-        System.out.println("WeldingMachineId: " + request.getWeldingMachineId());
-        System.out.println("WeldingMachineId type: " + (request.getWeldingMachineId() != null ? request.getWeldingMachineId().getClass().getSimpleName() : "null"));
-        System.out.println("=====================================");
-        
+
         // Получаем название аппарата по ID
         String machineName = "Неизвестный аппарат";
         if (request.getWeldingMachineId() != null) {
@@ -310,67 +293,58 @@ public class ReportService {
                 var machine = weldingMachineService.getWeldingMachineById(request.getWeldingMachineId());
                 if (machine.isPresent()) {
                     machineName = machine.get().getName();
-                    System.out.println("Найден аппарат: " + machineName);
                 } else {
                     machineName = "Аппарат ID: " + request.getWeldingMachineId() + " (не найден)";
-                    System.out.println("Аппарат с ID " + request.getWeldingMachineId() + " не найден в базе");
                 }
             } catch (Exception e) {
                 machineName = "Аппарат ID: " + request.getWeldingMachineId() + " (ошибка загрузки)";
                 System.err.println("Ошибка при получении названия аппарата: " + e.getMessage());
             }
         }
-        
+
         // Генерируем отчет по расходу материалов с тестовыми данными в зависимости от периода
         byte[] reportData = generateMaterialsReportWithData(request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod());
-        
+
         // Записываем в историю
         String fileName = "materials_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
         ReportHistory history = new ReportHistory(
-            "materials", 
-            "Отчет по расходу материалов", 
-            request.getFormat(), 
-            request.getPeriod(), 
-            fileName, 
-            (long) reportData.length, 
-            "Система"
+                "materials",
+                "Отчет по расходу материалов",
+                request.getFormat(),
+                request.getPeriod(),
+                fileName,
+                (long) reportData.length,
+                "Система"
         );
         reportHistoryService.addReportToHistory(history);
-        
+
         return reportData;
     }
 
     public byte[] generateWeldsReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по сварочным швам с тестовыми данными
         byte[] reportData = generateWeldsReportWithData(request.getFormat());
-        
+
         // Записываем в историю
         String fileName = "welds_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
         ReportHistory history = new ReportHistory(
-            "welds", 
-            "Отчет по сварочным швам", 
-            request.getFormat(), 
-            request.getPeriod(), 
-            fileName, 
-            (long) reportData.length, 
-            "Система"
+                "welds",
+                "Отчет по сварочным швам",
+                request.getFormat(),
+                request.getPeriod(),
+                fileName,
+                (long) reportData.length,
+                "Система"
         );
         reportHistoryService.addReportToHistory(history);
-        
+
         return reportData;
     }
 
 
 
     public byte[] generateErrorsReport(ReportRequestDTO request) throws IOException {
-        // Добавляем отладочную информацию
-        System.out.println("=== DEBUG: generateErrorsReport ===");
-        System.out.println("Format: " + request.getFormat());
-        System.out.println("Period: " + request.getPeriod());
-        System.out.println("WeldingMachineId: " + request.getWeldingMachineId());
-        System.out.println("WeldingMachineId type: " + (request.getWeldingMachineId() != null ? request.getWeldingMachineId().getClass().getSimpleName() : "null"));
-        System.out.println("=====================================");
-        
+
         // Получаем название аппарата по ID
         String machineName = "Неизвестный аппарат";
         if (request.getWeldingMachineId() != null) {
@@ -378,73 +352,71 @@ public class ReportService {
                 var machine = weldingMachineService.getWeldingMachineById(request.getWeldingMachineId());
                 if (machine.isPresent()) {
                     machineName = machine.get().getName();
-                    System.out.println("Найден аппарат: " + machineName);
                 } else {
                     machineName = "Аппарат ID: " + request.getWeldingMachineId() + " (не найден)";
-                    System.out.println("Аппарат с ID " + request.getWeldingMachineId() + " не найден в базе");
                 }
             } catch (Exception e) {
                 machineName = "Аппарат ID: " + request.getWeldingMachineId() + " (ошибка загрузки)";
                 System.err.println("Ошибка при получении названия аппарата: " + e.getMessage());
             }
         }
-        
+
         // Генерируем отчет по ошибкам с тестовыми данными в зависимости от периода
         byte[] reportData = generateErrorsReportWithData(request.getFormat(), request.getWeldingMachineId(), machineName, request.getPeriod());
-        
+
         // Записываем в историю
         String fileName = "errors_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
         ReportHistory history = new ReportHistory(
-            "errors", 
-            "Отчет по ошибкам оборудования", 
-            request.getFormat(), 
-            request.getPeriod(), 
-            fileName, 
-            (long) reportData.length, 
-            "Система"
+                "errors",
+                "Отчет по ошибкам оборудования",
+                request.getFormat(),
+                request.getPeriod(),
+                fileName,
+                (long) reportData.length,
+                "Система"
         );
         reportHistoryService.addReportToHistory(history);
-        
+
         return reportData;
     }
 
     public byte[] generateViolationsReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по нарушениям с тестовыми данными
         byte[] reportData = generateViolationsReportWithData(request.getFormat());
-        
+
         // Записываем в историю
         String fileName = "violations_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
         ReportHistory history = new ReportHistory(
-            "violations", 
-            "Отчет по нарушениям при сварке", 
-            request.getFormat(), 
-            request.getPeriod(), 
-            fileName, 
-            (long) reportData.length, 
-            "Система"
+                "violations",
+                "Отчет по нарушениям при сварке",
+                request.getFormat(),
+                request.getPeriod(),
+                fileName,
+                (long) reportData.length,
+                "Система"
         );
         reportHistoryService.addReportToHistory(history);
-        
+
         return reportData;
     }
 
     public byte[] generateTasksReport(ReportRequestDTO request) throws IOException {
         // Генерируем отчет по заданиям с тестовыми данными
         byte[] reportData = generateTasksReportWithData(request.getFormat());
-        
+
         // Записываем в историю
         String fileName = "tasks_report_" + System.currentTimeMillis() + getFileExtension(request.getFormat());
         ReportHistory history = new ReportHistory(
-            "tasks", 
-            "Отчет по сварочным заданиям", 
-            request.getFormat(), 
-            request.getPeriod(), 
-            fileName, 
-            (long) reportData.length, 
-            "Система"
+                "tasks",
+                "Отчет по сварочным заданиям",
+                request.getFormat(),
+                request.getPeriod(),
+                fileName,
+                (long) reportData.length,
+                "Система"
         );
         reportHistoryService.addReportToHistory(history);
-        
+
         return reportData;
     }
 
@@ -458,7 +430,7 @@ public class ReportService {
         }
         throw new IllegalArgumentException("Unsupported format: " + format);
     }
-    
+
     /**
      * Получить расширение файла для формата отчета
      */
@@ -478,15 +450,15 @@ public class ReportService {
     private byte[] generatePlaceholderExcel(String title) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет");
-            
+
             Row headerRow = sheet.createRow(0);
             Cell headerCell = headerRow.createCell(0);
             headerCell.setCellValue(title);
-            
+
             Row infoRow = sheet.createRow(1);
             Cell infoCell = infoRow.createCell(0);
             infoCell.setCellValue("Это заглушка для отчета. Реальная реализация будет добавлена позже.");
-            
+
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             workbook.write(outputStream);
             return outputStream.toByteArray();
@@ -498,10 +470,10 @@ public class ReportService {
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-        
+
         document.add(new Paragraph(title));
         document.add(new Paragraph("Это заглушка для отчета. Реальная реализация будет добавлена позже."));
-        
+
         document.close();
         return outputStream.toByteArray();
     }
@@ -550,10 +522,10 @@ public class ReportService {
     private byte[] generateEquipmentExcelWithData(Integer weldingMachineId, String machineName, String period) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по работе оборудования");
-            
+
             // Добавляем информацию о временном интервале
             String[] periodInfo = generatePeriodInfo(period);
-            
+
             Row periodRow = sheet.createRow(0);
             Cell periodCell = periodRow.createCell(0);
             periodCell.setCellValue(periodInfo[0]);
@@ -564,7 +536,7 @@ public class ReportService {
             periodStyle.setFont(periodFont);
             periodCell.setCellStyle(periodStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 8));
-            
+
             // Добавляем описание периода
             Row descriptionRow = sheet.createRow(1);
             Cell descriptionCell = descriptionRow.createCell(0);
@@ -575,13 +547,13 @@ public class ReportService {
             descriptionStyle.setFont(descriptionFont);
             descriptionCell.setCellStyle(descriptionStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(1, 1, 0, 8));
-            
+
             // Добавляем информацию о выбранном аппарате
             Row titleRow = sheet.createRow(2);
             Cell titleCell = titleRow.createCell(0);
-            String machineInfo = (weldingMachineId != null) ? 
-                "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
-                "Отчет по работе оборудования (ID не указан)";
+            String machineInfo = (weldingMachineId != null) ?
+                    "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" :
+                    "Отчет по работе оборудования (ID не указан)";
             titleCell.setCellValue(machineInfo);
             CellStyle titleStyle = workbook.createCellStyle();
             Font titleFont = workbook.createFont();
@@ -590,13 +562,13 @@ public class ReportService {
             titleStyle.setFont(titleFont);
             titleCell.setCellStyle(titleStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 0, 8));
-            
+
             // Создаем заголовки (начиная с 5-й строки)
             Row headerRow = sheet.createRow(5);
             String[] headers = {
-                "Дата", "Время", "Сварщик", "Сила тока, А",
-                "Масса проволоки, кг", "Напряжение, V", "Проволока, м/мин",
-                "Газ, л/мин", "Время сварки (с)"
+                    "Дата", "Время", "Сварщик", "Сила тока, А",
+                    "Масса проволоки, кг", "Напряжение, V", "Проволока, м/мин",
+                    "Газ, л/мин", "Время сварки (с)"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -613,7 +585,7 @@ public class ReportService {
 
             // Генерируем даты в зависимости от периода
             String[] dates = generateDatesForPeriod(period, 15);
-            
+
             // Генерируем данные только для выбранного аппарата
             for (int i = 0; i < 15; i++) {
                 Row row = sheet.createRow(rowNum++);
@@ -637,10 +609,10 @@ public class ReportService {
     private byte[] generateEquipmentExcelWithRealData(List<WorkReportDTO> data, Integer weldingMachineId, String machineName, String period, List<String> selectedColumns) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по работе оборудования");
-            
+
             // Добавляем информацию о временном интервале
             String[] periodInfo = generatePeriodInfo(period);
-            
+
             Row periodRow = sheet.createRow(0);
             Cell periodCell = periodRow.createCell(0);
             periodCell.setCellValue(periodInfo[0]);
@@ -651,7 +623,7 @@ public class ReportService {
             periodStyle.setFont(periodFont);
             periodCell.setCellStyle(periodStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 8));
-            
+
             // Добавляем описание периода
             Row descriptionRow = sheet.createRow(1);
             Cell descriptionCell = descriptionRow.createCell(0);
@@ -662,13 +634,13 @@ public class ReportService {
             descriptionStyle.setFont(descriptionFont);
             descriptionCell.setCellStyle(descriptionStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(1, 1, 0, 8));
-            
+
             // Добавляем информацию о выбранном аппарате
             Row titleRow = sheet.createRow(2);
             Cell titleCell = titleRow.createCell(0);
-            String machineInfo = (weldingMachineId != null) ? 
-                "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
-                "Отчет по работе оборудования (ID не указан)";
+            String machineInfo = (weldingMachineId != null) ?
+                    "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" :
+                    "Отчет по работе оборудования (ID не указан)";
             titleCell.setCellValue(machineInfo);
             CellStyle titleStyle = workbook.createCellStyle();
             Font titleFont = workbook.createFont();
@@ -677,10 +649,10 @@ public class ReportService {
             titleStyle.setFont(titleFont);
             titleCell.setCellStyle(titleStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 0, 8));
-            
+
             // Создаем заголовки (начиная с 5-й строки)
             Row headerRow = sheet.createRow(5);
-            
+
             // Определяем столбцы на основе выбранных или используем все по умолчанию
             List<String> headers = getSelectedHeaders(selectedColumns);
 
@@ -710,36 +682,36 @@ public class ReportService {
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-        
+
         // Добавляем информацию о временном интервале
         String[] periodInfo = generatePeriodInfo(period);
-        
+
         Paragraph periodTitle = new Paragraph(periodInfo[0]);
         periodTitle.setFontSize(14);
         periodTitle.setBold();
         document.add(periodTitle);
-        
+
         Paragraph periodDescription = new Paragraph(periodInfo[1]);
         periodDescription.setFontSize(12);
         document.add(periodDescription);
         document.add(new Paragraph(""));
-        
+
         // Заголовок отчета с информацией об аппарате
-        String titleText = (weldingMachineId != null) ? 
-            "Отчет по работе сварочного оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
-            "Отчет по работе сварочного оборудования (ID не указан)";
+        String titleText = (weldingMachineId != null) ?
+                "Отчет по работе сварочного оборудования ID: " + weldingMachineId + " (" + machineName + ")" :
+                "Отчет по работе сварочного оборудования (ID не указан)";
         Paragraph title = new Paragraph(titleText);
         title.setFontSize(18);
         title.setBold();
         document.add(title);
         document.add(new Paragraph(""));
-        
+
         // Данные для конкретного аппарата
         String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
-        
+
         // Генерируем даты в зависимости от периода
         String[] dates = generateDatesForPeriod(period, 12);
-        
+
         for (int i = 0; i < 12; i++) {
             document.add(new Paragraph("Сессия " + (i + 1) + ":"));
             document.add(new Paragraph("Дата: " + dates[i]));
@@ -759,23 +731,23 @@ public class ReportService {
 
     private byte[] generateEquipmentCsvWithData(Integer weldingMachineId, String machineName, String period) throws IOException {
         StringBuilder csv = new StringBuilder();
-        
+
         // Добавляем информацию о временном интервале
         String[] periodInfo = generatePeriodInfo(period);
         csv.append(periodInfo[0]).append("\n");
         csv.append(periodInfo[1]).append("\n");
-        
-        String machineInfo = (weldingMachineId != null) ? 
-            "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
-            "Отчет по работе оборудования (ID не указан)";
+
+        String machineInfo = (weldingMachineId != null) ?
+                "Отчет по работе оборудования ID: " + weldingMachineId + " (" + machineName + ")" :
+                "Отчет по работе оборудования (ID не указан)";
         csv.append(machineInfo).append("\n");
         csv.append("Дата,Время,Сварщик,Сила тока (А),Масса проволоки (кг),Напряжение (В),Проволока (м/мин),Газ (л/мин),Время сварки (с)\n");
-        
+
         String[] welderNames = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
-        
+
         // Генерируем даты в зависимости от периода
         String[] dates = generateDatesForPeriod(period, 12);
-        
+
         for (int i = 0; i < 12; i++) {
             csv.append(dates[i]).append(","); // Дата в зависимости от периода
             csv.append(String.format("%02d:%02d", (int)(Math.random() * 24), (int)(Math.random() * 60))).append(",");
@@ -788,7 +760,7 @@ public class ReportService {
             csv.append(30 + (int)(Math.random() * 270));
             csv.append("\n");
         }
-        
+
         return addBomToCsv(csv.toString());
     }
 
@@ -806,13 +778,13 @@ public class ReportService {
     private byte[] generateWeldersExcelWithData() throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по работе сварщиков");
-            
+
             // Создаем заголовки
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                "ID сварщика", "ФИО", "Подразделение", "Квалификация", "Время работы (часы)",
-                "Количество выполненных швов", "Расход проволоки (кг)", "Средний ток (А)",
-                "Среднее напряжение (В)", "Качество работы (%)", "Дата последней работы"
+                    "ID сварщика", "ФИО", "Подразделение", "Квалификация", "Время работы (часы)",
+                    "Количество выполненных швов", "Расход проволоки (кг)", "Средний ток (А)",
+                    "Среднее напряжение (В)", "Качество работы (%)", "Дата последней работы"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -828,7 +800,7 @@ public class ReportService {
             String[] names = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н.", "Морозов М.М.", "Волков В.В.", "Алексеев А.А."};
             String[] departments = {"Цех №1", "Цех №2", "Сборочный участок", "Ремонтный участок"};
             String[] qualifications = {"3 разряд", "4 разряд", "5 разряд", "6 разряд"};
-            
+
             for (int i = 0; i < 20; i++) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(2000 + i);
@@ -855,19 +827,19 @@ public class ReportService {
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-        
+
         // Заголовок отчета
         Paragraph title = new Paragraph("Отчет по работе сварщиков");
         title.setFontSize(18);
         title.setBold();
         document.add(title);
         document.add(new Paragraph(""));
-        
+
         // Данные
         String[] names = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н.", "Морозов М.М.", "Волков В.В.", "Алексеев А.А."};
         String[] departments = {"Цех №1", "Цех №2", "Сборочный участок", "Ремонтный участок"};
         String[] qualifications = {"3 разряд", "4 разряд", "5 разряд", "6 разряд"};
-        
+
         for (int i = 0; i < 20; i++) {
             document.add(new Paragraph("Сварщик " + (i + 1) + ":"));
             document.add(new Paragraph("ID: " + (2000 + i)));
@@ -890,11 +862,11 @@ public class ReportService {
     private byte[] generateWeldersCsvWithData() throws IOException {
         StringBuilder csv = new StringBuilder();
         csv.append("ID сварщика,ФИО,Подразделение,Квалификация,Время работы (часы),Количество выполненных швов,Расход проволоки (кг),Средний ток (А),Среднее напряжение (В),Качество работы (%),Дата последней работы\n");
-        
+
         String[] names = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н.", "Морозов М.М.", "Волков В.В.", "Алексеев А.А."};
         String[] departments = {"Цех №1", "Цех №2", "Сборочный участок", "Ремонтный участок"};
         String[] qualifications = {"3 разряд", "4 разряд", "5 разряд", "6 разряд"};
-        
+
         for (int i = 0; i < 18; i++) {
             csv.append(2000 + i).append(",");
             csv.append(names[i % names.length]).append(",");
@@ -909,17 +881,17 @@ public class ReportService {
             csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28)));
             csv.append("\n");
         }
-        
+
         return addBomToCsv(csv.toString());
     }
 
     private byte[] generateMaterialsExcelWithData(Integer weldingMachineId, String machineName, String period) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по расходу проволоки");
-            
+
             // Добавляем информацию о временном интервале
             String[] periodInfo = generatePeriodInfo(period);
-            
+
             Row periodRow = sheet.createRow(0);
             Cell periodCell = periodRow.createCell(0);
             periodCell.setCellValue(periodInfo[0]);
@@ -930,7 +902,7 @@ public class ReportService {
             periodStyle.setFont(periodFont);
             periodCell.setCellStyle(periodStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 7));
-            
+
             // Добавляем описание периода
             Row descriptionRow = sheet.createRow(1);
             Cell descriptionCell = descriptionRow.createCell(0);
@@ -941,13 +913,13 @@ public class ReportService {
             descriptionStyle.setFont(descriptionFont);
             descriptionCell.setCellStyle(descriptionStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(1, 1, 0, 7));
-            
+
             // Добавляем информацию о выбранном аппарате
             Row titleRow = sheet.createRow(2);
             Cell titleCell = titleRow.createCell(0);
-            String machineInfo = (weldingMachineId != null) ? 
-                "Отчет по расходу проволоки ID: " + weldingMachineId + " (" + machineName + ")" : 
-                "Отчет по расходу проволоки (ID не указан)";
+            String machineInfo = (weldingMachineId != null) ?
+                    "Отчет по расходу проволоки ID: " + weldingMachineId + " (" + machineName + ")" :
+                    "Отчет по расходу проволоки (ID не указан)";
             titleCell.setCellValue(machineInfo);
             CellStyle titleStyle = workbook.createCellStyle();
             Font titleFont = workbook.createFont();
@@ -956,12 +928,12 @@ public class ReportService {
             titleStyle.setFont(titleFont);
             titleCell.setCellStyle(titleStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 0, 7));
-            
+
             // Создаем заголовки (начиная с 5-й строки) - 8 столбцов согласно скриншоту
             Row headerRow = sheet.createRow(5);
             String[] headers = {
-                "Сварщик", "Должность", "Время в сети", "Время горения дуги", 
-                "Эффективность работы", "Энергия", "Проволока", "Расход, кг"
+                    "Сварщик", "Должность", "Время в сети", "Время горения дуги",
+                    "Эффективность работы", "Энергия", "Проволока", "Расход, кг"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -990,15 +962,15 @@ public class ReportService {
             String[] welderNames = {"Тест", "Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
             String[] positions = {"Электросварщик", "Сварщик 6 разряда", "Сварщик 5 разряда", "Сварщик 4 разряда", "Сварщик 3 разряда"};
             String[] wireTypes = {"1.2 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С"};
-            
+
             for (int i = 0; i < 20; i++) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(welderNames[i % welderNames.length]); // Сварщик
                 row.createCell(1).setCellValue(positions[i % positions.length]); // Должность
-                row.createCell(2).setCellValue(String.format("%02d:%02d:%02d", 
-                    8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))); // Время в сети (08:00-16:00)
-                row.createCell(3).setCellValue(String.format("%02d:%02d:%02d", 
-                    1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))); // Время горения дуги (01:00-04:00)
+                row.createCell(2).setCellValue(String.format("%02d:%02d:%02d",
+                        8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))); // Время в сети (08:00-16:00)
+                row.createCell(3).setCellValue(String.format("%02d:%02d:%02d",
+                        1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))); // Время горения дуги (01:00-04:00)
                 row.createCell(4).setCellValue(String.format("%.2f%%", 20.0 + (Math.random() * 40.0))); // Эффективность работы (20-60%)
                 row.createCell(5).setCellValue(String.format("%.1f кВт*ч", 5.0 + (Math.random() * 10.0))); // Энергия (5-15 кВт*ч)
                 row.createCell(6).setCellValue(wireTypes[i % wireTypes.length]); // Проволока
@@ -1016,43 +988,43 @@ public class ReportService {
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-        
+
         // Добавляем информацию о временном интервале
         String[] periodInfo = generatePeriodInfo(period);
-        
+
         Paragraph periodTitle = new Paragraph(periodInfo[0]);
         periodTitle.setFontSize(14);
         periodTitle.setBold();
         document.add(periodTitle);
-        
+
         Paragraph periodDescription = new Paragraph(periodInfo[1]);
         periodDescription.setFontSize(12);
         document.add(periodDescription);
         document.add(new Paragraph(""));
-        
+
         // Заголовок отчета с информацией об аппарате
-        String titleText = (weldingMachineId != null) ? 
-            "Отчет по расходу проволоки ID: " + weldingMachineId + " (" + machineName + ")" : 
-            "Отчет по расходу проволоки (ID не указан)";
+        String titleText = (weldingMachineId != null) ?
+                "Отчет по расходу проволоки ID: " + weldingMachineId + " (" + machineName + ")" :
+                "Отчет по расходу проволоки (ID не указан)";
         Paragraph title = new Paragraph(titleText);
         title.setFontSize(18);
         title.setBold();
         document.add(title);
         document.add(new Paragraph(""));
-        
+
         // Данные для конкретного аппарата
         String[] welderNames = {"Тест", "Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
         String[] positions = {"Электросварщик", "Сварщик 6 разряда", "Сварщик 5 разряда", "Сварщик 4 разряда", "Сварщик 3 разряда"};
         String[] wireTypes = {"1.2 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С"};
-        
+
         for (int i = 0; i < 18; i++) {
             document.add(new Paragraph("Запись " + (i + 1) + ":"));
             document.add(new Paragraph("Сварщик: " + welderNames[i % welderNames.length]));
             document.add(new Paragraph("Должность: " + positions[i % positions.length]));
-            document.add(new Paragraph("Время в сети: " + String.format("%02d:%02d:%02d", 
-                8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))));
-            document.add(new Paragraph("Время горения дуги: " + String.format("%02d:%02d:%02d", 
-                1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))));
+            document.add(new Paragraph("Время в сети: " + String.format("%02d:%02d:%02d",
+                    8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))));
+            document.add(new Paragraph("Время горения дуги: " + String.format("%02d:%02d:%02d",
+                    1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))));
             document.add(new Paragraph("Эффективность работы: " + String.format("%.2f%%", 20.0 + (Math.random() * 40.0))));
             document.add(new Paragraph("Энергия: " + String.format("%.1f кВт*ч", 5.0 + (Math.random() * 10.0))));
             document.add(new Paragraph("Проволока: " + wireTypes[i % wireTypes.length]));
@@ -1065,36 +1037,36 @@ public class ReportService {
 
     private byte[] generateMaterialsCsvWithData(Integer weldingMachineId, String machineName, String period) throws IOException {
         StringBuilder csv = new StringBuilder();
-        
+
         // Добавляем информацию о временном интервале
         String[] periodInfo = generatePeriodInfo(period);
         csv.append(periodInfo[0]).append("\n");
         csv.append(periodInfo[1]).append("\n");
-        
-        String machineInfo = (weldingMachineId != null) ? 
-            "Отчет по расходу проволоки ID: " + weldingMachineId + " (" + machineName + ")" : 
-            "Отчет по расходу проволоки (ID не указан)";
+
+        String machineInfo = (weldingMachineId != null) ?
+                "Отчет по расходу проволоки ID: " + weldingMachineId + " (" + machineName + ")" :
+                "Отчет по расходу проволоки (ID не указан)";
         csv.append(machineInfo).append("\n");
         csv.append("Сварщик,Должность,Время в сети,Время горения дуги,Эффективность работы,Энергия,Проволока,Расход (кг)\n");
-        
+
         String[] welderNames = {"Тест", "Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
         String[] positions = {"Электросварщик", "Сварщик 6 разряда", "Сварщик 5 разряда", "Сварщик 4 разряда", "Сварщик 3 разряда"};
         String[] wireTypes = {"1.2 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С", "1.2 Св08Г2С", "1.0 Св08Г2С"};
-        
+
         for (int i = 0; i < 20; i++) {
             csv.append(welderNames[i % welderNames.length]).append(",");
             csv.append(positions[i % positions.length]).append(",");
-            csv.append(String.format("%02d:%02d:%02d", 
-                8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))).append(",");
-            csv.append(String.format("%02d:%02d:%02d", 
-                1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))).append(",");
+            csv.append(String.format("%02d:%02d:%02d",
+                    8 + (int)(Math.random() * 8), (int)(Math.random() * 60), (int)(Math.random() * 60))).append(",");
+            csv.append(String.format("%02d:%02d:%02d",
+                    1 + (int)(Math.random() * 3), (int)(Math.random() * 60), (int)(Math.random() * 60))).append(",");
             csv.append(String.format("%.2f%%", 20.0 + (Math.random() * 40.0))).append(",");
             csv.append(String.format("%.1f кВт*ч", 5.0 + (Math.random() * 10.0))).append(",");
             csv.append(wireTypes[i % wireTypes.length]).append(",");
             csv.append(String.format("%.2f", 10.0 + (Math.random() * 20.0)));
             csv.append("\n");
         }
-        
+
         return addBomToCsv(csv.toString());
     }
 
@@ -1113,11 +1085,11 @@ public class ReportService {
     private byte[] generateWeldsExcelWithData() throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по сварочным швам");
-            
+
             // Создаем заголовки
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                "Средний ток", "Среднее напряжение", "Начало шва", "Длительность шва (с)"
+                    "Средний ток", "Среднее напряжение", "Начало шва", "Длительность шва (с)"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -1134,7 +1106,7 @@ public class ReportService {
             String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
             String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
             String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
-            
+
             for (int i = 0; i < 30; i++) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(4000 + i);
@@ -1162,20 +1134,20 @@ public class ReportService {
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-        
+
         // Заголовок отчета
         Paragraph title = new Paragraph("Отчет по сварочным швам");
         title.setFontSize(18);
         title.setBold();
         document.add(title);
         document.add(new Paragraph(""));
-        
+
         // Данные
         String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный", "Торцевой"};
         String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
         String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
         String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
-        
+
         for (int i = 0; i < 25; i++) {
             document.add(new Paragraph("Сварочный шов " + (i + 1) + ":"));
             document.add(new Paragraph("ID: " + (4000 + i)));
@@ -1199,12 +1171,12 @@ public class ReportService {
     private byte[] generateWeldsCsvWithData() throws IOException {
         StringBuilder csv = new StringBuilder();
         csv.append("ID шва,Тип шва,Сварщик,Оборудование,Материал,Длина (мм),Толщина (мм),Ток (А),Напряжение (В),Скорость (мм/мин),Качество (%),Дата\n");
-        
+
         String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный", "Торцевой"};
         String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
         String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
         String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
-        
+
         for (int i = 0; i < 25; i++) {
             csv.append(4000 + i).append(",");
             csv.append(weldTypes[i % weldTypes.length]).append(",");
@@ -1220,7 +1192,7 @@ public class ReportService {
             csv.append("2024-").append(String.format("%02d", 1 + (int)(Math.random() * 12))).append("-").append(String.format("%02d", 1 + (int)(Math.random() * 28)));
             csv.append("\n");
         }
-        
+
         return addBomToCsv(csv.toString());
     }
 
@@ -1228,10 +1200,10 @@ public class ReportService {
     private byte[] generateMalfunctionExcelData(Integer weldingMachineId, String machineName, String period) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по ошибкам оборудования");
-            
+
             // Добавляем информацию о временном интервале
             String[] periodInfo = generatePeriodInfo(period);
-            
+
             Row periodRow = sheet.createRow(0);
             Cell periodCell = periodRow.createCell(0);
             periodCell.setCellValue(periodInfo[0]);
@@ -1242,7 +1214,7 @@ public class ReportService {
             periodStyle.setFont(periodFont);
             periodCell.setCellStyle(periodStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 4));
-            
+
             // Добавляем описание периода
             Row descriptionRow = sheet.createRow(1);
             Cell descriptionCell = descriptionRow.createCell(0);
@@ -1253,13 +1225,13 @@ public class ReportService {
             descriptionStyle.setFont(descriptionFont);
             descriptionCell.setCellStyle(descriptionStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(1, 1, 0, 4));
-            
+
             // Добавляем информацию о выбранном аппарате
             Row titleRow = sheet.createRow(2);
             Cell titleCell = titleRow.createCell(0);
-            String machineInfo = (weldingMachineId != null) ? 
-                "Отчет по ошибкам оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
-                "Отчет по ошибкам оборудования (ID не указан)";
+            String machineInfo = (weldingMachineId != null) ?
+                    "Отчет по ошибкам оборудования ID: " + weldingMachineId + " (" + machineName + ")" :
+                    "Отчет по ошибкам оборудования (ID не указан)";
             titleCell.setCellValue(machineInfo);
             CellStyle titleStyle = workbook.createCellStyle();
             Font titleFont = workbook.createFont();
@@ -1268,11 +1240,11 @@ public class ReportService {
             titleStyle.setFont(titleFont);
             titleCell.setCellStyle(titleStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 0, 4));
-            
+
             // Создаем заголовки (начиная с 5-й строки)
             Row headerRow = sheet.createRow(5);
             String[] headers = {
-                "Дата", "Оборудование", "Тип неисправности", "Описание", "Статус"
+                    "Дата", "Оборудование", "Тип неисправности", "Описание", "Статус"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -1295,10 +1267,10 @@ public class ReportService {
             String[] errorTypes = {"Электрическая", "Механическая", "Термическая", "Программная", "Сетевая"};
             String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
             String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
-            
+
             // Генерируем даты в зависимости от периода
             String[] dates = generateDatesForPeriod(period, 20);
-            
+
             for (int i = 0; i < 20; i++) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(dates[i]); // Дата
@@ -1319,38 +1291,38 @@ public class ReportService {
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-        
+
         // Добавляем информацию о временном интервале
         String[] periodInfo = generatePeriodInfo(period);
-        
+
         Paragraph periodTitle = new Paragraph(periodInfo[0]);
         periodTitle.setFontSize(14);
         periodTitle.setBold();
         document.add(periodTitle);
-        
+
         Paragraph periodDescription = new Paragraph(periodInfo[1]);
         periodDescription.setFontSize(12);
         document.add(periodDescription);
         document.add(new Paragraph(""));
-        
+
         // Заголовок отчета с информацией об аппарате
-        String titleText = (weldingMachineId != null) ? 
-            "Отчет по ошибкам сварочного оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
-            "Отчет по ошибкам сварочного оборудования (ID не указан)";
+        String titleText = (weldingMachineId != null) ?
+                "Отчет по ошибкам сварочного оборудования ID: " + weldingMachineId + " (" + machineName + ")" :
+                "Отчет по ошибкам сварочного оборудования (ID не указан)";
         Paragraph title = new Paragraph(titleText);
         title.setFontSize(18);
         title.setBold();
         document.add(title);
         document.add(new Paragraph(""));
-        
+
         // Данные для конкретного аппарата
         String[] errorTypes = {"Электрическая", "Механическая", "Термическая", "Программная", "Сетевая"};
         String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
         String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
-        
+
         // Генерируем даты в зависимости от периода
         String[] dates = generateDatesForPeriod(period, 18);
-        
+
         for (int i = 0; i < 18; i++) {
             document.add(new Paragraph("Неисправность " + (i + 1) + ":"));
             document.add(new Paragraph("Дата: " + dates[i]));
@@ -1366,25 +1338,25 @@ public class ReportService {
 
     private byte[] generateMalfunctionCsvData(Integer weldingMachineId, String machineName, String period) throws IOException {
         StringBuilder csv = new StringBuilder();
-        
+
         // Добавляем информацию о временном интервале
         String[] periodInfo = generatePeriodInfo(period);
         csv.append(periodInfo[0]).append("\n");
         csv.append(periodInfo[1]).append("\n");
-        
-        String machineInfo = (weldingMachineId != null) ? 
-            "Отчет по ошибкам оборудования ID: " + weldingMachineId + " (" + machineName + ")" : 
-            "Отчет по ошибкам оборудования (ID не указан)";
+
+        String machineInfo = (weldingMachineId != null) ?
+                "Отчет по ошибкам оборудования ID: " + weldingMachineId + " (" + machineName + ")" :
+                "Отчет по ошибкам оборудования (ID не указан)";
         csv.append(machineInfo).append("\n");
         csv.append("Дата,Оборудование,Тип неисправности,Описание,Статус\n");
-        
+
         String[] errorTypes = {"Электрическая", "Механическая", "Термическая", "Программная", "Сетевая"};
         String[] descriptions = {"Короткое замыкание", "Износ деталей", "Перегрев", "Сбой ПО", "Потеря связи"};
         String[] statuses = {"Открыта", "В работе", "Решена", "Закрыта"};
-        
+
         // Генерируем даты в зависимости от периода
         String[] dates = generateDatesForPeriod(period, 18);
-        
+
         for (int i = 0; i < 18; i++) {
             csv.append(dates[i]).append(",");
             csv.append(machineName).append(","); // Используем название выбранного аппарата
@@ -1393,7 +1365,7 @@ public class ReportService {
             csv.append(statuses[i % statuses.length]);
             csv.append("\n");
         }
-        
+
         return addBomToCsv(csv.toString());
     }
 
@@ -1412,12 +1384,12 @@ public class ReportService {
     private byte[] generateViolationsExcelWithData() throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по нарушениям");
-            
+
             // Создаем заголовки
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                "ID нарушения", "Шов", "Сварщик", "Тип нарушения", "Описание", "Критичность",
-                "Дата обнаружения", "Дата исправления", "Ответственный", "Статус", "Штраф"
+                    "ID нарушения", "Шов", "Сварщик", "Тип нарушения", "Описание", "Критичность",
+                    "Дата обнаружения", "Дата исправления", "Ответственный", "Статус", "Штраф"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -1437,7 +1409,7 @@ public class ReportService {
             String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
             String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
             String[] statuses = {"Обнаружено", "Исправляется", "Исправлено", "Проверено"};
-            
+
             for (int i = 0; i < 18; i++) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(6000 + i);
@@ -1464,14 +1436,14 @@ public class ReportService {
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-        
+
         // Заголовок отчета
         Paragraph title = new Paragraph("Отчет по нарушениям при сварке");
         title.setFontSize(18);
         title.setBold();
         document.add(title);
         document.add(new Paragraph(""));
-        
+
         // Данные
         String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный"};
         String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
@@ -1480,7 +1452,7 @@ public class ReportService {
         String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
         String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
         String[] statuses = {"Обнаружено", "Исправляется", "Исправлено", "Проверено"};
-        
+
         for (int i = 0; i < 15; i++) {
             document.add(new Paragraph("Нарушение " + (i + 1) + ":"));
             document.add(new Paragraph("ID: " + (6000 + i)));
@@ -1503,7 +1475,7 @@ public class ReportService {
     private byte[] generateViolationsCsvWithData() throws IOException {
         StringBuilder csv = new StringBuilder();
         csv.append("ID нарушения,Шов,Сварщик,Тип нарушения,Описание,Критичность,Дата обнаружения,Дата исправления,Ответственный,Статус,Штраф\n");
-        
+
         String[] weldTypes = {"Стыковой", "Угловой", "Тавровый", "Нахлесточный"};
         String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
         String[] violationTypes = {"Технологическое", "Качественное", "Временное", "Безопасности"};
@@ -1511,7 +1483,7 @@ public class ReportService {
         String[] criticality = {"Низкая", "Средняя", "Высокая", "Критическая"};
         String[] responsible = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К."};
         String[] statuses = {"Обнаружено", "Исправляется", "Исправлено", "Проверено"};
-        
+
         for (int i = 0; i < 15; i++) {
             csv.append(6000 + i).append(",");
             csv.append(weldTypes[i % weldTypes.length] + " шов №" + (i + 1)).append(",");
@@ -1526,7 +1498,7 @@ public class ReportService {
             csv.append(1000 + (int)(Math.random() * 9000));
             csv.append("\n");
         }
-        
+
         return addBomToCsv(csv.toString());
     }
 
@@ -1545,12 +1517,12 @@ public class ReportService {
     private byte[] generateTasksExcelWithData() throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Отчет по заданиям");
-            
+
             // Создаем заголовки
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                "ID задания", "Название", "Описание", "Сварщик", "Оборудование", "Материал",
-                "Плановая дата", "Фактическая дата", "Статус", "Прогресс (%)", "Приоритет"
+                    "ID задания", "Название", "Описание", "Сварщик", "Оборудование", "Материал",
+                    "Плановая дата", "Фактическая дата", "Статус", "Прогресс (%)", "Приоритет"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -1569,7 +1541,7 @@ public class ReportService {
             String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
             String[] statuses = {"Новое", "В работе", "На проверке", "Завершено", "Отменено"};
             String[] priorities = {"Низкий", "Средний", "Высокий", "Критический"};
-            
+
             for (int i = 0; i < 25; i++) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(7000 + i);
@@ -1596,16 +1568,16 @@ public class ReportService {
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-        
+
         // Заголовок отчета
         Paragraph title = new Paragraph("Отчет по сварочным заданиям");
         title.setFontSize(18);
         title.setBold();
         document.add(title);
         document.add(new Paragraph(""));
-        
 
-        
+
+
         // Данные
         String[] taskNames = {"Сварка трубопровода", "Ремонт конструкции", "Изготовление детали", "Сборка узла", "Восстановление износа"};
         String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
@@ -1613,7 +1585,7 @@ public class ReportService {
         String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
         String[] statuses = {"Новое", "В работе", "На проверке", "Завершено", "Отменено"};
         String[] priorities = {"Низкий", "Средний", "Высокий", "Критический"};
-        
+
         for (int i = 0; i < 20; i++) {
             document.add(new Paragraph("Задание " + (i + 1) + ":"));
             document.add(new Paragraph("ID: " + (7000 + i)));
@@ -1636,14 +1608,14 @@ public class ReportService {
     private byte[] generateTasksCsvWithData() throws IOException {
         StringBuilder csv = new StringBuilder();
         csv.append("ID задания,Название,Описание,Сварщик,Оборудование,Материал,Плановая дата,Фактическая дата,Статус,Прогресс (%),Приоритет\n");
-        
+
         String[] taskNames = {"Сварка трубопровода", "Ремонт конструкции", "Изготовление детали", "Сборка узла", "Восстановление износа"};
         String[] welders = {"Иванов И.И.", "Петров П.П.", "Сидоров С.С.", "Козлов К.К.", "Новиков Н.Н."};
         String[] equipment = {"Сварочный аппарат TIG-200", "Полуавтомат MIG-350", "Инвертор MMA-250"};
         String[] materials = {"Сталь Ст3", "Нержавеющая сталь", "Алюминий", "Чугун"};
         String[] statuses = {"Новое", "В работе", "На проверке", "Завершено", "Отменено"};
         String[] priorities = {"Низкий", "Средний", "Высокий", "Критический"};
-        
+
         for (int i = 0; i < 20; i++) {
             csv.append(7000 + i).append(",");
             csv.append(taskNames[i % taskNames.length] + " №" + (i + 1)).append(",");
@@ -1658,7 +1630,7 @@ public class ReportService {
             csv.append(priorities[i % priorities.length]);
             csv.append("\n");
         }
-        
+
         return addBomToCsv(csv.toString());
     }
 
@@ -1669,9 +1641,9 @@ public class ReportService {
             // Создаем заголовки
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                "Аппарат", "Серийный номер", "Сварщик", "Дата", "Расход проволоки (кг)",
-                "Скорость подачи (м/мин)", "Время сварки (мин)", "Ток (А)", "Напряжение (В)",
-                "Режим сварки", "Тип сварки", "Подразделение"
+                    "Аппарат", "Серийный номер", "Сварщик", "Дата", "Расход проволоки (кг)",
+                    "Скорость подачи (м/мин)", "Время сварки (мин)", "Ток (А)", "Напряжение (В)",
+                    "Режим сварки", "Тип сварки", "Подразделение"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -1687,16 +1659,16 @@ public class ReportService {
             for (WireConsumptionReportDTO item : data) {
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "");
-                row.createCell(1).setCellValue(item.getWeldingMachineSerialNumber() != null ? item.getWeldingMachineSerialNumber() : "");
+                row.createCell(1).setCellValue(""); // Serial number removed from DTO
                 row.createCell(2).setCellValue(item.getWelderName() != null ? item.getWelderName() : "");
-                row.createCell(3).setCellValue(item.getDate() != null ? item.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "");
+                row.createCell(3).setCellValue(""); // Date removed from DTO
                 row.createCell(4).setCellValue(item.getWireConsumption() != null ? item.getWireConsumption().doubleValue() : 0.0);
-                row.createCell(5).setCellValue(item.getWireFeedRate() != null ? item.getWireFeedRate().doubleValue() : 0.0);
-                row.createCell(6).setCellValue(item.getWeldingTime() != null ? item.getWeldingTime().doubleValue() : 0.0);
-                row.createCell(7).setCellValue(item.getCurrent() != null ? item.getCurrent().doubleValue() : 0.0);
-                row.createCell(8).setCellValue(item.getVoltage() != null ? item.getVoltage().doubleValue() : 0.0);
-                row.createCell(9).setCellValue(item.getWeldingMode() != null ? item.getWeldingMode() : "");
-                row.createCell(10).setCellValue(item.getWeldingType() != null ? item.getWeldingType() : "");
+                row.createCell(5).setCellValue(0.0); // WireFeedRate removed from DTO
+                row.createCell(6).setCellValue(item.getArcBurningTime() != null ? item.getArcBurningTime().toMinutes() : 0.0);
+                row.createCell(7).setCellValue(0.0); // Current removed from DTO
+                row.createCell(8).setCellValue(0.0); // Voltage removed from DTO
+                row.createCell(9).setCellValue(""); // WeldingMode removed from DTO
+                row.createCell(10).setCellValue(""); // WeldingType removed from DTO
                 row.createCell(11).setCellValue(item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "");
             }
 
@@ -1721,19 +1693,13 @@ public class ReportService {
         // Упрощенный список вместо таблицы
         document.add(new Paragraph("Данные по расходу проволоки:"));
         document.add(new Paragraph(""));
-        
+
         for (WireConsumptionReportDTO item : data) {
             document.add(new Paragraph("Аппарат: " + (item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
-            document.add(new Paragraph("Серийный номер: " + (item.getWeldingMachineSerialNumber() != null ? item.getWeldingMachineSerialNumber() : "")));
             document.add(new Paragraph("Сварщик: " + (item.getWelderName() != null ? item.getWelderName() : "")));
-            document.add(new Paragraph("Дата: " + (item.getDate() != null ? item.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "")));
             document.add(new Paragraph("Расход проволоки (кг): " + (item.getWireConsumption() != null ? item.getWireConsumption().toString() : "0")));
-            document.add(new Paragraph("Скорость подачи (м/мин): " + (item.getWireFeedRate() != null ? item.getWireFeedRate().toString() : "0")));
-            document.add(new Paragraph("Время сварки (мин): " + (item.getWeldingTime() != null ? item.getWeldingTime().toString() : "0")));
-            document.add(new Paragraph("Ток (А): " + (item.getCurrent() != null ? item.getCurrent().toString() : "0")));
-            document.add(new Paragraph("Напряжение (В): " + (item.getVoltage() != null ? item.getVoltage().toString() : "0")));
-            document.add(new Paragraph("Режим сварки: " + (item.getWeldingMode() != null ? item.getWeldingMode() : "")));
-            document.add(new Paragraph("Тип сварки: " + (item.getWeldingType() != null ? item.getWeldingType() : "")));
+            document.add(new Paragraph("Время горения дуги: " + (item.getArcBurningTime() != null ? formatDuration(item.getArcBurningTime()) : "0")));
+            document.add(new Paragraph("Время в сети: " + (item.getTimeInNetwork() != null ? formatDuration(item.getTimeInNetwork()) : "0")));
             document.add(new Paragraph("Подразделение: " + (item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "")));
             document.add(new Paragraph("---"));
         }
@@ -1749,9 +1715,9 @@ public class ReportService {
             // Создаем заголовки
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                "Сварщик", "Email", "Дата", "Общий расход проволоки (кг)", "Общее время сварки (мин)",
-                "Количество сессий", "Средний ток (А)", "Среднее напряжение (В)", 
-                "Средняя скорость подачи (м/мин)", "Подразделение", "Аппарат"
+                    "Сварщик", "Email", "Дата", "Общий расход проволоки (кг)", "Общее время сварки (мин)",
+                    "Количество сессий", "Средний ток (А)", "Среднее напряжение (В)",
+                    "Средняя скорость подачи (м/мин)", "Подразделение", "Аппарат"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -1800,7 +1766,7 @@ public class ReportService {
         // Упрощенный список вместо таблицы
         document.add(new Paragraph("Данные по сварщику:"));
         document.add(new Paragraph(""));
-        
+
         for (WelderReportDTO item : data) {
             document.add(new Paragraph("Сварщик: " + (item.getWelderName() != null ? item.getWelderName() : "")));
             document.add(new Paragraph("Email: " + (item.getWelderEmail() != null ? item.getWelderEmail() : "")));
@@ -1827,9 +1793,9 @@ public class ReportService {
             // Создаем заголовки
             Row headerRow = sheet.createRow(0);
             String[] headers = {
-                "Аппарат", "Серийный номер", "Сварщик", "Время начала", "Время окончания",
-                "Время сварки (мин)", "Ток (А)", "Напряжение (В)", "Режим сварки", "Тип сварки",
-                "Расход проволоки (кг)", "Скорость подачи (м/мин)", "Подразделение", "Примечания"
+                    "Аппарат", "Серийный номер", "Сварщик", "Время начала", "Время окончания",
+                    "Время сварки (мин)", "Ток (А)", "Напряжение (В)", "Режим сварки", "Тип сварки",
+                    "Расход проволоки (кг)", "Скорость подачи (м/мин)", "Подразделение", "Примечания"
             };
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -1881,7 +1847,7 @@ public class ReportService {
         // Упрощенный список вместо таблицы
         document.add(new Paragraph("Данные по работе:"));
         document.add(new Paragraph(""));
-        
+
         for (WorkReportDTO item : data) {
             document.add(new Paragraph("Аппарат: " + (item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
             document.add(new Paragraph("Серийный номер: " + (item.getWeldingMachineSerialNumber() != null ? item.getWeldingMachineSerialNumber() : "")));
@@ -1917,7 +1883,7 @@ public class ReportService {
         style.setBorderLeft(BorderStyle.THIN);
         return style;
     }
-    
+
     /**
      * Определяет заголовки столбцов на основе выбранных пользователем
      */
@@ -1932,40 +1898,40 @@ public class ReportService {
         allColumns.put("Проволока", "Проволока, м/мин");
         allColumns.put("Газ л/мин", "Газ, л/мин");
         allColumns.put("Время сварки (с)", "Время сварки (с)");
-        
+
         // Если не выбраны столбцы или список пустой, используем все
         if (selectedColumns == null || selectedColumns.isEmpty()) {
             return Arrays.asList(
-                "Дата", "Время", "Сварщик", "Сила тока, А",
-                "Масса проволоки, кг", "Напряжение, V", "Проволока, м/мин",
-                "Газ, л/мин", "Время сварки (с)"
+                    "Дата", "Время", "Сварщик", "Сила тока, А",
+                    "Масса проволоки, кг", "Напряжение, V", "Проволока, м/мин",
+                    "Газ, л/мин", "Время сварки (с)"
             );
         }
-        
+
         // Создаем список заголовков на основе выбранных столбцов
         List<String> headers = new ArrayList<>();
         headers.add("Дата"); // Дата всегда первая
         headers.add("Время"); // Время всегда второе
-        
+
         for (String selectedColumn : selectedColumns) {
             String header = allColumns.get(selectedColumn);
             if (header != null && !headers.contains(header)) {
                 headers.add(header);
             }
         }
-        
+
         return headers;
     }
-    
+
     /**
      * Заполняет строку Excel данными на основе выбранных столбцов
      */
     private void fillRowWithData(Row row, WorkReportDTO item, List<String> headers) {
         int cellIndex = 0;
-        
+
         for (String header : headers) {
             Cell cell = row.createCell(cellIndex++);
-            
+
             switch (header) {
                 case "Дата":
                     if (item.getStartTime() != null) {
@@ -1974,7 +1940,7 @@ public class ReportService {
                         cell.setCellValue("N/A");
                     }
                     break;
-                    
+
                 case "Время":
                     if (item.getStartTime() != null) {
                         cell.setCellValue(item.getStartTime().toLocalTime().toString());
@@ -1982,11 +1948,11 @@ public class ReportService {
                         cell.setCellValue("N/A");
                     }
                     break;
-                    
+
                 case "Сварщик":
                     cell.setCellValue(item.getWelderName() != null ? item.getWelderName() : "N/A");
                     break;
-                    
+
                 case "Сила тока, А":
                     if (item.getCurrent() != null) {
                         cell.setCellValue(item.getCurrent().doubleValue());
@@ -1994,7 +1960,7 @@ public class ReportService {
                         cell.setCellValue(0.0);
                     }
                     break;
-                    
+
                 case "Масса проволоки, кг":
                     if (item.getWireConsumption() != null) {
                         cell.setCellValue(item.getWireConsumption().doubleValue());
@@ -2002,7 +1968,7 @@ public class ReportService {
                         cell.setCellValue(0.0);
                     }
                     break;
-                    
+
                 case "Напряжение, V":
                     if (item.getVoltage() != null) {
                         cell.setCellValue(item.getVoltage().doubleValue());
@@ -2010,7 +1976,7 @@ public class ReportService {
                         cell.setCellValue(0.0);
                     }
                     break;
-                    
+
                 case "Проволока, м/мин":
                     if (item.getWireFeedRate() != null) {
                         cell.setCellValue(item.getWireFeedRate().doubleValue());
@@ -2018,11 +1984,11 @@ public class ReportService {
                         cell.setCellValue(0.0);
                     }
                     break;
-                    
+
                 case "Газ, л/мин":
                     cell.setCellValue(0.0); // Не применимо для блока мониторинга
                     break;
-                    
+
                 case "Время сварки (с)":
                     if (item.getWeldingTime() != null) {
                         cell.setCellValue(item.getWeldingTime().doubleValue());
@@ -2030,11 +1996,632 @@ public class ReportService {
                         cell.setCellValue(0.0);
                     }
                     break;
-                    
+
                 default:
                     cell.setCellValue("N/A");
                     break;
             }
         }
+    }
+
+    /**
+     * Генерирует отчет по расходу проволоки в новом формате
+     */
+    public byte[] generateWireConsumptionReportNew(
+            List<WireConsumptionReportDTO> data,
+            WireConsumptionReportTemplateDTO template,
+            java.time.LocalDate periodStartDate,
+            java.time.LocalDate periodEndDate,
+            java.time.LocalTime periodStartTime,
+            java.time.LocalTime periodEndTime) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по расходу проволоки");
+
+            // Стили
+            CellStyle lightBlueStyle = createLightBlueStyle(workbook);
+            CellStyle lightGreenStyle = createLightGreenStyle(workbook);
+            CellStyle summaryRowStyle = createSummaryRowStyle(workbook);
+            CellStyle dataStyle = workbook.createCellStyle();
+
+            int currentRow = 0;
+
+            // Заголовок отчета
+            Row titleRow = sheet.createRow(currentRow++);
+            Cell titleCell = titleRow.createCell(0);
+            titleCell.setCellValue("Отчет по расходу проволоки за период:");
+            titleCell.setCellStyle(createHeaderStyle(workbook));
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 9));
+
+            // Период и пределы тока
+            currentRow = addReportHeaderInfo(sheet, currentRow, template, periodStartDate, periodEndDate, periodStartTime, periodEndTime, lightBlueStyle);
+
+            // Заголовки таблицы (две строки)
+            currentRow = addTableHeaders(sheet, currentRow, template, lightBlueStyle, lightGreenStyle);
+
+            // Данные
+            currentRow = addTableData(sheet, currentRow, data, template, dataStyle, summaryRowStyle);
+
+            // Автоподбор ширины колонок
+            List<ColumnDefinition> columns = getColumnDefinitions(template);
+            for (int i = 0; i < columns.size(); i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    /**
+     * Генерирует отчёт "По работе сварщика" в формате XLSX.
+     * Сейчас реализуем шапку файла согласно требованиям; табличная часть будет расширяться по ТЗ.
+     */
+    public byte[] generateWelderWorkReportNew(
+            List<WelderWorkReportDTO> data,
+            WelderWorkReportTemplateDTO template,
+            java.time.LocalDate periodStartDate,
+            java.time.LocalDate periodEndDate,
+            java.time.LocalTime periodStartTime,
+            java.time.LocalTime periodEndTime) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по работе сварщика");
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle labelStyle = workbook.createCellStyle();
+            Font boldFont = workbook.createFont();
+            boldFont.setBold(true);
+            labelStyle.setFont(boldFont);
+
+            // Шапка — строки/ячейки по ТЗ
+            // Excel indices: row0 = 1, col0 = A
+
+            // Row 1 (index 0)
+            Row r1 = sheet.createRow(0);
+            // B1-C1
+            Cell b1 = r1.createCell(1);
+            b1.setCellValue("Отчет по работе сварщика:");
+            b1.setCellStyle(headerStyle);
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 1, 2));
+
+            // E1: "ФИО сварщика", F1: ФИО
+            Cell e1 = r1.createCell(4);
+            e1.setCellValue("ФИО сварщика");
+            e1.setCellStyle(labelStyle);
+            Cell f1 = r1.createCell(5);
+            f1.setCellValue(template != null && template.getWelderFullName() != null ? template.getWelderFullName() : "");
+
+            // Row 2 (index 1): E2/F2, G2/H2
+            Row r2 = sheet.createRow(1);
+            Cell e2 = r2.createCell(4);
+            e2.setCellValue("таб. №");
+            e2.setCellStyle(labelStyle);
+            Cell f2 = r2.createCell(5);
+            f2.setCellValue(template != null && template.getWelderTabNumber() != null ? template.getWelderTabNumber() : "");
+
+            Cell g2 = r2.createCell(6);
+            g2.setCellValue("Профессия:");
+            g2.setCellStyle(labelStyle);
+            Cell h2 = r2.createCell(7);
+            h2.setCellValue(template != null && template.getWelderProfession() != null ? template.getWelderProfession() : "");
+
+            // Row 3 (index 2): E3/F3
+            Row r3 = sheet.createRow(2);
+            Cell e3 = r3.createCell(4);
+            e3.setCellValue("Подразделение:");
+            e3.setCellStyle(labelStyle);
+            Cell f3 = r3.createCell(5);
+            f3.setCellValue(template != null && template.getWelderDepartment() != null ? template.getWelderDepartment() : "");
+
+            // Row 5 (index 4): E5/F5/G5
+            Row r5 = sheet.createRow(4);
+            Cell e5 = r5.createCell(4);
+            e5.setCellValue("за период:");
+            e5.setCellStyle(labelStyle);
+            Cell f5 = r5.createCell(5);
+            f5.setCellValue("с");
+            f5.setCellStyle(labelStyle);
+            Cell g5 = r5.createCell(6);
+            g5.setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
+
+            // Row 6 (index 5): F6/G6
+            Row r6 = sheet.createRow(5);
+            Cell f6 = r6.createCell(5);
+            f6.setCellValue("по");
+            f6.setCellStyle(labelStyle);
+            Cell g6 = r6.createCell(6);
+            g6.setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
+
+            // Блок по току/интервалам — только если выбран пункт
+            boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
+            if (includeActualRange) {
+                // Row 7 (index 6): B7-D7
+                Row r7 = sheet.createRow(6);
+                Cell b7 = r7.createCell(1);
+                b7.setCellValue("Разрешенный диапазон фактического тока, А");
+                b7.setCellStyle(labelStyle);
+                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(6, 6, 1, 3));
+
+                // Row 8 (index 7): B8/C8, F8-H8, I8
+                Row r8 = sheet.createRow(7);
+                Cell b8 = r8.createCell(1);
+                b8.setCellValue("min");
+                b8.setCellStyle(labelStyle);
+                Cell c8 = r8.createCell(2);
+                if (template.getActualCurrentMin() != null) {
+                    c8.setCellValue(template.getActualCurrentMin());
+                }
+
+                Cell f8 = r8.createCell(5);
+                f8.setCellValue("Минимальный интервал между швами, с");
+                f8.setCellStyle(labelStyle);
+                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(7, 7, 5, 7));
+                Cell i8 = r8.createCell(8);
+                if (template.getMinIntervalBetweenWeldsSec() != null) {
+                    i8.setCellValue(template.getMinIntervalBetweenWeldsSec());
+                }
+
+                // Row 9 (index 8): B9/C9, F9-G9, I9
+                Row r9 = sheet.createRow(8);
+                Cell b9 = r9.createCell(1);
+                b9.setCellValue("max");
+                b9.setCellStyle(labelStyle);
+                Cell c9 = r9.createCell(2);
+                if (template.getActualCurrentMax() != null) {
+                    c9.setCellValue(template.getActualCurrentMax());
+                }
+
+                Cell f9 = r9.createCell(5);
+                f9.setCellValue("Минимальный учитываемый шов, с");
+                f9.setCellStyle(labelStyle);
+                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(8, 8, 5, 6));
+                Cell i9 = r9.createCell(8);
+                if (template.getMinWeldDurationSec() != null) {
+                    i9.setCellValue(template.getMinWeldDurationSec());
+                }
+            }
+
+            // Табличные заголовки, начиная с 11 строки (row index 10)
+            Row headerRow = sheet.createRow(10);
+            Cell a11 = headerRow.createCell(0);
+            a11.setCellValue("№ п/п");
+            a11.setCellStyle(labelStyle);
+            Cell b11 = headerRow.createCell(1);
+            b11.setCellValue("Дата");
+            b11.setCellStyle(labelStyle);
+
+            // Данные (пока минимально: № и дата)
+            int rowIdx = 11;
+            if (data != null) {
+                for (WelderWorkReportDTO item : data) {
+                    Row row = sheet.createRow(rowIdx++);
+                    if (item.getIndex() != null) {
+                        row.createCell(0).setCellValue(item.getIndex());
+                    }
+                    if (item.getDate() != null) {
+                        row.createCell(1).setCellValue(item.getDate().toString());
+                    }
+                }
+            }
+
+            // Автоподбор ширины колонок для всех используемых колонок
+            // Определяем максимальную колонку с данными
+            int maxColumn = 8; // Минимум до I
+            if (data != null && !data.isEmpty()) {
+                // Проверяем, есть ли данные в таблице
+                for (int i = 11; i < rowIdx; i++) {
+                    Row row = sheet.getRow(i);
+                    if (row != null) {
+                        for (int j = 0; j <= maxColumn; j++) {
+                            Cell cell = row.getCell(j);
+                            if (cell != null) {
+                                maxColumn = Math.max(maxColumn, j);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Автоподбор ширины с небольшим отступом
+            for (int i = 0; i <= maxColumn; i++) {
+                sheet.autoSizeColumn(i);
+                // Добавляем небольшой отступ (примерно 2 символа)
+                int currentWidth = sheet.getColumnWidth(i);
+                sheet.setColumnWidth(i, (int) (currentWidth * 1.1));
+            }
+
+            // Убеждаемся, что заголовок "Отчет по работе сварщика:" полностью помещается
+            // Устанавливаем минимальную ширину для колонок B и C
+            int colBWidth = sheet.getColumnWidth(1); // Колонка B
+            int colCWidth = sheet.getColumnWidth(2); // Колонка C
+            // Текст "Отчет по работе сварщика:" примерно 25 символов, нужно минимум ~3000 единиц на колонку
+            int minWidthForTitle = 3000;
+            if (colBWidth + colCWidth < minWidthForTitle) {
+                // Распределяем минимальную ширину между колонками B и C
+                sheet.setColumnWidth(1, minWidthForTitle / 2);
+                sheet.setColumnWidth(2, minWidthForTitle / 2);
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    /**
+     * Добавляет информацию о периоде и пределах тока
+     */
+    private int addReportHeaderInfo(Sheet sheet, int startRow,
+                                    WireConsumptionReportTemplateDTO template,
+                                    LocalDate periodStartDate,
+                                    LocalDate periodEndDate,
+                                    LocalTime periodStartTime,
+                                    LocalTime periodEndTime,
+                                    CellStyle style) {
+        int row = startRow;
+
+        // Период - первая строка: "с:" дата время [Дни недели]
+        Row periodRow1 = sheet.createRow(row++);
+        periodRow1.createCell(0).setCellValue("с:");
+        int colIndex = 1;
+        if (periodStartDate != null) {
+            periodRow1.createCell(colIndex++).setCellValue(periodStartDate.toString());
+        }
+        if (periodStartTime != null) {
+            periodRow1.createCell(colIndex++).setCellValue(formatTime(periodStartTime));
+        }
+
+        // Добавляем дни недели, если они выбраны
+        if (template.getSelectedDays() != null && !template.getSelectedDays().isEmpty()) {
+            System.out.println("[REPORT-SERVICE] 📅 Добавляем дни недели в отчет: " + template.getSelectedDays());
+            periodRow1.createCell(colIndex++).setCellValue("Дни недели");
+            String daysString = String.join(", ", template.getSelectedDays());
+            periodRow1.createCell(colIndex++).setCellValue(daysString);
+        } else {
+            System.out.println("[REPORT-SERVICE] ⚠️ selectedDays пуст или null: " +
+                    (template.getSelectedDays() == null ? "null" : "empty"));
+        }
+
+        // Период - вторая строка: "по:" дата время
+        Row periodRow2 = sheet.createRow(row++);
+        periodRow2.createCell(0).setCellValue("по:");
+        if (periodEndDate != null) {
+            periodRow2.createCell(1).setCellValue(periodEndDate.toString());
+        }
+        if (periodEndTime != null) {
+            periodRow2.createCell(2).setCellValue(formatTime(periodEndTime));
+        }
+
+        // Пределы устанавливаемого и фактического тока - новый формат
+        // Проверяем, нужно ли показывать хотя бы один из диапазонов
+        boolean showSetCurrent = template.getSelectedColumns() != null && template.getSelectedColumns().contains("workOutsideSetCurrent");
+        boolean showActualCurrent = template.getSelectedColumns() != null && template.getSelectedColumns().contains("workOutsideActualCurrent");
+
+        if (showSetCurrent || showActualCurrent) {
+            // Строка 1: Заголовки диапазонов
+            Row headerRow = sheet.createRow(row++);
+            if (showSetCurrent) {
+                headerRow.createCell(0).setCellValue("Разрешенный диапазон устанавливаемого тока, А");
+            }
+            // Ячейки 1-2 пустые (пропуск между диапазонами - две ячейки)
+            if (showActualCurrent) {
+                headerRow.createCell(3).setCellValue("Разрешенный диапазон фактического тока, А");
+            }
+
+            // Строка 2: min значения
+            Row minRow = sheet.createRow(row++);
+            if (showSetCurrent) {
+                minRow.createCell(0).setCellValue("min");
+                if (template.getSetCurrentMin() != null) {
+                    minRow.createCell(1).setCellValue(template.getSetCurrentMin());
+                }
+            }
+            // Ячейки 2-3 пустые (пропуск между диапазонами - две ячейки)
+            if (showActualCurrent) {
+                minRow.createCell(3).setCellValue("min");
+                if (template.getActualCurrentMin() != null) {
+                    minRow.createCell(4).setCellValue(template.getActualCurrentMin());
+                }
+            }
+
+            // Строка 3: max значения
+            Row maxRow = sheet.createRow(row++);
+            if (showSetCurrent) {
+                maxRow.createCell(0).setCellValue("max");
+                if (template.getSetCurrentMax() != null) {
+                    maxRow.createCell(1).setCellValue(template.getSetCurrentMax());
+                }
+            }
+            // Ячейки 2-3 пустые (пропуск между диапазонами - две ячейки)
+            if (showActualCurrent) {
+                maxRow.createCell(3).setCellValue("max");
+                if (template.getActualCurrentMax() != null) {
+                    maxRow.createCell(4).setCellValue(template.getActualCurrentMax());
+                }
+            }
+        }
+
+        row++; // Пустая строка
+
+        return row;
+    }
+
+    /**
+     * Структура колонки отчета
+     */
+    private static class ColumnDefinition {
+        String key;
+        String header;
+        boolean alwaysInclude;
+
+        ColumnDefinition(String key, String header, boolean alwaysInclude) {
+            this.key = key;
+            this.header = header;
+            this.alwaysInclude = alwaysInclude;
+        }
+    }
+
+    /**
+     * Определяет порядок и названия колонок отчета
+     */
+    private List<ColumnDefinition> getColumnDefinitions(WireConsumptionReportTemplateDTO template) {
+        List<ColumnDefinition> columns = new ArrayList<>();
+        List<String> selectedColumns = template.getSelectedColumns() != null
+                ? template.getSelectedColumns() : new ArrayList<>();
+
+        // Всегда включаемые колонки
+        columns.add(new ColumnDefinition("serialNumber", "№ п/п", true));
+        columns.add(new ColumnDefinition("welder", "Сварщик", true));
+
+        // Условно включаемые колонки (в порядке отображения)
+        if (selectedColumns.contains("tableNumber")) {
+            columns.add(new ColumnDefinition("tableNumber", "Таб. №", false));
+        }
+        if (selectedColumns.contains("profession")) {
+            columns.add(new ColumnDefinition("profession", "Профессия", false));
+        }
+        if (selectedColumns.contains("department")) {
+            columns.add(new ColumnDefinition("department", "Подразделение", false));
+        }
+        if (selectedColumns.contains("equipmentName")) {
+            columns.add(new ColumnDefinition("equipmentName", "Наименование оборудования", false));
+        }
+        if (selectedColumns.contains("timeOnline")) {
+            columns.add(new ColumnDefinition("timeOnline", "Время в сети", false));
+        }
+        if (selectedColumns.contains("equipmentModel")) {
+            columns.add(new ColumnDefinition("equipmentModel", "Модель оборудования", false));
+        }
+        if (selectedColumns.contains("arcBurningTime")) {
+            columns.add(new ColumnDefinition("arcBurningTime", "Время горения дуги", false));
+        }
+        if (selectedColumns.contains("efficiency")) {
+            columns.add(new ColumnDefinition("efficiency", "Эффективность использования оборудования, %", false));
+        }
+        if (selectedColumns.contains("workOutsideSetCurrent")) {
+            columns.add(new ColumnDefinition("workOutsideSetCurrent", "Время работы вне диапазона устанавливаемого тока", false));
+        }
+        if (selectedColumns.contains("workOutsideActualCurrent")) {
+            columns.add(new ColumnDefinition("workOutsideActualCurrent", "Время работы вне диапазона фактического тока", false));
+        }
+        if (selectedColumns.contains("energyConsumed")) {
+            columns.add(new ColumnDefinition("energyConsumed", "Затраченная энергия, кВт*ч", false));
+        }
+
+        // Всегда включаемые колонки в конце
+        columns.add(new ColumnDefinition("wire", "Проволока", true));
+        columns.add(new ColumnDefinition("wireConsumption", "Расход, кг", true));
+
+        return columns;
+    }
+
+    /**
+     * Добавляет заголовки таблицы на основе выбранных колонок
+     */
+    private int addTableHeaders(Sheet sheet, int startRow,
+                                WireConsumptionReportTemplateDTO template,
+                                CellStyle lightBlueStyle, CellStyle lightGreenStyle) {
+        int row = startRow;
+
+        List<ColumnDefinition> columns = getColumnDefinitions(template);
+
+        // Создаем одну строку заголовков
+        Row headerRow = sheet.createRow(row++);
+
+        int colIndex = 0;
+        for (ColumnDefinition col : columns) {
+            Cell cell = headerRow.createCell(colIndex++);
+            cell.setCellValue(col.header);
+            cell.setCellStyle(lightGreenStyle);
+        }
+
+        return row;
+    }
+
+    /**
+     * Добавляет данные таблицы на основе выбранных колонок
+     */
+    private int addTableData(Sheet sheet, int startRow,
+                             List<WireConsumptionReportDTO> data,
+                             WireConsumptionReportTemplateDTO template,
+                             CellStyle dataStyle, CellStyle summaryRowStyle) {
+        int row = startRow;
+
+        List<ColumnDefinition> columns = getColumnDefinitions(template);
+        int serialNumber = 1;
+
+        for (WireConsumptionReportDTO item : data) {
+            // Пропускаем порядковый номер для суммарных строк
+            if (item.getIsSummaryRow() != null && item.getIsSummaryRow()) {
+                serialNumber--; // Не увеличиваем для суммарной строки
+            }
+
+            Row dataRow = sheet.createRow(row++);
+            CellStyle rowStyle = item.getIsSummaryRow() != null && item.getIsSummaryRow()
+                    ? summaryRowStyle : dataStyle;
+
+            int colIndex = 0;
+            for (ColumnDefinition col : columns) {
+                Cell cell = dataRow.createCell(colIndex++);
+                cell.setCellStyle(rowStyle);
+
+                switch (col.key) {
+                    case "serialNumber":
+                        if (item.getIsSummaryRow() == null || !item.getIsSummaryRow()) {
+                            cell.setCellValue(serialNumber++);
+                        } else {
+                            cell.setCellValue(""); // Пусто для суммарной строки
+                        }
+                        break;
+                    case "welder":
+                        cell.setCellValue(item.getWelderName() != null ? item.getWelderName() : "");
+                        break;
+                    case "tableNumber":
+                        cell.setCellValue(item.getTabNumber() != null ? item.getTabNumber() : "");
+                        break;
+                    case "profession":
+                        cell.setCellValue(item.getProfession() != null ? item.getProfession() : "");
+                        break;
+                    case "department":
+                        cell.setCellValue(item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "");
+                        break;
+                    case "equipmentName":
+                        cell.setCellValue(item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "");
+                        break;
+                    case "timeOnline":
+                        cell.setCellValue(formatDuration(item.getTimeInNetwork()));
+                        break;
+                    case "equipmentModel":
+                        cell.setCellValue(item.getEquipmentModel() != null ? item.getEquipmentModel() : "");
+                        break;
+                    case "arcBurningTime":
+                        cell.setCellValue(formatDuration(item.getArcBurningTime()));
+                        break;
+                    case "efficiency":
+                        if (item.getEquipmentEfficiency() != null) {
+                            cell.setCellValue(item.getEquipmentEfficiency().doubleValue());
+                        } else {
+                            cell.setCellValue(0.0);
+                        }
+                        break;
+                    case "workOutsideSetCurrent":
+                        cell.setCellValue(formatDuration(item.getTimeOutsideSetCurrentRange()));
+                        break;
+                    case "workOutsideActualCurrent":
+                        cell.setCellValue(formatDuration(item.getTimeOutsideActualCurrentRange()));
+                        break;
+                    case "energyConsumed":
+                        if (item.getEnergyConsumed() != null) {
+                            cell.setCellValue(item.getEnergyConsumed().doubleValue());
+                        } else {
+                            cell.setCellValue(0.0);
+                        }
+                        break;
+                    case "wire":
+                        cell.setCellValue(item.getWire() != null ? item.getWire() : "");
+                        break;
+                    case "wireConsumption":
+                        if (item.getWireConsumption() != null) {
+                            cell.setCellValue(item.getWireConsumption().doubleValue());
+                        } else {
+                            cell.setCellValue(0.0);
+                        }
+                        break;
+                    default:
+                        cell.setCellValue("");
+                }
+            }
+        }
+
+        return row;
+    }
+
+    /**
+     * Форматирует Duration в строку формата "д:ч:мм:сс"
+     */
+    private String formatDuration(Duration duration) {
+        if (duration == null) {
+            return "";
+        }
+        long days = duration.toDays();
+        long hours = duration.toHours() % 24;
+        long minutes = duration.toMinutes() % 60;
+        long seconds = duration.getSeconds() % 60;
+        return String.format("%d:%02d:%02d:%02d", days, hours, minutes, seconds);
+    }
+
+    /**
+     * Форматирует LocalTime в строку формата "HH:mm:ss"
+     */
+    private String formatTime(LocalTime time) {
+        if (time == null) {
+            return "";
+        }
+        return String.format("%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
+    }
+
+    /**
+     * Создает стиль для светло-голубых ячеек
+     */
+    private CellStyle createLightBlueStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font font = workbook.createFont();
+        style.setFont(font);
+        style.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.LIGHT_BLUE.getIndex());
+        style.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderTop(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderLeft(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderRight(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        return style;
+    }
+
+    /**
+     * Создает стиль для светло-зеленых ячеек
+     */
+    private CellStyle createLightGreenStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font font = workbook.createFont();
+        style.setFont(font);
+        style.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.LIGHT_GREEN.getIndex());
+        style.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderTop(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderLeft(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderRight(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        return style;
+    }
+
+    /**
+     * Создает стиль для светло-голубых ячеек (для сортировки)
+     */
+    private CellStyle createLightCyanStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font font = workbook.createFont();
+        style.setFont(font);
+        style.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.AQUA.getIndex());
+        style.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderTop(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderLeft(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderRight(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        return style;
+    }
+
+    /**
+     * Создает стиль для суммарных строк
+     */
+    private CellStyle createSummaryRowStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font font = workbook.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        style.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.GREY_25_PERCENT.getIndex());
+        style.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderTop(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderLeft(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        style.setBorderRight(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        return style;
     }
 } 

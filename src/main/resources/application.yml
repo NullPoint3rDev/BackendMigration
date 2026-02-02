@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://192.168.10.137:5432/weldtelecom
+    url: jdbc:postgresql://10.88.190.11:5433/weldtelecom
     username: postgres
     password: 1900AscotPkwy
     driver-class-name: org.postgresql.Driver
@@ -8,7 +8,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -16,19 +16,24 @@ spring:
 
   # Email/SMTP Configuration
   mail:
-    host: smtp.yandex.ru
-    port: 587
-    username: weld.telecom@yandex.ru
-    password: mqfhpgzvmgcgmogc
+    host: smtp.timeweb.ru
+    port: 465
+    username: wt@alloynn.ru
+    password: 6m1f8596Y
     properties:
       mail:
         smtp:
           auth: true
-          starttls:
-            enable: true
-            required: true
           ssl:
-            trust: smtp.yandex.ru
+            enable: true
+            trust: "*"
+          socketFactory:
+            port: 465
+            class: javax.net.ssl.SSLSocketFactory
+            fallback: false
+          starttls:
+            enable: false
+            required: false
         debug: false
     default-encoding: UTF-8
 
@@ -45,7 +50,7 @@ spring:
 
 # Server Configuration (должно быть на корневом уровне)
 server:
-  port: 8084
+  port: 8085
   address: 0.0.0.0
   servlet:
     context-path: /api
@@ -91,10 +96,10 @@ server:
 welding:
   archive:
     server:
-      port: 3000  # Порт для TCP сервера (принимает все устройства)
-      ip: 192.168.10.137 # IP адрес локального сервера
+      port: 3003  # Порт для TCP сервера (принимает все устройства)
+      ip: 89.109.8.59 # IP адрес локального сервера
     allowed:
-      macs: 8CAAB50C4254,E09806083396  #Разрешенные MAC-адреса (все устройства)
+      macs: 8CAAB50C4254,E09806083396, ECFABCC9703B, C82B9620E506, E098060B22D2  #Разрешенные MAC-адреса (все устройства)
     parser: 
       debug: false  # Отладочный режим парсера
     outbound:

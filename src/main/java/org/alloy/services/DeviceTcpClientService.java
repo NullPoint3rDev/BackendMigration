@@ -12,8 +12,8 @@ import java.net.Socket;
 
 // @Service
 public class DeviceTcpClientService {
-    private static final String DEVICE_IP = "95.172.58.219";
-    private static final int DEVICE_PORT = 3000;
+    private static final String DEVICE_IP = "89.109.8.59";
+    private static final int DEVICE_PORT = 3003;
 
     private final DeviceController deviceController;
 

@@ -29,4 +29,9 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
 
     @Query("SELECT wm FROM WeldingMachine wm WHERE wm.lastServiceOn < :date AND wm.maintenanceInterval IS NOT NULL")
     List<WeldingMachine> findMachinesNeedingService(@Param("date") LocalDateTime date);
+
+    Optional<WeldingMachine> findByName(String name);
+
+    @Query("SELECT wm FROM WeldingMachine wm WHERE wm.name IN :names")
+    List<WeldingMachine> findByNames(@Param("names") List<String> names);
 }

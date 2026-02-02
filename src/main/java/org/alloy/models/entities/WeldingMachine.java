@@ -1,5 +1,6 @@
 package org.alloy.models.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.DeviceModel;
@@ -148,4 +149,9 @@ public class WeldingMachine {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "OrganizationUnitID", insertable = false, updatable = false)
     private OrganizationUnit organizationUnit;
+
+    @ManyToMany(mappedBy = "weldingMachines", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @Schema(description = "Связанные сварщики")
+    private List<Welder> welders = new ArrayList<>();
 }

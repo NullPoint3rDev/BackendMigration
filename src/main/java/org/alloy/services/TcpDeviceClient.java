@@ -17,10 +17,10 @@ public class TcpDeviceClient {
     
     private static final Logger log = LoggerFactory.getLogger(TcpDeviceClient.class);
     
-    @Value("${welding.device.host:95.172.58.219}")
+    @Value("${welding.device.host:89.109.8.59}")
     private String host;
     
-    @Value("${welding.device.port:3000}")
+    @Value("${welding.device.port:3003}")
     private int port;
     
     @Value("${welding.device.macs:8CAAB50C4254}")

@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.alloy.repositories.WeldingMachineRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,93 +28,96 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Service
 public class ArchiveStyleTcpListener {
-    
+
     private static final Logger log = LoggerFactory.getLogger(ArchiveStyleTcpListener.class);
-    
+
     // Константы из archive
     private static final int TIMEOUT_SECONDS = 30;
     private static final int BUFFER_SIZE = 4096;
     private static final int SLEEP_MS = 100;
-    
+
     @Value("${welding.archive.server.port:3001}")
     private int serverPort;
-    
+
     @Value("${welding.archive.server.ip:0.0.0.0}")
     private String serverIp;
-    
-    @Value("${welding.archive.allowed.macs:8CAAB50C4254,E09806083396}")
-    private String allowedMacs;
-    
+
     // Маппинг IP адресов на MAC адреса для случаев, когда MAC не извлекается из данных
     private final Map<String, String> ipToMacMapping = Map.of(
-        "192.168.10.137", "E09806083396", // Core
-        "192.168.10.1", "8CAAB50C4254",   // Блок мониторинга (через роутер)
-        "192.168.10.104", "E09806083396", // Core (альтернативный IP)
-        "89.109.8.59", "8CAAB50C4254"     // Блок мониторинга (внешний IP)
+            "192.168.10.137", "E09806083396", // Core
+            "192.168.10.1", "8CAAB50C4254",   // Блок мониторинга (через роутер)
+            "192.168.10.104", "E09806083396", // Core (альтернативный IP)
+            "89.109.8.59", "8CAAB50C4254"     // Блок мониторинга (внешний IP)
     );
-    
+
     private volatile boolean running = true;
     private Thread listenerThread;
     private ServerSocket serverSocket;
     private final AtomicInteger threadCounter = new AtomicInteger(0);
-    
+
     // Активные подключения для отслеживания (пока не используется)
     // private final Map<String, ClientConnection> activeConnections = new ConcurrentHashMap<>();
-    
+
     // Эти сервисы используются через статические методы очередей
     // @Autowired
     // private ArchiveStylePacketParser packetParser;
-    
+
     // @Autowired
     // private ArchiveStyleOutboundService outboundService;
 
     @Autowired(required = false)
     private CoreOutboundService coreOutboundService;
-    
+
     @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
-    
+
     @Autowired
     private WeldingDeviceManagerService deviceManager;
-    
+
+    private final WeldingMachineRepository weldingMachineRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    
+
+    // Конструктор для инжекции репозитория
+    public ArchiveStyleTcpListener(WeldingMachineRepository weldingMachineRepository) {
+        this.weldingMachineRepository = weldingMachineRepository;
+    }
+
     @PostConstruct
     public void start() {
         System.out.println("[ARCHIVE-TCP-LISTENER] 🚀 Запуск TCP сервера в стиле archive");
         System.out.println("[ARCHIVE-TCP-LISTENER] Порт: " + serverPort);
         System.out.println("[ARCHIVE-TCP-LISTENER] IP: " + serverIp);
-        System.out.println("[ARCHIVE-TCP-LISTENER] Разрешенные MAC: " + allowedMacs);
+        System.out.println("[ARCHIVE-TCP-LISTENER] Проверка MAC-адресов: по базе данных (WeldingMachine)");
         System.out.println("[ARCHIVE-TCP-LISTENER] Таймаут: " + TIMEOUT_SECONDS + " секунд");
-        
-        log.info("[ARCHIVE-TCP-LISTENER] Запуск сервера. Порт: {}, IP: {}, MAC: {}", 
-                serverPort, serverIp, allowedMacs);
-        
+
+        log.info("[ARCHIVE-TCP-LISTENER] Запуск сервера. Порт: {}, IP: {}, Проверка MAC: по БД",
+                serverPort, serverIp);
+
         listenerThread = new Thread(this::runListener);
         listenerThread.setDaemon(true);
         listenerThread.setName("ArchiveTcpListener");
         listenerThread.start();
     }
-    
+
     private void runListener() {
         try {
             serverSocket = new ServerSocket(serverPort);
             System.out.println("[ARCHIVE-TCP-LISTENER] ✅ TCP сервер запущен на " + serverIp + ":" + serverPort);
             log.info("[ARCHIVE-TCP-LISTENER] Сервер запущен на {}:{}", serverIp, serverPort);
-            
+
             while (running) {
                 try {
                     Socket clientSocket = serverSocket.accept();
                     String clientIp = clientSocket.getInetAddress().getHostAddress();
-                    
+
                     log.info("[ARCHIVE-TCP-LISTENER] Подключение от {}", clientIp);
-                    
+
                     // Создаем отдельный поток для каждого подключения
                     Thread clientThread = new Thread(() -> handleClientConnection(clientSocket));
                     clientThread.setDaemon(true);
                     clientThread.setName("ClientHandler-" + threadCounter.incrementAndGet());
                     clientThread.start();
-                    
+
                 } catch (IOException e) {
                     if (running) {
                         System.err.println("[ARCHIVE-TCP-LISTENER] ❌ Ошибка принятия подключения: " + e.getMessage());
@@ -126,14 +130,14 @@ public class ArchiveStyleTcpListener {
             log.error("[ARCHIVE-TCP-LISTENER] Ошибка запуска сервера", e);
         }
     }
-    
+
     /**
      * Обработка подключения клиента в отдельном потоке
      */
     private void handleClientConnection(Socket clientSocket) {
         String clientIp = clientSocket.getInetAddress().getHostAddress();
         int threadId = threadCounter.get();
-        
+
         // Настройка сокета
         try {
             clientSocket.setTcpNoDelay(true);
@@ -141,13 +145,13 @@ public class ArchiveStyleTcpListener {
         } catch (Exception e) {
             log.warn("[ARCHIVE-TCP-LISTENER] Ошибка настройки сокета для {}: {}", clientIp, e.getMessage());
         }
-        
+
         // Время начала подключения
         LocalDateTime connectionStartTime = LocalDateTime.now();
-        
+
         // Время таймаута (обновляется при каждом пакете)
         LocalDateTime timeoutTime = connectionStartTime.plusSeconds(TIMEOUT_SECONDS);
-        
+
         // Пытаемся определить MAC по IP адресу
         String macAddress = ipToMacMapping.get(clientIp);
         if (macAddress == null) {
@@ -155,19 +159,19 @@ public class ArchiveStyleTcpListener {
         } else {
             log.debug("[ARCHIVE-TCP-LISTENER] MAC определен по IP {}: {}", clientIp, macAddress);
         }
-        
+
         log.info("[ARCHIVE-TCP-LISTENER] CONNECTED: IP: {}; Thread: {}", clientIp, threadId);
-        
+
         try (InputStream in = clientSocket.getInputStream();
              OutputStream out = clientSocket.getOutputStream()) {
-            
+
             byte[] buffer = new byte[BUFFER_SIZE];
             boolean connected = true;
-            
+
             // Основной цикл обработки данных
             while (connected && running) {
                 int bytesRead = 0;
-                
+
                 try {
                     // Проверяем доступность данных
                     if (in.available() > 0) {
@@ -183,14 +187,14 @@ public class ArchiveStyleTcpListener {
                     Thread.currentThread().interrupt();
                     connected = false;
                 }
-                
+
                 if (bytesRead > 0) {
                     // Преобразуем данные в строку
                     String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
-                    
-                    log.debug("[ARCHIVE-TCP-LISTENER] Thread {}, IP={}, MAC={}: {}", 
+
+                    log.debug("[ARCHIVE-TCP-LISTENER] Thread {}, IP={}, MAC={}: {}",
                             threadId, clientIp, macAddress, data);
-                    
+
                     // Извлекаем MAC из пакета
                     if (!data.isEmpty()) {
                         String extractedMac = extractMacFromPacket(data);
@@ -199,7 +203,7 @@ public class ArchiveStyleTcpListener {
                             log.debug("[ARCHIVE-TCP-LISTENER] MAC из пакета: {}", macAddress);
                         }
                     }
-                    
+
                     // Если MAC не извлечен из данных, пытаемся определить по IP
                     if (macAddress == null || macAddress.isEmpty()) {
                         macAddress = ipToMacMapping.get(clientIp);
@@ -207,7 +211,7 @@ public class ArchiveStyleTcpListener {
                             log.debug("[ARCHIVE-TCP-LISTENER] MAC определен по IP {}: {}", clientIp, macAddress);
                         }
                     }
-                    
+
                     // Проверяем разрешенные MAC-адреса
                     if (isAllowedMac(macAddress)) {
                         // Немедленно отвечаем на запрос синхронизации времени от Core
@@ -225,7 +229,7 @@ public class ArchiveStyleTcpListener {
                                 log.error("[ARCHIVE-TCP-LISTENER] Ошибка отправки синхронизации времени", ex);
                             }
                         }
-                        
+
                         // Эхо-ответ для Core устройств: отправляем те же данные обратно
                         if (coreOutboundService != null && coreOutboundService.isCoreDevice(macAddress)) {
                             try {
@@ -240,24 +244,24 @@ public class ArchiveStyleTcpListener {
                                 log.error("[ARCHIVE-TCP-LISTENER] Ошибка отправки эхо-ответа для Core {}: {}", macAddress, e.getMessage());
                             }
                         }
-                        
+
                         // Создаем пакет
                         ArchivePacket packet = new ArchivePacket();
                         packet.setIp(clientIp);
                         packet.setMac(macAddress);
                         packet.setData(data);
                         packet.setServerDatetime(LocalDateTime.now());
-                        
+
                         // Добавляем в очередь для обработки
                         ArchiveIncomingPacketsQueue.enqueue(packet);
                         log.debug("[ARCHIVE-TCP-LISTENER] Пакет добавлен в очередь обработки: MAC={}, IP={}", macAddress, clientIp);
-                        
+
                         // Проверяем исходящие пакеты
                         ArchivePacket outboundPacket = ArchiveOutboundPacketsRepository.tryGet(macAddress);
                         if (outboundPacket != null && outboundPacket.getData() != null && !outboundPacket.getData().isEmpty()) {
                             try {
                                 log.debug("[ARCHIVE-TCP-LISTENER] Отправка ответа {}: {}", macAddress, outboundPacket.getData());
-                                
+
                                 byte[] responseData = outboundPacket.getData().getBytes(StandardCharsets.US_ASCII);
                                 out.write(responseData);
                                 out.flush();
@@ -265,15 +269,15 @@ public class ArchiveStyleTcpListener {
                                 log.error("[ARCHIVE-TCP-LISTENER] Ошибка отправки пакета {}: {}", macAddress, outboundPacket.getData(), e);
                             }
                         }
-                        
+
                         // Обновляем время таймаута
                         timeoutTime = LocalDateTime.now().plusSeconds(TIMEOUT_SECONDS);
-                        
+
                         // Отправляем событие через WebSocket
                         sendConnectionEvent(clientIp, macAddress, "data_received", data);
-                        
+
                     } else {
-                        log.warn("[ARCHIVE-TCP-LISTENER] Неизвестный MAC: {} (разрешены: {})", macAddress, allowedMacs);
+                        log.warn("[ARCHIVE-TCP-LISTENER] Неизвестный MAC: {} (не найден в базе данных)", macAddress);
                         sendConnectionEvent(clientIp, macAddress, "unauthorized", data);
                     }
                 } else {
@@ -285,7 +289,7 @@ public class ArchiveStyleTcpListener {
                     }
                 }
             }
-            
+
         } catch (IOException e) {
             log.error("[ARCHIVE-TCP-LISTENER] Ошибка обработки клиента {}", clientIp, e);
         } finally {
@@ -297,15 +301,15 @@ public class ArchiveStyleTcpListener {
             } catch (IOException e) {
                 log.warn("[ARCHIVE-TCP-LISTENER] Ошибка закрытия соединения для {}", clientIp, e);
             }
-            
+
             // Удаляем из активных подключений (пока не используется)
             // activeConnections.remove(clientIp);
-            
+
             log.info("[ARCHIVE-TCP-LISTENER] DISCONNECTED THREAD {}! IP: {}", threadId, clientIp);
             sendConnectionEvent(clientIp, macAddress, "disconnected", null);
         }
     }
-    
+
     /**
      * Извлечение MAC-адреса из пакета
      * Формат: :MAC;data (например, :8CAAB50C4254;data)
@@ -314,20 +318,20 @@ public class ArchiveStyleTcpListener {
         if (data == null || data.isEmpty()) {
             return null;
         }
-        
+
         int colonPos = data.indexOf(':');
         int semicolonPos = data.indexOf(';');
-        
+
         if (colonPos >= 0 && semicolonPos > colonPos) {
             String mac = data.substring(colonPos + 1, semicolonPos);
             if (mac.length() == 12 && mac.matches("[0-9A-Fa-f]{12}")) {
                 return mac.toUpperCase();
             }
         }
-        
+
         return null;
     }
-    
+
     /**
      * Определение запроса синхронизации времени от Core (например, содержит 01010131 после ';')
      */
@@ -340,25 +344,24 @@ public class ArchiveStyleTcpListener {
         String tail = data.substring(semicolon).toUpperCase();
         return tail.contains("01010131");
     }
-    
+
     /**
-     * Проверка разрешенных MAC-адресов
+     * Проверка разрешенных MAC-адресов по базе данных
+     * MAC-адрес разрешен, если существует сварочный аппарат с таким MAC в базе данных
      */
     private boolean isAllowedMac(String mac) {
         if (mac == null || mac.isEmpty()) {
             return false;
         }
-        
-        String[] parts = allowedMacs.split(",");
-        for (String part : parts) {
-            if (mac.equalsIgnoreCase(part.trim())) {
-                return true;
-            }
-        }
-        return false;
+
+        // Нормализуем MAC-адрес: убираем все не-шестнадцатеричные символы и приводим к верхнему регистру
+        String normalizedMac = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
+
+        // Проверяем наличие MAC-адреса в базе данных
+        return weldingMachineRepository.findByMac(normalizedMac).isPresent();
     }
-    
-    
+
+
     /**
      * Отправка события подключения через WebSocket
      */
@@ -368,46 +371,46 @@ public class ArchiveStyleTcpListener {
             deviceManager.markDeviceDisconnected(mac);
             log.info("[ARCHIVE-TCP-LISTENER] Устройство {} отмечено как отключенное", mac);
         }
-        
+
         // Если WebSocket отключен (нет SimpMessagingTemplate), просто выходим
         if (messagingTemplate == null) {
             return;
         }
         try {
             Map<String, Object> event = Map.of(
-                "ip", ip,
-                "mac", mac != null ? mac : "",
-                "eventType", eventType,
-                "timestamp", System.currentTimeMillis(),
-                "data", data != null ? data : ""
+                    "ip", ip,
+                    "mac", mac != null ? mac : "",
+                    "eventType", eventType,
+                    "timestamp", System.currentTimeMillis(),
+                    "data", data != null ? data : ""
             );
-            
+
             String jsonData = objectMapper.writeValueAsString(event);
             messagingTemplate.convertAndSend("/topic/archive-connection", jsonData);
-            
+
         } catch (Exception e) {
             log.error("[ARCHIVE-TCP-LISTENER] Ошибка отправки события подключения", e);
         }
     }
-    
+
     /**
      * Получение статистики активных подключений
      */
     public Map<String, Object> getConnectionStatistics() {
         Map<String, Object> stats = Map.of(
-            "activeConnections", 0, // activeConnections.size(), // пока не используется
-            "totalThreads", threadCounter.get(),
-            "serverPort", serverPort,
-            "serverIp", serverIp,
-            "timeoutSeconds", TIMEOUT_SECONDS
+                "activeConnections", 0, // activeConnections.size(), // пока не используется
+                "totalThreads", threadCounter.get(),
+                "serverPort", serverPort,
+                "serverIp", serverIp,
+                "timeoutSeconds", TIMEOUT_SECONDS
         );
         return stats;
     }
-    
+
     @PreDestroy
     public void stop() {
         running = false;
-        
+
         if (serverSocket != null && !serverSocket.isClosed()) {
             try {
                 serverSocket.close();
@@ -418,12 +421,12 @@ public class ArchiveStyleTcpListener {
                 log.error("[ARCHIVE-TCP-LISTENER] Ошибка остановки сервера", e);
             }
         }
-        
+
         if (listenerThread != null) {
             listenerThread.interrupt();
         }
     }
-    
+
     // Внутренний класс для отслеживания подключений (пока не используется)
     // private static class ClientConnection {
     //     private final String ip;

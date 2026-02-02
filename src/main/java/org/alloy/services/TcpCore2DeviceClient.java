@@ -17,10 +17,10 @@ public class TcpCore2DeviceClient {
 
     private static final Logger log = LoggerFactory.getLogger(TcpCore2DeviceClient.class);
 
-    @Value("${welding.core.host:192.168.10.137}")
+    @Value("${welding.core.host:89.109.8.59}")
     private String host;
 
-    @Value("${welding.core.port:3000}")
+    @Value("${welding.core.port:3003}")
     private int port;
 
     @Value("${welding.core.mac:DC4F22763D5C}")

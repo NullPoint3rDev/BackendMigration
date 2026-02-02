@@ -17,13 +17,13 @@ public class TcpCoreDeviceClient {
     
     private static final Logger log = LoggerFactory.getLogger(TcpCoreDeviceClient.class);
     
-    @Value("${welding.core.host:192.168.10.137}")
+    @Value("${welding.core.host:89.109.8.59}")
     private String host;
     
-    @Value("${welding.core.port:3000}")
+    @Value("${welding.core.port:3003}")
     private int port;
     
-    @Value("${welding.core.mac:E09806083396}")
+    @Value("${welding.core.mac:E09806083396, E098060B22D2}")
     private String coreMac;
     
     @Value("${welding.core.connection.timeout_ms:10000}")
