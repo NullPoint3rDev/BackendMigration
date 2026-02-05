@@ -90,9 +90,9 @@ public class WeldingReportCalculationService {
                         }
                     })
                     .sum();
-            
+
             BigDecimal weldingTimeSeconds = BigDecimal.valueOf(activeWeldingCount);
-            
+
             System.out.println("[REPORT-CALC] ✅ Средний ток: " + averageCurrent + " А");
             System.out.println("[REPORT-CALC] ✅ Среднее напряжение: " + averageVoltage + " В");
             System.out.println("[REPORT-CALC] ✅ Время сварки: " + weldingTimeSeconds + " с");
@@ -194,13 +194,13 @@ public class WeldingReportCalculationService {
      */
     public List<DailyAverageValues> calculateDailyAverageValues(String mac, LocalDateTime startDate, LocalDateTime endDate) {
         List<DailyAverageValues> dailyData = new ArrayList<>();
-        
+
         System.out.println("[REPORT-CALC] ========================================");
         System.out.println("[REPORT-CALC] 🔍 РАСЧЕТ ДАННЫХ ПО ДНЯМ");
         System.out.println("[REPORT-CALC] ========================================");
         System.out.println("[REPORT-CALC] MAC: " + mac);
         System.out.println("[REPORT-CALC] Период: " + startDate + " - " + endDate);
-        
+
         try {
             // Находим аппарат по MAC
             Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
@@ -216,14 +216,14 @@ public class WeldingReportCalculationService {
             // Генерируем список дней в периоде
             LocalDateTime currentDate = startDate.toLocalDate().atStartOfDay();
             LocalDateTime endOfPeriod = endDate.toLocalDate().atTime(23, 59, 59);
-            
+
             while (!currentDate.isAfter(endOfPeriod)) {
                 LocalDateTime dayStart = currentDate;
                 LocalDateTime dayEnd = currentDate.toLocalDate().atTime(23, 59, 59);
-                
+
                 // Рассчитываем средние значения для этого дня
                 AverageValues dayAverages = calculateAverageValuesForPeriod(machine.getId(), dayStart, dayEnd);
-                
+
                 // Создаем запись для дня
                 DailyAverageValues dayData = new DailyAverageValues();
                 dayData.setDate(currentDate.toLocalDate());
@@ -234,25 +234,25 @@ public class WeldingReportCalculationService {
                 dayData.setWeldingTimeSeconds(dayAverages.getWeldingTimeSeconds());
                 dayData.setWeldingMachineId(machine.getId());
                 dayData.setWeldingMachineName(machine.getName());
-                dayData.setOrganizationUnitName(machine.getOrganizationUnit() != null ? 
-                    machine.getOrganizationUnit().getName() : "Не указано");
-                
+                dayData.setOrganizationUnitName(machine.getOrganizationUnit() != null ?
+                        machine.getOrganizationUnit().getName() : "Не указано");
+
                 dailyData.add(dayData);
-                
-                System.out.println("[REPORT-CALC] 📊 " + currentDate.toLocalDate() + 
-                    ": Ток=" + dayAverages.getAverageCurrent() + "А, Напряжение=" + dayAverages.getAverageVoltage() + "В, Время сварки=" + dayAverages.getWeldingTimeSeconds() + "с");
-                
+
+                System.out.println("[REPORT-CALC] 📊 " + currentDate.toLocalDate() +
+                        ": Ток=" + dayAverages.getAverageCurrent() + "А, Напряжение=" + dayAverages.getAverageVoltage() + "В, Время сварки=" + dayAverages.getWeldingTimeSeconds() + "с");
+
                 // Переходим к следующему дню
                 currentDate = currentDate.plusDays(1);
             }
-            
+
             System.out.println("[REPORT-CALC] ✅ Создано " + dailyData.size() + " записей по дням");
-            
+
         } catch (Exception e) {
             System.err.println("[REPORT-CALC] ❌ Ошибка расчета данных по дням: " + e.getMessage());
             e.printStackTrace();
         }
-        
+
         return dailyData;
     }
 
@@ -261,7 +261,7 @@ public class WeldingReportCalculationService {
      */
     private AverageValues calculateAverageValuesForPeriod(Integer machineId, LocalDateTime startDate, LocalDateTime endDate) {
         System.out.println("[REPORT-CALC] 🔍 Расчет для периода: " + startDate + " - " + endDate + " (MachineId: " + machineId + ")");
-        
+
         try {
             // Получаем состояния за указанный период
             List<WeldingMachineState> states = weldingMachineStateRepository
@@ -287,23 +287,23 @@ public class WeldingReportCalculationService {
 
             System.out.println("[REPORT-CALC] ⚡ Найдено значений тока: " + currentValues.size());
             System.out.println("[REPORT-CALC] 🔌 Найдено значений напряжения: " + voltageValues.size());
-            
+
             // Логируем первые несколько значений для отладки
             if (!currentValues.isEmpty()) {
                 System.out.println("[REPORT-CALC] 🔍 Первые 5 значений тока:");
-                currentValues.stream().limit(5).forEach(value -> 
-                    System.out.println("[REPORT-CALC]   - " + value.getPropertyCode() + ": '" + value.getValue() + "'"));
+                currentValues.stream().limit(5).forEach(value ->
+                        System.out.println("[REPORT-CALC]   - " + value.getPropertyCode() + ": '" + value.getValue() + "'"));
             }
             if (!voltageValues.isEmpty()) {
                 System.out.println("[REPORT-CALC] 🔍 Первые 5 значений напряжения:");
-                voltageValues.stream().limit(5).forEach(value -> 
-                    System.out.println("[REPORT-CALC]   - " + value.getPropertyCode() + ": '" + value.getValue() + "'"));
+                voltageValues.stream().limit(5).forEach(value ->
+                        System.out.println("[REPORT-CALC]   - " + value.getPropertyCode() + ": '" + value.getValue() + "'"));
             }
 
             // Рассчитываем средние значения
             BigDecimal averageCurrent = calculateAverageForActiveWelding(currentValues, "State.I");
             BigDecimal averageVoltage = calculateAverageForActiveWelding(voltageValues, "State.U");
-            
+
             // Рассчитываем время сварки (количество активных записей * интервал между записями)
             long activeWeldingCount = currentValues.stream()
                     .map(WeldingMachineParameterValue::getValue)
@@ -317,10 +317,10 @@ public class WeldingReportCalculationService {
                         }
                     })
                     .sum();
-            
+
             // Предполагаем интервал между записями 1 секунда (данные приходят каждую секунду)
             BigDecimal weldingTimeSeconds = BigDecimal.valueOf(activeWeldingCount);
-            
+
             System.out.println("[REPORT-CALC] ✅ Результат: Ток=" + averageCurrent + "А, Напряжение=" + averageVoltage + "В, Время сварки=" + weldingTimeSeconds + "с");
 
             return new AverageValues(averageCurrent, averageVoltage, weldingTimeSeconds);
@@ -348,28 +348,28 @@ public class WeldingReportCalculationService {
         // Getters and setters
         public java.time.LocalDate getDate() { return date; }
         public void setDate(java.time.LocalDate date) { this.date = date; }
-        
+
         public LocalDateTime getStartTime() { return startTime; }
         public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
-        
+
         public LocalDateTime getEndTime() { return endTime; }
         public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
-        
+
         public BigDecimal getAverageCurrent() { return averageCurrent; }
         public void setAverageCurrent(BigDecimal averageCurrent) { this.averageCurrent = averageCurrent; }
-        
+
         public BigDecimal getAverageVoltage() { return averageVoltage; }
         public void setAverageVoltage(BigDecimal averageVoltage) { this.averageVoltage = averageVoltage; }
-        
+
         public BigDecimal getWeldingTimeSeconds() { return weldingTimeSeconds; }
         public void setWeldingTimeSeconds(BigDecimal weldingTimeSeconds) { this.weldingTimeSeconds = weldingTimeSeconds; }
-        
+
         public Integer getWeldingMachineId() { return weldingMachineId; }
         public void setWeldingMachineId(Integer weldingMachineId) { this.weldingMachineId = weldingMachineId; }
-        
+
         public String getWeldingMachineName() { return weldingMachineName; }
         public void setWeldingMachineName(String weldingMachineName) { this.weldingMachineName = weldingMachineName; }
-        
+
         public String getOrganizationUnitName() { return organizationUnitName; }
         public void setOrganizationUnitName(String organizationUnitName) { this.organizationUnitName = organizationUnitName; }
     }
@@ -381,26 +381,34 @@ public class WeldingReportCalculationService {
     public List<org.alloy.models.dto.WeldSegmentDTO> calculateWeldSegments(Integer machineId, LocalDateTime startDate, LocalDateTime endDate) {
         List<org.alloy.models.dto.WeldSegmentDTO> result = new ArrayList<>();
         try {
-            // Загружаем состояния и сортируем по времени возрастания
+            // Загружаем состояния и сортируем по времени возрастанию
             List<WeldingMachineState> states = weldingMachineStateRepository
-                .findByWeldingMachineIdAndDateRange(machineId, startDate, endDate);
+                    .findByWeldingMachineIdAndDateRange(machineId, startDate, endDate);
             if (states.isEmpty()) {
+                System.out.println("[REPORT-CALC] machineId=" + machineId + " period=" + startDate + ".." + endDate + " -> states=0");
                 return result;
             }
             states.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-
-            // Готовим быстрый доступ к параметрам по stateId
             List<Long> stateIds = states.stream().map(WeldingMachineState::getId).collect(java.util.stream.Collectors.toList());
-            List<WeldingMachineParameterValue> currents = parameterValueRepository.findByStateIdsAndPropertyCode(stateIds, "State.I");
-            List<WeldingMachineParameterValue> voltages = parameterValueRepository.findByStateIdsAndPropertyCode(stateIds, "State.U");
+            System.out.println("[REPORT-CALC] machineId=" + machineId + " states=" + states.size() + " stateIds=" + stateIds.size());
 
-            java.util.Map<Long, Integer> currentByState = new java.util.HashMap<>();
-            for (WeldingMachineParameterValue v : currents) {
-                currentByState.put(v.getWeldingMachineStateId(), parseValueToInt(v.getValue()));
+            // Сначала пробуем Current/Voltage (CORE) — обычно больше покрытие; при пустом результате State.I/State.U (блоки мониторинга)
+            java.util.Map<Long, Integer> currentByState = loadParamMapByStateIds(stateIds, "Current");
+            if (currentByState.isEmpty()) {
+                currentByState = loadParamMapByStateIds(stateIds, "State.I");
             }
-            java.util.Map<Long, Integer> voltageByState = new java.util.HashMap<>();
-            for (WeldingMachineParameterValue v : voltages) {
-                voltageByState.put(v.getWeldingMachineStateId(), parseValueToInt(v.getValue()));
+            System.out.println("[REPORT-CALC] currentByState.size()=" + currentByState.size());
+            java.util.Map<Long, Integer> voltageByState = loadParamMapByStateIds(stateIds, "Voltage");
+            boolean voltageInTenths = !voltageByState.isEmpty(); // CORE: Voltage в десятых (175 = 17.5 В)
+            if (voltageByState.isEmpty()) {
+                voltageByState = loadParamMapByStateIds(stateIds, "State.U");
+            }
+            System.out.println("[REPORT-CALC] voltageByState.size()=" + voltageByState.size() + " voltageInTenths=" + voltageInTenths);
+            if (voltageInTenths && !voltageByState.isEmpty()) {
+                voltageByState = voltageByState.entrySet().stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                java.util.Map.Entry::getKey,
+                                e -> e.getValue() != 0 ? e.getValue() / 10 : 0));
             }
 
             boolean inWeld = false;
@@ -427,6 +435,9 @@ public class WeldingReportCalculationService {
                 }
                 int I = currentByState.getOrDefault(s.getId(), 0);
                 int U = voltageByState.getOrDefault(s.getId(), 0);
+                if (i < 3) {
+                    System.out.println("[REPORT-CALC] state[" + i + "] id=" + s.getId() + " dtMs=" + dtMs + " I=" + I + " U=" + U);
+                }
 
                 if (!inWeld) {
                     if (I > 3) {
@@ -460,11 +471,11 @@ public class WeldingReportCalculationService {
                             BigDecimal durationSec = BigDecimal.valueOf(segmentDurationMs / 1000.0).setScale(1, RoundingMode.HALF_UP);
                             seg.setDurationSeconds(durationSec);
                             BigDecimal avgI = segmentDurationMs > 0
-                                ? BigDecimal.valueOf((double) segmentWeightedCurrent / segmentDurationMs).setScale(1, RoundingMode.HALF_UP)
-                                : BigDecimal.ZERO;
+                                    ? BigDecimal.valueOf((double) segmentWeightedCurrent / segmentDurationMs).setScale(1, RoundingMode.HALF_UP)
+                                    : BigDecimal.ZERO;
                             BigDecimal avgU = segmentDurationMs > 0
-                                ? BigDecimal.valueOf((double) segmentWeightedVoltage / segmentDurationMs).setScale(1, RoundingMode.HALF_UP)
-                                : BigDecimal.ZERO;
+                                    ? BigDecimal.valueOf((double) segmentWeightedVoltage / segmentDurationMs).setScale(1, RoundingMode.HALF_UP)
+                                    : BigDecimal.ZERO;
                             seg.setAverageCurrent(avgI);
                             seg.setAverageVoltage(avgU);
                             result.add(seg);
@@ -498,6 +509,11 @@ public class WeldingReportCalculationService {
                 result.add(seg);
             }
 
+            System.out.println("[REPORT-CALC] segments count=" + result.size());
+            if (!result.isEmpty()) {
+                org.alloy.models.dto.WeldSegmentDTO first = result.get(0);
+                System.out.println("[REPORT-CALC] first segment: avgI=" + first.getAverageCurrent() + " avgU=" + first.getAverageVoltage() + " durationSec=" + first.getDurationSeconds());
+            }
         } catch (Exception e) {
             System.err.println("[REPORT-CALC] ❌ Ошибка расчета сегментов швов: " + e.getMessage());
             e.printStackTrace();
@@ -505,10 +521,61 @@ public class WeldingReportCalculationService {
         return result;
     }
 
+    /**
+     * Загружает карту stateId → значение параметра через нативный запрос (колонки welding_machine_stateid, property_code),
+     * чтобы корректно читать данные при любой стратегии именования Hibernate.
+     */
+    private java.util.Map<Long, Integer> loadParamMapByStateIds(List<Long> stateIds, String propertyCode) {
+        java.util.Map<Long, Integer> map = new java.util.HashMap<>();
+        if (stateIds == null || stateIds.isEmpty()) return map;
+        final int BATCH_SIZE = 10_000;
+        int totalRows = 0;
+        for (int i = 0; i < stateIds.size(); i += BATCH_SIZE) {
+            int endIndex = Math.min(i + BATCH_SIZE, stateIds.size());
+            List<Long> batch = stateIds.subList(i, endIndex);
+            try {
+                List<Object[]> rows = parameterValueRepository.findStateIdAndValueNative(batch, propertyCode);
+                totalRows += rows.size();
+                for (Object[] row : rows) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                        long stateId = ((Number) row[0]).longValue();
+                        String valueStr = row[1].toString();
+                        map.put(stateId, parseValueToInt(valueStr));
+                    }
+                }
+                if (i == 0 && !rows.isEmpty() && rows.get(0) != null && rows.get(0).length >= 2) {
+                    Object[] first = rows.get(0);
+                    System.out.println("[REPORT-CALC] loadParam " + propertyCode + " first row: stateId=" + first[0] + " value=" + first[1] + " -> parsed=" + parseValueToInt(first[1].toString()));
+                }
+            } catch (Exception e) {
+                System.err.println("[REPORT-CALC] ⚠️ Ошибка загрузки " + propertyCode + " батч " + i + "-" + endIndex + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        System.out.println("[REPORT-CALC] loadParam " + propertyCode + ": stateIds=" + stateIds.size() + " rows=" + totalRows + " map.size()=" + map.size());
+        return map;
+    }
+
     private int parseValueToInt(String raw) {
-        if (raw == null || raw.trim().isEmpty()) return 0;
+        if (raw == null || (raw = raw.trim()).isEmpty()) return 0;
+        // CORE и др. могут писать значения с десятичной точкой ("50.0", "139.0", "13.9") — парсим как double
+        if (raw.contains(".") || raw.contains(",")) {
+            try {
+                String normalized = raw.replace(',', '.');
+                return (int) Math.round(Double.parseDouble(normalized));
+            } catch (NumberFormatException e) {
+                // fallback ниже
+            }
+        }
+        // Целые: десятичное или hex
+        if (raw.matches("-?\\d+")) {
+            try {
+                return Integer.parseInt(raw, 10);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
         try {
-            // пробуем hex
             return Integer.parseInt(raw, 16);
         } catch (NumberFormatException e) {
             try {

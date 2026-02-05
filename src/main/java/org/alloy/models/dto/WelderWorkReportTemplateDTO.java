@@ -61,6 +61,12 @@ public class WelderWorkReportTemplateDTO {
      * Минимальный учитываемый шов, с
      */
     private Integer minWeldDurationSec;
+
+    /**
+     * Выбранные колонки для вывода в отчёте (опциональные).
+     * Ключи: equipmentModel, equipmentName, wireFeedSpeed, consumption, energyConsumed, gasConsumption.
+     */
+    private List<String> selectedColumns;
 }
 
 

@@ -2181,63 +2181,40 @@ public class ReportService {
                 }
             }
 
-            // Табличные заголовки, начиная с 11 строки (row index 10)
+            // Таблица: обязательные колонки + выбранные в шаблоне (selectedColumns)
+            List<WelderWorkColumnDef> columnDefs = getWelderWorkReportColumnDefinitions(template);
             Row headerRow = sheet.createRow(10);
-            Cell a11 = headerRow.createCell(0);
-            a11.setCellValue("№ п/п");
-            a11.setCellStyle(labelStyle);
-            Cell b11 = headerRow.createCell(1);
-            b11.setCellValue("Дата");
-            b11.setCellStyle(labelStyle);
+            for (int c = 0; c < columnDefs.size(); c++) {
+                Cell cell = headerRow.createCell(c);
+                cell.setCellValue(columnDefs.get(c).header);
+                cell.setCellStyle(labelStyle);
+            }
 
-            // Данные (пока минимально: № и дата)
+            CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
+            CellStyle normalDataStyle = workbook.createCellStyle();
+
             int rowIdx = 11;
             if (data != null) {
                 for (WelderWorkReportDTO item : data) {
                     Row row = sheet.createRow(rowIdx++);
-                    if (item.getIndex() != null) {
-                        row.createCell(0).setCellValue(item.getIndex());
-                    }
-                    if (item.getDate() != null) {
-                        row.createCell(1).setCellValue(item.getDate().toString());
-                    }
-                }
-            }
-
-            // Автоподбор ширины колонок для всех используемых колонок
-            // Определяем максимальную колонку с данными
-            int maxColumn = 8; // Минимум до I
-            if (data != null && !data.isEmpty()) {
-                // Проверяем, есть ли данные в таблице
-                for (int i = 11; i < rowIdx; i++) {
-                    Row row = sheet.getRow(i);
-                    if (row != null) {
-                        for (int j = 0; j <= maxColumn; j++) {
-                            Cell cell = row.getCell(j);
-                            if (cell != null) {
-                                maxColumn = Math.max(maxColumn, j);
-                            }
-                        }
+                    boolean highlight = Boolean.TRUE.equals(item.getCurrentOutOfRange());
+                    CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
+                    for (int col = 0; col < columnDefs.size(); col++) {
+                        Cell cell = row.createCell(col);
+                        cell.setCellStyle(rowStyle);
+                        setWelderWorkCellValue(cell, item, columnDefs.get(col).key);
                     }
                 }
             }
 
-            // Автоподбор ширины с небольшим отступом
+            int maxColumn = columnDefs.size() - 1;
             for (int i = 0; i <= maxColumn; i++) {
                 sheet.autoSizeColumn(i);
-                // Добавляем небольшой отступ (примерно 2 символа)
                 int currentWidth = sheet.getColumnWidth(i);
                 sheet.setColumnWidth(i, (int) (currentWidth * 1.1));
             }
-
-            // Убеждаемся, что заголовок "Отчет по работе сварщика:" полностью помещается
-            // Устанавливаем минимальную ширину для колонок B и C
-            int colBWidth = sheet.getColumnWidth(1); // Колонка B
-            int colCWidth = sheet.getColumnWidth(2); // Колонка C
-            // Текст "Отчет по работе сварщика:" примерно 25 символов, нужно минимум ~3000 единиц на колонку
             int minWidthForTitle = 3000;
-            if (colBWidth + colCWidth < minWidthForTitle) {
-                // Распределяем минимальную ширину между колонками B и C
+            if (sheet.getColumnWidth(1) + sheet.getColumnWidth(2) < minWidthForTitle) {
                 sheet.setColumnWidth(1, minWidthForTitle / 2);
                 sheet.setColumnWidth(2, minWidthForTitle / 2);
             }
@@ -2246,6 +2223,94 @@ public class ReportService {
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
+    }
+
+    private static class WelderWorkColumnDef {
+        final String key;
+        final String header;
+        WelderWorkColumnDef(String key, String header) {
+            this.key = key;
+            this.header = header;
+        }
+    }
+
+    private List<WelderWorkColumnDef> getWelderWorkReportColumnDefinitions(WelderWorkReportTemplateDTO template) {
+        List<WelderWorkColumnDef> list = new ArrayList<>();
+        list.add(new WelderWorkColumnDef("index", "№ п/п"));
+        list.add(new WelderWorkColumnDef("date", "Дата"));
+        list.add(new WelderWorkColumnDef("weldStartTime", "Время начала шва"));
+        list.add(new WelderWorkColumnDef("workMode", "Режим работы оборудования"));
+        list.add(new WelderWorkColumnDef("currentAmps", "Рабочий ток А"));
+        list.add(new WelderWorkColumnDef("voltageVolts", "Рабочее напряжение В"));
+        list.add(new WelderWorkColumnDef("weldDurationSec", "Время шва с"));
+        List<String> selected = template != null && template.getSelectedColumns() != null
+                ? template.getSelectedColumns() : Collections.emptyList();
+        if (selected.contains("equipmentModel")) list.add(new WelderWorkColumnDef("equipmentModel", "Модель оборудования"));
+        if (selected.contains("equipmentName")) list.add(new WelderWorkColumnDef("equipmentName", "Наименование оборудования"));
+        if (selected.contains("wireFeedSpeed")) list.add(new WelderWorkColumnDef("wireFeedSpeed", "Скорость подачи проволоки, м/мин"));
+        if (selected.contains("consumption")) list.add(new WelderWorkColumnDef("wireConsumptionKg", "Расход проволоки, кг"));
+        if (selected.contains("energyConsumed")) list.add(new WelderWorkColumnDef("energyConsumedKwh", "Затраченная энергия на шов, кВт*ч"));
+        if (selected.contains("gasConsumption")) list.add(new WelderWorkColumnDef("gasConsumptionL", "Расход газа, л"));
+        return list;
+    }
+
+    private void setWelderWorkCellValue(Cell cell, WelderWorkReportDTO item, String key) {
+        switch (key) {
+            case "index":
+                if (item.getIndex() != null) cell.setCellValue(item.getIndex());
+                break;
+            case "date":
+                cell.setCellValue(item.getDate() != null ? item.getDate().toString() : "");
+                break;
+            case "weldStartTime":
+                cell.setCellValue(item.getWeldStartTime() != null
+                        ? item.getWeldStartTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")) : "");
+                break;
+            case "workMode":
+                cell.setCellValue(item.getWorkMode() != null ? item.getWorkMode() : "");
+                break;
+            case "currentAmps":
+                if (item.getCurrentAmps() != null) cell.setCellValue(item.getCurrentAmps().doubleValue());
+                break;
+            case "voltageVolts":
+                if (item.getVoltageVolts() != null) cell.setCellValue(item.getVoltageVolts().doubleValue());
+                break;
+            case "weldDurationSec":
+                if (item.getWeldDurationSec() != null) cell.setCellValue(item.getWeldDurationSec().doubleValue());
+                break;
+            case "equipmentModel":
+                cell.setCellValue(item.getEquipmentModel() != null ? item.getEquipmentModel() : "");
+                break;
+            case "equipmentName":
+                cell.setCellValue(item.getEquipmentName() != null ? item.getEquipmentName() : "");
+                break;
+            case "wireFeedSpeed":
+                if (item.getWireFeedSpeedMpm() != null) cell.setCellValue(item.getWireFeedSpeedMpm().doubleValue());
+                break;
+            case "wireConsumptionKg":
+                if (item.getWireConsumptionKg() != null) cell.setCellValue(item.getWireConsumptionKg().doubleValue());
+                break;
+            case "energyConsumedKwh":
+                if (item.getEnergyConsumedKwh() != null) cell.setCellValue(item.getEnergyConsumedKwh().doubleValue());
+                break;
+            case "gasConsumptionL":
+                if (item.getGasConsumptionL() != null) cell.setCellValue(item.getGasConsumptionL().doubleValue());
+                break;
+            default:
+                cell.setCellValue("");
+                break;
+        }
+    }
+
+    private CellStyle createOutOfRangeRowStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        return style;
     }
 
     /**

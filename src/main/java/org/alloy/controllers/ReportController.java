@@ -367,6 +367,9 @@ public class ReportController {
                         welderWorkTemplateService.getTemplateById(generationRequest.getTemplateId());
                 if (templateOpt.isPresent()) {
                     template = templateOpt.get();
+                    if (generationRequest.getSelectedColumns() != null && !generationRequest.getSelectedColumns().isEmpty()) {
+                        template.setSelectedColumns(generationRequest.getSelectedColumns());
+                    }
                 } else {
                     // Если не найден в WelderWorkReportTemplate, пробуем получить из общего ReportTemplate
                     Optional<ReportTemplateDTO> generalTemplateOpt =
@@ -377,27 +380,66 @@ public class ReportController {
                         template.setTemplateId(generalTemplate.getId());
                         template.setTemplateName(generalTemplate.getName());
                         template.setSelectedWelderIds(generalTemplate.getSelectedWelderIds());
-                        // Получаем параметры из reportParameters
+                        // Параметры из reportParameters (фронт отправляет: workOutsideActualCurrent, minSeamInterval, minSeamDuration, minSeamIntervalEnabled, minSeamDurationEnabled)
                         if (generalTemplate.getReportParameters() != null) {
                             Map<String, Object> params = generalTemplate.getReportParameters();
-                            if (params.containsKey("includeActualCurrentRange")) {
-                                template.setIncludeActualCurrentRange((Boolean) params.get("includeActualCurrentRange"));
+                            if (params.containsKey("workOutsideActualCurrent")) {
+                                template.setIncludeActualCurrentRange(Boolean.TRUE.equals(params.get("workOutsideActualCurrent")));
+                            } else if (params.containsKey("includeActualCurrentRange")) {
+                                template.setIncludeActualCurrentRange(Boolean.TRUE.equals(params.get("includeActualCurrentRange")));
                             }
-                            if (params.containsKey("actualCurrentMin")) {
-                                template.setActualCurrentMin(((Number) params.get("actualCurrentMin")).intValue());
-                            }
-                            if (params.containsKey("actualCurrentMax")) {
-                                template.setActualCurrentMax(((Number) params.get("actualCurrentMax")).intValue());
-                            }
-                            if (params.containsKey("minIntervalBetweenWeldsSec")) {
+                            if (params.containsKey("minSeamInterval") && !Boolean.FALSE.equals(params.get("minSeamIntervalEnabled"))) {
+                                template.setMinIntervalBetweenWeldsSec(((Number) params.get("minSeamInterval")).intValue());
+                            } else if (params.containsKey("minIntervalBetweenWeldsSec")) {
                                 template.setMinIntervalBetweenWeldsSec(((Number) params.get("minIntervalBetweenWeldsSec")).intValue());
                             }
-                            if (params.containsKey("minWeldDurationSec")) {
+                            if (params.containsKey("minSeamDuration") && !Boolean.FALSE.equals(params.get("minSeamDurationEnabled"))) {
+                                template.setMinWeldDurationSec(((Number) params.get("minSeamDuration")).intValue());
+                            } else if (params.containsKey("minWeldDurationSec")) {
                                 template.setMinWeldDurationSec(((Number) params.get("minWeldDurationSec")).intValue());
                             }
                         }
+                        // Диапазон фактического тока из currentRanges (фронт: currentRanges.workOutsideActualCurrent.min/max)
+                        if (generalTemplate.getCurrentRanges() != null && generalTemplate.getCurrentRanges().get("workOutsideActualCurrent") != null) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> actualRange = (Map<String, Object>) generalTemplate.getCurrentRanges().get("workOutsideActualCurrent");
+                            if (actualRange != null) {
+                                if (actualRange.get("min") != null) {
+                                    template.setActualCurrentMin(((Number) actualRange.get("min")).intValue());
+                                }
+                                if (actualRange.get("max") != null) {
+                                    template.setActualCurrentMax(((Number) actualRange.get("max")).intValue());
+                                }
+                            }
+                        }
+                        if (generalTemplate.getReportParameters() != null) {
+                            Map<String, Object> params = generalTemplate.getReportParameters();
+                            if (template.getActualCurrentMin() == null && params.containsKey("actualCurrentMin")) {
+                                template.setActualCurrentMin(((Number) params.get("actualCurrentMin")).intValue());
+                            }
+                            if (template.getActualCurrentMax() == null && params.containsKey("actualCurrentMax")) {
+                                template.setActualCurrentMax(((Number) params.get("actualCurrentMax")).intValue());
+                            }
+                            // Выбранные колонки для отчёта по работе сварщика (опциональные)
+                            List<String> selectedCols = new java.util.ArrayList<>();
+                            if (Boolean.TRUE.equals(params.get("equipmentModel"))) selectedCols.add("equipmentModel");
+                            if (Boolean.TRUE.equals(params.get("equipmentName"))) selectedCols.add("equipmentName");
+                            if (Boolean.TRUE.equals(params.get("wireFeedSpeed"))) selectedCols.add("wireFeedSpeed");
+                            if (Boolean.TRUE.equals(params.get("consumption"))) selectedCols.add("consumption");
+                            if (Boolean.TRUE.equals(params.get("energyConsumed"))) selectedCols.add("energyConsumed");
+                            if (Boolean.TRUE.equals(params.get("gasConsumption"))) selectedCols.add("gasConsumption");
+                            template.setSelectedColumns(selectedCols);
+                        }
+                    }
+                    // При генерации приоритет у выбранных колонок из запроса (текущие галочки на форме)
+                    if (generationRequest.getSelectedColumns() != null && !generationRequest.getSelectedColumns().isEmpty()) {
+                        template.setSelectedColumns(generationRequest.getSelectedColumns());
                     }
                 }
+            }
+            // Если шаблон не загружали по templateId — выбранные колонки только из запроса
+            if (generationRequest.getSelectedColumns() != null && !generationRequest.getSelectedColumns().isEmpty()) {
+                template.setSelectedColumns(generationRequest.getSelectedColumns());
             }
 
             // Заполняем данные сварщика для шапки

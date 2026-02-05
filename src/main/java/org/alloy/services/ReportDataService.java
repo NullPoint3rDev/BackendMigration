@@ -375,12 +375,10 @@ public class ReportDataService {
     }
 
     /**
-     * Получает данные для отчета "По работе сварщика" (новый тип, пока заглушка).
-     *
-     * Требования, которые будут реализованы по мере уточнения ТЗ:
-     * - при отсутствии информации в БД ячейка оставляется пустой
-     * - при работе сварщика на нескольких аппаратах сортировка производится по суммарным значениям
-     * - строки с аппаратом, относящиеся к одному сварщику, не разрываются
+     * Получает данные для отчёта "По работе сварщика" (швы).
+     * Выборка по сварщику и периоду с учётом мин. интервала между швами, мин. длительности шва,
+     * диапазона фактического тока (подсветка вне диапазона).
+     * Шов = длительность сварки (состояния с током > 3А); при интервале между швами < minInterval — объединяем в один.
      */
     public List<WelderWorkReportDTO> getWelderWorkDataNew(
             WelderWorkReportTemplateDTO template,
@@ -388,7 +386,310 @@ public class ReportDataService {
             LocalDate periodEndDate,
             LocalTime periodStartTime,
             LocalTime periodEndTime) {
-        return new ArrayList<>();
+        List<WelderWorkReportDTO> result = new ArrayList<>();
+        if (template == null) return result;
+
+        LocalDateTime startDateTime = LocalDateTime.of(periodStartDate, periodStartTime != null ? periodStartTime : LocalTime.MIN);
+        LocalDateTime endDateTime = LocalDateTime.of(periodEndDate, periodEndTime != null ? periodEndTime : LocalTime.MAX);
+        int minIntervalSec = template.getMinIntervalBetweenWeldsSec() != null ? template.getMinIntervalBetweenWeldsSec() : 0;
+        int minDurationSec = template.getMinWeldDurationSec() != null ? template.getMinWeldDurationSec() : 0;
+        Integer actualMin = template.getActualCurrentMin();
+        Integer actualMax = template.getActualCurrentMax();
+
+        List<Integer> welderIds = new ArrayList<>();
+        if (template.getSelectedWelderIds() != null && !template.getSelectedWelderIds().isEmpty()) {
+            welderIds.addAll(template.getSelectedWelderIds());
+        } else if (template.getWelderId() != null) {
+            welderIds.add(template.getWelderId().intValue());
+        }
+        if (welderIds.isEmpty()) return result;
+
+        try {
+            System.out.println("[REPORT-DATA] getWelderWorkDataNew: welderIds=" + welderIds + " period=" + startDateTime + ".." + endDateTime);
+            List<WeldRow> rawRows = new ArrayList<>();
+            for (Integer welderId : welderIds) {
+                List<String> rfidCodes = getRfidCodesForWelder(welderId);
+                Set<Integer> machineIds = new HashSet<>();
+                if (!rfidCodes.isEmpty()) {
+                    for (String rfid : rfidCodes) {
+                        List<WeldingMachineState> states = weldingMachineStateRepository.findByRfidAndDateRange(rfid, startDateTime, endDateTime);
+                        for (WeldingMachineState s : states) {
+                            machineIds.add(s.getWeldingMachineId());
+                        }
+                    }
+                }
+                System.out.println("[REPORT-DATA] welderId=" + welderId + " rfidCodes=" + rfidCodes.size() + " machineIds=" + machineIds);
+                if (machineIds.isEmpty()) continue;
+
+                for (Integer machineId : machineIds) {
+                    Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(machineId);
+                    String machineName = machineOpt.map(WeldingMachine::getName).orElse("");
+                    String equipmentModel = machineOpt.map(m -> m.getDeviceModel() != null ? m.getDeviceModel().name() : "").orElse("");
+                    List<org.alloy.models.dto.WeldSegmentDTO> segments = calculationService.calculateWeldSegments(machineId, startDateTime, endDateTime);
+                    System.out.println("[REPORT-DATA] machineId=" + machineId + " segments=" + segments.size() + (segments.isEmpty() ? "" : " first: avgI=" + segments.get(0).getAverageCurrent() + " avgU=" + segments.get(0).getAverageVoltage() + " durSec=" + segments.get(0).getDurationSeconds()));
+                    for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
+                        if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
+                        long durSec = seg.getDurationSeconds().longValue();
+                        if (durSec < minDurationSec) continue;
+                        WeldRow row = new WeldRow();
+                        row.welderId = welderId.longValue();
+                        row.machineId = machineId;
+                        row.machineName = machineName;
+                        row.equipmentModel = equipmentModel;
+                        row.startTime = seg.getStartTime();
+                        row.durationSec = seg.getDurationSeconds();
+                        row.avgCurrent = seg.getAverageCurrent() != null ? seg.getAverageCurrent() : BigDecimal.ZERO;
+                        row.avgVoltage = seg.getAverageVoltage() != null ? seg.getAverageVoltage() : BigDecimal.ZERO;
+                        rawRows.add(row);
+                    }
+                }
+            }
+
+            rawRows.sort(Comparator.comparing(r -> r.startTime));
+            System.out.println("[REPORT-DATA] rawRows=" + rawRows.size());
+
+            List<WeldRow> merged = new ArrayList<>();
+            for (WeldRow row : rawRows) {
+                if (merged.isEmpty()) {
+                    merged.add(copyWeldRow(row));
+                    continue;
+                }
+                WeldRow last = merged.get(merged.size() - 1);
+                long lastEndSec = last.startTime.atZone(java.time.ZoneId.systemDefault()).toEpochSecond() + last.durationSec.longValue();
+                long gapSec = row.startTime.atZone(java.time.ZoneId.systemDefault()).toEpochSecond() - lastEndSec;
+                if (gapSec <= minIntervalSec && last.welderId == row.welderId) {
+                    long newDur = last.durationSec.longValue() + row.durationSec.longValue();
+                    BigDecimal w1 = last.durationSec;
+                    BigDecimal w2 = row.durationSec;
+                    BigDecimal avgI = w1.add(w2).compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO
+                            : last.avgCurrent.multiply(w1).add(row.avgCurrent.multiply(w2)).divide(w1.add(w2), 1, RoundingMode.HALF_UP);
+                    BigDecimal avgU = w1.add(w2).compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO
+                            : last.avgVoltage.multiply(w1).add(row.avgVoltage.multiply(w2)).divide(w1.add(w2), 1, RoundingMode.HALF_UP);
+                    last.durationSec = BigDecimal.valueOf(newDur);
+                    last.avgCurrent = avgI;
+                    last.avgVoltage = avgU;
+                } else {
+                    merged.add(copyWeldRow(row));
+                }
+            }
+            System.out.println("[REPORT-DATA] merged rows=" + merged.size());
+
+            // Один раз загружаем состояния по всем аппаратам за период (вместо запроса на каждый шов)
+            Set<Integer> machineIdsInReport = merged.stream().map(r -> r.machineId).collect(Collectors.toSet());
+            Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
+            for (Integer mid : machineIdsInReport) {
+                statesByMachineId.put(mid, weldingMachineStateRepository.findByWeldingMachineIdAndDateRange(mid, startDateTime, endDateTime));
+            }
+            // Параметры «режим» и «скорость проволоки» одним батчем по всем stateId
+            List<Long> allStateIds = statesByMachineId.values().stream()
+                    .flatMap(list -> list.stream().map(WeldingMachineState::getId))
+                    .collect(Collectors.toList());
+            Map<Long, String> workModeByStateId = new HashMap<>();
+            Map<Long, BigDecimal> wireFeedByStateId = new HashMap<>();
+            if (!allStateIds.isEmpty()) {
+                for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
+                    List<WeldingMachineParameterValue> workModeVals = getParameterValuesInBatches(allStateIds, code);
+                    for (WeldingMachineParameterValue pv : workModeVals) {
+                        if (pv.getValue() != null && !pv.getValue().trim().isEmpty())
+                            workModeByStateId.putIfAbsent(pv.getWeldingMachineStateId(), pv.getValue().trim());
+                    }
+                    if (!workModeByStateId.isEmpty()) break;
+                }
+                for (String code : new String[] { "Скорость подачи проволоки", "State.WireFeed", "WireFeed", "Wire.Feed", "Скорость проволоки" }) {
+                    List<WeldingMachineParameterValue> wireVals = getParameterValuesInBatches(allStateIds, code);
+                    for (WeldingMachineParameterValue pv : wireVals) {
+                        if (pv.getValue() != null && !pv.getValue().trim().isEmpty()) {
+                            try {
+                                wireFeedByStateId.put(pv.getWeldingMachineStateId(), new BigDecimal(pv.getValue().trim().replace(",", ".")));
+                            } catch (NumberFormatException ignored) { }
+                        }
+                    }
+                    if (!wireFeedByStateId.isEmpty()) break;
+                }
+            }
+            // Дата и время из посылки аппарата (CORE: Date.*, Time.*) — чтобы в отчёте было «когда аппарат сказал, что идёт сварка»
+            Map<Long, LocalDateTime> deviceDateTimeByStateId = buildDeviceDateTimeByStateId(allStateIds);
+
+            for (WeldRow r : merged) {
+                if (r.durationSec.longValue() < minDurationSec) continue;
+                int currentInt = r.avgCurrent.intValue();
+                if (currentInt < 1) currentInt = 0;
+                boolean outOfRange = actualMin != null && actualMax != null && (currentInt < actualMin || currentInt > actualMax);
+
+                LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
+                LocalDateTime displayDateTime = getDeviceDateTimeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, deviceDateTimeByStateId);
+                if (displayDateTime == null) displayDateTime = r.startTime;
+                String workMode = getWorkModeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, workModeByStateId);
+                BigDecimal wireFeedSpeedMpm = getWireFeedFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
+                BigDecimal energyKwh = calculateEnergyPerWeld(r.avgVoltage, r.avgCurrent, r.durationSec);
+                if (result.size() < 2) {
+                    System.out.println("[REPORT-DATA] row: avgCurrent=" + r.avgCurrent + " avgVoltage=" + r.avgVoltage + " durationSec=" + r.durationSec + " -> energyKwh=" + energyKwh);
+                }
+
+                WelderWorkReportDTO dto = new WelderWorkReportDTO();
+                dto.setDate(displayDateTime.toLocalDate());
+                dto.setWeldStartTime(displayDateTime.toLocalTime());
+                dto.setEquipmentModel(r.equipmentModel);
+                dto.setEquipmentName(r.machineName);
+                dto.setWorkMode(workMode != null ? workMode : "");
+                dto.setWireFeedSpeedMpm(wireFeedSpeedMpm);
+                dto.setCurrentAmps(r.avgCurrent.setScale(1, RoundingMode.HALF_UP));
+                dto.setVoltageVolts(r.avgVoltage.setScale(1, RoundingMode.HALF_UP));
+                dto.setWeldDurationSec(r.durationSec.setScale(1, RoundingMode.HALF_UP));
+                dto.setEnergyConsumedKwh(energyKwh);
+                dto.setCurrentOutOfRange(outOfRange);
+                dto.setWelderId(r.welderId);
+                dto.setWeldingMachineId(r.machineId);
+                dto.setWeldingMachineName(r.machineName);
+                result.add(dto);
+            }
+
+            for (int i = 0; i < result.size(); i++) {
+                result.get(i).setIndex(i + 1);
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] Ошибка getWelderWorkDataNew: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    private static class WeldRow {
+        long welderId;
+        int machineId;
+        String machineName;
+        String equipmentModel;
+        LocalDateTime startTime;
+        BigDecimal durationSec;
+        BigDecimal avgCurrent;
+        BigDecimal avgVoltage;
+    }
+
+    private WeldRow copyWeldRow(WeldRow r) {
+        WeldRow c = new WeldRow();
+        c.welderId = r.welderId;
+        c.machineId = r.machineId;
+        c.machineName = r.machineName;
+        c.equipmentModel = r.equipmentModel;
+        c.startTime = r.startTime;
+        c.durationSec = r.durationSec;
+        c.avgCurrent = r.avgCurrent;
+        c.avgVoltage = r.avgVoltage;
+        return c;
+    }
+
+    /**
+     * Затраченная энергия на шов (кВт*ч) — по той же формуле, что и в отчёте по расходу проволоки:
+     * E = P * t, где P = U*I/1000 (кВт), t = длительность шва в часах.
+     */
+    private BigDecimal calculateEnergyPerWeld(BigDecimal avgVoltage, BigDecimal avgCurrent, BigDecimal durationSec) {
+        if (avgVoltage == null || avgCurrent == null || durationSec == null
+                || durationSec.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal powerKw = avgVoltage.multiply(avgCurrent).divide(BigDecimal.valueOf(1000), 2, RoundingMode.HALF_UP);
+        BigDecimal timeHours = durationSec.divide(BigDecimal.valueOf(3600), 4, RoundingMode.HALF_UP);
+        return powerKw.multiply(timeHours).setScale(1, RoundingMode.HALF_UP);
+    }
+
+    /** Собирает по stateId дату/время из посылки аппарата (Date.Year/Month/Day, Time.Hours/Minutes/Seconds). */
+    private Map<Long, LocalDateTime> buildDeviceDateTimeByStateId(List<Long> allStateIds) {
+        Map<Long, LocalDateTime> out = new HashMap<>();
+        if (allStateIds == null || allStateIds.isEmpty()) return out;
+        String[] codes = { "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds" };
+        Map<String, Map<Long, Integer>> byCode = new HashMap<>();
+        for (String code : codes) {
+            List<WeldingMachineParameterValue> vals = getParameterValuesInBatches(allStateIds, code);
+            Map<Long, Integer> map = new HashMap<>();
+            for (WeldingMachineParameterValue pv : vals) {
+                if (pv.getValue() != null && !pv.getValue().trim().isEmpty()) {
+                    try {
+                        map.put(pv.getWeldingMachineStateId(), Integer.parseInt(pv.getValue().trim()));
+                    } catch (NumberFormatException ignored) { }
+                }
+            }
+            byCode.put(code, map);
+        }
+        for (Long stateId : allStateIds) {
+            Integer year = byCode.get("Date.Year").get(stateId);
+            Integer month = byCode.get("Date.Month").get(stateId);
+            Integer day = byCode.get("Date.Day").get(stateId);
+            Integer hour = byCode.get("Time.Hours").get(stateId);
+            Integer min = byCode.get("Time.Minutes").get(stateId);
+            Integer sec = byCode.get("Time.Seconds").get(stateId);
+            if (year == null || month == null || day == null || hour == null || min == null || sec == null) continue;
+            if (year < 100) year = 2000 + year;
+            if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+            if (hour < 0 || hour > 23 || min < 0 || min > 59 || sec < 0 || sec > 59) continue;
+            try {
+                out.put(stateId, LocalDateTime.of(year, month, day, hour, min, sec));
+            } catch (Exception ignored) { }
+        }
+        return out;
+    }
+
+    /** Время начала шва по первому состоянию сегмента: из времени аппарата, если есть. */
+    private LocalDateTime getDeviceDateTimeFromCache(List<WeldingMachineState> machineStates,
+                                                     LocalDateTime segmentStart, LocalDateTime segmentEnd,
+                                                     Map<Long, LocalDateTime> deviceDateTimeByStateId) {
+        if (machineStates == null || deviceDateTimeByStateId == null || deviceDateTimeByStateId.isEmpty()) return null;
+        for (WeldingMachineState s : machineStates) {
+            LocalDateTime t = s.getDateCreated();
+            if (t != null && !t.isBefore(segmentStart) && t.isBefore(segmentEnd)) {
+                LocalDateTime deviceTime = deviceDateTimeByStateId.get(s.getId());
+                if (deviceTime != null) return deviceTime;
+            }
+        }
+        return null;
+    }
+
+    /** Режим работы по сегменту из предзагруженных состояний и карты stateId -> значение. */
+    private String getWorkModeFromCache(List<WeldingMachineState> machineStates,
+                                        LocalDateTime segmentStart, LocalDateTime segmentEnd,
+                                        Map<Long, String> workModeByStateId) {
+        if (machineStates == null || workModeByStateId.isEmpty()) return null;
+        for (WeldingMachineState s : machineStates) {
+            LocalDateTime t = s.getDateCreated();
+            if (t != null && !t.isBefore(segmentStart) && t.isBefore(segmentEnd)) {
+                String v = workModeByStateId.get(s.getId());
+                if (v != null && !v.isEmpty()) return v;
+            }
+        }
+        return null;
+    }
+
+    /** Скорость подачи проволоки по сегменту — среднее по предзагруженным значениям. */
+    private BigDecimal getWireFeedFromCache(List<WeldingMachineState> machineStates,
+                                            LocalDateTime segmentStart, LocalDateTime segmentEnd,
+                                            Map<Long, BigDecimal> wireFeedByStateId) {
+        if (machineStates == null || wireFeedByStateId.isEmpty()) return null;
+        List<BigDecimal> inSegment = new ArrayList<>();
+        for (WeldingMachineState s : machineStates) {
+            LocalDateTime t = s.getDateCreated();
+            if (t != null && !t.isBefore(segmentStart) && t.isBefore(segmentEnd)) {
+                BigDecimal v = wireFeedByStateId.get(s.getId());
+                if (v != null) inSegment.add(v);
+            }
+        }
+        if (inSegment.isEmpty()) return null;
+        BigDecimal sum = inSegment.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        return sum.divide(BigDecimal.valueOf(inSegment.size()), 1, RoundingMode.HALF_UP);
+    }
+
+    private List<String> getRfidCodesForWelder(Integer welderId) {
+        List<String> codes = new ArrayList<>();
+        Optional<Welder> welderOpt = welderRepository.findById(welderId.longValue());
+        if (!welderOpt.isPresent()) return codes;
+        Welder w = welderOpt.get();
+        if (w.getRfidPasses() != null) {
+            for (org.alloy.models.entities.RfidPass p : w.getRfidPasses()) {
+                if (p.getCode() != null && !p.getCode().trim().isEmpty()) codes.add(p.getCode().trim());
+            }
+        }
+        if (w.getRfidCode() != null && !w.getRfidCode().trim().isEmpty() && !codes.contains(w.getRfidCode().trim())) {
+            codes.add(w.getRfidCode().trim());
+        }
+        return codes;
     }
 
     /**
@@ -1280,11 +1581,20 @@ public class ReportDataService {
     }
 
     /**
-     * Парсит значение тока
+     * Парсит значение тока/напряжения (как в отчёте по расходу проволоки).
+     * Поддерживает целые и десятичные строки ("50", "50.0", "13.9", "139") для CORE и блоков мониторинга.
      */
     private int parseCurrentValue(String value) {
-        if (value == null || value.trim().isEmpty()) {
+        if (value == null || (value = value.trim()).isEmpty()) {
             return 0;
+        }
+        if (value.contains(".") || value.contains(",")) {
+            try {
+                String normalized = value.replace(',', '.');
+                return (int) Math.round(Double.parseDouble(normalized));
+            } catch (NumberFormatException e) {
+                // fallback ниже
+            }
         }
         try {
             try {

@@ -36,6 +36,12 @@ public class WelderWorkReportGenerationDTO {
      * Время окончания периода
      */
     private LocalTime periodEndTime;
+
+    /**
+     * Выбранные колонки отчёта (ключи: equipmentModel, equipmentName, wireFeedSpeed, consumption, energyConsumed, gasConsumption).
+     * Если переданы при генерации — подменяют список из шаблона (актуальное состояние галочек на форме).
+     */
+    private java.util.List<String> selectedColumns;
 }
 
 

@@ -7,6 +7,10 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Entity для шаблона отчета "По работе сварщика"
@@ -56,6 +60,19 @@ public class WelderWorkReportTemplate {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    /** Выбранные колонки отчёта (JSON-массив или через запятую: equipmentModel, consumption, ...) */
+    @Column(name = "selected_columns", length = 500)
+    private String selectedColumns;
+
+    public List<String> getSelectedColumnsList() {
+        if (selectedColumns == null || selectedColumns.trim().isEmpty()) return Collections.emptyList();
+        return Arrays.stream(selectedColumns.split(",")).map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toList());
+    }
+
+    public void setSelectedColumnsList(List<String> list) {
+        this.selectedColumns = list != null && !list.isEmpty() ? String.join(",", list) : null;
+    }
 }
 
 

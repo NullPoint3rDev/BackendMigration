@@ -46,6 +46,9 @@ public class WelderWorkReportTemplateService {
         template.setActualCurrentMax(dto.getActualCurrentMax());
         template.setMinIntervalBetweenWeldsSec(dto.getMinIntervalBetweenWeldsSec());
         template.setMinWeldDurationSec(dto.getMinWeldDurationSec());
+        if (dto.getSelectedColumns() != null) {
+            template.setSelectedColumnsList(dto.getSelectedColumns());
+        }
 
         template = templateRepository.save(template);
         return convertToDTO(template);
@@ -98,6 +101,7 @@ public class WelderWorkReportTemplateService {
         dto.setActualCurrentMax(template.getActualCurrentMax());
         dto.setMinIntervalBetweenWeldsSec(template.getMinIntervalBetweenWeldsSec());
         dto.setMinWeldDurationSec(template.getMinWeldDurationSec());
+        dto.setSelectedColumns(template.getSelectedColumnsList());
         return dto;
     }
 }
