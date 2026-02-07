@@ -18,7 +18,7 @@ public class WelderWorkReportGenerationDTO {
     private Long templateId;
 
     /**
-     * Период формирования отчета - дата начала
+     * Период формирования отчета - дата начала (задаётся фронтом, в т.ч. при выборе «За 24 часа», «08:00–17:00»).
      */
     private LocalDate periodStartDate;
 
@@ -28,12 +28,12 @@ public class WelderWorkReportGenerationDTO {
     private LocalDate periodEndDate;
 
     /**
-     * Время начала периода
+     * Время начала периода (например 08:00)
      */
     private LocalTime periodStartTime;
 
     /**
-     * Время окончания периода
+     * Время окончания периода (например 17:00)
      */
     private LocalTime periodEndTime;
 

@@ -1,13 +1,4 @@
-2026-01-21 20:15:19.063 ERROR org.alloy.services.TcpCoreDeviceClient - [TCP-CORE] Ошибка
-java.net.SocketException: Программа на вашем хост-компьютере разорвала установленное подключение
-	at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:330)
-	at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:355)
-	at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:808)
-	at java.base/java.net.Socket$SocketInputStream.read(Socket.java:966)
-	at java.base/java.io.InputStream.read(InputStream.java:218)
-	at org.alloy.services.TcpCoreDeviceClient.lambda$start$0(TcpCoreDeviceClient.java:72)
-	at java.base/java.lang.Thread.run(Thread.java:840)
-2026-01-21 20:15:19.064 ERROR org.alloy.services.TcpDeviceClient - [TCP-CLIENT] Ошибка
+2026-02-04 20:09:09.893 ERROR org.alloy.services.TcpDeviceClient - [TCP-CLIENT] Ошибка
 java.net.SocketException: Программа на вашем хост-компьютере разорвала установленное подключение
 	at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:330)
 	at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:355)
@@ -16,7 +7,26 @@ java.net.SocketException: Программа на вашем хост-компь
 	at java.base/java.io.InputStream.read(InputStream.java:218)
 	at org.alloy.services.TcpDeviceClient.lambda$start$0(TcpDeviceClient.java:79)
 	at java.base/java.lang.Thread.run(Thread.java:840)
-2026-01-21 20:15:24.088 ERROR org.alloy.services.TcpDeviceClient - [TCP-CLIENT] Ошибка
+2026-02-04 20:09:09.894 ERROR org.alloy.services.TcpCoreDeviceClient - [TCP-CORE] Ошибка
+java.net.SocketException: Программа на вашем хост-компьютере разорвала установленное подключение
+	at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:330)
+	at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:355)
+	at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:808)
+	at java.base/java.net.Socket$SocketInputStream.read(Socket.java:966)
+	at java.base/java.io.InputStream.read(InputStream.java:218)
+	at org.alloy.services.TcpCoreDeviceClient.lambda$start$0(TcpCoreDeviceClient.java:72)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-02-04 20:09:14.900 ERROR org.alloy.services.TcpCoreDeviceClient - [TCP-CORE] Ошибка
+java.net.SocketException: Network is unreachable: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:547)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:602)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327)
+	at java.base/java.net.Socket.connect(Socket.java:633)
+	at org.alloy.services.TcpCoreDeviceClient.lambda$start$0(TcpCoreDeviceClient.java:62)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-02-04 20:09:14.909 ERROR org.alloy.services.TcpDeviceClient - [TCP-CLIENT] Ошибка
 java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
 	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
@@ -26,7 +36,7 @@ java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/java.net.Socket.connect(Socket.java:633)
 	at org.alloy.services.TcpDeviceClient.lambda$start$0(TcpDeviceClient.java:64)
 	at java.base/java.lang.Thread.run(Thread.java:840)
-2026-01-21 20:15:24.089 ERROR org.alloy.services.TcpCoreDeviceClient - [TCP-CORE] Ошибка
+2026-02-04 20:09:19.902 ERROR org.alloy.services.TcpCoreDeviceClient - [TCP-CORE] Ошибка
 java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
 	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
@@ -36,7 +46,7 @@ java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/java.net.Socket.connect(Socket.java:633)
 	at org.alloy.services.TcpCoreDeviceClient.lambda$start$0(TcpCoreDeviceClient.java:62)
 	at java.base/java.lang.Thread.run(Thread.java:840)
-2026-01-21 20:15:29.271 ERROR org.alloy.services.TcpDeviceClient - [TCP-CLIENT] Ошибка
+2026-02-04 20:09:19.920 ERROR org.alloy.services.TcpDeviceClient - [TCP-CLIENT] Ошибка
 java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
 	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
@@ -46,7 +56,7 @@ java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/java.net.Socket.connect(Socket.java:633)
 	at org.alloy.services.TcpDeviceClient.lambda$start$0(TcpDeviceClient.java:64)
 	at java.base/java.lang.Thread.run(Thread.java:840)
-2026-01-21 20:15:29.272 ERROR org.alloy.services.TcpCoreDeviceClient - [TCP-CORE] Ошибка
+2026-02-04 20:09:24.916 ERROR org.alloy.services.TcpCoreDeviceClient - [TCP-CORE] Ошибка
 java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
 	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
@@ -56,17 +66,7 @@ java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/java.net.Socket.connect(Socket.java:633)
 	at org.alloy.services.TcpCoreDeviceClient.lambda$start$0(TcpCoreDeviceClient.java:62)
 	at java.base/java.lang.Thread.run(Thread.java:840)
-2026-01-21 20:15:34.274 ERROR org.alloy.services.TcpCoreDeviceClient - [TCP-CORE] Ошибка
-java.net.SocketException: Network is unreachable: getsockopt
-	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
-	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
-	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:547)
-	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:602)
-	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327)
-	at java.base/java.net.Socket.connect(Socket.java:633)
-	at org.alloy.services.TcpCoreDeviceClient.lambda$start$0(TcpCoreDeviceClient.java:62)
-	at java.base/java.lang.Thread.run(Thread.java:840)
-2026-01-21 20:15:34.273 ERROR org.alloy.services.TcpDeviceClient - [TCP-CLIENT] Ошибка
+2026-02-04 20:09:24.934 ERROR org.alloy.services.TcpDeviceClient - [TCP-CLIENT] Ошибка
 java.net.SocketException: Network is unreachable: getsockopt
 	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
 	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)

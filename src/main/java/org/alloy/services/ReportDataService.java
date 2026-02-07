@@ -480,12 +480,11 @@ public class ReportDataService {
             for (Integer mid : machineIdsInReport) {
                 statesByMachineId.put(mid, weldingMachineStateRepository.findByWeldingMachineIdAndDateRange(mid, startDateTime, endDateTime));
             }
-            // Параметры «режим» и «скорость проволоки» одним батчем по всем stateId
+            // Параметры «режим» одним батчем по всем stateId (скорость проволоки не грузим — аппарат пока не присылает, в отчёте нули)
             List<Long> allStateIds = statesByMachineId.values().stream()
                     .flatMap(list -> list.stream().map(WeldingMachineState::getId))
                     .collect(Collectors.toList());
             Map<Long, String> workModeByStateId = new HashMap<>();
-            Map<Long, BigDecimal> wireFeedByStateId = new HashMap<>();
             if (!allStateIds.isEmpty()) {
                 for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
                     List<WeldingMachineParameterValue> workModeVals = getParameterValuesInBatches(allStateIds, code);
@@ -494,17 +493,6 @@ public class ReportDataService {
                             workModeByStateId.putIfAbsent(pv.getWeldingMachineStateId(), pv.getValue().trim());
                     }
                     if (!workModeByStateId.isEmpty()) break;
-                }
-                for (String code : new String[] { "Скорость подачи проволоки", "State.WireFeed", "WireFeed", "Wire.Feed", "Скорость проволоки" }) {
-                    List<WeldingMachineParameterValue> wireVals = getParameterValuesInBatches(allStateIds, code);
-                    for (WeldingMachineParameterValue pv : wireVals) {
-                        if (pv.getValue() != null && !pv.getValue().trim().isEmpty()) {
-                            try {
-                                wireFeedByStateId.put(pv.getWeldingMachineStateId(), new BigDecimal(pv.getValue().trim().replace(",", ".")));
-                            } catch (NumberFormatException ignored) { }
-                        }
-                    }
-                    if (!wireFeedByStateId.isEmpty()) break;
                 }
             }
             // Дата и время из посылки аппарата (CORE: Date.*, Time.*) — чтобы в отчёте было «когда аппарат сказал, что идёт сварка»
@@ -520,7 +508,7 @@ public class ReportDataService {
                 LocalDateTime displayDateTime = getDeviceDateTimeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, deviceDateTimeByStateId);
                 if (displayDateTime == null) displayDateTime = r.startTime;
                 String workMode = getWorkModeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, workModeByStateId);
-                BigDecimal wireFeedSpeedMpm = getWireFeedFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
+                // Аппарат пока не присылает скорость подачи проволоки — в столбце выводим 0; когда будет — подставить getWireFeedFromCache(...)
                 BigDecimal energyKwh = calculateEnergyPerWeld(r.avgVoltage, r.avgCurrent, r.durationSec);
                 if (result.size() < 2) {
                     System.out.println("[REPORT-DATA] row: avgCurrent=" + r.avgCurrent + " avgVoltage=" + r.avgVoltage + " durationSec=" + r.durationSec + " -> energyKwh=" + energyKwh);
@@ -532,7 +520,7 @@ public class ReportDataService {
                 dto.setEquipmentModel(r.equipmentModel);
                 dto.setEquipmentName(r.machineName);
                 dto.setWorkMode(workMode != null ? workMode : "");
-                dto.setWireFeedSpeedMpm(wireFeedSpeedMpm);
+                dto.setWireFeedSpeedMpm(BigDecimal.ZERO);
                 dto.setCurrentAmps(r.avgCurrent.setScale(1, RoundingMode.HALF_UP));
                 dto.setVoltageVolts(r.avgVoltage.setScale(1, RoundingMode.HALF_UP));
                 dto.setWeldDurationSec(r.durationSec.setScale(1, RoundingMode.HALF_UP));
@@ -588,8 +576,8 @@ public class ReportDataService {
             return BigDecimal.ZERO;
         }
         BigDecimal powerKw = avgVoltage.multiply(avgCurrent).divide(BigDecimal.valueOf(1000), 2, RoundingMode.HALF_UP);
-        BigDecimal timeHours = durationSec.divide(BigDecimal.valueOf(3600), 4, RoundingMode.HALF_UP);
-        return powerKw.multiply(timeHours).setScale(1, RoundingMode.HALF_UP);
+        BigDecimal timeHours = durationSec.divide(BigDecimal.valueOf(3600), 6, RoundingMode.HALF_UP);
+        return powerKw.multiply(timeHours).setScale(4, RoundingMode.HALF_UP);
     }
 
     /** Собирает по stateId дату/время из посылки аппарата (Date.Year/Month/Day, Time.Hours/Minutes/Seconds). */
@@ -1366,6 +1354,33 @@ public class ReportDataService {
         }
 
         return allValues;
+    }
+
+    /**
+     * Загружает «Расход проволоки» (или скорость проволоки) нативным запросом по stateIds и заполняет map.
+     * Используется, когда загрузка через сущности возвращает пустой результат (snake_case в БД).
+     */
+    private void loadWireFeedByStateIdNative(List<Long> stateIds, Map<Long, BigDecimal> wireFeedByStateId) {
+        if (stateIds == null || stateIds.isEmpty()) return;
+        final int BATCH_SIZE = 10_000;
+        for (int i = 0; i < stateIds.size(); i += BATCH_SIZE) {
+            int endIndex = Math.min(i + BATCH_SIZE, stateIds.size());
+            List<Long> batch = stateIds.subList(i, endIndex);
+            try {
+                List<Object[]> rows = parameterValueRepository.findStateIdAndValueNative(batch, "Расход проволоки");
+                for (Object[] row : rows) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                        try {
+                            long stateId = ((Number) row[0]).longValue();
+                            String valueStr = row[1].toString().trim().replace(",", ".");
+                            wireFeedByStateId.put(stateId, new BigDecimal(valueStr));
+                        } catch (NumberFormatException ignored) { }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[REPORT-DATA] loadWireFeedByStateIdNative батч " + i + "-" + endIndex + ": " + e.getMessage());
+            }
+        }
     }
 
     /**

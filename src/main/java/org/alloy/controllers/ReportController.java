@@ -361,6 +361,7 @@ public class ReportController {
             @RequestBody WelderWorkReportGenerationDTO generationRequest) {
         try {
             WelderWorkReportTemplateDTO template = new WelderWorkReportTemplateDTO();
+            ReportTemplateDTO templateWithPeriodSettings = null; // для учёта periodSettings при «За 24 часа»
             if (generationRequest.getTemplateId() != null) {
                 // Сначала пробуем получить из WelderWorkReportTemplate
                 Optional<WelderWorkReportTemplateDTO> templateOpt =
@@ -376,6 +377,7 @@ public class ReportController {
                             reportTemplateService.getTemplateById(generationRequest.getTemplateId());
                     if (generalTemplateOpt.isPresent()) {
                         ReportTemplateDTO generalTemplate = generalTemplateOpt.get();
+                        templateWithPeriodSettings = generalTemplate;
                         // Преобразуем общий шаблон в WelderWorkReportTemplateDTO
                         template.setTemplateId(generalTemplate.getId());
                         template.setTemplateName(generalTemplate.getName());
@@ -482,21 +484,46 @@ public class ReportController {
                 }
             }
 
+            // Период: из запроса; если в шаблоне (ReportTemplate) periodType «За 24 часа» — считаем на сервере
+            java.time.LocalDate periodStartDate = generationRequest.getPeriodStartDate();
+            java.time.LocalDate periodEndDate = generationRequest.getPeriodEndDate();
+            java.time.LocalTime periodStartTime = generationRequest.getPeriodStartTime();
+            java.time.LocalTime periodEndTime = generationRequest.getPeriodEndTime();
+            if (templateWithPeriodSettings != null && templateWithPeriodSettings.getPeriodSettings() != null) {
+                Object pt = templateWithPeriodSettings.getPeriodSettings().get("periodType");
+                String periodType = pt != null ? pt.toString().trim() : "";
+                if ("За 24 часа".equals(periodType) || "LAST_24_HOURS".equalsIgnoreCase(periodType) || "24h".equalsIgnoreCase(periodType)) {
+                    java.time.LocalDateTime end = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime start = end.minusHours(24);
+                    periodStartDate = start.toLocalDate();
+                    periodEndDate = end.toLocalDate();
+                    periodStartTime = start.toLocalTime();
+                    periodEndTime = end.toLocalTime();
+                } else if ("За 7 дней".equals(periodType) || "LAST_7_DAYS".equalsIgnoreCase(periodType) || "7DAYS".equalsIgnoreCase(periodType)) {
+                    java.time.LocalDateTime end = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime start = end.minusDays(7);
+                    periodStartDate = start.toLocalDate();
+                    periodEndDate = end.toLocalDate();
+                    periodStartTime = start.toLocalTime();
+                    periodEndTime = end.toLocalTime();
+                }
+            }
+
             List<WelderWorkReportDTO> data = reportDataService.getWelderWorkDataNew(
                     template,
-                    generationRequest.getPeriodStartDate(),
-                    generationRequest.getPeriodEndDate(),
-                    generationRequest.getPeriodStartTime(),
-                    generationRequest.getPeriodEndTime()
+                    periodStartDate,
+                    periodEndDate,
+                    periodStartTime,
+                    periodEndTime
             );
 
             byte[] reportBytes = reportService.generateWelderWorkReportNew(
                     data,
                     template,
-                    generationRequest.getPeriodStartDate(),
-                    generationRequest.getPeriodEndDate(),
-                    generationRequest.getPeriodStartTime(),
-                    generationRequest.getPeriodEndTime()
+                    periodStartDate,
+                    periodEndDate,
+                    periodStartTime,
+                    periodEndTime
             );
 
             String filename = "welder_work_report_" + System.currentTimeMillis() + ".xlsx";

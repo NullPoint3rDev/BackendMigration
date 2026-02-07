@@ -37,6 +37,17 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
             @Param("stateIds") List<Long> stateIds,
             @Param("propertyCode") String propertyCode);
 
+    /**
+     * То же, но второе поле — COALESCE(value, raw_value), чтобы не терять данные при пустом value.
+     */
+    @Query(
+            value = "SELECT welding_machine_stateid, COALESCE(value, raw_value) FROM welding_machine_parameter_value " +
+                    "WHERE welding_machine_stateid IN (:stateIds) AND property_code = :propertyCode",
+            nativeQuery = true)
+    List<Object[]> findStateIdAndValueNativeCoalesce(
+            @Param("stateIds") List<Long> stateIds,
+            @Param("propertyCode") String propertyCode);
+
     // Найти все уникальные ID состояний, которые содержат RFID код в properties
     @Query("SELECT DISTINCT wmpv.weldingMachineStateId FROM WeldingMachineParameterValue wmpv " +
             "WHERE wmpv.propertyCode IN ('RFID.Hex', 'RFID', 'Rfid', 'rfid') AND wmpv.value = :rfidCode")
