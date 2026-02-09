@@ -2225,6 +2225,197 @@ public class ReportService {
         }
     }
 
+    /**
+     * Генерирует отчёт "По работе сварщика" в формате XLSX для нескольких сварщиков:
+     * один лист, подряд блоки «заголовок (ФИО, подразделение, таб. №) + таблица» для каждого сварщика.
+     * Если по сварщику данных нет — выводится одна строка с нулями.
+     */
+    public byte[] generateWelderWorkReportMultiSection(
+            List<WelderWorkReportSectionDTO> sections,
+            WelderWorkReportTemplateDTO template,
+            java.time.LocalDate periodStartDate,
+            java.time.LocalDate periodEndDate,
+            java.time.LocalTime periodStartTime,
+            java.time.LocalTime periodEndTime) throws IOException {
+        if (sections == null || sections.isEmpty()) {
+            try (Workbook workbook = new XSSFWorkbook()) {
+                Sheet sheet = workbook.createSheet("Отчет по работе сварщика");
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                workbook.write(outputStream);
+                return outputStream.toByteArray();
+            }
+        }
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по работе сварщика");
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle labelStyle = workbook.createCellStyle();
+            Font boldFont = workbook.createFont();
+            boldFont.setBold(true);
+            labelStyle.setFont(boldFont);
+
+            List<WelderWorkColumnDef> columnDefs = getWelderWorkReportColumnDefinitions(template);
+            CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
+            CellStyle normalDataStyle = workbook.createCellStyle();
+
+            int rowIdx = 0;
+            Row titleRow = sheet.createRow(rowIdx++);
+            Cell titleCell = titleRow.createCell(1);
+            titleCell.setCellValue("Отчет по работе сварщика:");
+            titleCell.setCellStyle(headerStyle);
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 1, 2));
+
+            boolean periodAndRangeWritten = false;
+
+            for (int s = 0; s < sections.size(); s++) {
+                WelderWorkReportSectionDTO section = sections.get(s);
+                if (s > 0) {
+                    rowIdx++;
+                }
+
+                // Заголовок блока: ФИО, таб. №, Подразделение
+                Row r1 = sheet.createRow(rowIdx++);
+                Cell e1 = r1.createCell(4);
+                e1.setCellValue("ФИО сварщика");
+                e1.setCellStyle(labelStyle);
+                Cell f1 = r1.createCell(5);
+                f1.setCellValue(section.getWelderFullName() != null ? section.getWelderFullName() : "");
+
+                Row r2 = sheet.createRow(rowIdx++);
+                Cell e2 = r2.createCell(4);
+                e2.setCellValue("таб. №");
+                e2.setCellStyle(labelStyle);
+                Cell f2 = r2.createCell(5);
+                f2.setCellValue(section.getWelderTabNumber() != null ? section.getWelderTabNumber() : "");
+
+                Row r3 = sheet.createRow(rowIdx++);
+                Cell e3 = r3.createCell(4);
+                e3.setCellValue("Подразделение:");
+                e3.setCellStyle(labelStyle);
+                Cell f3 = r3.createCell(5);
+                f3.setCellValue(section.getWelderDepartment() != null ? section.getWelderDepartment() : "");
+
+                rowIdx++;
+
+                if (!periodAndRangeWritten) {
+                    Row r5 = sheet.createRow(rowIdx++);
+                    Cell e5 = r5.createCell(4);
+                    e5.setCellValue("за период:");
+                    e5.setCellStyle(labelStyle);
+                    Cell f5 = r5.createCell(5);
+                    f5.setCellValue("с");
+                    f5.setCellStyle(labelStyle);
+                    Cell g5 = r5.createCell(6);
+                    g5.setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
+
+                    Row r6 = sheet.createRow(rowIdx++);
+                    Cell f6 = r6.createCell(5);
+                    f6.setCellValue("по");
+                    f6.setCellStyle(labelStyle);
+                    Cell g6 = r6.createCell(6);
+                    g6.setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
+
+                    boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
+                    if (includeActualRange) {
+                        Row r7 = sheet.createRow(rowIdx++);
+                        Cell b7 = r7.createCell(1);
+                        b7.setCellValue("Разрешенный диапазон фактического тока, А");
+                        b7.setCellStyle(labelStyle);
+                        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 1, 3));
+
+                        Row r8 = sheet.createRow(rowIdx++);
+                        Cell b8 = r8.createCell(1);
+                        b8.setCellValue("min");
+                        b8.setCellStyle(labelStyle);
+                        Cell c8 = r8.createCell(2);
+                        if (template.getActualCurrentMin() != null) c8.setCellValue(template.getActualCurrentMin());
+                        Cell f8 = r8.createCell(5);
+                        f8.setCellValue("Минимальный интервал между швами, с");
+                        f8.setCellStyle(labelStyle);
+                        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 5, 7));
+                        Cell i8 = r8.createCell(8);
+                        if (template.getMinIntervalBetweenWeldsSec() != null) i8.setCellValue(template.getMinIntervalBetweenWeldsSec());
+
+                        Row r9 = sheet.createRow(rowIdx++);
+                        Cell b9 = r9.createCell(1);
+                        b9.setCellValue("max");
+                        b9.setCellStyle(labelStyle);
+                        Cell c9 = r9.createCell(2);
+                        if (template.getActualCurrentMax() != null) c9.setCellValue(template.getActualCurrentMax());
+                        Cell f9 = r9.createCell(5);
+                        f9.setCellValue("Минимальный учитываемый шов, с");
+                        f9.setCellStyle(labelStyle);
+                        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 5, 6));
+                        Cell i9 = r9.createCell(8);
+                        if (template.getMinWeldDurationSec() != null) i9.setCellValue(template.getMinWeldDurationSec());
+                    }
+                    periodAndRangeWritten = true;
+                    rowIdx++;
+                }
+
+                // Заголовок таблицы
+                Row headerRow = sheet.createRow(rowIdx++);
+                for (int c = 0; c < columnDefs.size(); c++) {
+                    Cell cell = headerRow.createCell(c);
+                    cell.setCellValue(columnDefs.get(c).header);
+                    cell.setCellStyle(labelStyle);
+                }
+
+                List<WelderWorkReportDTO> rows = section.getRows();
+                if (rows == null) rows = Collections.emptyList();
+                if (rows.isEmpty()) {
+                    WelderWorkReportDTO zeroRow = createZeroWelderWorkRow();
+                    rows = Collections.singletonList(zeroRow);
+                }
+                for (WelderWorkReportDTO item : rows) {
+                    Row row = sheet.createRow(rowIdx++);
+                    boolean highlight = Boolean.TRUE.equals(item.getCurrentOutOfRange());
+                    CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
+                    for (int col = 0; col < columnDefs.size(); col++) {
+                        Cell cell = row.createCell(col);
+                        cell.setCellStyle(rowStyle);
+                        setWelderWorkCellValue(cell, item, columnDefs.get(col).key);
+                    }
+                }
+            }
+
+            int maxColumn = columnDefs.size() - 1;
+            for (int i = 0; i <= maxColumn; i++) {
+                sheet.autoSizeColumn(i);
+                int currentWidth = sheet.getColumnWidth(i);
+                sheet.setColumnWidth(i, (int) (currentWidth * 1.1));
+            }
+            int minWidthForTitle = 3000;
+            if (sheet.getColumnWidth(1) + sheet.getColumnWidth(2) < minWidthForTitle) {
+                sheet.setColumnWidth(1, minWidthForTitle / 2);
+                sheet.setColumnWidth(2, minWidthForTitle / 2);
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private WelderWorkReportDTO createZeroWelderWorkRow() {
+        WelderWorkReportDTO row = new WelderWorkReportDTO();
+        row.setIndex(1);
+        row.setDate(java.time.LocalDate.now());
+        row.setWeldStartTime(java.time.LocalTime.MIDNIGHT);
+        row.setWorkMode("");
+        row.setCurrentAmps(BigDecimal.ZERO);
+        row.setVoltageVolts(BigDecimal.ZERO);
+        row.setWeldDurationSec(BigDecimal.ZERO);
+        row.setWireFeedSpeedMpm(BigDecimal.ZERO);
+        row.setWireConsumptionKg(BigDecimal.ZERO);
+        row.setEnergyConsumedKwh(BigDecimal.ZERO);
+        row.setGasConsumptionL(BigDecimal.ZERO);
+        row.setEquipmentModel("");
+        row.setEquipmentName("");
+        row.setCurrentOutOfRange(false);
+        return row;
+    }
+
     private static class WelderWorkColumnDef {
         final String key;
         final String header;

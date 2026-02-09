@@ -444,44 +444,44 @@ public class ReportController {
                 template.setSelectedColumns(generationRequest.getSelectedColumns());
             }
 
-            // Заполняем данные сварщика для шапки
-            // Если welderId не задан, но есть selectedWelderIds, берем первого (для отчета по работе сварщика должен быть один)
-            Long welderIdToLoad = template.getWelderId();
-            if (welderIdToLoad == null && template.getSelectedWelderIds() != null && !template.getSelectedWelderIds().isEmpty()) {
-                welderIdToLoad = template.getSelectedWelderIds().get(0).longValue();
+            // Список сварщиков для отчёта: несколько выбранных или один по умолчанию
+            List<Long> welderIdsForReport = template.getSelectedWelderIds() != null && !template.getSelectedWelderIds().isEmpty()
+                    ? template.getSelectedWelderIds().stream()
+                    .map(id -> Long.valueOf(id.intValue()))
+                    .collect(java.util.stream.Collectors.toList())
+                    : (template.getWelderId() != null ? java.util.Collections.singletonList(template.getWelderId()) : java.util.Collections.emptyList());
+
+            if (welderIdsForReport.isEmpty()) {
+                return ResponseEntity.badRequest().build();
             }
 
-            if (welderIdToLoad != null) {
+            // Заполняем данные по каждому сварщику для шапок (ФИО, таб. №, подразделение)
+            java.util.Map<Long, org.alloy.models.dto.WelderWorkReportSectionDTO> welderInfoMap = new java.util.LinkedHashMap<>();
+            for (Long wid : welderIdsForReport) {
+                String fullName = "";
+                String tabNumber = "";
+                String department = "";
                 try {
-                    Optional<org.alloy.models.entities.Welder> welderOpt = welderRepository.findById(welderIdToLoad);
+                    Optional<org.alloy.models.entities.Welder> welderOpt = welderRepository.findById(wid);
                     if (welderOpt.isPresent()) {
                         var w = welderOpt.get();
-                        template.setWelderFullName(w.getName() != null ? w.getName() : "");
-                        template.setWelderTabNumber(w.getEmployeeId() != null ? w.getEmployeeId() : "");
-                        // position - это должность, но для профессии может быть grade (разряд) или position
-                        // Проверяем, что есть в базе
-                        String profession = w.getPosition() != null ? w.getPosition() :
-                                (w.getGrade() != null ? w.getGrade() : "");
-                        template.setWelderProfession(profession);
-                        template.setWelderDepartment(w.getDepartment() != null ? w.getDepartment() : "");
+                        fullName = w.getName() != null ? w.getName() : "";
+                        tabNumber = w.getEmployeeId() != null ? w.getEmployeeId() : "";
+                        department = w.getDepartment() != null ? w.getDepartment() : "";
                     } else {
-                        // Пробуем найти через Employee (если сварщик в таблице Employees)
-                        Optional<org.alloy.models.entities.Employee> empOpt =
-                                employeeRepository.findById(welderIdToLoad);
+                        Optional<org.alloy.models.entities.Employee> empOpt = employeeRepository.findById(wid);
                         if (empOpt.isPresent()) {
                             var emp = empOpt.get();
-                            template.setWelderFullName(emp.getFullName() != null ? emp.getFullName() : "");
-                            template.setWelderTabNumber(""); // В Employee нет employeeId как табельного номера
-                            template.setWelderProfession(emp.getPosition() != null ? emp.getPosition() : "");
-                            template.setWelderDepartment(emp.getOrganizationUnit() != null &&
-                                    emp.getOrganizationUnit().getName() != null ?
-                                    emp.getOrganizationUnit().getName() : "");
+                            fullName = emp.getFullName() != null ? emp.getFullName() : "";
+                            tabNumber = "";
+                            department = emp.getOrganizationUnit() != null && emp.getOrganizationUnit().getName() != null
+                                    ? emp.getOrganizationUnit().getName() : "";
                         }
                     }
                 } catch (Exception e) {
-                    // Если не удалось загрузить — оставляем пустые поля (по требованию: пустая ячейка)
-                    System.err.println("Не удалось загрузить данные сварщика: " + e.getMessage());
+                    System.err.println("Не удалось загрузить данные сварщика " + wid + ": " + e.getMessage());
                 }
+                welderInfoMap.put(wid, new org.alloy.models.dto.WelderWorkReportSectionDTO(wid, fullName, tabNumber, department, null));
             }
 
             // Период: из запроса; если в шаблоне (ReportTemplate) periodType «За 24 часа» — считаем на сервере
@@ -517,8 +517,26 @@ public class ReportController {
                     periodEndTime
             );
 
-            byte[] reportBytes = reportService.generateWelderWorkReportNew(
-                    data,
+            java.util.Map<Long, List<WelderWorkReportDTO>> dataByWelder = data != null ? data.stream()
+                    .filter(d -> d.getWelderId() != null)
+                    .collect(java.util.stream.Collectors.groupingBy(WelderWorkReportDTO::getWelderId))
+                    : new java.util.HashMap<>();
+
+            List<org.alloy.models.dto.WelderWorkReportSectionDTO> sections = new java.util.ArrayList<>();
+            for (Long wid : welderIdsForReport) {
+                org.alloy.models.dto.WelderWorkReportSectionDTO info = welderInfoMap.get(wid);
+                List<WelderWorkReportDTO> rows = dataByWelder.getOrDefault(wid, java.util.Collections.emptyList());
+                sections.add(new org.alloy.models.dto.WelderWorkReportSectionDTO(
+                        info.getWelderId(),
+                        info.getWelderFullName(),
+                        info.getWelderTabNumber(),
+                        info.getWelderDepartment(),
+                        rows.isEmpty() ? null : rows
+                ));
+            }
+
+            byte[] reportBytes = reportService.generateWelderWorkReportMultiSection(
+                    sections,
                     template,
                     periodStartDate,
                     periodEndDate,
