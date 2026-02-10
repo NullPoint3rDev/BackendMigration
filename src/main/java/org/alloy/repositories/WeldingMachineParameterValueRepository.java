@@ -26,14 +26,24 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
             @Param("propertyCode") String propertyCode);
 
     /**
-     * Нативный запрос для совместимости со схемой БД (snake_case: welding_machine_stateid, property_code).
-     * Возвращает [state_id, value] для построения карты по stateId без зависимости от маппинга сущности.
+     * Нативный запрос: [state_id, value] по property_code (колонка welding_machine_stateid в БД).
      */
     @Query(
             value = "SELECT welding_machine_stateid, value FROM welding_machine_parameter_value " +
                     "WHERE welding_machine_stateid IN (:stateIds) AND property_code = :propertyCode",
             nativeQuery = true)
     List<Object[]> findStateIdAndValueNative(
+            @Param("stateIds") List<Long> stateIds,
+            @Param("propertyCode") String propertyCode);
+
+    /**
+     * То же, но колонка welding_machine_state_id (с подчёркиванием) — для БД с таким именем.
+     */
+    @Query(
+            value = "SELECT welding_machine_state_id, value FROM welding_machine_parameter_value " +
+                    "WHERE welding_machine_state_id IN (:stateIds) AND property_code = :propertyCode",
+            nativeQuery = true)
+    List<Object[]> findStateIdAndValueNativeUnderscore(
             @Param("stateIds") List<Long> stateIds,
             @Param("propertyCode") String propertyCode);
 

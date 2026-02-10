@@ -7,10 +7,14 @@ import org.alloy.services.ReportDataService;
 import org.alloy.services.ReportHistoryService;
 import org.alloy.services.WireConsumptionReportTemplateService;
 import org.alloy.services.WelderWorkReportTemplateService;
+import org.alloy.services.EquipmentWorkReportTemplateService;
 import org.alloy.services.ReportTemplateService;
 import org.alloy.services.UserAccountService;
 import org.alloy.repositories.WelderRepository;
 import org.alloy.repositories.EmployeeRepository;
+import org.alloy.repositories.WeldingMachineRepository;
+import org.alloy.models.entities.WeldingMachine;
+import org.alloy.models.entities.OrganizationUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -46,7 +50,13 @@ public class ReportController {
     private WelderWorkReportTemplateService welderWorkTemplateService;
 
     @Autowired
+    private EquipmentWorkReportTemplateService equipmentWorkTemplateService;
+
+    @Autowired
     private ReportTemplateService reportTemplateService;
+
+    @Autowired
+    private WeldingMachineRepository weldingMachineRepository;
 
     @Autowired
     private UserAccountService userAccountService;
@@ -553,6 +563,163 @@ public class ReportController {
             return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
         } catch (Exception e) {
             System.err.println("Ошибка генерации отчета welder-work: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Генерация отчета "По работе оборудования" (xlsx)
+     */
+    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PostMapping("/equipment-work/generate")
+    public ResponseEntity<byte[]> generateEquipmentWorkReport(
+            @RequestBody EquipmentWorkReportGenerationDTO generationRequest) {
+        try {
+            EquipmentWorkReportTemplateDTO template = new EquipmentWorkReportTemplateDTO();
+            ReportTemplateDTO templateWithPeriodSettings = null;
+            if (generationRequest.getTemplateId() != null) {
+                Optional<EquipmentWorkReportTemplateDTO> templateOpt =
+                        equipmentWorkTemplateService.getTemplateById(generationRequest.getTemplateId());
+                if (templateOpt.isPresent()) {
+                    template = templateOpt.get();
+                    if (generationRequest.getSelectedColumns() != null && !generationRequest.getSelectedColumns().isEmpty()) {
+                        template.setSelectedColumns(generationRequest.getSelectedColumns());
+                    }
+                } else {
+                    Optional<ReportTemplateDTO> generalOpt = reportTemplateService.getTemplateById(generationRequest.getTemplateId());
+                    if (generalOpt.isPresent()) {
+                        ReportTemplateDTO general = generalOpt.get();
+                        templateWithPeriodSettings = general;
+                        template.setTemplateId(general.getId());
+                        template.setTemplateName(general.getName());
+                        @SuppressWarnings("unchecked")
+                        List<Number> ids = general.getReportParameters() != null && general.getReportParameters().containsKey("selectedEquipmentIds")
+                                ? (List<Number>) general.getReportParameters().get("selectedEquipmentIds") : null;
+                        if (ids != null && !ids.isEmpty()) {
+                            template.setSelectedEquipmentIds(ids.stream().map(Number::intValue).collect(java.util.stream.Collectors.toList()));
+                        }
+                        if (generationRequest.getSelectedEquipmentIds() != null && !generationRequest.getSelectedEquipmentIds().isEmpty()) {
+                            template.setSelectedEquipmentIds(generationRequest.getSelectedEquipmentIds());
+                        }
+                        if (general.getReportParameters() != null) {
+                            Map<String, Object> params = general.getReportParameters();
+                            if (Boolean.TRUE.equals(params.get("workOutsideActualCurrent"))) template.setIncludeActualCurrentRange(true);
+                            if (params.get("minSeamInterval") != null) template.setMinIntervalBetweenWeldsSec(((Number) params.get("minSeamInterval")).intValue());
+                            if (params.get("minSeamDuration") != null) template.setMinWeldDurationSec(((Number) params.get("minSeamDuration")).intValue());
+                            if (params.get("actualCurrentMin") != null) template.setActualCurrentMin(((Number) params.get("actualCurrentMin")).intValue());
+                            if (params.get("actualCurrentMax") != null) template.setActualCurrentMax(((Number) params.get("actualCurrentMax")).intValue());
+                            List<String> cols = new java.util.ArrayList<>();
+                            if (Boolean.TRUE.equals(params.get("welderFullName"))) cols.add("welderFullName");
+                            if (Boolean.TRUE.equals(params.get("welderTabNumber"))) cols.add("welderTabNumber");
+                            if (Boolean.TRUE.equals(params.get("profession"))) cols.add("profession");
+                            if (Boolean.TRUE.equals(params.get("wireFeedSpeed"))) cols.add("wireFeedSpeed");
+                            if (Boolean.TRUE.equals(params.get("consumption"))) cols.add("consumption");
+                            if (Boolean.TRUE.equals(params.get("energyConsumed"))) cols.add("energyConsumed");
+                            if (Boolean.TRUE.equals(params.get("gasConsumption"))) cols.add("gasConsumption");
+                            if (!cols.isEmpty()) template.setSelectedColumns(cols);
+                        }
+                        if (general.getCurrentRanges() != null && general.getCurrentRanges().get("workOutsideActualCurrent") != null) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> actual = (Map<String, Object>) general.getCurrentRanges().get("workOutsideActualCurrent");
+                            if (actual != null) {
+                                if (actual.get("min") != null) template.setActualCurrentMin(((Number) actual.get("min")).intValue());
+                                if (actual.get("max") != null) template.setActualCurrentMax(((Number) actual.get("max")).intValue());
+                            }
+                        }
+                    }
+                }
+                if (generationRequest.getSelectedColumns() != null && !generationRequest.getSelectedColumns().isEmpty()) {
+                    template.setSelectedColumns(generationRequest.getSelectedColumns());
+                }
+            }
+            if (generationRequest.getSelectedEquipmentIds() != null && !generationRequest.getSelectedEquipmentIds().isEmpty()) {
+                template.setSelectedEquipmentIds(generationRequest.getSelectedEquipmentIds());
+            }
+
+            List<Integer> equipmentIdsForReport = template.getSelectedEquipmentIds() != null && !template.getSelectedEquipmentIds().isEmpty()
+                    ? new java.util.ArrayList<>(template.getSelectedEquipmentIds())
+                    : new java.util.ArrayList<>();
+
+            if (equipmentIdsForReport.isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            java.util.Map<Integer, EquipmentWorkReportSectionDTO> sectionInfoMap = new java.util.LinkedHashMap<>();
+            for (Integer mid : equipmentIdsForReport) {
+                String model = "";
+                String name = "";
+                String department = "";
+                try {
+                    Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(mid);
+                    if (machineOpt.isPresent()) {
+                        WeldingMachine m = machineOpt.get();
+                        name = m.getName() != null ? m.getName() : "";
+                        model = m.getDeviceModel() != null ? m.getDeviceModel().name() : "";
+                        OrganizationUnit ou = m.getOrganizationUnit();
+                        department = ou != null && ou.getName() != null ? ou.getName() : "";
+                    }
+                } catch (Exception e) {
+                    System.err.println("Не удалось загрузить данные аппарата " + mid + ": " + e.getMessage());
+                }
+                sectionInfoMap.put(mid, new EquipmentWorkReportSectionDTO(mid, model, name, department, null));
+            }
+
+            java.time.LocalDate periodStartDate = generationRequest.getPeriodStartDate();
+            java.time.LocalDate periodEndDate = generationRequest.getPeriodEndDate();
+            java.time.LocalTime periodStartTime = generationRequest.getPeriodStartTime();
+            java.time.LocalTime periodEndTime = generationRequest.getPeriodEndTime();
+            if (templateWithPeriodSettings != null && templateWithPeriodSettings.getPeriodSettings() != null) {
+                Object pt = templateWithPeriodSettings.getPeriodSettings().get("periodType");
+                String periodType = pt != null ? pt.toString().trim() : "";
+                if ("За 24 часа".equals(periodType) || "LAST_24_HOURS".equalsIgnoreCase(periodType)) {
+                    java.time.LocalDateTime end = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime start = end.minusHours(24);
+                    periodStartDate = start.toLocalDate();
+                    periodEndDate = end.toLocalDate();
+                    periodStartTime = start.toLocalTime();
+                    periodEndTime = end.toLocalTime();
+                } else if ("За 7 дней".equals(periodType) || "LAST_7_DAYS".equalsIgnoreCase(periodType)) {
+                    java.time.LocalDateTime end = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime start = end.minusDays(7);
+                    periodStartDate = start.toLocalDate();
+                    periodEndDate = end.toLocalDate();
+                    periodStartTime = start.toLocalTime();
+                    periodEndTime = end.toLocalTime();
+                }
+            }
+
+            List<EquipmentWorkReportDTO> data = reportDataService.getEquipmentWorkDataNew(
+                    template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+
+            java.util.Map<Integer, List<EquipmentWorkReportDTO>> dataByMachine = data != null ? data.stream()
+                    .filter(d -> d.getWeldingMachineId() != null)
+                    .collect(java.util.stream.Collectors.groupingBy(EquipmentWorkReportDTO::getWeldingMachineId))
+                    : new java.util.HashMap<>();
+
+            List<EquipmentWorkReportSectionDTO> sections = new java.util.ArrayList<>();
+            for (Integer mid : equipmentIdsForReport) {
+                EquipmentWorkReportSectionDTO info = sectionInfoMap.get(mid);
+                List<EquipmentWorkReportDTO> rows = dataByMachine.getOrDefault(mid, java.util.Collections.emptyList());
+                sections.add(new EquipmentWorkReportSectionDTO(
+                        info.getWeldingMachineId(),
+                        info.getEquipmentModel(),
+                        info.getEquipmentName(),
+                        info.getEquipmentDepartment(),
+                        rows.isEmpty() ? null : rows
+                ));
+            }
+
+            byte[] reportBytes = reportService.generateEquipmentWorkReportMultiSection(
+                    sections, template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+
+            String filename = "equipment_work_report_" + System.currentTimeMillis() + ".xlsx";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            System.err.println("Ошибка генерации отчета equipment-work: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

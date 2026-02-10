@@ -11,8 +11,10 @@ import org.alloy.repositories.EmployeeRepository;
 import org.alloy.repositories.WeldingMachineStateRepository;
 import org.alloy.repositories.WeldingMachineParameterValueRepository;
 import org.alloy.repositories.WelderRepository;
+import org.alloy.repositories.RfidPassRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.models.entities.OrganizationUnit;
+import org.alloy.models.entities.RfidPass;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +24,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,6 +51,9 @@ public class ReportDataService {
 
     @Autowired
     private OrganizationUnitRepository organizationUnitRepository;
+
+    @Autowired
+    private RfidPassRepository rfidPassRepository;
 
     public List<WireConsumptionReportDTO> getWireConsumptionData(ReportRequestDTO request) {
         // Моковые данные для демонстрации (старый формат для обратной совместимости)
@@ -540,6 +546,403 @@ public class ReportDataService {
             e.printStackTrace();
         }
         return result;
+    }
+
+    /**
+     * Получает данные для отчёта "По работе оборудования" (швы).
+     * Логика расчёта та же, что у отчёта по сварщику: сегменты по аппарату, объединение по мин. интервалу, мин. длительность шва.
+     */
+    public List<EquipmentWorkReportDTO> getEquipmentWorkDataNew(
+            EquipmentWorkReportTemplateDTO template,
+            LocalDate periodStartDate,
+            LocalDate periodEndDate,
+            LocalTime periodStartTime,
+            LocalTime periodEndTime) {
+        List<EquipmentWorkReportDTO> result = new ArrayList<>();
+        if (template == null) return result;
+
+        LocalDateTime startDateTime = LocalDateTime.of(periodStartDate, periodStartTime != null ? periodStartTime : LocalTime.MIN);
+        LocalDateTime endDateTime = LocalDateTime.of(periodEndDate, periodEndTime != null ? periodEndTime : LocalTime.MAX);
+        int minIntervalSec = template.getMinIntervalBetweenWeldsSec() != null ? template.getMinIntervalBetweenWeldsSec() : 0;
+        int minDurationSec = template.getMinWeldDurationSec() != null ? template.getMinWeldDurationSec() : 0;
+        Integer actualMin = template.getActualCurrentMin();
+        Integer actualMax = template.getActualCurrentMax();
+
+        List<Integer> machineIds = template.getSelectedEquipmentIds() != null ? new ArrayList<>(template.getSelectedEquipmentIds()) : new ArrayList<>();
+        if (machineIds.isEmpty()) return result;
+
+        try {
+            List<EquipmentWeldRow> rawRows = new ArrayList<>();
+            for (Integer machineId : machineIds) {
+                Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(machineId);
+                String machineName = machineOpt.map(WeldingMachine::getName).orElse("");
+                String equipmentModel = machineOpt.map(m -> m.getDeviceModel() != null ? m.getDeviceModel().name() : "").orElse("");
+                List<org.alloy.models.dto.WeldSegmentDTO> segments = calculationService.calculateWeldSegments(machineId, startDateTime, endDateTime);
+                for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
+                    if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
+                    long durSec = seg.getDurationSeconds().longValue();
+                    if (durSec < minDurationSec) continue;
+                    EquipmentWeldRow row = new EquipmentWeldRow();
+                    row.machineId = machineId;
+                    row.machineName = machineName;
+                    row.equipmentModel = equipmentModel;
+                    row.startTime = seg.getStartTime();
+                    row.durationSec = seg.getDurationSeconds();
+                    row.avgCurrent = seg.getAverageCurrent() != null ? seg.getAverageCurrent() : BigDecimal.ZERO;
+                    row.avgVoltage = seg.getAverageVoltage() != null ? seg.getAverageVoltage() : BigDecimal.ZERO;
+                    rawRows.add(row);
+                }
+            }
+
+            rawRows.sort(Comparator.comparing(r -> r.startTime));
+
+            List<EquipmentWeldRow> merged = new ArrayList<>();
+            for (EquipmentWeldRow row : rawRows) {
+                if (merged.isEmpty()) {
+                    merged.add(copyEquipmentWeldRow(row));
+                    continue;
+                }
+                EquipmentWeldRow last = merged.get(merged.size() - 1);
+                long lastEndSec = last.startTime.atZone(java.time.ZoneId.systemDefault()).toEpochSecond() + last.durationSec.longValue();
+                long gapSec = row.startTime.atZone(java.time.ZoneId.systemDefault()).toEpochSecond() - lastEndSec;
+                if (gapSec <= minIntervalSec && last.machineId == row.machineId) {
+                    long newDur = last.durationSec.longValue() + row.durationSec.longValue();
+                    BigDecimal w1 = last.durationSec;
+                    BigDecimal w2 = row.durationSec;
+                    BigDecimal avgI = w1.add(w2).compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO
+                            : last.avgCurrent.multiply(w1).add(row.avgCurrent.multiply(w2)).divide(w1.add(w2), 1, RoundingMode.HALF_UP);
+                    BigDecimal avgU = w1.add(w2).compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO
+                            : last.avgVoltage.multiply(w1).add(row.avgVoltage.multiply(w2)).divide(w1.add(w2), 1, RoundingMode.HALF_UP);
+                    last.durationSec = BigDecimal.valueOf(newDur);
+                    last.avgCurrent = avgI;
+                    last.avgVoltage = avgU;
+                } else {
+                    merged.add(copyEquipmentWeldRow(row));
+                }
+            }
+
+            Set<Integer> machineIdsInReport = merged.stream().map(r -> r.machineId).collect(Collectors.toSet());
+            Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
+            for (Integer mid : machineIdsInReport) {
+                List<WeldingMachineState> list = weldingMachineStateRepository.findByWeldingMachineIdAndDateRange(mid, startDateTime, endDateTime);
+                list.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+                statesByMachineId.put(mid, list);
+            }
+            List<Long> allStateIds = statesByMachineId.values().stream()
+                    .flatMap(list -> list.stream().map(WeldingMachineState::getId))
+                    .collect(Collectors.toList());
+            Map<Long, String> workModeByStateId = new HashMap<>();
+            if (!allStateIds.isEmpty()) {
+                for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
+                    List<WeldingMachineParameterValue> workModeVals = getParameterValuesInBatches(allStateIds, code);
+                    for (WeldingMachineParameterValue pv : workModeVals) {
+                        if (pv.getValue() != null && !pv.getValue().trim().isEmpty())
+                            workModeByStateId.putIfAbsent(pv.getWeldingMachineStateId(), pv.getValue().trim());
+                    }
+                    if (!workModeByStateId.isEmpty()) break;
+                }
+            }
+            Map<Long, LocalDateTime> deviceDateTimeByStateId = buildDeviceDateTimeByStateId(allStateIds);
+            // RFID по stateId из параметров: нативный запрос, при пустой карте — JPA (разные имена колонок в БД)
+            Map<Long, String> rfidByStateId = loadRfidByStateIdFromParamsNative(allStateIds);
+            if (rfidByStateId.isEmpty() && !allStateIds.isEmpty()) {
+                for (String code : new String[] { "RFID.Hex", "RFID", "State.RFID", "Rfid" }) {
+                    List<WeldingMachineParameterValue> rfidVals = getParameterValuesInBatches(allStateIds, code);
+                    for (WeldingMachineParameterValue pv : rfidVals) {
+                        if (pv.getValue() != null && !pv.getValue().trim().isEmpty())
+                            rfidByStateId.putIfAbsent(pv.getWeldingMachineStateId(), pv.getValue().trim());
+                    }
+                    if (!rfidByStateId.isEmpty()) break;
+                }
+            }
+            String sampleRfid = rfidByStateId.isEmpty() ? " (нет RFID в параметрах)" : rfidByStateId.entrySet().stream().limit(2).map(e -> e.getKey() + "->" + e.getValue()).collect(Collectors.joining("; "));
+            System.out.println("[REPORT-DATA] equipment report: allStateIds=" + allStateIds.size() + " rfidByStateId=" + rfidByStateId.size() + " " + sampleRfid);
+
+            // Предвычисление: по машине — только состояния с RFID в параметрах (для быстрого fallback без перебора всех состояний)
+            Map<Integer, List<WeldingMachineState>> statesWithRfidInParamsByMachineId = new HashMap<>();
+            if (!rfidByStateId.isEmpty()) {
+                for (Integer mid : machineIdsInReport) {
+                    List<WeldingMachineState> withRfid = statesByMachineId.get(mid).stream()
+                            .filter(s -> rfidByStateId.containsKey(s.getId()))
+                            .collect(Collectors.toList());
+                    statesWithRfidInParamsByMachineId.put(mid, withRfid);
+                }
+            }
+            // Предвычисление: по машине и дате — состояния с непустым state.rfid (для fallback по колонке)
+            Map<Integer, Map<LocalDate, List<WeldingMachineState>>> statesWithRfidColumnByMachineAndDay = new HashMap<>();
+            for (Integer mid : machineIdsInReport) {
+                Map<LocalDate, List<WeldingMachineState>> byDay = new HashMap<>();
+                for (WeldingMachineState s : statesByMachineId.get(mid)) {
+                    if (s.getDateCreated() == null || s.getRfid() == null || s.getRfid().trim().isEmpty()) continue;
+                    byDay.computeIfAbsent(s.getDateCreated().toLocalDate(), k -> new ArrayList<>()).add(s);
+                }
+                statesWithRfidColumnByMachineAndDay.put(mid, byDay);
+            }
+
+            for (EquipmentWeldRow r : merged) {
+                if (r.durationSec.longValue() < minDurationSec) continue;
+                int currentInt = r.avgCurrent.intValue();
+                if (currentInt < 1) currentInt = 0;
+                boolean outOfRange = actualMin != null && actualMax != null && (currentInt < actualMin || currentInt > actualMax);
+
+                LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
+                LocalDateTime displayDateTime = getDeviceDateTimeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, deviceDateTimeByStateId);
+                if (displayDateTime == null) displayDateTime = r.startTime;
+                String workMode = getWorkModeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, workModeByStateId);
+
+                String welderFullName = "";
+                String welderTabNumber = "";
+                String welderProfession = "";
+                Long welderId = null;
+                WeldingMachineState stateInSegment = getStateInSegment(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, rfidByStateId);
+                String rfidCode = null;
+                if (stateInSegment != null) {
+                    rfidCode = (stateInSegment.getRfid() != null && !stateInSegment.getRfid().trim().isEmpty())
+                            ? stateInSegment.getRfid().trim()
+                            : (rfidByStateId != null ? rfidByStateId.get(stateInSegment.getId()) : null);
+                    if (rfidCode != null && rfidCode.isEmpty()) rfidCode = null;
+                }
+                // Fallback 1: RFID от ближайшего состояния из карты параметров (в пределах 60 мин) — по предвычисленному короткому списку
+                if (rfidCode == null && !statesWithRfidInParamsByMachineId.isEmpty()) {
+                    List<WeldingMachineState> withRfid = statesWithRfidInParamsByMachineId.get(r.machineId);
+                    if (withRfid != null) {
+                        WeldingMachineState closestWithRfid = getClosestStateWithRfid(withRfid, r.startTime, rfidByStateId, 60);
+                        if (closestWithRfid != null)
+                            rfidCode = rfidByStateId.get(closestWithRfid.getId());
+                    }
+                }
+                // Fallback 2: RFID из колонки state.rfid — по предвычисленному списку за тот же день
+                if (rfidCode == null) {
+                    List<WeldingMachineState> sameDayWithRfid = statesWithRfidColumnByMachineAndDay.getOrDefault(r.machineId, Collections.emptyMap()).get(r.startTime.toLocalDate());
+                    if (sameDayWithRfid != null && !sameDayWithRfid.isEmpty()) {
+                        WeldingMachineState closestWithStateRfid = getClosestStateByTime(sameDayWithRfid, r.startTime);
+                        if (closestWithStateRfid != null && closestWithStateRfid.getRfid() != null && !closestWithStateRfid.getRfid().trim().isEmpty())
+                            rfidCode = closestWithStateRfid.getRfid().trim();
+                    }
+                }
+                if (result.size() < 3) {
+                    System.out.println("[REPORT-DATA] equipment row: segmentStart=" + r.startTime + " stateInSegmentId=" + (stateInSegment != null ? stateInSegment.getId() : null) + " rfidCode=" + rfidCode);
+                }
+                if (rfidCode != null) {
+                    Optional<RfidPass> passOpt = findRfidPassByCode(rfidCode);
+                    if (result.size() < 3) {
+                        System.out.println("[REPORT-DATA] equipment rfid lookup: code=" + rfidCode + " passFound=" + passOpt.isPresent() + (passOpt.isPresent() && passOpt.get().getWelder() != null ? " welder=" + passOpt.get().getWelder().getName() : ""));
+                    }
+                    if (passOpt.isPresent() && passOpt.get().getWelder() != null) {
+                        Welder w = passOpt.get().getWelder();
+                        welderId = w.getId();
+                        welderFullName = w.getName() != null ? w.getName() : "";
+                        welderTabNumber = w.getEmployeeId() != null ? w.getEmployeeId() : "";
+                        welderProfession = (w.getPosition() != null ? w.getPosition() : (w.getGrade() != null ? w.getGrade() : ""));
+                    }
+                }
+
+                BigDecimal energyKwh = calculateEnergyPerWeld(r.avgVoltage, r.avgCurrent, r.durationSec);
+
+                EquipmentWorkReportDTO dto = new EquipmentWorkReportDTO();
+                dto.setDate(displayDateTime.toLocalDate());
+                dto.setWeldStartTime(displayDateTime.toLocalTime());
+                dto.setEquipmentModel(r.equipmentModel);
+                dto.setEquipmentName(r.machineName);
+                dto.setWorkMode(workMode != null ? workMode : "");
+                dto.setWireFeedSpeedMpm(BigDecimal.ZERO);
+                dto.setCurrentAmps(r.avgCurrent.setScale(1, RoundingMode.HALF_UP));
+                dto.setVoltageVolts(r.avgVoltage.setScale(1, RoundingMode.HALF_UP));
+                dto.setWeldDurationSec(r.durationSec.setScale(1, RoundingMode.HALF_UP));
+                dto.setEnergyConsumedKwh(energyKwh);
+                dto.setCurrentOutOfRange(outOfRange);
+                dto.setWeldingMachineId(r.machineId);
+                dto.setWeldingMachineName(r.machineName);
+                dto.setWelderFullName(welderFullName);
+                dto.setWelderTabNumber(welderTabNumber);
+                dto.setWelderProfession(welderProfession);
+                dto.setWelderId(welderId);
+                result.add(dto);
+            }
+
+            for (int i = 0; i < result.size(); i++) {
+                result.get(i).setIndex(i + 1);
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] Ошибка getEquipmentWorkDataNew: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    private static class EquipmentWeldRow {
+        int machineId;
+        String machineName;
+        String equipmentModel;
+        LocalDateTime startTime;
+        BigDecimal durationSec;
+        BigDecimal avgCurrent;
+        BigDecimal avgVoltage;
+    }
+
+    private EquipmentWeldRow copyEquipmentWeldRow(EquipmentWeldRow r) {
+        EquipmentWeldRow c = new EquipmentWeldRow();
+        c.machineId = r.machineId;
+        c.machineName = r.machineName;
+        c.equipmentModel = r.equipmentModel;
+        c.startTime = r.startTime;
+        c.durationSec = r.durationSec;
+        c.avgCurrent = r.avgCurrent;
+        c.avgVoltage = r.avgVoltage;
+        return c;
+    }
+
+    /**
+     * Находит состояние аппарата, пересекающееся с сегментом [segmentStart, segmentEnd].
+     * Список states должен быть отсортирован по dateCreated (отсортирован один раз при загрузке).
+     */
+    private WeldingMachineState getStateInSegment(List<WeldingMachineState> states, LocalDateTime segmentStart, LocalDateTime segmentEnd, Map<Long, String> rfidByStateId) {
+        if (states == null || states.isEmpty()) return null;
+        // 1) Предпочитаем состояние, у которого есть RFID в параметрах
+        if (rfidByStateId != null && !rfidByStateId.isEmpty()) {
+            for (WeldingMachineState s : states) {
+                if (overlapsSegment(s, segmentStart, segmentEnd) && rfidByStateId.containsKey(s.getId()))
+                    return s;
+            }
+        }
+        // 2) Иначе — с непустым state.rfid
+        for (WeldingMachineState s : states) {
+            if (overlapsSegment(s, segmentStart, segmentEnd) && s.getRfid() != null && !s.getRfid().trim().isEmpty())
+                return s;
+        }
+        // 3) Любое пересекающееся
+        for (WeldingMachineState s : states) {
+            if (overlapsSegment(s, segmentStart, segmentEnd)) return s;
+        }
+        return null;
+    }
+
+    /** Ближайшее по времени к segmentStart состояние в списке (минимальная разница по времени). */
+    private WeldingMachineState getClosestStateByTime(List<WeldingMachineState> states, LocalDateTime segmentStart) {
+        if (states == null || states.isEmpty()) return null;
+        WeldingMachineState best = null;
+        long bestDiff = Long.MAX_VALUE;
+        for (WeldingMachineState s : states) {
+            if (s.getDateCreated() == null) continue;
+            long diff = Math.abs(java.time.Duration.between(segmentStart, s.getDateCreated()).toMillis());
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                best = s;
+            }
+        }
+        return best;
+    }
+
+    private boolean overlapsSegment(WeldingMachineState s, LocalDateTime segmentStart, LocalDateTime segmentEnd) {
+        LocalDateTime stateStart = s.getDateCreated();
+        if (stateStart == null) return false;
+        long durationMs = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
+        LocalDateTime stateEnd = stateStart.plus(durationMs, ChronoUnit.MILLIS);
+        return stateStart.isBefore(segmentEnd) && stateEnd.isAfter(segmentStart);
+    }
+
+    /**
+     * Ближайшее по времени к segmentStart состояние из списка, у которого есть RFID в rfidByStateId.
+     * Только если разница по времени не больше maxDiffMinutes минут.
+     */
+    private WeldingMachineState getClosestStateWithRfid(List<WeldingMachineState> states, LocalDateTime segmentStart,
+                                                        Map<Long, String> rfidByStateId, long maxDiffMinutes) {
+        if (states == null || rfidByStateId == null || rfidByStateId.isEmpty()) return null;
+        WeldingMachineState best = null;
+        long bestDiffMinutes = maxDiffMinutes + 1;
+        for (WeldingMachineState s : states) {
+            if (s.getDateCreated() == null || !rfidByStateId.containsKey(s.getId())) continue;
+            long diffMinutes = Math.abs(java.time.Duration.between(segmentStart, s.getDateCreated()).toMinutes());
+            if (diffMinutes <= maxDiffMinutes && diffMinutes < bestDiffMinutes) {
+                bestDiffMinutes = diffMinutes;
+                best = s;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Ближайшее по времени к segmentStart состояние с непустым state.rfid (колонка RFID в БД), в пределах maxDiffMinutes минут.
+     * Используется когда отчёт по сварщику находит данные по state.rfid, а в параметрах за этот день RFID нет.
+     */
+    private WeldingMachineState getClosestStateWithRfidColumn(List<WeldingMachineState> states, LocalDateTime segmentStart, long maxDiffMinutes) {
+        if (states == null) return null;
+        WeldingMachineState best = null;
+        long bestDiffMinutes = maxDiffMinutes + 1;
+        for (WeldingMachineState s : states) {
+            if (s.getDateCreated() == null || s.getRfid() == null || s.getRfid().trim().isEmpty()) continue;
+            long diffMinutes = Math.abs(java.time.Duration.between(segmentStart, s.getDateCreated()).toMinutes());
+            if (diffMinutes <= maxDiffMinutes && diffMinutes < bestDiffMinutes) {
+                bestDiffMinutes = diffMinutes;
+                best = s;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Загружает RFID по stateId из таблицы параметров нативным запросом (колонка property_code в БД).
+     * Пробует оба варианта имени колонки: welding_machine_stateid и welding_machine_state_id.
+     */
+    private Map<Long, String> loadRfidByStateIdFromParamsNative(List<Long> stateIds) {
+        Map<Long, String> out = new HashMap<>();
+        if (stateIds == null || stateIds.isEmpty()) return out;
+        final int BATCH = 10_000;
+        for (String propertyCode : new String[] { "RFID.Hex", "RFID", "State.RFID", "Rfid" }) {
+            for (int i = 0; i < stateIds.size(); i += BATCH) {
+                List<Long> batch = stateIds.subList(i, Math.min(i + BATCH, stateIds.size()));
+                try {
+                    List<Object[]> rows = parameterValueRepository.findStateIdAndValueNative(batch, propertyCode);
+                    for (Object[] row : rows) {
+                        if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                            String val = row[1].toString().trim();
+                            if (!val.isEmpty()) {
+                                long stateId = ((Number) row[0]).longValue();
+                                out.putIfAbsent(stateId, val);
+                            }
+                        }
+                    }
+                } catch (Exception e1) {
+                    try {
+                        List<Object[]> rows = parameterValueRepository.findStateIdAndValueNativeUnderscore(batch, propertyCode);
+                        for (Object[] row : rows) {
+                            if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                                String val = row[1].toString().trim();
+                                if (!val.isEmpty()) {
+                                    long stateId = ((Number) row[0]).longValue();
+                                    out.putIfAbsent(stateId, val);
+                                }
+                            }
+                        }
+                    } catch (Exception e2) {
+                        // оба варианта колонки не подошли
+                    }
+                }
+            }
+            if (!out.isEmpty()) break;
+        }
+        return out;
+    }
+
+    /**
+     * Поиск пропуска по коду: сначала точное совпадение, затем вариант без ведущих нулей (hex).
+     */
+    private Optional<RfidPass> findRfidPassByCode(String code) {
+        if (code == null || code.trim().isEmpty()) return Optional.empty();
+        String trimmed = code.trim();
+        Optional<RfidPass> exact = rfidPassRepository.findByCode(trimmed);
+        if (exact.isPresent()) return exact;
+        String normalized = normalizeHexLeadingZeros(trimmed);
+        if (!normalized.equals(trimmed)) return rfidPassRepository.findByCode(normalized);
+        return Optional.empty();
+    }
+
+    private static String normalizeHexLeadingZeros(String hex) {
+        if (hex == null || hex.isEmpty()) return hex;
+        String s = hex.trim();
+        if (!s.matches("^[0-9A-Fa-f]+$")) return s;
+        s = s.replaceFirst("^0+", "");
+        return s.isEmpty() ? "0" : s;
     }
 
     private static class WeldRow {
