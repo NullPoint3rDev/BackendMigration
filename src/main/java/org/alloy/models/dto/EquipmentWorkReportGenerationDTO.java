@@ -23,4 +23,9 @@ public class EquipmentWorkReportGenerationDTO {
 
     /** Выбранные ID аппаратов (если передаются в запросе при использовании общего шаблона) */
     private List<Integer> selectedEquipmentIds;
+
+    /** Минимальный интервал между швами, с (0–10). Передаётся с формы при генерации. */
+    private Integer minSeamInterval;
+    /** Минимальный учитываемый шов, с (0–10). Передаётся с формы при генерации. */
+    private Integer minSeamDuration;
 }

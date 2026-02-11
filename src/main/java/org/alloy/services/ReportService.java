@@ -2790,18 +2790,21 @@ public class ReportService {
                         r8.createCell(1).setCellValue("min");
                         r8.getCell(1).setCellStyle(labelStyle);
                         if (template.getActualCurrentMin() != null) r8.createCell(2).setCellValue(template.getActualCurrentMin());
-                        r8.createCell(5).setCellValue("Минимальный интервал между швами, с");
-                        r8.getCell(5).setCellStyle(labelStyle);
-                        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 5, 7));
-                        if (template.getMinIntervalBetweenWeldsSec() != null) r8.createCell(8).setCellValue(template.getMinIntervalBetweenWeldsSec());
                         Row r9 = sheet.createRow(rowIdx++);
                         r9.createCell(1).setCellValue("max");
                         r9.getCell(1).setCellStyle(labelStyle);
                         if (template.getActualCurrentMax() != null) r9.createCell(2).setCellValue(template.getActualCurrentMax());
-                        r9.createCell(5).setCellValue("Минимальный учитываемый шов, с");
-                        r9.getCell(5).setCellStyle(labelStyle);
-                        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 5, 6));
-                        if (template.getMinWeldDurationSec() != null) r9.createCell(8).setCellValue(template.getMinWeldDurationSec());
+                    }
+                    // Минимальный интервал между швами и минимальный учитываемый шов — выводим всегда, когда заданы
+                    if (template != null && (template.getMinIntervalBetweenWeldsSec() != null || template.getMinWeldDurationSec() != null)) {
+                        Row rMinInterval = sheet.createRow(rowIdx++);
+                        rMinInterval.createCell(4).setCellValue("Минимальный интервал между швами, с");
+                        rMinInterval.getCell(4).setCellStyle(labelStyle);
+                        if (template.getMinIntervalBetweenWeldsSec() != null) rMinInterval.createCell(5).setCellValue(template.getMinIntervalBetweenWeldsSec());
+                        Row rMinWeld = sheet.createRow(rowIdx++);
+                        rMinWeld.createCell(4).setCellValue("Минимальный учитываемый шов, с");
+                        rMinWeld.getCell(4).setCellStyle(labelStyle);
+                        if (template.getMinWeldDurationSec() != null) rMinWeld.createCell(5).setCellValue(template.getMinWeldDurationSec());
                     }
                     periodAndRangeWritten = true;
                     rowIdx++;
@@ -2865,16 +2868,15 @@ public class ReportService {
                                     CellStyle style) {
         int row = startRow;
 
-        // Период - первая строка: "с:" дата время [Дни недели]
+        // Период - первая строка: "с:" дата время [Дни недели] (время всегда выводим)
+        LocalTime displayStartTime = periodStartTime != null ? periodStartTime : LocalTime.MIN;
         Row periodRow1 = sheet.createRow(row++);
         periodRow1.createCell(0).setCellValue("с:");
         int colIndex = 1;
         if (periodStartDate != null) {
             periodRow1.createCell(colIndex++).setCellValue(periodStartDate.toString());
         }
-        if (periodStartTime != null) {
-            periodRow1.createCell(colIndex++).setCellValue(formatTime(periodStartTime));
-        }
+        periodRow1.createCell(colIndex++).setCellValue(formatTime(displayStartTime));
 
         // Добавляем дни недели, если они выбраны
         if (template.getSelectedDays() != null && !template.getSelectedDays().isEmpty()) {
@@ -2887,15 +2889,14 @@ public class ReportService {
                     (template.getSelectedDays() == null ? "null" : "empty"));
         }
 
-        // Период - вторая строка: "по:" дата время
+        // Период - вторая строка: "по:" дата время (время всегда выводим)
+        LocalTime displayEndTime = periodEndTime != null ? periodEndTime : LocalTime.of(23, 59, 59);
         Row periodRow2 = sheet.createRow(row++);
         periodRow2.createCell(0).setCellValue("по:");
         if (periodEndDate != null) {
             periodRow2.createCell(1).setCellValue(periodEndDate.toString());
         }
-        if (periodEndTime != null) {
-            periodRow2.createCell(2).setCellValue(formatTime(periodEndTime));
-        }
+        periodRow2.createCell(2).setCellValue(formatTime(displayEndTime));
 
         // Пределы устанавливаемого и фактического тока - новый формат
         // Проверяем, нужно ли показывать хотя бы один из диапазонов
@@ -3056,11 +3057,6 @@ public class ReportService {
         int serialNumber = 1;
 
         for (WireConsumptionReportDTO item : data) {
-            // Пропускаем порядковый номер для суммарных строк
-            if (item.getIsSummaryRow() != null && item.getIsSummaryRow()) {
-                serialNumber--; // Не увеличиваем для суммарной строки
-            }
-
             Row dataRow = sheet.createRow(row++);
             CellStyle rowStyle = item.getIsSummaryRow() != null && item.getIsSummaryRow()
                     ? summaryRowStyle : dataStyle;

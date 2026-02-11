@@ -26,6 +26,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -249,22 +252,31 @@ public class ReportController {
                 }
             }
 
+            // Период: подставляем время по умолчанию (00:00 и 23:59), если не задано
+            LocalDate periodStartDate = generationRequest.getPeriodStartDate();
+            LocalDate periodEndDate = generationRequest.getPeriodEndDate();
+            LocalTime periodStartTime = generationRequest.getPeriodStartTime() != null
+                    ? generationRequest.getPeriodStartTime() : LocalTime.MIN; // 00:00
+            LocalTime periodEndTime = generationRequest.getPeriodEndTime() != null
+                    ? generationRequest.getPeriodEndTime() : LocalTime.of(23, 59, 59);
+
+            // Если конец периода ещё не наступил — принимаем за конец текущий момент и пишем его в отчёт
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime endDateTime = periodEndDate != null
+                    ? LocalDateTime.of(periodEndDate, periodEndTime) : null;
+            if (endDateTime != null && endDateTime.isAfter(now)) {
+                periodEndDate = now.toLocalDate();
+                periodEndTime = now.toLocalTime();
+            }
+
             // Получаем данные отчета
             List<WireConsumptionReportDTO> data = reportDataService.getWireConsumptionDataNew(
-                    template,
-                    generationRequest.getPeriodStartDate(),
-                    generationRequest.getPeriodEndDate(),
-                    generationRequest.getPeriodStartTime(),
-                    generationRequest.getPeriodEndTime()
+                    template, periodStartDate, periodEndDate, periodStartTime, periodEndTime
             );
 
-            // Генерируем Excel отчет
+            // Генерируем Excel отчёт (в заголовке будут дата и время)
             byte[] reportBytes = reportService.generateWireConsumptionReportNew(
-                    data, template,
-                    generationRequest.getPeriodStartDate(),
-                    generationRequest.getPeriodEndDate(),
-                    generationRequest.getPeriodStartTime(),
-                    generationRequest.getPeriodEndTime());
+                    data, template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
 
             String filename = "wire_consumption_report_" + System.currentTimeMillis() + ".xlsx";
 
@@ -636,6 +648,8 @@ public class ReportController {
             if (generationRequest.getSelectedEquipmentIds() != null && !generationRequest.getSelectedEquipmentIds().isEmpty()) {
                 template.setSelectedEquipmentIds(generationRequest.getSelectedEquipmentIds());
             }
+            if (generationRequest.getMinSeamInterval() != null) template.setMinIntervalBetweenWeldsSec(generationRequest.getMinSeamInterval());
+            if (generationRequest.getMinSeamDuration() != null) template.setMinWeldDurationSec(generationRequest.getMinSeamDuration());
 
             List<Integer> equipmentIdsForReport = template.getSelectedEquipmentIds() != null && !template.getSelectedEquipmentIds().isEmpty()
                     ? new java.util.ArrayList<>(template.getSelectedEquipmentIds())
