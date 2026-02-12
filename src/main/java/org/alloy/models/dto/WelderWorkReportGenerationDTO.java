@@ -42,6 +42,15 @@ public class WelderWorkReportGenerationDTO {
      * Если переданы при генерации — подменяют список из шаблона (актуальное состояние галочек на форме).
      */
     private java.util.List<String> selectedColumns;
+
+    /** Минимальный интервал между швами, с (0–10). Передаётся с формы при генерации. */
+    private Integer minSeamInterval;
+    /** Минимальный учитываемый шов, с (0–10). Передаётся с формы при генерации. */
+    private Integer minSeamDuration;
+    /** Галочка «Мин. интервал между швами» включена. Если false — в отчёт не попадает. */
+    private Boolean minSeamIntervalEnabled;
+    /** Галочка «Мин. учитываемый шов» включена. Если false — в отчёт не попадает. */
+    private Boolean minSeamDurationEnabled;
 }
 
 

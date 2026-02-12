@@ -28,4 +28,8 @@ public class EquipmentWorkReportGenerationDTO {
     private Integer minSeamInterval;
     /** Минимальный учитываемый шов, с (0–10). Передаётся с формы при генерации. */
     private Integer minSeamDuration;
+    /** Галочка «Мин. интервал между швами» включена. Если false — в отчёт не попадает. */
+    private Boolean minSeamIntervalEnabled;
+    /** Галочка «Мин. учитываемый шов» включена. Если false — в отчёт не попадает. */
+    private Boolean minSeamDurationEnabled;
 }

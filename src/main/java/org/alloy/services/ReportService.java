@@ -2134,6 +2134,7 @@ public class ReportService {
 
             // Блок по току/интервалам — только если выбран пункт
             boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
+            int headerRowIndex = 6; // следующий свободный ряд после периода (строки 4, 5)
             if (includeActualRange) {
                 // Row 7 (index 6): B7-D7
                 Row r7 = sheet.createRow(6);
@@ -2142,7 +2143,7 @@ public class ReportService {
                 b7.setCellStyle(labelStyle);
                 sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(6, 6, 1, 3));
 
-                // Row 8 (index 7): B8/C8, F8-H8, I8
+                // Row 8 (index 7): B8/C8
                 Row r8 = sheet.createRow(7);
                 Cell b8 = r8.createCell(1);
                 b8.setCellValue("min");
@@ -2152,16 +2153,7 @@ public class ReportService {
                     c8.setCellValue(template.getActualCurrentMin());
                 }
 
-                Cell f8 = r8.createCell(5);
-                f8.setCellValue("Минимальный интервал между швами, с");
-                f8.setCellStyle(labelStyle);
-                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(7, 7, 5, 7));
-                Cell i8 = r8.createCell(8);
-                if (template.getMinIntervalBetweenWeldsSec() != null) {
-                    i8.setCellValue(template.getMinIntervalBetweenWeldsSec());
-                }
-
-                // Row 9 (index 8): B9/C9, F9-G9, I9
+                // Row 9 (index 8): B9/C9
                 Row r9 = sheet.createRow(8);
                 Cell b9 = r9.createCell(1);
                 b9.setCellValue("max");
@@ -2170,20 +2162,28 @@ public class ReportService {
                 if (template.getActualCurrentMax() != null) {
                     c9.setCellValue(template.getActualCurrentMax());
                 }
-
-                Cell f9 = r9.createCell(5);
-                f9.setCellValue("Минимальный учитываемый шов, с");
-                f9.setCellStyle(labelStyle);
-                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(8, 8, 5, 6));
-                Cell i9 = r9.createCell(8);
-                if (template.getMinWeldDurationSec() != null) {
-                    i9.setCellValue(template.getMinWeldDurationSec());
-                }
+                headerRowIndex = 9; // следующий свободный после 6,7,8
+            }
+            // Минимальный интервал между швами — только если включён и задан
+            if (template != null && template.getMinIntervalBetweenWeldsSec() != null) {
+                Row rMinInterval = sheet.createRow(headerRowIndex);
+                rMinInterval.createCell(4).setCellValue("Минимальный интервал между швами, с");
+                rMinInterval.getCell(4).setCellStyle(labelStyle);
+                rMinInterval.createCell(5).setCellValue(template.getMinIntervalBetweenWeldsSec());
+                headerRowIndex++;
+            }
+            // Минимальный учитываемый шов — только если включён и задан
+            if (template != null && template.getMinWeldDurationSec() != null) {
+                Row rMinWeld = sheet.createRow(headerRowIndex);
+                rMinWeld.createCell(4).setCellValue("Минимальный учитываемый шов, с");
+                rMinWeld.getCell(4).setCellStyle(labelStyle);
+                rMinWeld.createCell(5).setCellValue(template.getMinWeldDurationSec());
+                headerRowIndex++;
             }
 
             // Таблица: обязательные колонки + выбранные в шаблоне (selectedColumns)
             List<WelderWorkColumnDef> columnDefs = getWelderWorkReportColumnDefinitions(template);
-            Row headerRow = sheet.createRow(10);
+            Row headerRow = sheet.createRow(headerRowIndex);
             for (int c = 0; c < columnDefs.size(); c++) {
                 Cell cell = headerRow.createCell(c);
                 cell.setCellValue(columnDefs.get(c).header);
@@ -2193,7 +2193,7 @@ public class ReportService {
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
 
-            int rowIdx = 11;
+            int rowIdx = headerRowIndex + 1;
             if (data != null) {
                 for (WelderWorkReportDTO item : data) {
                     Row row = sheet.createRow(rowIdx++);
@@ -2329,12 +2329,6 @@ public class ReportService {
                         b8.setCellStyle(labelStyle);
                         Cell c8 = r8.createCell(2);
                         if (template.getActualCurrentMin() != null) c8.setCellValue(template.getActualCurrentMin());
-                        Cell f8 = r8.createCell(5);
-                        f8.setCellValue("Минимальный интервал между швами, с");
-                        f8.setCellStyle(labelStyle);
-                        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 5, 7));
-                        Cell i8 = r8.createCell(8);
-                        if (template.getMinIntervalBetweenWeldsSec() != null) i8.setCellValue(template.getMinIntervalBetweenWeldsSec());
 
                         Row r9 = sheet.createRow(rowIdx++);
                         Cell b9 = r9.createCell(1);
@@ -2342,12 +2336,20 @@ public class ReportService {
                         b9.setCellStyle(labelStyle);
                         Cell c9 = r9.createCell(2);
                         if (template.getActualCurrentMax() != null) c9.setCellValue(template.getActualCurrentMax());
-                        Cell f9 = r9.createCell(5);
-                        f9.setCellValue("Минимальный учитываемый шов, с");
-                        f9.setCellStyle(labelStyle);
-                        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 5, 6));
-                        Cell i9 = r9.createCell(8);
-                        if (template.getMinWeldDurationSec() != null) i9.setCellValue(template.getMinWeldDurationSec());
+                    }
+                    // Минимальный интервал между швами — только если включён и задан
+                    if (template != null && template.getMinIntervalBetweenWeldsSec() != null) {
+                        Row rMinInterval = sheet.createRow(rowIdx++);
+                        rMinInterval.createCell(4).setCellValue("Минимальный интервал между швами, с");
+                        rMinInterval.getCell(4).setCellStyle(labelStyle);
+                        rMinInterval.createCell(5).setCellValue(template.getMinIntervalBetweenWeldsSec());
+                    }
+                    // Минимальный учитываемый шов — только если включён и задан
+                    if (template != null && template.getMinWeldDurationSec() != null) {
+                        Row rMinWeld = sheet.createRow(rowIdx++);
+                        rMinWeld.createCell(4).setCellValue("Минимальный учитываемый шов, с");
+                        rMinWeld.getCell(4).setCellStyle(labelStyle);
+                        rMinWeld.createCell(5).setCellValue(template.getMinWeldDurationSec());
                     }
                     periodAndRangeWritten = true;
                     rowIdx++;

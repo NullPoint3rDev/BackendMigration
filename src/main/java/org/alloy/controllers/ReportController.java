@@ -465,6 +465,10 @@ public class ReportController {
             if (generationRequest.getSelectedColumns() != null && !generationRequest.getSelectedColumns().isEmpty()) {
                 template.setSelectedColumns(generationRequest.getSelectedColumns());
             }
+            if (Boolean.FALSE.equals(generationRequest.getMinSeamIntervalEnabled())) template.setMinIntervalBetweenWeldsSec(null);
+            else if (generationRequest.getMinSeamInterval() != null) template.setMinIntervalBetweenWeldsSec(generationRequest.getMinSeamInterval());
+            if (Boolean.FALSE.equals(generationRequest.getMinSeamDurationEnabled())) template.setMinWeldDurationSec(null);
+            else if (generationRequest.getMinSeamDuration() != null) template.setMinWeldDurationSec(generationRequest.getMinSeamDuration());
 
             // Список сварщиков для отчёта: несколько выбранных или один по умолчанию
             List<Long> welderIdsForReport = template.getSelectedWelderIds() != null && !template.getSelectedWelderIds().isEmpty()
@@ -648,8 +652,10 @@ public class ReportController {
             if (generationRequest.getSelectedEquipmentIds() != null && !generationRequest.getSelectedEquipmentIds().isEmpty()) {
                 template.setSelectedEquipmentIds(generationRequest.getSelectedEquipmentIds());
             }
-            if (generationRequest.getMinSeamInterval() != null) template.setMinIntervalBetweenWeldsSec(generationRequest.getMinSeamInterval());
-            if (generationRequest.getMinSeamDuration() != null) template.setMinWeldDurationSec(generationRequest.getMinSeamDuration());
+            if (Boolean.FALSE.equals(generationRequest.getMinSeamIntervalEnabled())) template.setMinIntervalBetweenWeldsSec(null);
+            else if (generationRequest.getMinSeamInterval() != null) template.setMinIntervalBetweenWeldsSec(generationRequest.getMinSeamInterval());
+            if (Boolean.FALSE.equals(generationRequest.getMinSeamDurationEnabled())) template.setMinWeldDurationSec(null);
+            else if (generationRequest.getMinSeamDuration() != null) template.setMinWeldDurationSec(generationRequest.getMinSeamDuration());
 
             List<Integer> equipmentIdsForReport = template.getSelectedEquipmentIds() != null && !template.getSelectedEquipmentIds().isEmpty()
                     ? new java.util.ArrayList<>(template.getSelectedEquipmentIds())
