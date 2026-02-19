@@ -129,8 +129,8 @@ public class WeldingDataParserService {
                 // Температуры охлаждающей жидкости нужно делить на 10
                 addProperty(props, "Температура охлаждающей жидкости на входе", String.format("%.1f", core.chillerTemperature1 / 10.0), "number");
                 addProperty(props, "Температура охлаждающей жидкости на выходе", String.format("%.1f", core.chillerTemperature2 / 10.0), "number");
-                addProperty(props, "Температура первичной обмотки", String.valueOf(core.primaryCoilTemperature), "number");
-                addProperty(props, "Температура вторичной обмотки", String.valueOf(core.secondaryCoilTemperature), "number");
+                addProperty(props, "Температура первичной обмотки", String.format("%.1f", core.primaryCoilTemperature / 10.0), "number");
+                addProperty(props, "Температура вторичной обмотки", String.format("%.1f", core.secondaryCoilTemperature / 10.0), "number");
                 
                 // Преобразуем uint32 в float для отображения расхода проволоки
                 float wireConsumption = uint32ToFloat(core.wireIndex);

@@ -2113,7 +2113,7 @@ public class ReportService {
             Cell f3 = r3.createCell(5);
             f3.setCellValue(template != null && template.getWelderDepartment() != null ? template.getWelderDepartment() : "");
 
-            // Row 5 (index 4): E5/F5/G5
+            // Row 5 (index 4): E5/F5/G5/H5 — за период: с, дата, время
             Row r5 = sheet.createRow(4);
             Cell e5 = r5.createCell(4);
             e5.setCellValue("за период:");
@@ -2123,14 +2123,16 @@ public class ReportService {
             f5.setCellStyle(labelStyle);
             Cell g5 = r5.createCell(6);
             g5.setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
+            r5.createCell(7).setCellValue("00:00");
 
-            // Row 6 (index 5): F6/G6
+            // Row 6 (index 5): F6/G6/H6 — по, дата, время
             Row r6 = sheet.createRow(5);
             Cell f6 = r6.createCell(5);
             f6.setCellValue("по");
             f6.setCellStyle(labelStyle);
             Cell g6 = r6.createCell(6);
             g6.setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
+            r6.createCell(7).setCellValue(getPeriodEndTimeDisplay(periodEndDate));
 
             // Блок по току/интервалам — только если выбран пункт
             boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
@@ -2201,8 +2203,14 @@ public class ReportService {
                     CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
                     for (int col = 0; col < columnDefs.size(); col++) {
                         Cell cell = row.createCell(col);
-                        cell.setCellStyle(rowStyle);
-                        setWelderWorkCellValue(cell, item, columnDefs.get(col).key);
+                        String key = columnDefs.get(col).key;
+                        CellStyle cellStyle = rowStyle;
+                        if ("currentAmps".equals(key) || "voltageVolts".equals(key) || "weldDurationSec".equals(key)) {
+                            String format = "voltageVolts".equals(key) ? "0.0" : "0";
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
+                        }
+                        cell.setCellStyle(cellStyle);
+                        setWelderWorkCellValue(cell, item, key);
                     }
                 }
             }
@@ -2307,6 +2315,7 @@ public class ReportService {
                     f5.setCellStyle(labelStyle);
                     Cell g5 = r5.createCell(6);
                     g5.setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
+                    r5.createCell(7).setCellValue("00:00");
 
                     Row r6 = sheet.createRow(rowIdx++);
                     Cell f6 = r6.createCell(5);
@@ -2314,6 +2323,7 @@ public class ReportService {
                     f6.setCellStyle(labelStyle);
                     Cell g6 = r6.createCell(6);
                     g6.setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
+                    r6.createCell(7).setCellValue(getPeriodEndTimeDisplay(periodEndDate));
 
                     boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
                     if (includeActualRange) {
@@ -2375,8 +2385,14 @@ public class ReportService {
                     CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
                     for (int col = 0; col < columnDefs.size(); col++) {
                         Cell cell = row.createCell(col);
-                        cell.setCellStyle(rowStyle);
-                        setWelderWorkCellValue(cell, item, columnDefs.get(col).key);
+                        String key = columnDefs.get(col).key;
+                        CellStyle cellStyle = rowStyle;
+                        if ("currentAmps".equals(key) || "voltageVolts".equals(key) || "weldDurationSec".equals(key)) {
+                            String format = "voltageVolts".equals(key) ? "0.0" : "0";
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
+                        }
+                        cell.setCellStyle(cellStyle);
+                        setWelderWorkCellValue(cell, item, key);
                     }
                 }
             }
@@ -2523,6 +2539,11 @@ public class ReportService {
         return list;
     }
 
+    /** Для отчёта по работе оборудования: записать число только если значение не null и не ноль (иначе ячейка остаётся пустой). */
+    private static boolean isNullOrZero(BigDecimal value) {
+        return value == null || value.compareTo(BigDecimal.ZERO) == 0;
+    }
+
     private void setEquipmentWorkCellValue(Cell cell, EquipmentWorkReportDTO item, String key) {
         switch (key) {
             case "index":
@@ -2547,25 +2568,25 @@ public class ReportService {
                 cell.setCellValue(item.getWorkMode() != null ? item.getWorkMode() : "");
                 break;
             case "currentAmps":
-                if (item.getCurrentAmps() != null) cell.setCellValue(item.getCurrentAmps().doubleValue());
+                if (!isNullOrZero(item.getCurrentAmps())) cell.setCellValue(item.getCurrentAmps().doubleValue());
                 break;
             case "voltageVolts":
-                if (item.getVoltageVolts() != null) cell.setCellValue(item.getVoltageVolts().doubleValue());
+                if (!isNullOrZero(item.getVoltageVolts())) cell.setCellValue(item.getVoltageVolts().doubleValue());
                 break;
             case "wireFeedSpeed":
-                if (item.getWireFeedSpeedMpm() != null) cell.setCellValue(item.getWireFeedSpeedMpm().doubleValue());
+                if (!isNullOrZero(item.getWireFeedSpeedMpm())) cell.setCellValue(item.getWireFeedSpeedMpm().doubleValue());
                 break;
             case "weldDurationSec":
-                if (item.getWeldDurationSec() != null) cell.setCellValue(item.getWeldDurationSec().doubleValue());
+                if (!isNullOrZero(item.getWeldDurationSec())) cell.setCellValue(item.getWeldDurationSec().doubleValue());
                 break;
             case "wireConsumptionKg":
-                if (item.getWireConsumptionKg() != null) cell.setCellValue(item.getWireConsumptionKg().doubleValue());
+                if (!isNullOrZero(item.getWireConsumptionKg())) cell.setCellValue(item.getWireConsumptionKg().doubleValue());
                 break;
             case "energyConsumedKwh":
-                if (item.getEnergyConsumedKwh() != null) cell.setCellValue(item.getEnergyConsumedKwh().doubleValue());
+                if (!isNullOrZero(item.getEnergyConsumedKwh())) cell.setCellValue(item.getEnergyConsumedKwh().doubleValue());
                 break;
             case "gasConsumptionL":
-                if (item.getGasConsumptionL() != null) cell.setCellValue(item.getGasConsumptionL().doubleValue());
+                if (!isNullOrZero(item.getGasConsumptionL())) cell.setCellValue(item.getGasConsumptionL().doubleValue());
                 break;
             default:
                 cell.setCellValue("");
@@ -2616,7 +2637,7 @@ public class ReportService {
             int rowIdx = 0;
             Row titleRow = sheet.createRow(rowIdx++);
             Cell titleCell = titleRow.createCell(1);
-            titleCell.setCellValue("Отчет по работе оборудования:");
+            titleCell.setCellValue("Отчет по работе оборудования (швы):");
             titleCell.setCellStyle(headerStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 1, 2));
 
@@ -2642,11 +2663,13 @@ public class ReportService {
             r5.createCell(5).setCellValue("с");
             r5.getCell(5).setCellStyle(labelStyle);
             r5.createCell(6).setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
+            r5.createCell(7).setCellValue("00:00");
 
             Row r6 = sheet.createRow(rowIdx++);
             r6.createCell(5).setCellValue("по");
             r6.getCell(5).setCellStyle(labelStyle);
             r6.createCell(6).setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
+            r6.createCell(7).setCellValue(getPeriodEndTimeDisplay(periodEndDate));
 
             boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
             if (includeActualRange) {
@@ -2684,15 +2707,23 @@ public class ReportService {
 
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
+            // Подсвечивать оранжевым «вне диапазона» только если в шаблоне включены пределы факт.тока
+            boolean useOutOfRangeHighlight = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
             if (data != null) {
                 for (EquipmentWorkReportDTO item : data) {
                     Row row = sheet.createRow(rowIdx++);
-                    boolean highlight = Boolean.TRUE.equals(item.getCurrentOutOfRange());
+                    boolean highlight = useOutOfRangeHighlight && Boolean.TRUE.equals(item.getCurrentOutOfRange());
                     CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
                     for (int col = 0; col < columnDefs.size(); col++) {
                         Cell cell = row.createCell(col);
-                        cell.setCellStyle(rowStyle);
-                        setEquipmentWorkCellValue(cell, item, columnDefs.get(col).key);
+                        String key = columnDefs.get(col).key;
+                        CellStyle cellStyle = rowStyle;
+                        if ("voltageVolts".equals(key) || "weldDurationSec".equals(key) || "currentAmps".equals(key)) {
+                            String format = "voltageVolts".equals(key) ? "0.0" : "0";
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
+                        }
+                        cell.setCellStyle(cellStyle);
+                        setEquipmentWorkCellValue(cell, item, key);
                     }
                 }
             }
@@ -2744,7 +2775,7 @@ public class ReportService {
             int rowIdx = 0;
             Row titleRow = sheet.createRow(rowIdx++);
             Cell titleCell = titleRow.createCell(1);
-            titleCell.setCellValue("Отчет по работе оборудования:");
+            titleCell.setCellValue("Отчет по работе оборудования (швы):");
             titleCell.setCellStyle(headerStyle);
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 1, 2));
 
@@ -2752,7 +2783,11 @@ public class ReportService {
 
             for (int s = 0; s < sections.size(); s++) {
                 EquipmentWorkReportSectionDTO section = sections.get(s);
-                if (s > 0) rowIdx++;
+                if (s > 0) {
+                    for (int i = 0; i < 3; i++) {
+                        sheet.createRow(rowIdx++);
+                    }
+                }
 
                 Row r1 = sheet.createRow(rowIdx++);
                 r1.createCell(4).setCellValue("Модель оборудования");
@@ -2778,10 +2813,12 @@ public class ReportService {
                     r5.createCell(5).setCellValue("с");
                     r5.getCell(5).setCellStyle(labelStyle);
                     r5.createCell(6).setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
+                    r5.createCell(7).setCellValue("00:00");
                     Row r6 = sheet.createRow(rowIdx++);
                     r6.createCell(5).setCellValue("по");
                     r6.getCell(5).setCellStyle(labelStyle);
                     r6.createCell(6).setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
+                    r6.createCell(7).setCellValue(getPeriodEndTimeDisplay(periodEndDate));
                     boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
                     if (includeActualRange) {
                         Row r7 = sheet.createRow(rowIdx++);
@@ -2822,14 +2859,22 @@ public class ReportService {
                 List<EquipmentWorkReportDTO> rows = section.getRows();
                 if (rows == null) rows = Collections.emptyList();
                 if (rows.isEmpty()) rows = Collections.singletonList(createZeroEquipmentWorkRow());
+                // Подсвечивать оранжевым «вне диапазона» только если в шаблоне включены пределы факт.тока
+                boolean useOutOfRangeHighlight = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
                 for (EquipmentWorkReportDTO item : rows) {
                     Row row = sheet.createRow(rowIdx++);
-                    boolean highlight = Boolean.TRUE.equals(item.getCurrentOutOfRange());
+                    boolean highlight = useOutOfRangeHighlight && Boolean.TRUE.equals(item.getCurrentOutOfRange());
                     CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
                     for (int col = 0; col < columnDefs.size(); col++) {
                         Cell cell = row.createCell(col);
-                        cell.setCellStyle(rowStyle);
-                        setEquipmentWorkCellValue(cell, item, columnDefs.get(col).key);
+                        String key = columnDefs.get(col).key;
+                        CellStyle cellStyle = rowStyle;
+                        if ("voltageVolts".equals(key) || "weldDurationSec".equals(key) || "currentAmps".equals(key)) {
+                            String format = "voltageVolts".equals(key) ? "0.0" : "0";
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
+                        }
+                        cell.setCellStyle(cellStyle);
+                        setEquipmentWorkCellValue(cell, item, key);
                     }
                 }
             }
@@ -2858,6 +2903,15 @@ public class ReportService {
         return style;
     }
 
+    /** Создаёт стиль на основе базового с заданным числовым форматом (для отчёта по работе оборудования). */
+    private CellStyle createCellStyleWithNumberFormat(Workbook workbook, CellStyle baseStyle, String dataFormat) {
+        CellStyle style = workbook.createCellStyle();
+        style.cloneStyleFrom(baseStyle);
+        DataFormat df = workbook.createDataFormat();
+        style.setDataFormat(df.getFormat(dataFormat));
+        return style;
+    }
+
     /**
      * Добавляет информацию о периоде и пределах тока
      */
@@ -2870,15 +2924,14 @@ public class ReportService {
                                     CellStyle style) {
         int row = startRow;
 
-        // Период - первая строка: "с:" дата время [Дни недели] (время всегда выводим)
-        LocalTime displayStartTime = periodStartTime != null ? periodStartTime : LocalTime.MIN;
+        // Период - первая строка: "с:" дата время [Дни недели] (время начала периода — всегда 00:00)
         Row periodRow1 = sheet.createRow(row++);
         periodRow1.createCell(0).setCellValue("с:");
         int colIndex = 1;
         if (periodStartDate != null) {
             periodRow1.createCell(colIndex++).setCellValue(periodStartDate.toString());
         }
-        periodRow1.createCell(colIndex++).setCellValue(formatTime(displayStartTime));
+        periodRow1.createCell(colIndex++).setCellValue("00:00");
 
         // Добавляем дни недели, если они выбраны
         if (template.getSelectedDays() != null && !template.getSelectedDays().isEmpty()) {
@@ -2891,14 +2944,13 @@ public class ReportService {
                     (template.getSelectedDays() == null ? "null" : "empty"));
         }
 
-        // Период - вторая строка: "по:" дата время (время всегда выводим)
-        LocalTime displayEndTime = periodEndTime != null ? periodEndTime : LocalTime.of(23, 59, 59);
+        // Период - вторая строка: "по:" дата время (если periodEndTime не задано — 23:59 или текущее время при отчёте «на сегодня»)
         Row periodRow2 = sheet.createRow(row++);
         periodRow2.createCell(0).setCellValue("по:");
         if (periodEndDate != null) {
             periodRow2.createCell(1).setCellValue(periodEndDate.toString());
         }
-        periodRow2.createCell(2).setCellValue(formatTime(displayEndTime));
+        periodRow2.createCell(2).setCellValue(periodEndTime != null ? formatTime(periodEndTime) : getPeriodEndTimeDisplay(periodEndDate));
 
         // Пределы устанавливаемого и фактического тока - новый формат
         // Проверяем, нужно ли показывать хотя бы один из диапазонов
@@ -3161,6 +3213,16 @@ public class ReportService {
             return "";
         }
         return String.format("%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
+    }
+
+    /** Время окончания периода для отчёта: 23:59 или текущее время, если дата окончания — сегодня и 23:59 ещё не наступило. */
+    private String getPeriodEndTimeDisplay(LocalDate periodEndDate) {
+        if (periodEndDate == null) return "";
+        LocalTime now = LocalTime.now();
+        if (periodEndDate.equals(LocalDate.now()) && now.isBefore(LocalTime.of(23, 59))) {
+            return formatTime(now);
+        }
+        return formatTime(LocalTime.of(23, 59));
     }
 
     /**
