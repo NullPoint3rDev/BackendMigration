@@ -2265,6 +2265,9 @@ public class ReportService {
             List<WelderWorkColumnDef> columnDefs = getWelderWorkReportColumnDefinitions(template);
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
+            CellStyle totalWeldGrayStyle = createTotalWeldTimeGrayStyle(workbook);
+            CellStyle totalWeldGrayStyleWithFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0");
+            CellStyle totalWeldGrayStyleWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
 
             int rowIdx = 0;
             Row titleRow = sheet.createRow(rowIdx++);
@@ -2379,7 +2382,8 @@ public class ReportService {
                     WelderWorkReportDTO zeroRow = createZeroWelderWorkRow();
                     rows = Collections.singletonList(zeroRow);
                 }
-                for (WelderWorkReportDTO item : rows) {
+                for (int i = 0; i < rows.size(); i++) {
+                    WelderWorkReportDTO item = rows.get(i);
                     Row row = sheet.createRow(rowIdx++);
                     boolean highlight = Boolean.TRUE.equals(item.getCurrentOutOfRange());
                     CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
@@ -2390,9 +2394,45 @@ public class ReportService {
                         if ("currentAmps".equals(key) || "voltageVolts".equals(key) || "weldDurationSec".equals(key)) {
                             String format = "voltageVolts".equals(key) ? "0.0" : "0";
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
+                        } else if ("energyConsumedKwh".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         }
                         cell.setCellStyle(cellStyle);
-                        setWelderWorkCellValue(cell, item, key);
+                        if ("index".equals(key)) {
+                            cell.setCellValue(i + 1);
+                        } else {
+                            setWelderWorkCellValue(cell, item, key);
+                        }
+                    }
+                }
+                // Строка итогов: суммарное время шва и суммарная затраченная энергия (серые ячейки)
+                BigDecimal totalWeldSec = rows.stream()
+                        .map(WelderWorkReportDTO::getWeldDurationSec)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal totalEnergyKwh = rows.stream()
+                        .map(WelderWorkReportDTO::getEnergyConsumedKwh)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                int energyColWelder = -1;
+                for (int i = 0; i < columnDefs.size(); i++) {
+                    if ("energyConsumedKwh".equals(columnDefs.get(i).key)) {
+                        energyColWelder = i;
+                        break;
+                    }
+                }
+                Row totalRow = sheet.createRow(rowIdx++);
+                final int weldDurationColWelder = 6;
+                for (int col = 0; col < columnDefs.size(); col++) {
+                    Cell cell = totalRow.createCell(col);
+                    if (col == weldDurationColWelder) {
+                        cell.setCellStyle(totalWeldGrayStyleWithFormat);
+                        if (!isNullOrZero(totalWeldSec)) cell.setCellValue(totalWeldSec.doubleValue());
+                    } else if (col == energyColWelder) {
+                        cell.setCellStyle(totalWeldGrayStyleWithDecimalFormat);
+                        if (!isNullOrZero(totalEnergyKwh)) cell.setCellValue(totalEnergyKwh.doubleValue());
+                    } else {
+                        cell.setCellStyle(totalWeldGrayStyle);
                     }
                 }
             }
@@ -2479,13 +2519,13 @@ public class ReportService {
                 cell.setCellValue(item.getWorkMode() != null ? item.getWorkMode() : "");
                 break;
             case "currentAmps":
-                if (item.getCurrentAmps() != null) cell.setCellValue(item.getCurrentAmps().doubleValue());
+                if (!isNullOrZero(item.getCurrentAmps())) cell.setCellValue(item.getCurrentAmps().doubleValue());
                 break;
             case "voltageVolts":
-                if (item.getVoltageVolts() != null) cell.setCellValue(item.getVoltageVolts().doubleValue());
+                if (!isNullOrZero(item.getVoltageVolts())) cell.setCellValue(item.getVoltageVolts().doubleValue());
                 break;
             case "weldDurationSec":
-                if (item.getWeldDurationSec() != null) cell.setCellValue(item.getWeldDurationSec().doubleValue());
+                if (!isNullOrZero(item.getWeldDurationSec())) cell.setCellValue(item.getWeldDurationSec().doubleValue());
                 break;
             case "equipmentModel":
                 cell.setCellValue(item.getEquipmentModel() != null ? item.getEquipmentModel() : "");
@@ -2494,16 +2534,16 @@ public class ReportService {
                 cell.setCellValue(item.getEquipmentName() != null ? item.getEquipmentName() : "");
                 break;
             case "wireFeedSpeed":
-                if (item.getWireFeedSpeedMpm() != null) cell.setCellValue(item.getWireFeedSpeedMpm().doubleValue());
+                if (!isNullOrZero(item.getWireFeedSpeedMpm())) cell.setCellValue(item.getWireFeedSpeedMpm().doubleValue());
                 break;
             case "wireConsumptionKg":
-                if (item.getWireConsumptionKg() != null) cell.setCellValue(item.getWireConsumptionKg().doubleValue());
+                if (!isNullOrZero(item.getWireConsumptionKg())) cell.setCellValue(item.getWireConsumptionKg().doubleValue());
                 break;
             case "energyConsumedKwh":
-                if (item.getEnergyConsumedKwh() != null) cell.setCellValue(item.getEnergyConsumedKwh().doubleValue());
+                if (!isNullOrZero(item.getEnergyConsumedKwh())) cell.setCellValue(item.getEnergyConsumedKwh().doubleValue());
                 break;
             case "gasConsumptionL":
-                if (item.getGasConsumptionL() != null) cell.setCellValue(item.getGasConsumptionL().doubleValue());
+                if (!isNullOrZero(item.getGasConsumptionL())) cell.setCellValue(item.getGasConsumptionL().doubleValue());
                 break;
             default:
                 cell.setCellValue("");
@@ -2771,6 +2811,9 @@ public class ReportService {
             List<EquipmentWorkColumnDef> columnDefs = getEquipmentWorkReportColumnDefinitions(template);
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
+            CellStyle totalWeldGrayStyleEquip = createTotalWeldTimeGrayStyle(workbook);
+            CellStyle totalWeldGrayStyleEquipWithFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0");
+            CellStyle totalWeldGrayStyleEquipWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0.000");
 
             int rowIdx = 0;
             Row titleRow = sheet.createRow(rowIdx++);
@@ -2861,7 +2904,8 @@ public class ReportService {
                 if (rows.isEmpty()) rows = Collections.singletonList(createZeroEquipmentWorkRow());
                 // Подсвечивать оранжевым «вне диапазона» только если в шаблоне включены пределы факт.тока
                 boolean useOutOfRangeHighlight = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
-                for (EquipmentWorkReportDTO item : rows) {
+                for (int i = 0; i < rows.size(); i++) {
+                    EquipmentWorkReportDTO item = rows.get(i);
                     Row row = sheet.createRow(rowIdx++);
                     boolean highlight = useOutOfRangeHighlight && Boolean.TRUE.equals(item.getCurrentOutOfRange());
                     CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
@@ -2872,9 +2916,44 @@ public class ReportService {
                         if ("voltageVolts".equals(key) || "weldDurationSec".equals(key) || "currentAmps".equals(key)) {
                             String format = "voltageVolts".equals(key) ? "0.0" : "0";
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
+                        } else if ("energyConsumedKwh".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         }
                         cell.setCellStyle(cellStyle);
-                        setEquipmentWorkCellValue(cell, item, key);
+                        if ("index".equals(key)) {
+                            cell.setCellValue(i + 1);
+                        } else {
+                            setEquipmentWorkCellValue(cell, item, key);
+                        }
+                    }
+                }
+                // Строка итогов: суммарное время шва и суммарная затраченная энергия (серые ячейки)
+                int weldDurationColEquip = -1;
+                int energyColEquip = -1;
+                for (int i = 0; i < columnDefs.size(); i++) {
+                    String key = columnDefs.get(i).key;
+                    if ("weldDurationSec".equals(key)) weldDurationColEquip = i;
+                    if ("energyConsumedKwh".equals(key)) energyColEquip = i;
+                }
+                BigDecimal totalWeldSecEquip = rows.stream()
+                        .map(EquipmentWorkReportDTO::getWeldDurationSec)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal totalEnergyKwhEquip = rows.stream()
+                        .map(EquipmentWorkReportDTO::getEnergyConsumedKwh)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                Row totalRowEquip = sheet.createRow(rowIdx++);
+                for (int col = 0; col < columnDefs.size(); col++) {
+                    Cell cell = totalRowEquip.createCell(col);
+                    if (col == weldDurationColEquip) {
+                        cell.setCellStyle(totalWeldGrayStyleEquipWithFormat);
+                        if (!isNullOrZero(totalWeldSecEquip)) cell.setCellValue(totalWeldSecEquip.doubleValue());
+                    } else if (col == energyColEquip) {
+                        cell.setCellStyle(totalWeldGrayStyleEquipWithDecimalFormat);
+                        if (!isNullOrZero(totalEnergyKwhEquip)) cell.setCellValue(totalEnergyKwhEquip.doubleValue());
+                    } else {
+                        cell.setCellStyle(totalWeldGrayStyleEquip);
                     }
                 }
             }
@@ -2895,6 +2974,18 @@ public class ReportService {
     private CellStyle createOutOfRangeRowStyle(Workbook workbook) {
         CellStyle style = workbook.createCellStyle();
         style.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        return style;
+    }
+
+    /** Стиль для ячейки «Суммарное время шва» (серый фон). */
+    private CellStyle createTotalWeldTimeGrayStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
         style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         style.setBorderBottom(BorderStyle.THIN);
         style.setBorderTop(BorderStyle.THIN);
@@ -3111,9 +3202,12 @@ public class ReportService {
         int serialNumber = 1;
 
         for (WireConsumptionReportDTO item : data) {
+            // Не выводим дублирующие «суммарные» строки (серые) — только одна строка на запись
+            if (item.getIsSummaryRow() != null && item.getIsSummaryRow()) {
+                continue;
+            }
             Row dataRow = sheet.createRow(row++);
-            CellStyle rowStyle = item.getIsSummaryRow() != null && item.getIsSummaryRow()
-                    ? summaryRowStyle : dataStyle;
+            CellStyle rowStyle = dataStyle;
 
             int colIndex = 0;
             for (ColumnDefinition col : columns) {
@@ -3122,11 +3216,7 @@ public class ReportService {
 
                 switch (col.key) {
                     case "serialNumber":
-                        if (item.getIsSummaryRow() == null || !item.getIsSummaryRow()) {
-                            cell.setCellValue(serialNumber++);
-                        } else {
-                            cell.setCellValue(""); // Пусто для суммарной строки
-                        }
+                        cell.setCellValue(serialNumber++);
                         break;
                     case "welder":
                         cell.setCellValue(item.getWelderName() != null ? item.getWelderName() : "");

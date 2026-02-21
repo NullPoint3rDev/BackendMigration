@@ -1651,31 +1651,10 @@ public class ReportDataService {
             List<WeldingMachineParameterValue> wireMaterialValues = getParameterValuesInBatches(stateIds, "Материал проволоки");
             List<WeldingMachineParameterValue> wireDiameterValues = getParameterValuesInBatches(stateIds, "Диаметр проволоки");
 
-            // Рассчитываем время в сети (сумма всех состояний, когда аппарат включен)
-            // Время в сети = сумма всех состояний, независимо от статуса (аппарат включен)
-            // Если state_duration_ms = 0, используем разницу между датами состояний
-            long totalMs = 0;
-            if (states.size() > 1) {
-                // Сортируем состояния по дате
-                List<WeldingMachineState> sortedStates = new ArrayList<>(states);
-                sortedStates.sort((s1, s2) -> s1.getDateCreated().compareTo(s2.getDateCreated()));
-
-                // Рассчитываем время как разницу между первым и последним состоянием
-                LocalDateTime firstState = sortedStates.get(0).getDateCreated();
-                LocalDateTime lastState = sortedStates.get(sortedStates.size() - 1).getDateCreated();
-                totalMs = java.time.Duration.between(firstState, lastState).toMillis();
-            } else if (states.size() == 1) {
-                // Если только одно состояние, используем его duration или минимальное значение
-                WeldingMachineState state = states.get(0);
-                if (state.getStateDurationMs() != null && state.getStateDurationMs() > 0) {
-                    totalMs = state.getStateDurationMs();
-                } else {
-                    // Если duration = 0, используем минимальное значение (например, 1 секунда)
-                    totalMs = 1000;
-                }
-            }
-
-            Duration totalTimeInNetwork = Duration.ofMillis(totalMs);
+            // Время в сети = время авторизованного состояния сварщика на данном аппарате за период:
+            // по пропускам сварщика находим активность (состояния с его RFID на этом аппарате),
+            // группируем в сессии (близкие по времени состояния — одна сессия), суммируем длительности.
+            Duration totalTimeInNetwork = calculateAuthorizedTimeOnMachine(states);
             dto.setTimeInNetwork(totalTimeInNetwork);
 
             // Рассчитываем время горения дуги (только когда идет сварка - статус Welding)
@@ -1722,6 +1701,57 @@ public class ReportDataService {
             e.printStackTrace();
             return null;
         }
+    }
+
+    /**
+     * Рассчитывает время авторизованного состояния сварщика на указанном аппарате за период.
+     * Состояния уже отфильтрованы по RFID сварщика и по аппарату (передаются в calculateWireConsumptionForMachine).
+     * Группируем состояния в сессии: состояния с небольшим разрывом по времени (≤ 10 мин) — одна сессия.
+     * Время в сети = сумма длительностей сессий (сумма stateDurationMs по сессии или span сессии, если duration не задан).
+     */
+    private Duration calculateAuthorizedTimeOnMachine(List<WeldingMachineState> states) {
+        if (states == null || states.isEmpty()) {
+            return Duration.ZERO;
+        }
+        List<WeldingMachineState> sorted = new ArrayList<>(states);
+        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+        final long maxGapMs = 10 * 60 * 1000L; // 10 минут — один «выход» не разрывает сессию
+        long totalMs = 0;
+        int i = 0;
+        while (i < sorted.size()) {
+            WeldingMachineState first = sorted.get(i);
+            LocalDateTime sessionStart = first.getDateCreated();
+            long sessionEndMs = sessionStart.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+            long sessionDurationFromStates = 0;
+            int j = i;
+            while (j < sorted.size()) {
+                WeldingMachineState s = sorted.get(j);
+                long stateDur = (s.getStateDurationMs() != null && s.getStateDurationMs() > 0)
+                        ? s.getStateDurationMs() : 0;
+                sessionDurationFromStates += stateDur;
+                LocalDateTime stateEnd = s.getDateCreated().plus(stateDur, ChronoUnit.MILLIS);
+                long stateEndMs = stateEnd.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                if (stateEndMs > sessionEndMs) sessionEndMs = stateEndMs;
+                if (j + 1 >= sorted.size()) break;
+                WeldingMachineState next = sorted.get(j + 1);
+                long gapMs = next.getDateCreated().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() - sessionEndMs;
+                if (gapMs > maxGapMs) break;
+                j++;
+            }
+            if (sessionDurationFromStates > 0) {
+                totalMs += sessionDurationFromStates;
+            } else {
+                long spanMs = sessionEndMs - sessionStart.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+                if (spanMs <= 0 && j > i) {
+                    LocalDateTime lastInSession = sorted.get(j).getDateCreated();
+                    spanMs = java.time.Duration.between(sessionStart, lastInSession).toMillis();
+                }
+                if (spanMs > 0) totalMs += spanMs;
+                else totalMs += 1000; // одно состояние без duration — 1 сек
+            }
+            i = j + 1;
+        }
+        return Duration.ofMillis(totalMs);
     }
 
     /**
@@ -2122,10 +2152,12 @@ public class ReportDataService {
             return compareByColumn(s1, s2, template.getSortByColumn(), template.getSortDirection());
         });
 
-        // Формируем итоговый список: для каждого сварщика сначала все его ИП, затем суммарная строка
+        // Формируем итоговый список: для каждого сварщика подряд все его строки по аппаратам (без разрывов), затем суммарная строка
         for (Integer welderId : sortedWelderIds) {
             List<WireConsumptionReportDTO> welderData = welderDataMap.get(welderId);
-            result.addAll(welderData);
+            if (welderData != null) {
+                result.addAll(welderData);
+            }
 
             // Добавляем суммарную строку (только если это не записи без сварщика)
             if (welderId != -1) {
