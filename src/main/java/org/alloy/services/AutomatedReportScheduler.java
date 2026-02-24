@@ -10,6 +10,19 @@ import org.alloy.models.dto.WelderReportDTO;
 import org.alloy.models.dto.WorkReportDTO;
 import org.alloy.models.dto.ReportTemplateDTO;
 import org.alloy.models.dto.WireConsumptionReportTemplateDTO;
+import org.alloy.models.dto.EquipmentWorkReportTemplateDTO;
+import org.alloy.models.dto.EquipmentWorkReportSectionDTO;
+import org.alloy.models.dto.EquipmentWorkReportDTO;
+import org.alloy.models.dto.WelderWorkReportTemplateDTO;
+import org.alloy.models.dto.WelderWorkReportSectionDTO;
+import org.alloy.models.dto.WelderWorkReportDTO;
+import org.alloy.models.entities.WeldingMachine;
+import org.alloy.models.entities.OrganizationUnit;
+import org.alloy.models.entities.Welder;
+import org.alloy.models.entities.Employee;
+import org.alloy.repositories.WeldingMachineRepository;
+import org.alloy.repositories.WelderRepository;
+import org.alloy.repositories.EmployeeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,7 +30,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -49,6 +67,15 @@ public class AutomatedReportScheduler {
 
     @Autowired
     private ReportTemplateService reportTemplateService;
+
+    @Autowired
+    private WeldingMachineRepository weldingMachineRepository;
+
+    @Autowired
+    private WelderRepository welderRepository;
+
+    @Autowired
+    private EmployeeRepository employeeRepository;
 
     /**
      * Публичный метод для немедленного выполнения отчета по ID
@@ -141,21 +168,23 @@ public class AutomatedReportScheduler {
                     " - Time not yet arrived (" + minutesDiff + " minutes remaining), skipping");
         }
 
-        // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: если отчет уже выполнен сегодня, не выполняем повторно
+        // Защита от повторного запуска в течение одной и той же минуты (cron раз в минуту):
+        // пропускаем только если этот же автоотчёт уже выполнялся в последние 3 минуты.
+        // Так ручной запуск «Выполнить сейчас» или ранний запуск не блокирует запланированный.
         if (shouldExecute) {
-            // Проверяем, был ли уже выполнен отчет сегодня
             String templateType = automatedReport.getTemplateType();
             if (templateType != null && !templateType.trim().isEmpty()) {
-                LocalDateTime todayStart = nowUTC.toLocalDate().atStartOfDay();
-                List<ReportHistory> todayReports = reportHistoryService.getRecentReports(templateType)
+                // generatedAt в истории хранится как LocalDateTime.now() при сохранении (серверная зона)
+                LocalDateTime cutoff = LocalDateTime.now().minusMinutes(3);
+                List<ReportHistory> recentSameReport = reportHistoryService.getRecentReports(templateType)
                         .stream()
-                        .filter(r -> r.getGeneratedAt() != null && r.getGeneratedAt().isAfter(todayStart))
+                        .filter(r -> r.getGeneratedAt() != null && r.getGeneratedAt().isAfter(cutoff))
                         .filter(r -> r.getAutomatedReportId() != null && r.getAutomatedReportId().equals(automatedReport.getId()))
                         .collect(java.util.stream.Collectors.toList());
 
-                if (!todayReports.isEmpty()) {
+                if (!recentSameReport.isEmpty()) {
                     System.out.println("DEBUG AutomatedReportScheduler: Report " + automatedReport.getName() +
-                            " - Already executed today (" + todayReports.size() + " times), skipping");
+                            " - Already executed in last 3 minutes (" + recentSameReport.size() + " times), skipping");
                     return false;
                 }
             } else {
@@ -216,10 +245,10 @@ public class AutomatedReportScheduler {
             // Создаем имя файла
             String fileName = createFileName(automatedReport);
 
-            // Определяем формат файла на основе типа шаблона
-            // Для wire-consumption используем EXCEL, для остальных - PDF
+            // Определяем формат файла: EXCEL для отчётов по оборудованию, сварщику и расходу проволоки
             String fileFormat = "EXCEL";
-            if (!"wire-consumption".equalsIgnoreCase(automatedReport.getTemplateType())) {
+            String tt = automatedReport.getTemplateType() != null ? automatedReport.getTemplateType().trim().toLowerCase() : "";
+            if (!"wire-consumption".equals(tt) && !"equipment".equals(tt) && !"welder".equals(tt)) {
                 fileFormat = "PDF";
             }
 
@@ -319,16 +348,31 @@ public class AutomatedReportScheduler {
 
             ReportTemplateDTO reportTemplate = templateOpt.get();
 
+            // Тип отчёта: из AutomatedReport или из шаблона (для старых записей, где templateType мог быть ошибочно wire-consumption)
+            String templateType = automatedReport.getTemplateType() != null ? automatedReport.getTemplateType().trim().toLowerCase() : "";
+            if (reportTemplate.getReportParameters() != null && reportTemplate.getReportParameters().get("reportType") != null) {
+                String reportType = reportTemplate.getReportParameters().get("reportType").toString().trim();
+                if ("По работе оборудования (швы)".equals(reportType)) templateType = "equipment";
+                else if ("По работе сварщика (швы)".equals(reportType)) templateType = "welder";
+                else if ("По расходу проволоки".equals(reportType)) templateType = "wire-consumption";
+            }
+            if ("equipment".equals(templateType)) {
+                return generateEquipmentReportFromTemplate(reportTemplate, automatedReport);
+            }
+            if ("welder".equals(templateType)) {
+                return generateWelderReportFromTemplate(reportTemplate, automatedReport);
+            }
+
+            // По умолчанию: отчёт по расходу проволоки
             // Преобразуем ReportTemplateDTO в WireConsumptionReportTemplateDTO
             WireConsumptionReportTemplateDTO wireTemplate = convertToWireTemplate(reportTemplate);
 
             // Определяем период отчета на основе настроек шаблона (selectedPeriod: 'week' или 'day')
-            java.time.LocalDate periodStartDate;
-            java.time.LocalDate periodEndDate;
+            java.time.LocalDate today = java.time.LocalDate.now();
+            java.time.LocalDate periodStartDate = today.minusDays(1);
+            java.time.LocalDate periodEndDate = today.minusDays(1);
             java.time.LocalTime periodStartTime = java.time.LocalTime.MIN;
             java.time.LocalTime periodEndTime = java.time.LocalTime.MAX;
-
-            java.time.LocalDate today = java.time.LocalDate.now();
 
             // Получаем тип периода из настроек шаблона
             // Сначала проверяем periodType (новое поле: "За 24 часа", "За 7 дней", "Произвольный период")
@@ -375,21 +419,10 @@ public class AutomatedReportScheduler {
 
                         if (startDateObj != null && endDateObj != null) {
                             try {
-                                // Парсим даты из ISO строки
-                                String startDateStr = startDateObj.toString();
-                                String endDateStr = endDateObj.toString();
-
-                                // Если это ISO строка с временем, извлекаем только дату
-                                if (startDateStr.contains("T")) {
-                                    startDateStr = startDateStr.substring(0, startDateStr.indexOf("T"));
-                                }
-                                if (endDateStr.contains("T")) {
-                                    endDateStr = endDateStr.substring(0, endDateStr.indexOf("T"));
-                                }
-
-                                periodStartDate = java.time.LocalDate.parse(startDateStr);
-                                periodEndDate = java.time.LocalDate.parse(endDateStr);
-
+                                java.time.LocalDate start = parseTemplateDate(startDateObj.toString());
+                                java.time.LocalDate end = parseTemplateDate(endDateObj.toString());
+                                if (start != null) periodStartDate = start;
+                                if (end != null) periodEndDate = end;
                                 System.out.println("DEBUG AutomatedReportScheduler: Using periodType 'Произвольный период' with dates from template: " + periodStartDate + " - " + periodEndDate);
                             } catch (Exception e) {
                                 System.err.println("ERROR AutomatedReportScheduler: Failed to parse startDate/endDate from template: " + e.getMessage());
@@ -472,6 +505,24 @@ public class AutomatedReportScheduler {
                         // Игнорируем ошибку парсинга
                     }
                 }
+                // Фронт может передавать время в timeRange: { start: "08:00", end: "17:00" }
+                Object timeRangeObj = periodSettings.get("timeRange");
+                if (timeRangeObj instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> timeRange = (Map<String, Object>) timeRangeObj;
+                    Object start = timeRange.get("start");
+                    Object end = timeRange.get("end");
+                    if (start != null && !start.toString().trim().isEmpty()) {
+                        try {
+                            periodStartTime = java.time.LocalTime.parse(start.toString());
+                        } catch (Exception e) { /* игнорируем */ }
+                    }
+                    if (end != null && !end.toString().trim().isEmpty()) {
+                        try {
+                            periodEndTime = java.time.LocalTime.parse(end.toString());
+                        } catch (Exception e) { /* игнорируем */ }
+                    }
+                }
             }
 
             // Получаем данные отчета
@@ -492,6 +543,366 @@ public class AutomatedReportScheduler {
             e.printStackTrace();
             throw e;
         }
+    }
+
+    /**
+     * Генерирует отчёт "По работе оборудования (швы)" из общего шаблона.
+     * Период и время берутся из periodSettings шаблона (в т.ч. «Произвольный период» и timeRange).
+     */
+    private byte[] generateEquipmentReportFromTemplate(ReportTemplateDTO reportTemplate, AutomatedReport automatedReport) throws Exception {
+        EquipmentWorkReportTemplateDTO template = convertToEquipmentTemplate(reportTemplate);
+        if (template.getSelectedEquipmentIds() == null || template.getSelectedEquipmentIds().isEmpty()) {
+            throw new IllegalArgumentException("Equipment report template has no selected equipment (selectedEquipmentIds)");
+        }
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate periodStartDate = today.minusDays(1);
+        java.time.LocalDate periodEndDate = today.minusDays(1);
+        java.time.LocalTime periodStartTime = java.time.LocalTime.MIN;
+        java.time.LocalTime periodEndTime = java.time.LocalTime.MAX;
+
+        if (reportTemplate.getPeriodSettings() != null) {
+            Map<String, Object> periodSettings = reportTemplate.getPeriodSettings();
+            Object periodTypeObj = periodSettings.get("periodType");
+            String periodType = periodTypeObj != null ? periodTypeObj.toString() : null;
+            if ("Произвольный период".equals(periodType)) {
+                Object startDateObj = periodSettings.get("startDate");
+                Object endDateObj = periodSettings.get("endDate");
+                if (startDateObj != null && endDateObj != null) {
+                    java.time.LocalDate start = parseTemplateDate(startDateObj.toString());
+                    java.time.LocalDate end = parseTemplateDate(endDateObj.toString());
+                    if (start != null) periodStartDate = start;
+                    if (end != null) periodEndDate = end;
+                }
+            } else if ("За 7 дней".equals(periodType)) {
+                periodStartDate = today.minusDays(7);
+                periodEndDate = today.minusDays(1);
+            } else if ("За 24 часа".equals(periodType)) {
+                periodStartDate = today.minusDays(1);
+                periodEndDate = today.minusDays(1);
+            }
+            Object timeRangeObj = periodSettings.get("timeRange");
+            if (timeRangeObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> tr = (Map<String, Object>) timeRangeObj;
+                Object start = tr.get("start");
+                Object end = tr.get("end");
+                if (start != null && !start.toString().trim().isEmpty()) periodStartTime = java.time.LocalTime.parse(start.toString());
+                if (end != null && !end.toString().trim().isEmpty()) periodEndTime = java.time.LocalTime.parse(end.toString());
+            } else {
+                Object startTimeObj = periodSettings.get("startTime");
+                Object endTimeObj = periodSettings.get("endTime");
+                if (startTimeObj != null && !startTimeObj.toString().trim().isEmpty()) periodStartTime = java.time.LocalTime.parse(startTimeObj.toString());
+                if (endTimeObj != null && !endTimeObj.toString().trim().isEmpty()) periodEndTime = java.time.LocalTime.parse(endTimeObj.toString());
+            }
+        }
+
+        List<Integer> equipmentIdsForReport = new ArrayList<>(template.getSelectedEquipmentIds());
+        Map<Integer, EquipmentWorkReportSectionDTO> sectionInfoMap = new LinkedHashMap<>();
+        for (Integer mid : equipmentIdsForReport) {
+            String model = "";
+            String name = "";
+            String department = "";
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(mid);
+            if (machineOpt.isPresent()) {
+                WeldingMachine m = machineOpt.get();
+                name = m.getName() != null ? m.getName() : "";
+                model = m.getDeviceModel() != null ? m.getDeviceModel().name() : "";
+                OrganizationUnit ou = m.getOrganizationUnit();
+                department = ou != null && ou.getName() != null ? ou.getName() : "";
+            }
+            sectionInfoMap.put(mid, new EquipmentWorkReportSectionDTO(mid, model, name, department, null));
+        }
+
+        List<EquipmentWorkReportDTO> data = reportDataService.getEquipmentWorkDataNew(
+                template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+        Map<Integer, List<EquipmentWorkReportDTO>> dataByMachine = data != null ? new LinkedHashMap<>() : new LinkedHashMap<>();
+        if (data != null) {
+            for (EquipmentWorkReportDTO d : data) {
+                if (d.getWeldingMachineId() != null) {
+                    dataByMachine.computeIfAbsent(d.getWeldingMachineId(), k -> new ArrayList<>()).add(d);
+                }
+            }
+        }
+
+        List<EquipmentWorkReportSectionDTO> sections = new ArrayList<>();
+        for (Integer mid : equipmentIdsForReport) {
+            EquipmentWorkReportSectionDTO info = sectionInfoMap.get(mid);
+            List<EquipmentWorkReportDTO> rows = dataByMachine.getOrDefault(mid, Collections.emptyList());
+            sections.add(new EquipmentWorkReportSectionDTO(
+                    info.getWeldingMachineId(),
+                    info.getEquipmentModel(),
+                    info.getEquipmentName(),
+                    info.getEquipmentDepartment(),
+                    rows.isEmpty() ? null : rows
+            ));
+        }
+
+        return reportService.generateEquipmentWorkReportMultiSection(
+                sections, template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+    }
+
+    /**
+     * Генерирует отчёт "По работе сварщика (швы)" из общего шаблона.
+     * Период и время берутся из periodSettings шаблона.
+     */
+    private byte[] generateWelderReportFromTemplate(ReportTemplateDTO reportTemplate, AutomatedReport automatedReport) throws Exception {
+        WelderWorkReportTemplateDTO template = convertToWelderTemplate(reportTemplate);
+        List<Long> welderIdsForReport = template.getSelectedWelderIds() != null && !template.getSelectedWelderIds().isEmpty()
+                ? template.getSelectedWelderIds().stream().map(Integer::longValue).collect(java.util.stream.Collectors.toList())
+                : new ArrayList<>();
+        if (welderIdsForReport.isEmpty()) {
+            throw new IllegalArgumentException("Welder report template has no selected welders (selectedWelderIds)");
+        }
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate periodStartDate = today.minusDays(1);
+        java.time.LocalDate periodEndDate = today.minusDays(1);
+        java.time.LocalTime periodStartTime = java.time.LocalTime.MIN;
+        java.time.LocalTime periodEndTime = java.time.LocalTime.MAX;
+
+        if (reportTemplate.getPeriodSettings() != null) {
+            Map<String, Object> periodSettings = reportTemplate.getPeriodSettings();
+            Object periodTypeObj = periodSettings.get("periodType");
+            String periodType = periodTypeObj != null ? periodTypeObj.toString() : null;
+            if ("Произвольный период".equals(periodType)) {
+                Object startDateObj = periodSettings.get("startDate");
+                Object endDateObj = periodSettings.get("endDate");
+                if (startDateObj != null && endDateObj != null) {
+                    java.time.LocalDate start = parseTemplateDate(startDateObj.toString());
+                    java.time.LocalDate end = parseTemplateDate(endDateObj.toString());
+                    if (start != null) periodStartDate = start;
+                    if (end != null) periodEndDate = end;
+                }
+            } else if ("За 7 дней".equals(periodType)) {
+                periodStartDate = today.minusDays(7);
+                periodEndDate = today.minusDays(1);
+            } else if ("За 24 часа".equals(periodType)) {
+                periodStartDate = today.minusDays(1);
+                periodEndDate = today.minusDays(1);
+            }
+            Object timeRangeObj = periodSettings.get("timeRange");
+            if (timeRangeObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> tr = (Map<String, Object>) timeRangeObj;
+                Object start = tr.get("start");
+                Object end = tr.get("end");
+                if (start != null && !start.toString().trim().isEmpty()) periodStartTime = java.time.LocalTime.parse(start.toString());
+                if (end != null && !end.toString().trim().isEmpty()) periodEndTime = java.time.LocalTime.parse(end.toString());
+            } else {
+                Object startTimeObj = periodSettings.get("startTime");
+                Object endTimeObj = periodSettings.get("endTime");
+                if (startTimeObj != null && !startTimeObj.toString().trim().isEmpty()) periodStartTime = java.time.LocalTime.parse(startTimeObj.toString());
+                if (endTimeObj != null && !endTimeObj.toString().trim().isEmpty()) periodEndTime = java.time.LocalTime.parse(endTimeObj.toString());
+            }
+        }
+
+        Map<Long, WelderWorkReportSectionDTO> welderInfoMap = new LinkedHashMap<>();
+        for (Long wid : welderIdsForReport) {
+            String fullName = "";
+            String tabNumber = "";
+            String department = "";
+            try {
+                Optional<Welder> welderOpt = welderRepository.findById(wid);
+                if (welderOpt.isPresent()) {
+                    Welder w = welderOpt.get();
+                    fullName = w.getName() != null ? w.getName() : "";
+                    tabNumber = w.getEmployeeId() != null ? w.getEmployeeId() : "";
+                    department = w.getDepartment() != null ? w.getDepartment() : "";
+                } else {
+                    Optional<Employee> empOpt = employeeRepository.findById(wid);
+                    if (empOpt.isPresent()) {
+                        Employee emp = empOpt.get();
+                        fullName = emp.getFullName() != null ? emp.getFullName() : "";
+                        tabNumber = "";
+                        department = emp.getOrganizationUnit() != null && emp.getOrganizationUnit().getName() != null
+                                ? emp.getOrganizationUnit().getName() : "";
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("AutomatedReportScheduler: Failed to load welder " + wid + ": " + e.getMessage());
+            }
+            welderInfoMap.put(wid, new WelderWorkReportSectionDTO(wid, fullName, tabNumber, department, null));
+        }
+
+        List<WelderWorkReportDTO> data = reportDataService.getWelderWorkDataNew(
+                template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+        Map<Long, List<WelderWorkReportDTO>> dataByWelder = new LinkedHashMap<>();
+        if (data != null) {
+            for (WelderWorkReportDTO d : data) {
+                if (d.getWelderId() != null) {
+                    dataByWelder.computeIfAbsent(d.getWelderId(), k -> new ArrayList<>()).add(d);
+                }
+            }
+        }
+
+        List<WelderWorkReportSectionDTO> sections = new ArrayList<>();
+        for (Long wid : welderIdsForReport) {
+            WelderWorkReportSectionDTO info = welderInfoMap.get(wid);
+            List<WelderWorkReportDTO> rows = dataByWelder.getOrDefault(wid, Collections.emptyList());
+            sections.add(new WelderWorkReportSectionDTO(
+                    info.getWelderId(),
+                    info.getWelderFullName(),
+                    info.getWelderTabNumber(),
+                    info.getWelderDepartment(),
+                    rows.isEmpty() ? null : rows
+            ));
+        }
+
+        return reportService.generateWelderWorkReportMultiSection(
+                sections, template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+    }
+
+    /**
+     * Преобразует ReportTemplateDTO в WelderWorkReportTemplateDTO для отчёта по сварщику.
+     */
+    private WelderWorkReportTemplateDTO convertToWelderTemplate(ReportTemplateDTO reportTemplate) {
+        WelderWorkReportTemplateDTO template = new WelderWorkReportTemplateDTO();
+        template.setTemplateId(reportTemplate.getId());
+        template.setTemplateName(reportTemplate.getName());
+        if (reportTemplate.getSelectedWelderIds() != null && !reportTemplate.getSelectedWelderIds().isEmpty()) {
+            template.setSelectedWelderIds(new ArrayList<>(reportTemplate.getSelectedWelderIds()));
+        }
+        if (reportTemplate.getReportParameters() != null) {
+            Map<String, Object> params = reportTemplate.getReportParameters();
+            template.setIncludeActualCurrentRange(Boolean.TRUE.equals(params.get("workOutsideActualCurrent")));
+            if (params.get("actualCurrentMin") != null) template.setActualCurrentMin(((Number) params.get("actualCurrentMin")).intValue());
+            if (params.get("actualCurrentMax") != null) template.setActualCurrentMax(((Number) params.get("actualCurrentMax")).intValue());
+            if (Boolean.FALSE.equals(params.get("minSeamIntervalEnabled"))) template.setMinIntervalBetweenWeldsSec(null);
+            else if (params.get("minSeamInterval") != null) template.setMinIntervalBetweenWeldsSec(((Number) params.get("minSeamInterval")).intValue());
+            if (Boolean.FALSE.equals(params.get("minSeamDurationEnabled"))) template.setMinWeldDurationSec(null);
+            else if (params.get("minSeamDuration") != null) template.setMinWeldDurationSec(((Number) params.get("minSeamDuration")).intValue());
+            List<String> cols = new ArrayList<>();
+            if (Boolean.TRUE.equals(params.get("equipmentModel"))) cols.add("equipmentModel");
+            if (Boolean.TRUE.equals(params.get("equipmentName"))) cols.add("equipmentName");
+            if (Boolean.TRUE.equals(params.get("wireFeedSpeed"))) cols.add("wireFeedSpeed");
+            if (Boolean.TRUE.equals(params.get("consumption"))) cols.add("consumption");
+            if (Boolean.TRUE.equals(params.get("energyConsumed"))) cols.add("energyConsumed");
+            if (Boolean.TRUE.equals(params.get("gasConsumption"))) cols.add("gasConsumption");
+            template.setSelectedColumns(cols);
+        }
+        if (reportTemplate.getCurrentRanges() != null && reportTemplate.getCurrentRanges().get("workOutsideActualCurrent") != null) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> actual = (Map<String, Object>) reportTemplate.getCurrentRanges().get("workOutsideActualCurrent");
+            if (actual != null) {
+                if (actual.get("min") != null) template.setActualCurrentMin(((Number) actual.get("min")).intValue());
+                if (actual.get("max") != null) template.setActualCurrentMax(((Number) actual.get("max")).intValue());
+            }
+        }
+        return template;
+    }
+
+    /**
+     * Преобразует ReportTemplateDTO в EquipmentWorkReportTemplateDTO для отчёта по оборудованию.
+     */
+    private EquipmentWorkReportTemplateDTO convertToEquipmentTemplate(ReportTemplateDTO reportTemplate) {
+        EquipmentWorkReportTemplateDTO template = new EquipmentWorkReportTemplateDTO();
+        template.setTemplateId(reportTemplate.getId());
+        template.setTemplateName(reportTemplate.getName());
+        if (reportTemplate.getReportParameters() != null) {
+            Map<String, Object> params = reportTemplate.getReportParameters();
+            @SuppressWarnings("unchecked")
+            List<Number> ids = params.containsKey("selectedEquipmentIds") ? (List<Number>) params.get("selectedEquipmentIds") : null;
+            if (ids != null && !ids.isEmpty()) {
+                List<Integer> equipmentIds = new ArrayList<>();
+                for (Number n : ids) equipmentIds.add(n.intValue());
+                template.setSelectedEquipmentIds(equipmentIds);
+            }
+            template.setIncludeActualCurrentRange(Boolean.TRUE.equals(params.get("workOutsideActualCurrent")));
+            if (params.get("actualCurrentMin") != null) template.setActualCurrentMin(((Number) params.get("actualCurrentMin")).intValue());
+            if (params.get("actualCurrentMax") != null) template.setActualCurrentMax(((Number) params.get("actualCurrentMax")).intValue());
+            if (Boolean.FALSE.equals(params.get("minSeamIntervalEnabled"))) template.setMinIntervalBetweenWeldsSec(null);
+            else if (params.get("minSeamInterval") != null) template.setMinIntervalBetweenWeldsSec(((Number) params.get("minSeamInterval")).intValue());
+            if (Boolean.FALSE.equals(params.get("minSeamDurationEnabled"))) template.setMinWeldDurationSec(null);
+            else if (params.get("minSeamDuration") != null) template.setMinWeldDurationSec(((Number) params.get("minSeamDuration")).intValue());
+            List<String> cols = new ArrayList<>();
+            if (Boolean.TRUE.equals(params.get("welderFullName"))) cols.add("welderFullName");
+            if (Boolean.TRUE.equals(params.get("welderTabNumber"))) cols.add("welderTabNumber");
+            if (Boolean.TRUE.equals(params.get("profession"))) cols.add("profession");
+            if (Boolean.TRUE.equals(params.get("wireFeedSpeed"))) cols.add("wireFeedSpeed");
+            if (Boolean.TRUE.equals(params.get("consumption"))) cols.add("consumption");
+            if (Boolean.TRUE.equals(params.get("energyConsumed"))) cols.add("energyConsumed");
+            if (Boolean.TRUE.equals(params.get("gasConsumption"))) cols.add("gasConsumption");
+            template.setSelectedColumns(cols);
+        }
+        if (reportTemplate.getCurrentRanges() != null && reportTemplate.getCurrentRanges().get("workOutsideActualCurrent") != null) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> actual = (Map<String, Object>) reportTemplate.getCurrentRanges().get("workOutsideActualCurrent");
+            if (actual != null) {
+                if (actual.get("min") != null) template.setActualCurrentMin(((Number) actual.get("min")).intValue());
+                if (actual.get("max") != null) template.setActualCurrentMax(((Number) actual.get("max")).intValue());
+            }
+        }
+        return template;
+    }
+
+    /**
+     * Парсит дату из строки, пришедшей с фронта.
+     * Если строка в формате ISO с временем (например 2025-11-02T21:00:00.000Z — полночь по Москве 3 ноября),
+     * интерпретирует её в зоне Europe/Moscow, чтобы календарная дата совпадала с выбором пользователя.
+     */
+    private static java.time.LocalDate parseTemplateDate(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) return null;
+        try {
+            if (dateStr.contains("T")) {
+                java.time.Instant instant = java.time.Instant.parse(dateStr);
+                return instant.atZone(java.time.ZoneId.of("Europe/Moscow")).toLocalDate();
+            }
+            return java.time.LocalDate.parse(dateStr);
+        } catch (Exception e) {
+            try {
+                return java.time.LocalDate.parse(dateStr.substring(0, dateStr.indexOf("T")));
+            } catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Извлекает период (даты и время) из настроек шаблона.
+     * Возвращает массив: [periodStartDate, periodEndDate, periodStartTime, periodEndTime].
+     */
+    private Object[] parsePeriodFromTemplate(ReportTemplateDTO reportTemplate) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate periodStartDate = today.minusDays(1);
+        java.time.LocalDate periodEndDate = today.minusDays(1);
+        java.time.LocalTime periodStartTime = java.time.LocalTime.MIN;
+        java.time.LocalTime periodEndTime = java.time.LocalTime.MAX;
+        if (reportTemplate.getPeriodSettings() != null) {
+            Map<String, Object> ps = reportTemplate.getPeriodSettings();
+            Object periodTypeObj = ps.get("periodType");
+            String periodType = periodTypeObj != null ? periodTypeObj.toString() : null;
+            if ("Произвольный период".equals(periodType)) {
+                Object startDateObj = ps.get("startDate");
+                Object endDateObj = ps.get("endDate");
+                if (startDateObj != null && endDateObj != null) {
+                    java.time.LocalDate start = parseTemplateDate(startDateObj.toString());
+                    java.time.LocalDate end = parseTemplateDate(endDateObj.toString());
+                    if (start != null) periodStartDate = start;
+                    if (end != null) periodEndDate = end;
+                }
+            } else if ("За 7 дней".equals(periodType)) {
+                periodStartDate = today.minusDays(7);
+                periodEndDate = today.minusDays(1);
+            } else if ("За 24 часа".equals(periodType)) {
+                periodStartDate = today.minusDays(1);
+                periodEndDate = today.minusDays(1);
+            }
+            Object timeRangeObj = ps.get("timeRange");
+            if (timeRangeObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> tr = (Map<String, Object>) timeRangeObj;
+                Object start = tr.get("start");
+                Object end = tr.get("end");
+                if (start != null && !start.toString().trim().isEmpty()) periodStartTime = java.time.LocalTime.parse(start.toString());
+                if (end != null && !end.toString().trim().isEmpty()) periodEndTime = java.time.LocalTime.parse(end.toString());
+            } else {
+                Object startTimeObj = ps.get("startTime");
+                Object endTimeObj = ps.get("endTime");
+                if (startTimeObj != null && !startTimeObj.toString().trim().isEmpty()) periodStartTime = java.time.LocalTime.parse(startTimeObj.toString());
+                if (endTimeObj != null && !endTimeObj.toString().trim().isEmpty()) periodEndTime = java.time.LocalTime.parse(endTimeObj.toString());
+            }
+        }
+        return new Object[]{ periodStartDate, periodEndDate, periodStartTime, periodEndTime };
     }
 
     /**
@@ -609,21 +1020,43 @@ public class AutomatedReportScheduler {
             return null;
         }
 
-        // Если есть templateId, используем шаблон для получения данных
+        // Если есть templateId, используем шаблон и период из шаблона
         if (automatedReport.getTemplateId() != null) {
             try {
-                java.util.Optional<ReportTemplateDTO> templateOpt = reportTemplateService.getTemplateById(automatedReport.getTemplateId());
+                Optional<ReportTemplateDTO> templateOpt = reportTemplateService.getTemplateById(automatedReport.getTemplateId());
                 if (templateOpt.isPresent()) {
                     ReportTemplateDTO reportTemplate = templateOpt.get();
+                    String tt = templateType.trim().toLowerCase();
+                    if (reportTemplate.getReportParameters() != null && reportTemplate.getReportParameters().get("reportType") != null) {
+                        String reportType = reportTemplate.getReportParameters().get("reportType").toString().trim();
+                        if ("По работе оборудования (швы)".equals(reportType)) tt = "equipment";
+                        else if ("По работе сварщика (швы)".equals(reportType)) tt = "welder";
+                        else if ("По расходу проволоки".equals(reportType)) tt = "wire-consumption";
+                    }
+                    if ("equipment".equals(tt)) {
+                        EquipmentWorkReportTemplateDTO equipmentTemplate = convertToEquipmentTemplate(reportTemplate);
+                        if (equipmentTemplate.getSelectedEquipmentIds() != null && !equipmentTemplate.getSelectedEquipmentIds().isEmpty()) {
+                            Object[] period = parsePeriodFromTemplate(reportTemplate);
+                            return reportDataService.getEquipmentWorkDataNew(equipmentTemplate,
+                                    (java.time.LocalDate) period[0], (java.time.LocalDate) period[1],
+                                    (java.time.LocalTime) period[2], (java.time.LocalTime) period[3]);
+                        }
+                    }
+                    if ("welder".equals(tt)) {
+                        WelderWorkReportTemplateDTO welderTemplate = convertToWelderTemplate(reportTemplate);
+                        if (welderTemplate.getSelectedWelderIds() != null && !welderTemplate.getSelectedWelderIds().isEmpty()) {
+                            Object[] period = parsePeriodFromTemplate(reportTemplate);
+                            return reportDataService.getWelderWorkDataNew(welderTemplate,
+                                    (java.time.LocalDate) period[0], (java.time.LocalDate) period[1],
+                                    (java.time.LocalTime) period[2], (java.time.LocalTime) period[3]);
+                        }
+                    }
+                    // wire-consumption
                     WireConsumptionReportTemplateDTO wireTemplate = convertToWireTemplate(reportTemplate);
-
-                    java.time.LocalDate periodStartDate = java.time.LocalDate.now().minusDays(1);
-                    java.time.LocalDate periodEndDate = java.time.LocalDate.now().minusDays(1);
-                    java.time.LocalTime periodStartTime = java.time.LocalTime.MIN;
-                    java.time.LocalTime periodEndTime = java.time.LocalTime.MAX;
-
-                    return reportDataService.getWireConsumptionDataNew(
-                            wireTemplate, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+                    Object[] period = parsePeriodFromTemplate(reportTemplate);
+                    return reportDataService.getWireConsumptionDataNew(wireTemplate,
+                            (java.time.LocalDate) period[0], (java.time.LocalDate) period[1],
+                            (java.time.LocalTime) period[2], (java.time.LocalTime) period[3]);
                 }
             } catch (Exception e) {
                 System.err.println("ERROR AutomatedReportScheduler: Failed to get report data from template: " + e.getMessage());
@@ -652,9 +1085,10 @@ public class AutomatedReportScheduler {
      */
     private String createFileName(AutomatedReport automatedReport) {
         String timestamp = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        String extension = "pdf";
-        if ("wire-consumption".equalsIgnoreCase(automatedReport.getTemplateType())) {
-            extension = "xlsx";
+        String tt = automatedReport.getTemplateType() != null ? automatedReport.getTemplateType().trim().toLowerCase() : "";
+        String extension = "xlsx";
+        if (!"wire-consumption".equals(tt) && !"equipment".equals(tt) && !"welder".equals(tt)) {
+            extension = "pdf";
         }
         return String.format("%s_%s_%s.%s",
                 automatedReport.getTemplateType(),

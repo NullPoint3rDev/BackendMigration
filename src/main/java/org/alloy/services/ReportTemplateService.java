@@ -196,7 +196,9 @@ public class ReportTemplateService {
             automatedReport.setName(template.getName());
             automatedReport.setTemplateId(template.getId());
             automatedReport.setTemplateName(template.getName());
-            automatedReport.setTemplateType("wire-consumption"); // Тип для отчетов по расходу проволоки
+            // Тип отчёта берём из шаблона (reportParameters.reportType с фронта)
+            String templateType = mapReportTypeToTemplateType(dto.getReportParameters());
+            automatedReport.setTemplateType(templateType);
             automatedReport.setIsActive(true);
             automatedReport.setEmailNotifications(true);
             automatedReport.setEmailRecipients(template.getEmail());
@@ -215,6 +217,19 @@ public class ReportTemplateService {
             e.printStackTrace();
             // Не прерываем сохранение шаблона из-за ошибки создания автоматического отчета
         }
+    }
+
+    /**
+     * Преобразует reportType из шаблона (русское название с фронта) в templateType для AutomatedReport.
+     */
+    private String mapReportTypeToTemplateType(Map<String, Object> reportParameters) {
+        if (reportParameters == null) return "wire-consumption";
+        Object reportTypeObj = reportParameters.get("reportType");
+        if (reportTypeObj == null || !(reportTypeObj instanceof String)) return "wire-consumption";
+        String reportType = ((String) reportTypeObj).trim();
+        if ("По работе оборудования (швы)".equals(reportType)) return "equipment";
+        if ("По работе сварщика (швы)".equals(reportType)) return "welder";
+        return "wire-consumption";
     }
 
     /**
