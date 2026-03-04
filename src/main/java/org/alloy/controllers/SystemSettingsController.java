@@ -27,8 +27,8 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/system-settings")
 @Tag(name = "System Settings", description = "API для управления системными настройками. " +
-    "Позволяет создавать, просматривать, обновлять и удалять системные настройки, " +
-    "а также получать настройки по категориям.")
+        "Позволяет создавать, просматривать, обновлять и удалять системные настройки, " +
+        "а также получать настройки по категориям.")
 @SecurityRequirement(name = "JWT")
 public class SystemSettingsController {
 
@@ -45,22 +45,22 @@ public class SystemSettingsController {
     }
 
     @Operation(
-        summary = "Получить все системные настройки",
-        description = "Возвращает список всех системных настроек в системе."
+            summary = "Получить все системные настройки",
+            description = "Возвращает список всех системных настроек в системе."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Список настроек успешно получен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SystemSettings.class, type = "array"))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация"
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Список настроек успешно получен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SystemSettings.class, type = "array"))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация"
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @GetMapping
     public ResponseEntity<List<SystemSettings>> getAllSettings() {
         List<SystemSettings> settings = systemSettingsRepository.findAll();
@@ -68,22 +68,22 @@ public class SystemSettingsController {
     }
 
     @Operation(
-        summary = "Получить настройку по ID",
-        description = "Возвращает системную настройку по ее уникальному идентификатору."
+            summary = "Получить настройку по ID",
+            description = "Возвращает системную настройку по ее уникальному идентификатору."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Настройка успешно найдена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SystemSettings.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Настройка не найдена"
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Настройка успешно найдена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SystemSettings.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Настройка не найдена"
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @GetMapping("/{id}")
     public ResponseEntity<SystemSettings> getSettingById(
             @Parameter(description = "ID настройки") @PathVariable Integer id) {
@@ -93,22 +93,22 @@ public class SystemSettingsController {
     }
 
     @Operation(
-        summary = "Получить настройку по ключу",
-        description = "Возвращает активную системную настройку по ключу."
+            summary = "Получить настройку по ключу",
+            description = "Возвращает активную системную настройку по ключу."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Настройка успешно найдена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SystemSettings.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Настройка не найдена"
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Настройка успешно найдена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SystemSettings.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Настройка не найдена"
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @GetMapping("/key/{key}")
     public ResponseEntity<SystemSettings> getSettingByKey(
             @Parameter(description = "Ключ настройки") @PathVariable String key) {
@@ -118,18 +118,18 @@ public class SystemSettingsController {
     }
 
     @Operation(
-        summary = "Получить настройки по категории",
-        description = "Возвращает список активных настроек указанной категории."
+            summary = "Получить настройки по категории",
+            description = "Возвращает список активных настроек указанной категории."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Настройки успешно получены",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SystemSettings.class, type = "array"))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Настройки успешно получены",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SystemSettings.class, type = "array"))
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @GetMapping("/category/{category}")
     public ResponseEntity<List<SystemSettings>> getSettingsByCategory(
             @Parameter(description = "Категория настроек") @PathVariable String category) {
@@ -138,40 +138,40 @@ public class SystemSettingsController {
     }
 
     @Operation(
-        summary = "Получить все настройки в виде карты",
-        description = "Возвращает все активные настройки, сгруппированные по категориям."
+            summary = "Получить все настройки в виде карты",
+            description = "Возвращает все активные настройки, сгруппированные по категориям."
     )
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @GetMapping("/map")
     public ResponseEntity<Map<String, Map<String, String>>> getSettingsMap() {
         List<SystemSettings> allSettings = systemSettingsRepository.findByIsActive(true);
         Map<String, Map<String, String>> settingsMap = new HashMap<>();
-        
+
         for (SystemSettings setting : allSettings) {
             settingsMap.computeIfAbsent(setting.getCategory(), k -> new HashMap<>())
                     .put(setting.getSettingKey(), setting.getSettingValue());
         }
-        
+
         return ResponseEntity.ok(settingsMap);
     }
 
     @Operation(
-        summary = "Создать новую системную настройку",
-        description = "Создает новую системную настройку в системе."
+            summary = "Создать новую системную настройку",
+            description = "Создает новую системную настройку в системе."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "201",
-            description = "Настройка успешно создана",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SystemSettings.class))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Некорректные данные"
-        )
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Настройка успешно создана",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SystemSettings.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Некорректные данные"
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @PostMapping
     public ResponseEntity<SystemSettings> createSetting(
             @RequestBody SystemSettings setting) {
@@ -185,29 +185,29 @@ public class SystemSettingsController {
     }
 
     @Operation(
-        summary = "Обновить системную настройку",
-        description = "Обновляет существующую системную настройку."
+            summary = "Обновить системную настройку",
+            description = "Обновляет существующую системную настройку."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Настройка успешно обновлена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SystemSettings.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Настройка не найдена"
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Настройка успешно обновлена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SystemSettings.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Настройка не найдена"
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @PutMapping("/{id}")
     public ResponseEntity<SystemSettings> updateSetting(
             @Parameter(description = "ID настройки") @PathVariable Integer id,
             @RequestBody SystemSettings settingDetails) {
         SystemSettings setting = systemSettingsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Настройка не найдена с ID: " + id));
-        
+
         setting.setCategory(settingDetails.getCategory());
         setting.setSettingKey(settingDetails.getSettingKey());
         setting.setSettingValue(settingDetails.getSettingValue());
@@ -215,57 +215,57 @@ public class SystemSettingsController {
         setting.setDataType(settingDetails.getDataType());
         setting.setIsActive(settingDetails.getIsActive());
         setting.setDateUpdated(LocalDateTime.now());
-        
+
         SystemSettings updatedSetting = systemSettingsRepository.save(setting);
         return ResponseEntity.ok(updatedSetting);
     }
 
     @Operation(
-        summary = "Обновить значение настройки по ключу",
-        description = "Обновляет значение активной настройки по ключу."
+            summary = "Обновить значение настройки по ключу",
+            description = "Обновляет значение активной настройки по ключу."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Настройка успешно обновлена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = SystemSettings.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Настройка не найдена"
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Настройка успешно обновлена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = SystemSettings.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Настройка не найдена"
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @PutMapping("/key/{key}")
     public ResponseEntity<SystemSettings> updateSettingByKey(
             @Parameter(description = "Ключ настройки") @PathVariable String key,
             @RequestBody String value) {
         SystemSettings setting = systemSettingsRepository.findActiveByKey(key)
                 .orElseThrow(() -> new ResourceNotFoundException("Настройка не найдена с ключом: " + key));
-        
+
         setting.setSettingValue(value);
         setting.setDateUpdated(LocalDateTime.now());
-        
+
         SystemSettings updatedSetting = systemSettingsRepository.save(setting);
         return ResponseEntity.ok(updatedSetting);
     }
 
     @Operation(
-        summary = "Удалить системную настройку",
-        description = "Удаляет системную настройку из системы."
+            summary = "Удалить системную настройку",
+            description = "Удаляет системную настройку из системы."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "204",
-            description = "Настройка успешно удалена"
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Настройка не найдена"
-        )
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Настройка успешно удалена"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Настройка не найдена"
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSetting(
             @Parameter(description = "ID настройки") @PathVariable Integer id) {
@@ -277,10 +277,10 @@ public class SystemSettingsController {
     }
 
     @Operation(
-        summary = "Поиск настроек",
-        description = "Поиск настроек по ключу или описанию."
+            summary = "Поиск настроек",
+            description = "Поиск настроек по ключу или описанию."
     )
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @GetMapping("/search")
     public ResponseEntity<List<SystemSettings>> searchSettings(
             @Parameter(description = "Поисковый запрос") @RequestParam String query) {
@@ -289,10 +289,10 @@ public class SystemSettingsController {
     }
 
     @Operation(
-        summary = "Получить активные настройки",
-        description = "Возвращает список всех активных настроек."
+            summary = "Получить активные настройки",
+            description = "Возвращает список всех активных настроек."
     )
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @GetMapping("/active")
     public ResponseEntity<List<SystemSettings>> getActiveSettings() {
         List<SystemSettings> settings = systemSettingsRepository.findByIsActive(true);

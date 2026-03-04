@@ -22,6 +22,10 @@ public class UserRolePermission {
     private Boolean read;
     private Boolean write;
 
+    /** Если не null (1–6): право настраивается пользователем с ролью данного уровня; фактическое наличие — из user_permission_grant. */
+    @Column(name = "ConfigurableByRoleLevel")
+    private Integer configurableByRoleLevel;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "userRoleId", insertable = false, updatable = false)
     private UserRole userRole;

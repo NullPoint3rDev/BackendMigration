@@ -56,13 +56,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList(
-            "http://*",
-            "https://*",
-            "http://localhost:*",
-            "http://192.168.*:*",
-            "http://95.172.*:*",
-            "http://5.227.*:*",
-            "http://alloynn.keenetic.name:*"
+                "http://*",
+                "https://*",
+                "http://localhost:*",
+                "http://192.168.*:*",
+                "http://95.172.*:*",
+                "http://5.227.*:*",
+                "http://alloynn.keenetic.name:*",
+                "http://89.109.8.59"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
@@ -80,86 +81,52 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         System.out.println("SecurityConfig: configure(HttpSecurity) called!");
         http
-            .cors().and()
-            .csrf().disable()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
-            .authorizeRequests()
-            // Public endpoint are available for all type of users (login page, swagger docs, websocket for welding machines)
-            .antMatchers("/auth/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**").permitAll()
+                .cors().and()
+                .csrf().disable()
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .authorizeRequests()
+                // Public endpoint are available for all type of users (login page, swagger docs, websocket for welding machines, health-check)
+                .antMatchers("/auth/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**", "/health").permitAll()
 
-            // User accounts — granular rules
-            // Owner/self and common user endpoints (method-level @PreAuthorize will enforce ownership)
-            .antMatchers(HttpMethod.GET, "/user-accounts/current").authenticated()
-            .antMatchers(HttpMethod.PUT, "/user-accounts/profile").authenticated()
-            .antMatchers(HttpMethod.POST, "/user-accounts/photo").authenticated()
-            .antMatchers(HttpMethod.GET, "/user-accounts/photo/**").authenticated()
-            .antMatchers(HttpMethod.GET, "/user-accounts/username/**").authenticated()
-            .antMatchers(HttpMethod.GET, "/user-accounts/email/**").authenticated()
+                // User accounts — детализация в контроллерах по PERMISSION_*
+                .antMatchers(HttpMethod.GET, "/user-accounts/current").authenticated()
+                .antMatchers(HttpMethod.PUT, "/user-accounts/profile").authenticated()
+                .antMatchers(HttpMethod.POST, "/user-accounts/photo").authenticated()
+                .antMatchers(HttpMethod.GET, "/user-accounts/photo/**").authenticated()
+                .antMatchers(HttpMethod.GET, "/user-accounts/username/**").authenticated()
+                .antMatchers(HttpMethod.GET, "/user-accounts/email/**").authenticated()
+                .antMatchers("/user-accounts/**").authenticated()
+                .antMatchers("/user-roles/**").authenticated()
+                .antMatchers("/user-permissions/**").authenticated()
+                .antMatchers("/user-role-permissions/**").authenticated()
+                .antMatchers("/user-permission-grants/**").authenticated()
 
-            // Read endpoints for admins and managers
-            .antMatchers(HttpMethod.GET, "/user-accounts").hasAnyRole("Администратор", "Менеджер")
-            .antMatchers(HttpMethod.GET, "/user-accounts/search").hasAnyRole("Администратор", "Менеджер")
-            .antMatchers(HttpMethod.GET, "/user-accounts/user-role/**").hasAnyRole("Администратор", "Менеджер")
-            .antMatchers(HttpMethod.GET, "/user-accounts/organization-unit/**").hasAnyRole("Администратор", "Менеджер")
+                // Reports, equipment, orgs, welders, notifications — проверка по правам в контроллерах
+                .antMatchers("/reports/**").authenticated()
+                .antMatchers("/automated-reports/**").authenticated()
+                .antMatchers("/devices/**").authenticated()
+                .antMatchers("/welding-devices/**").authenticated()
+                .antMatchers("/welding-machines/**").authenticated()
+                .antMatchers("/device-test/**").authenticated()
+                .antMatchers("/employees/**").authenticated()
+                .antMatchers("/welders/**").authenticated()
+                .antMatchers("/organizations/**").authenticated()
+                .antMatchers("/organization-units/**").authenticated()
+                .antMatchers("/system-settings/**").authenticated()
+                .antMatchers("/email-templates/**").authenticated()
+                .antMatchers("/email-test/**").authenticated()
+                .antMatchers("/notifications/**").authenticated()
+                .antMatchers("/notification-templates/**").authenticated()
+                .antMatchers("/library-documents/**").authenticated()
+                .antMatchers("/certifications/**").authenticated()
+                .antMatchers("/maintenance/**").authenticated()
+                .antMatchers("/welding-procedure-specifications/**").authenticated()
 
-            // Create/Update/Delete restricted to admins
-            .antMatchers(HttpMethod.POST, "/user-accounts/**").hasRole("Администратор")
-            .antMatchers(HttpMethod.PUT, "/user-accounts/**").hasRole("Администратор")
-            .antMatchers(HttpMethod.DELETE, "/user-accounts/**").hasRole("Администратор")
-
-            // Fallback for any other user-accounts paths (if any remain)
-            .antMatchers("/user-accounts/**").authenticated()
-            .antMatchers("/user-roles/**").hasRole("Администратор")
-            .antMatchers("/user-permissions/**").hasRole("Администратор")
-            .antMatchers("/user-role-permissions/**").hasRole("Администратор")
-
-            // Reports - admins and managers
-            .antMatchers(HttpMethod.GET, "/reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers(HttpMethod.POST, "/reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers(HttpMethod.PUT, "/reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers(HttpMethod.DELETE, "/reports/**").hasRole("Администратор")
-            .antMatchers(HttpMethod.DELETE,"/automated-reports/**").hasRole("Администратор")
-            .antMatchers(HttpMethod.GET, "/automated-reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers(HttpMethod.POST, "/automated-reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers(HttpMethod.PUT, "/automated-reports/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-
-            // Machines - admins, managers, technicians
-            .antMatchers("/devices/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers("/welding-devices/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers("/welding-machines/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers("/device-test/**").hasRole("Администратор")
-
-            // Employees - admins and managers; Welders granular to match controller
-            .antMatchers("/employees/**").hasAnyRole("Администратор", "Менеджер")
-            .antMatchers(HttpMethod.GET, "/welders/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers(HttpMethod.POST, "/welders/**").hasAnyRole("Администратор", "Технолог")
-            .antMatchers(HttpMethod.PUT, "/welders/**").hasAnyRole("Администратор", "Технолог")
-            .antMatchers(HttpMethod.DELETE, "/welders/**").hasRole("Администратор")
-
-            // Organization — granular to include technologist for reads
-            .antMatchers(HttpMethod.GET, "/organizations/**").hasAnyRole("Администратор", "Менеджер", "Технолог")
-            .antMatchers(HttpMethod.POST, "/organizations/**").hasAnyRole("Администратор", "Менеджер")
-            .antMatchers(HttpMethod.PUT, "/organizations/**").hasAnyRole("Администратор", "Менеджер")
-            .antMatchers(HttpMethod.DELETE, "/organizations/**").hasAnyRole("Администратор", "Менеджер")
-            .antMatchers("/organization-units/**").hasAnyRole("Администратор", "Менеджер")
-
-            // System settings - only admins
-            .antMatchers("/system-settings/**").hasRole("Администратор")
-            .antMatchers("/email-templates/**").hasRole("Администратор")
-            .antMatchers("/email-test/**").hasRole("Администратор")
-
-            // Notifications - all authorized users 
-            .antMatchers("/notifications/**").authenticated()
-            .antMatchers("/notification-templates/**").hasAnyRole("Администратор", "Менеджер")
-
-            // Library (documents) - all authorized users
-            .antMatchers("/library-documents/**").authenticated()
-
-            // The rest of the endpoints are available for all authorized users
-            .anyRequest().authenticated()
-            .and()
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                // The rest of the endpoints are available for all authorized users
+                .anyRequest().authenticated()
+                .and()
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
     }
 
 

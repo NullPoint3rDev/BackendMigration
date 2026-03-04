@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,10 +141,24 @@ public class WeldingMachineStateService {
                 weldingMachineRepository.save(machine);
             }
 
+            LocalDateTime now = LocalDateTime.now();
+            // Закрываем длительность предыдущего состояния с ошибкой (до следующей телеметрии)
+            Optional<WeldingMachineState> prevOpt = weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(machine.getId());
+            if (prevOpt.isPresent()) {
+                WeldingMachineState prev = prevOpt.get();
+                if (prev.getWeldingMachineStatus() == WeldingMachineStatus.Error
+                        && (prev.getStateDurationMs() == null || prev.getStateDurationMs() == 0)) {
+                    long durationMs = ChronoUnit.MILLIS.between(prev.getDateCreated(), now);
+                    if (durationMs >= 0) {
+                        prev.setStateDurationMs(durationMs);
+                        weldingMachineStateRepository.save(prev);
+                    }
+                }
+            }
+
             // Создаем состояние
             WeldingMachineState state = new WeldingMachineState();
             state.setWeldingMachineId(machine.getId());
-            LocalDateTime now = LocalDateTime.now();
             state.setDateCreated(now);
             state.setDateUpdated(now);
             state.setWeldingMachineStatus(stateSummary.getStatus());
@@ -151,7 +166,7 @@ public class WeldingMachineStateService {
             state.setControlState(stateSummary.getControlState());
             state.setErrorCode(stateSummary.getErrorCode());
             state.setLimitsExceeded(stateSummary.isLimitsExceeded());
-            state.setStateDurationMs(0L);
+            state.setStateDurationMs(stateSummary.getStateDurationMs() >= 0 ? stateSummary.getStateDurationMs() : 0L);
 
             // Сохраняем RFID код из properties в поле rfid для поиска по RFID
             if (stateSummary.getProperties() != null) {

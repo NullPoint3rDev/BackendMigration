@@ -15,11 +15,13 @@ import org.alloy.repositories.RfidPassRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.RfidPass;
+import org.alloy.models.EquipmentErrorMessages;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -2298,5 +2300,468 @@ public class ReportDataService {
         }
 
         return "DESC".equalsIgnoreCase(sortDirection) ? -result : result;
+    }
+
+    /**
+     * Данные для отчёта по неисправностям оборудования.
+     * Берутся состояния со статусом Error за период; количество — число непрерывных отрезков (разрыв ≤1 сек не прерывает).
+     */
+    public List<EquipmentMalfunctionReportSectionDTO> getEquipmentMalfunctionData(
+            EquipmentMalfunctionReportTemplateDTO template,
+            LocalDate periodStartDate,
+            LocalDate periodEndDate,
+            LocalTime periodStartTime,
+            LocalTime periodEndTime) {
+        List<Integer> machineIds = template != null && template.getSelectedEquipmentIds() != null && !template.getSelectedEquipmentIds().isEmpty()
+                ? new ArrayList<>(template.getSelectedEquipmentIds())
+                : new ArrayList<>();
+        LocalDate startDate = periodStartDate != null ? periodStartDate : LocalDate.now();
+        LocalDate endDate = periodEndDate != null ? periodEndDate : LocalDate.now();
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(23, 59, 59, 999_999_999);
+
+        List<EquipmentMalfunctionReportSectionDTO> sections = new ArrayList<>();
+
+        // Когда выбраны конкретные аппараты — нативный запрос с датами; код ошибки извлекаем по значению (1–23) из любой ячейки строки
+        final List<Integer> selectedIds = new ArrayList<>(machineIds);
+        if (!selectedIds.isEmpty()) {
+            List<Object[]> rawForMachines = weldingMachineStateRepository.findErrorStatesNative(selectedIds, startDateTime, endDateTime);
+            Map<Long, String> errorCodeFromParams = loadErrorCodeFromParameters(extractStateIdsFromRawRows(rawForMachines));
+            Map<Integer, List<Object[]>> byMachineRaw = rawForMachines.stream()
+                    .filter(row -> extractMachineIdFromRow(row, selectedIds) >= 0)
+                    .collect(Collectors.groupingBy(row -> extractMachineIdFromRow(row, selectedIds)));
+            for (Integer mid : selectedIds) {
+                List<Object[]> machineRows = new ArrayList<>(byMachineRaw.getOrDefault(mid, Collections.emptyList()));
+                machineRows.sort(Comparator.comparing(row -> toLocalDateTime(extractDateFromRow(row)), Comparator.nullsLast(Comparator.naturalOrder())));
+                List<MalfunctionSegment> segments = buildMalfunctionSegmentsFromRaw(machineRows, mid, errorCodeFromParams);
+                Map<String, SummaryAcc> summaryMap = new LinkedHashMap<>();
+                Map<String, Map<LocalDate, SummaryAcc>> byDateMap = new LinkedHashMap<>();
+                for (MalfunctionSegment seg : segments) {
+                    String name = seg.malfunctionName;
+                    summaryMap.computeIfAbsent(name, k -> new SummaryAcc()).add(1, seg.durationSeconds);
+                    byDateMap.computeIfAbsent(name, k -> new LinkedHashMap<>())
+                            .computeIfAbsent(seg.date, d -> new SummaryAcc()).add(1, seg.durationSeconds);
+                }
+                List<EquipmentMalfunctionSummaryRowDTO> summaryRows = new ArrayList<>();
+                for (Map.Entry<String, SummaryAcc> e : summaryMap.entrySet()) {
+                    summaryRows.add(new EquipmentMalfunctionSummaryRowDTO(e.getKey(), e.getValue().count, capMalfunctionDurationSec(e.getValue().durationSec)));
+                }
+                List<EquipmentMalfunctionByDateRowDTO> byDateRows = new ArrayList<>();
+                for (Map.Entry<String, Map<LocalDate, SummaryAcc>> e : byDateMap.entrySet()) {
+                    for (Map.Entry<LocalDate, SummaryAcc> de : e.getValue().entrySet()) {
+                        byDateRows.add(new EquipmentMalfunctionByDateRowDTO(e.getKey(), de.getKey(), de.getValue().count, capMalfunctionDurationSec(de.getValue().durationSec)));
+                    }
+                }
+                byDateRows.sort(Comparator.comparing(EquipmentMalfunctionByDateRowDTO::getDate).thenComparing(EquipmentMalfunctionByDateRowDTO::getMalfunctionName));
+                String equipmentModel = "";
+                String equipmentName = "";
+                String equipmentDepartment = "";
+                String serialNumber = "";
+                String inventoryNumber = "";
+                Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(mid);
+                if (machineOpt.isPresent()) {
+                    WeldingMachine m = machineOpt.get();
+                    equipmentModel = m.getDeviceModel() != null ? m.getDeviceModel().name() : "";
+                    equipmentName = m.getName() != null ? m.getName() : "";
+                    if (m.getOrganizationUnit() != null && m.getOrganizationUnit().getName() != null) {
+                        equipmentDepartment = m.getOrganizationUnit().getName();
+                    }
+                    serialNumber = m.getSerialNumber() != null ? m.getSerialNumber() : "";
+                    inventoryNumber = m.getInventoryNumber() != null ? m.getInventoryNumber() : "";
+                }
+                sections.add(new EquipmentMalfunctionReportSectionDTO(mid, equipmentModel, equipmentName, equipmentDepartment, serialNumber, inventoryNumber, summaryRows, byDateRows));
+            }
+            return sections;
+        }
+
+        // Нет выбранных аппаратов — берём все ошибки из нативного запроса и фильтруем по дате в Java
+        List<Object[]> rawErrorStatesAll = weldingMachineStateRepository.findErrorStatesNativeAllUnbounded();
+        if (rawErrorStatesAll.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Object[]> rawErrorStatesFiltered = rawErrorStatesAll.stream()
+                .filter(row -> {
+                    LocalDateTime dt = toLocalDateTime(row[2]);
+                    if (dt == null) return false;
+                    LocalDate d = dt.toLocalDate();
+                    return !d.isBefore(startDate) && !d.isAfter(endDate);
+                })
+                .collect(Collectors.toList());
+        if (rawErrorStatesFiltered.isEmpty()) {
+            return Collections.emptyList();
+        }
+        machineIds = rawErrorStatesFiltered.stream().map(row -> (Integer) row[1]).distinct().sorted().collect(Collectors.toList());
+        final List<Integer> filterIds = machineIds;
+        List<Object[]> rawErrorStates = rawErrorStatesFiltered.stream().filter(row -> filterIds.contains(row[1])).collect(Collectors.toList());
+        Map<Long, String> errorCodeFromParams = loadErrorCodeFromParameters(extractStateIdsFromRawRows(rawErrorStates));
+        Map<Integer, List<Object[]>> byMachine = rawErrorStates.stream().collect(Collectors.groupingBy(row -> (Integer) row[1]));
+        for (Integer mid : machineIds) {
+            List<Object[]> machineRows = byMachine.getOrDefault(mid, Collections.emptyList());
+            machineRows = new ArrayList<>(machineRows);
+            machineRows.sort(Comparator.comparing(row -> toLocalDateTime(row[2])));
+            List<MalfunctionSegment> segments = buildMalfunctionSegmentsFromRaw(machineRows, mid, errorCodeFromParams);
+            Map<String, SummaryAcc> summaryMap = new LinkedHashMap<>();
+            Map<String, Map<LocalDate, SummaryAcc>> byDateMap = new LinkedHashMap<>();
+            for (MalfunctionSegment seg : segments) {
+                String name = seg.malfunctionName;
+                summaryMap.computeIfAbsent(name, k -> new SummaryAcc()).add(1, seg.durationSeconds);
+                byDateMap.computeIfAbsent(name, k -> new LinkedHashMap<>())
+                        .computeIfAbsent(seg.date, d -> new SummaryAcc()).add(1, seg.durationSeconds);
+            }
+            List<EquipmentMalfunctionSummaryRowDTO> summaryRows = new ArrayList<>();
+            for (Map.Entry<String, SummaryAcc> e : summaryMap.entrySet()) {
+                summaryRows.add(new EquipmentMalfunctionSummaryRowDTO(e.getKey(), e.getValue().count, capMalfunctionDurationSec(e.getValue().durationSec)));
+            }
+            List<EquipmentMalfunctionByDateRowDTO> byDateRows = new ArrayList<>();
+            for (Map.Entry<String, Map<LocalDate, SummaryAcc>> e : byDateMap.entrySet()) {
+                for (Map.Entry<LocalDate, SummaryAcc> de : e.getValue().entrySet()) {
+                    byDateRows.add(new EquipmentMalfunctionByDateRowDTO(e.getKey(), de.getKey(), de.getValue().count, capMalfunctionDurationSec(de.getValue().durationSec)));
+                }
+            }
+            byDateRows.sort(Comparator.comparing(EquipmentMalfunctionByDateRowDTO::getDate).thenComparing(EquipmentMalfunctionByDateRowDTO::getMalfunctionName));
+            String equipmentModel = "";
+            String equipmentName = "";
+            String equipmentDepartment = "";
+            String serialNumber = "";
+            String inventoryNumber = "";
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(mid);
+            if (machineOpt.isPresent()) {
+                WeldingMachine m = machineOpt.get();
+                equipmentModel = m.getDeviceModel() != null ? m.getDeviceModel().name() : "";
+                equipmentName = m.getName() != null ? m.getName() : "";
+                if (m.getOrganizationUnit() != null && m.getOrganizationUnit().getName() != null) {
+                    equipmentDepartment = m.getOrganizationUnit().getName();
+                }
+                serialNumber = m.getSerialNumber() != null ? m.getSerialNumber() : "";
+                inventoryNumber = m.getInventoryNumber() != null ? m.getInventoryNumber() : "";
+            }
+            sections.add(new EquipmentMalfunctionReportSectionDTO(mid, equipmentModel, equipmentName, equipmentDepartment, serialNumber, inventoryNumber, summaryRows, byDateRows));
+        }
+        return sections;
+    }
+
+    /** Секции по выбранным аппаратам без данных неисправностей (модель, наименование и т.д. заполнены, в таблицах — «нет неисправностей»). */
+    private List<EquipmentMalfunctionReportSectionDTO> buildSectionsWithEquipmentOnly(List<Integer> machineIds) {
+        List<EquipmentMalfunctionReportSectionDTO> result = new ArrayList<>();
+        for (Integer mid : machineIds) {
+            String equipmentModel = "";
+            String equipmentName = "";
+            String equipmentDepartment = "";
+            String serialNumber = "";
+            String inventoryNumber = "";
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(mid);
+            if (machineOpt.isPresent()) {
+                WeldingMachine m = machineOpt.get();
+                equipmentModel = m.getDeviceModel() != null ? m.getDeviceModel().name() : "";
+                equipmentName = m.getName() != null ? m.getName() : "";
+                if (m.getOrganizationUnit() != null && m.getOrganizationUnit().getName() != null) {
+                    equipmentDepartment = m.getOrganizationUnit().getName();
+                }
+                serialNumber = m.getSerialNumber() != null ? m.getSerialNumber() : "";
+                inventoryNumber = m.getInventoryNumber() != null ? m.getInventoryNumber() : "";
+            }
+            result.add(new EquipmentMalfunctionReportSectionDTO(mid, equipmentModel, equipmentName, equipmentDepartment, serialNumber, inventoryNumber, Collections.emptyList(), Collections.emptyList()));
+        }
+        return result;
+    }
+
+    private static class SummaryAcc {
+        int count;
+        long durationSec;
+        void add(int c, long d) { count += c; durationSec += d; }
+    }
+
+    /** Один непрерывный отрезок неисправности (после слияния с разрывом ≤1 сек). */
+    private static class MalfunctionSegment {
+        final String malfunctionName;
+        final LocalDate date;
+        final long durationSeconds;
+        MalfunctionSegment(String malfunctionName, LocalDate date, long durationSeconds) {
+            this.malfunctionName = malfunctionName;
+            this.date = date;
+            this.durationSeconds = durationSeconds;
+        }
+    }
+
+    /** Строит отрезки неисправностей: объединяет подряд идущие состояния с одним errorCode, если разрыв ≤1 сек. */
+    private List<MalfunctionSegment> buildMalfunctionSegments(List<WeldingMachineState> states) {
+        if (states == null || states.isEmpty()) return Collections.emptyList();
+        List<MalfunctionSegment> out = new ArrayList<>();
+        final long maxGapMs = 1000L;
+        String currentName = null;
+        LocalDateTime segmentEnd = null;
+        long segmentDurationSec = 0;
+        LocalDate segmentDate = null;
+        for (WeldingMachineState s : states) {
+            String name = (s.getErrorCode() != null && !s.getErrorCode().trim().isEmpty()) ? s.getErrorCode().trim() : "Неизвестная ошибка";
+            LocalDateTime stateStart = s.getDateCreated();
+            long durationMs = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
+            LocalDateTime stateEnd = stateStart.plus(durationMs, ChronoUnit.MILLIS);
+            long durationSec = (durationMs + 500) / 1000;
+            if (currentName != null && currentName.equals(name) && segmentEnd != null && ChronoUnit.MILLIS.between(segmentEnd, stateStart) <= maxGapMs) {
+                segmentDurationSec += durationSec;
+                segmentEnd = stateEnd;
+            } else {
+                if (currentName != null) {
+                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+                }
+                currentName = name;
+                segmentEnd = stateEnd;
+                segmentDurationSec = durationSec;
+                segmentDate = stateStart != null ? stateStart.toLocalDate() : null;
+            }
+        }
+        if (currentName != null) {
+            out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+        }
+        return out;
+    }
+
+    private static LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) return null;
+        if (value instanceof Timestamp) return ((Timestamp) value).toLocalDateTime();
+        if (value instanceof LocalDateTime) return (LocalDateTime) value;
+        if (value instanceof java.time.Instant) return LocalDateTime.ofInstant((java.time.Instant) value, java.time.ZoneId.systemDefault());
+        if (value instanceof java.time.OffsetDateTime) return ((java.time.OffsetDateTime) value).toLocalDateTime();
+        if (value instanceof java.util.Date) return ((java.util.Date) value).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+        return null;
+    }
+
+    /** Ограничивает продолжительность неисправности в отчёте (макс. 2 ч на строку). */
+    private static long capMalfunctionDurationSec(long durationSec) {
+        final long maxSec = 2L * 3600;
+        return durationSec < 0 ? 0 : Math.min(durationSec, maxSec);
+    }
+
+    /** Преобразует код ошибки (число 1–23 или строка) в текст. Пустой код — «(без кода)». */
+    private static String resolveMalfunctionName(Object errorCodeObj) {
+        return EquipmentErrorMessages.resolve(errorCodeObj);
+    }
+
+    /** Приводит значение error_code из нативного запроса к виду для resolve: драйвер может вернуть String или Number. */
+    private static Object normalizeErrorCodeFromRow(Object raw) {
+        if (raw == null) return null;
+        if (raw instanceof String) {
+            String s = ((String) raw).trim();
+            return s.isEmpty() ? null : s;
+        }
+        if (raw instanceof Number) return String.valueOf(((Number) raw).intValue());
+        return String.valueOf(raw).trim();
+    }
+
+    /** Извлекает код ошибки (1–23) из строки; не считаем кодом ошибки значение, равное id аппарата (чтобы 8 не превращалось в «Ошибка 8»). */
+    private static Object extractErrorCodeFromRow(Object[] row, int excludeMachineId) {
+        if (row == null) return null;
+        for (Object cell : row) {
+            if (cell == null) continue;
+            String s = String.valueOf(cell).trim();
+            if (s.isEmpty()) continue;
+            try {
+                int n = Integer.parseInt(s);
+                if (n >= 1 && n <= 23 && n != excludeMachineId) return s;
+            } catch (NumberFormatException ignored) { }
+        }
+        return null;
+    }
+
+    /** Извлекает welding_machine_id из строки — число, входящее в список допустимых id (чтобы не зависеть от порядка колонок). */
+    private static int extractMachineIdFromRow(Object[] row, List<Integer> machineIds) {
+        if (row == null || machineIds == null) return -1;
+        for (Object cell : row) {
+            if (cell instanceof Number) {
+                int id = ((Number) cell).intValue();
+                if (machineIds.contains(id)) return id;
+            }
+        }
+        return -1;
+    }
+
+    /** Первая ячейка типа Timestamp/LocalDateTime в строке (date_created). */
+    private static Object extractDateFromRow(Object[] row) {
+        if (row == null) return null;
+        for (Object cell : row) {
+            if (cell instanceof java.sql.Timestamp || cell instanceof LocalDateTime || cell instanceof java.util.Date) return cell;
+        }
+        return null;
+    }
+
+    /** Число в строке, подходящее под state_duration_ms: 0 или из диапазона (100 ms .. 1 год), чтобы не принять id аппарата (1–999) за длительность. */
+    private static long extractDurationMsFromRow(Object[] row) {
+        if (row == null) return 0L;
+        for (Object cell : row) {
+            if (cell instanceof Number) {
+                long v = ((Number) cell).longValue();
+                if (v >= 0 && (v == 0 || v > 100) && v < 86400000L * 365) return v;
+            }
+        }
+        return 0L;
+    }
+
+    /**
+     * Строит сегменты неисправностей из сущностей (JPQL). Название — по state.getErrorCode() через resolveMalfunctionName.
+     * Длительность — из stateDurationMs или из интервала до следующей записи.
+     */
+    private List<MalfunctionSegment> buildMalfunctionSegmentsFromEntities(List<WeldingMachineState> states) {
+        if (states == null || states.isEmpty()) return Collections.emptyList();
+        states = new ArrayList<>(states);
+        states.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+        final int n = states.size();
+        long[] effectiveDurationMs = new long[n];
+        // Ошибки длятся минуты; в БД часто state_duration_ms=0 — ограничиваем 30 мин на сегмент
+        final long maxSegmentDurationMs = 30L * 60 * 1000;
+        for (int i = 0; i < n; i++) {
+            WeldingMachineState s = states.get(i);
+            long fromDb = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
+            if (fromDb > 0) {
+                effectiveDurationMs[i] = Math.min(fromDb, maxSegmentDurationMs);
+            } else if (i + 1 < n) {
+                LocalDateTime start = s.getDateCreated();
+                LocalDateTime nextStart = states.get(i + 1).getDateCreated();
+                if (start != null && nextStart != null) {
+                    long gapMs = ChronoUnit.MILLIS.between(start, nextStart);
+                    if (gapMs < 0) gapMs = 0;
+                    effectiveDurationMs[i] = Math.min(gapMs, maxSegmentDurationMs);
+                }
+            }
+        }
+        List<MalfunctionSegment> out = new ArrayList<>();
+        final long maxGapMs = 1000L;
+        String currentName = null;
+        LocalDateTime segmentEnd = null;
+        long segmentDurationSec = 0;
+        LocalDate segmentDate = null;
+        for (int i = 0; i < n; i++) {
+            WeldingMachineState s = states.get(i);
+            String name = resolveMalfunctionName(s.getErrorCode());
+            LocalDateTime stateStart = s.getDateCreated();
+            if (stateStart == null) continue;
+            long durationMs = effectiveDurationMs[i];
+            LocalDateTime stateEnd = stateStart.plus(durationMs, ChronoUnit.MILLIS);
+            long durationSec = (durationMs + 500) / 1000;
+            if (currentName != null && currentName.equals(name) && segmentEnd != null && ChronoUnit.MILLIS.between(segmentEnd, stateStart) <= maxGapMs) {
+                segmentDurationSec += durationSec;
+                segmentEnd = stateEnd;
+            } else {
+                if (currentName != null) {
+                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+                }
+                currentName = name;
+                segmentEnd = stateEnd;
+                segmentDurationSec = durationSec;
+                segmentDate = stateStart.toLocalDate();
+            }
+        }
+        if (currentName != null) {
+            out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+        }
+        return out;
+    }
+
+    /** Собирает id состояний из сырых строк нативного запроса (колонка 0 = id). */
+    private List<Long> extractStateIdsFromRawRows(List<Object[]> rows) {
+        if (rows == null || rows.isEmpty()) return Collections.emptyList();
+        List<Long> ids = new ArrayList<>();
+        for (Object[] row : rows) {
+            if (row != null && row.length > 0 && row[0] instanceof Number) {
+                long id = ((Number) row[0]).longValue();
+                if (id > 0) ids.add(id);
+            }
+        }
+        return ids;
+    }
+
+    /** Загружает код ошибки из welding_machine_parameter_value по state id (fallback, если в state.error_code пусто). */
+    private Map<Long, String> loadErrorCodeFromParameters(List<Long> stateIds) {
+        if (stateIds == null || stateIds.isEmpty()) return Collections.emptyMap();
+        Map<Long, String> result = new HashMap<>();
+        List<String> propertyCodes = Arrays.asList("ErrorCode", "error_code", "Error");
+        for (String prop : propertyCodes) {
+            try {
+                List<Object[]> rows = parameterValueRepository.findStateIdAndValueNativeCoalesce(stateIds, prop);
+                if (rows != null) {
+                    for (Object[] r : rows) {
+                        if (r != null && r.length >= 2 && r[0] instanceof Number) {
+                            Long sid = ((Number) r[0]).longValue();
+                            String val = r[1] != null ? String.valueOf(r[1]).trim() : null;
+                            if (val != null && !val.isEmpty() && !result.containsKey(sid)) result.put(sid, val);
+                        }
+                    }
+                }
+            } catch (Exception ignored) { }
+        }
+        return result;
+    }
+
+    /** То же, что buildMalfunctionSegments, но по сырым строкам нативного запроса.
+     * machineIdToExclude — id аппарата, не считать его кодом ошибки (чтобы 8 не давало «Ошибка 8»).
+     * paramErrorByStateId — код ошибки из параметров (fallback, если в state пусто). */
+    private List<MalfunctionSegment> buildMalfunctionSegmentsFromRaw(List<Object[]> rows, int machineIdToExclude, Map<Long, String> paramErrorByStateId) {
+        if (rows == null || rows.isEmpty()) return Collections.emptyList();
+        final int n = rows.size();
+        long[] effectiveDurationMs = new long[n];
+        // Нативный запрос: [0]=id, [1]=welding_machineid, [2]=date_created, [3]=state_duration_ms, [4]=error_code
+        // Берём длительность только из колонки 3, иначе id (row[0]) ошибочно принимался за duration_ms
+        final long maxSegmentDurationMs = 30L * 60 * 1000;
+        for (int i = 0; i < n; i++) {
+            Object[] row = rows.get(i);
+            long fromDb = 0L;
+            if (row != null && row.length > 3 && row[3] instanceof Number) {
+                fromDb = ((Number) row[3]).longValue();
+                if (fromDb < 0) fromDb = 0;
+            }
+            if (fromDb > 0) {
+                effectiveDurationMs[i] = Math.min(fromDb, maxSegmentDurationMs);
+            } else {
+                LocalDateTime start = toLocalDateTime(extractDateFromRow(row));
+                if (i + 1 < n) {
+                    LocalDateTime nextStart = toLocalDateTime(extractDateFromRow(rows.get(i + 1)));
+                    if (start != null && nextStart != null) {
+                        long gapMs = ChronoUnit.MILLIS.between(start, nextStart);
+                        if (gapMs < 0) gapMs = 0;
+                        effectiveDurationMs[i] = Math.min(gapMs, maxSegmentDurationMs);
+                    }
+                }
+            }
+        }
+        List<MalfunctionSegment> out = new ArrayList<>();
+        final long maxGapMs = 1000L;
+        String currentName = null;
+        LocalDateTime segmentEnd = null;
+        long segmentDurationSec = 0;
+        LocalDate segmentDate = null;
+        for (int i = 0; i < n; i++) {
+            Object[] row = rows.get(i);
+            Object errorCodeRaw = extractErrorCodeFromRow(row, machineIdToExclude);
+            if (errorCodeRaw == null && row.length > 4 && row[4] != null) {
+                Object r4 = row[4];
+                if (!(r4 instanceof Number) || ((Number) r4).intValue() != machineIdToExclude) errorCodeRaw = r4;
+            }
+            if (errorCodeRaw == null && paramErrorByStateId != null && row.length > 0 && row[0] instanceof Number) {
+                Long stateId = ((Number) row[0]).longValue();
+                if (paramErrorByStateId.containsKey(stateId)) errorCodeRaw = paramErrorByStateId.get(stateId);
+            }
+            String name = resolveMalfunctionName(normalizeErrorCodeFromRow(errorCodeRaw));
+            LocalDateTime stateStart = toLocalDateTime(extractDateFromRow(row));
+            if (stateStart == null) continue;
+            long durationMs = effectiveDurationMs[i];
+            LocalDateTime stateEnd = stateStart.plus(durationMs, ChronoUnit.MILLIS);
+            long durationSec = (durationMs + 500) / 1000;
+            if (currentName != null && currentName.equals(name) && segmentEnd != null && ChronoUnit.MILLIS.between(segmentEnd, stateStart) <= maxGapMs) {
+                segmentDurationSec += durationSec;
+                segmentEnd = stateEnd;
+            } else {
+                if (currentName != null) {
+                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+                }
+                currentName = name;
+                segmentEnd = stateEnd;
+                segmentDurationSec = durationSec;
+                segmentDate = stateStart.toLocalDate();
+            }
+        }
+        if (currentName != null) {
+            out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+        }
+        return out;
     }
 } 

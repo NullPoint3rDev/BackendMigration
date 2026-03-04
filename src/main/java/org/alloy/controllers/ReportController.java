@@ -13,6 +13,7 @@ import org.alloy.services.UserAccountService;
 import org.alloy.repositories.WelderRepository;
 import org.alloy.repositories.EmployeeRepository;
 import org.alloy.repositories.WeldingMachineRepository;
+import org.alloy.repositories.WeldingMachineStateRepository;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.OrganizationUnit;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,12 +24,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,6 +67,9 @@ public class ReportController {
     private WeldingMachineRepository weldingMachineRepository;
 
     @Autowired
+    private WeldingMachineStateRepository weldingMachineStateRepository;
+
+    @Autowired
     private UserAccountService userAccountService;
 
     @Autowired
@@ -70,7 +78,33 @@ public class ReportController {
     @Autowired
     private EmployeeRepository employeeRepository;
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    /**
+     * Диагностика: последние 20 записей состояний с ошибками из БД (id, welding_machine_id, date_created, state_duration_ms, error_code).
+     * Позволяет проверить, что реально пишется в error_code и state_duration_ms.
+     */
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
+    @GetMapping("/diagnostic/equipment-error-samples")
+    public ResponseEntity<Map<String, Object>> getEquipmentErrorSamples() {
+        List<Object[]> rows = weldingMachineStateRepository.findErrorStatesNativeRecent(PageRequest.of(0, 20));
+        List<Map<String, Object>> samples = new ArrayList<>();
+        for (Object[] row : rows) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", row.length > 0 ? row[0] : null);
+            map.put("weldingMachineId", row.length > 1 ? row[1] : null);
+            map.put("dateCreated", row.length > 2 ? row[2] : null);
+            Object dur = row.length > 3 ? row[3] : null;
+            map.put("stateDurationMs", dur != null && dur instanceof Number ? ((Number) dur).longValue() : (dur != null && dur instanceof BigDecimal ? ((BigDecimal) dur).longValue() : null));
+            map.put("errorCode", row.length > 4 ? row[4] : null);
+            samples.add(map);
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.put("count", samples.size());
+        body.put("samples", samples);
+        body.put("hint", "Если errorCode и stateDurationMs null/0 — при сохранении состояния не передавались; для Core код ошибки теперь берётся из битов errors1/errors2.");
+        return ResponseEntity.ok(body);
+    }
+
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/wire-consumption")
     public ResponseEntity<byte[]> generateWireConsumptionReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -97,7 +131,7 @@ public class ReportController {
     /**
      * Сохранение/обновление шаблона отчета по расходу проволоки
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/wire-consumption/template")
     public ResponseEntity<WireConsumptionReportTemplateDTO> saveWireConsumptionTemplate(
             @RequestBody WireConsumptionReportTemplateDTO template) {
@@ -121,7 +155,7 @@ public class ReportController {
     /**
      * Получение шаблона отчета по расходу проволоки
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/wire-consumption/template/{templateId}")
     public ResponseEntity<WireConsumptionReportTemplateDTO> getWireConsumptionTemplate(
             @PathVariable Long templateId) {
@@ -142,7 +176,7 @@ public class ReportController {
     /**
      * Получение всех активных шаблонов
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/wire-consumption/templates")
     public ResponseEntity<List<WireConsumptionReportTemplateDTO>> getAllWireConsumptionTemplates() {
         try {
@@ -158,7 +192,7 @@ public class ReportController {
     /**
      * Получение шаблонов текущего пользователя
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/wire-consumption/templates/my")
     public ResponseEntity<List<WireConsumptionReportTemplateDTO>> getMyWireConsumptionTemplates() {
         try {
@@ -179,7 +213,7 @@ public class ReportController {
     /**
      * Удаление шаблона
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @DeleteMapping("/wire-consumption/template/{templateId}")
     public ResponseEntity<Void> deleteWireConsumptionTemplate(@PathVariable Long templateId) {
         try {
@@ -227,7 +261,7 @@ public class ReportController {
      * Генерация отчета по расходу проволоки (новый формат)
      * Отчет автоматически скачивается
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/wire-consumption/generate")
     public ResponseEntity<byte[]> generateWireConsumptionReportNew(
             @RequestBody WireConsumptionReportGenerationDTO generationRequest) {
@@ -295,7 +329,7 @@ public class ReportController {
     /**
      * Сохранение/обновление шаблона отчета "По работе сварщика"
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/welder-work/template")
     public ResponseEntity<WelderWorkReportTemplateDTO> saveWelderWorkTemplate(
             @RequestBody WelderWorkReportTemplateDTO template) {
@@ -318,7 +352,7 @@ public class ReportController {
     /**
      * Получение шаблона отчета "По работе сварщика"
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/welder-work/template/{templateId}")
     public ResponseEntity<WelderWorkReportTemplateDTO> getWelderWorkTemplate(@PathVariable Long templateId) {
         try {
@@ -334,7 +368,7 @@ public class ReportController {
     /**
      * Получение шаблонов текущего пользователя (welder-work)
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/welder-work/templates/my")
     public ResponseEntity<List<WelderWorkReportTemplateDTO>> getMyWelderWorkTemplates() {
         try {
@@ -353,7 +387,7 @@ public class ReportController {
     /**
      * Удаление шаблона (welder-work)
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @DeleteMapping("/welder-work/template/{templateId}")
     public ResponseEntity<Void> deleteWelderWorkTemplate(@PathVariable Long templateId) {
         try {
@@ -377,7 +411,7 @@ public class ReportController {
     /**
      * Генерация отчета "По работе сварщика" (xlsx)
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/welder-work/generate")
     public ResponseEntity<byte[]> generateWelderWorkReport(
             @RequestBody WelderWorkReportGenerationDTO generationRequest) {
@@ -587,7 +621,7 @@ public class ReportController {
     /**
      * Генерация отчета "По работе оборудования" (xlsx)
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/equipment-work/generate")
     public ResponseEntity<byte[]> generateEquipmentWorkReport(
             @RequestBody EquipmentWorkReportGenerationDTO generationRequest) {
@@ -746,10 +780,98 @@ public class ReportController {
     }
 
     /**
+     * Генерация отчёта "По неисправностям оборудования" (xlsx).
+     * Выбор оборудования — как в отчёте по работе оборудования.
+     */
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
+    @PostMapping("/equipment-malfunction/generate")
+    public ResponseEntity<byte[]> generateEquipmentMalfunctionReport(
+            @RequestBody EquipmentMalfunctionReportGenerationDTO generationRequest) {
+        try {
+            EquipmentMalfunctionReportTemplateDTO template = new EquipmentMalfunctionReportTemplateDTO();
+            ReportTemplateDTO templateWithPeriodSettings = null;
+            if (generationRequest.getTemplateId() != null) {
+                Optional<ReportTemplateDTO> generalOpt = reportTemplateService.getTemplateById(generationRequest.getTemplateId());
+                if (generalOpt.isPresent()) {
+                    ReportTemplateDTO general = generalOpt.get();
+                    templateWithPeriodSettings = general;
+                    template.setTemplateId(general.getId());
+                    template.setTemplateName(general.getName());
+                    if (general.getReportParameters() != null && general.getReportParameters().containsKey("selectedEquipmentIds")) {
+                        @SuppressWarnings("unchecked")
+                        List<Number> ids = (List<Number>) general.getReportParameters().get("selectedEquipmentIds");
+                        if (ids != null && !ids.isEmpty()) {
+                            template.setSelectedEquipmentIds(ids.stream().map(Number::intValue).collect(java.util.stream.Collectors.toList()));
+                        }
+                    }
+                }
+            }
+            if (generationRequest.getSelectedEquipmentIds() != null && !generationRequest.getSelectedEquipmentIds().isEmpty()) {
+                template.setSelectedEquipmentIds(generationRequest.getSelectedEquipmentIds());
+            }
+
+            java.time.LocalDate periodStartDate = generationRequest.getPeriodStartDate();
+            java.time.LocalDate periodEndDate = generationRequest.getPeriodEndDate();
+            java.time.LocalTime periodStartTime = generationRequest.getPeriodStartTime();
+            java.time.LocalTime periodEndTime = generationRequest.getPeriodEndTime();
+            if (periodStartDate == null) periodStartDate = java.time.LocalDate.now();
+            if (periodEndDate == null) periodEndDate = java.time.LocalDate.now();
+            if (periodStartTime == null) periodStartTime = java.time.LocalTime.MIN;
+            if (periodEndTime == null) periodEndTime = java.time.LocalTime.of(23, 59, 59);
+
+            // «За 24 часа» / «За 7 дней» — считаем период на сервере: конец = сейчас (из шаблона или из запроса periodType)
+            String periodTypeFromRequest = generationRequest.getPeriodType() != null ? generationRequest.getPeriodType().trim() : "";
+            if (templateWithPeriodSettings != null && templateWithPeriodSettings.getPeriodSettings() != null) {
+                Object pt = templateWithPeriodSettings.getPeriodSettings().get("periodType");
+                if (pt != null) periodTypeFromRequest = pt.toString().trim();
+            }
+            if ("За 24 часа".equals(periodTypeFromRequest) || "LAST_24_HOURS".equalsIgnoreCase(periodTypeFromRequest) || "24h".equalsIgnoreCase(periodTypeFromRequest)) {
+                LocalDateTime end = LocalDateTime.now();
+                LocalDateTime start = end.minusHours(24);
+                periodStartDate = start.toLocalDate();
+                periodEndDate = end.toLocalDate();
+                periodStartTime = start.toLocalTime();
+                periodEndTime = end.toLocalTime();
+            } else if ("За 7 дней".equals(periodTypeFromRequest) || "LAST_7_DAYS".equalsIgnoreCase(periodTypeFromRequest) || "7DAYS".equalsIgnoreCase(periodTypeFromRequest)) {
+                LocalDateTime end = LocalDateTime.now();
+                LocalDateTime start = end.minusDays(7);
+                periodStartDate = start.toLocalDate();
+                periodEndDate = end.toLocalDate();
+                periodStartTime = start.toLocalTime();
+                periodEndTime = end.toLocalTime();
+            }
+
+            // Если конец периода всё ещё в будущем — ограничиваем текущим моментом
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime endDateTime = LocalDateTime.of(periodEndDate, periodEndTime);
+            if (endDateTime.isAfter(now)) {
+                periodEndDate = now.toLocalDate();
+                periodEndTime = now.toLocalTime();
+            }
+
+            List<EquipmentMalfunctionReportSectionDTO> sections = reportDataService.getEquipmentMalfunctionData(
+                    template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+
+            byte[] reportBytes = reportService.generateEquipmentMalfunctionReportMultiSection(
+                    sections, template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+
+            String filename = "equipment_malfunction_report_" + System.currentTimeMillis() + ".xlsx";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", filename);
+            return new ResponseEntity<>(reportBytes, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            System.err.println("Ошибка генерации отчёта по неисправностям оборудования: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
      * Генерация отчета на основе нового шаблона ReportTemplate
      * Отчет автоматически скачивается в формате xlsx
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/generate-from-template")
     public ResponseEntity<byte[]> generateReportFromTemplate(
             @RequestBody ReportTemplateGenerationDTO generationRequest) {
@@ -922,7 +1044,7 @@ public class ReportController {
         return wireTemplate;
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/welder")
     public ResponseEntity<byte[]> generateWelderReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -946,7 +1068,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/work")
     public ResponseEntity<byte[]> generateWorkReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -971,7 +1093,7 @@ public class ReportController {
     }
 
     // Новые endpoints для получения данных отчетов для просмотра онлайн
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/data/wire-consumption")
     public ResponseEntity<List<WireConsumptionReportDTO>> getWireConsumptionData(@RequestBody ReportRequestDTO request) {
         try {
@@ -984,7 +1106,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/data/welder")
     public ResponseEntity<List<WelderReportDTO>> getWelderData(@RequestBody ReportRequestDTO request) {
         try {
@@ -997,7 +1119,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/data/work")
     public ResponseEntity<List<WorkReportDTO>> getWorkData(@RequestBody ReportRequestDTO request) {
         try {
@@ -1010,7 +1132,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/data/welds")
     public ResponseEntity<List<WeldSegmentDTO>> getWeldsData(@RequestBody ReportRequestDTO request) {
         try {
@@ -1023,7 +1145,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/data/equipment")
     public ResponseEntity<List<WorkReportDTO>> getEquipmentData(@RequestBody ReportRequestDTO request) {
         try {
@@ -1036,21 +1158,21 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/types")
     public ResponseEntity<List<String>> getReportTypes() {
         List<String> reportTypes = List.of("WIRE_CONSUMPTION", "WELDER_REPORT", "WORK_REPORT");
         return ResponseEntity.ok(reportTypes);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/formats")
     public ResponseEntity<List<String>> getReportFormats() {
         List<String> formats = List.of("EXCEL", "PDF", "CSV");
         return ResponseEntity.ok(formats);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/periods")
     public ResponseEntity<List<String>> getReportPeriods() {
         List<String> periods = List.of("DAY", "WEEK", "MONTH", "QUARTER", "YEAR", "CUSTOM");
@@ -1059,7 +1181,7 @@ public class ReportController {
 
     // Новые эндпоинты для отчетов согласно требованиям
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/equipment")
     public ResponseEntity<byte[]> generateEquipmentReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -1085,7 +1207,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/welders")
     public ResponseEntity<byte[]> generateWeldersReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -1111,7 +1233,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/materials")
     public ResponseEntity<byte[]> generateMaterialsReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -1137,7 +1259,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/welds")
     public ResponseEntity<byte[]> generateWeldsReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -1163,7 +1285,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/errors")
     public ResponseEntity<byte[]> generateErrorsReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -1189,7 +1311,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/violations")
     public ResponseEntity<byte[]> generateViolationsReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -1215,7 +1337,7 @@ public class ReportController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping("/tasks")
     public ResponseEntity<byte[]> generateTasksReport(@RequestBody ReportRequestDTO request) {
         try {
@@ -1246,7 +1368,7 @@ public class ReportController {
     /**
      * Получить последние отчеты для определенного типа
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/history/{reportType}")
     public ResponseEntity<List<ReportHistory>> getRecentReports(@PathVariable String reportType) {
         System.out.println("ReportController: Запрос истории для типа '" + reportType + "'");
@@ -1277,7 +1399,7 @@ public class ReportController {
     /**
      * Получить все отчеты из истории
      */
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS') or hasRole('ADMIN_ALLOY')")
     @GetMapping("/history")
     public ResponseEntity<List<ReportHistory>> getAllReports() {
         System.out.println("ReportController: Запрос всех отчетов из истории");
@@ -1307,7 +1429,7 @@ public class ReportController {
     /**
      * Очистить все отчеты из истории
      */
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS') or hasRole('ADMIN_ALLOY')")
     @DeleteMapping("/history/clear")
     public ResponseEntity<String> clearAllReports() {
         try {
@@ -1324,7 +1446,7 @@ public class ReportController {
     /**
      * Получить информацию о том, откуда берутся отчеты
      */
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS') or hasRole('ADMIN_ALLOY')")
     @GetMapping("/history/debug")
     public ResponseEntity<String> debugReports() {
         try {
@@ -1352,7 +1474,7 @@ public class ReportController {
     /**
      * Получить все типы отчетов, для которых есть история
      */
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS') or hasRole('ADMIN_ALLOY')")
     @GetMapping("/history/types")
     public ResponseEntity<java.util.Set<String>> getHistoryReportTypes() {
         java.util.Set<String> types = reportHistoryService.getReportTypes();
@@ -1362,7 +1484,7 @@ public class ReportController {
     /**
      * Получить общее количество отчетов в истории
      */
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS') or hasRole('ADMIN_ALLOY')")
     @GetMapping("/history/count")
     public ResponseEntity<Integer> getTotalReportsCount() {
         int count = reportHistoryService.getTotalReportsCount();
@@ -1372,7 +1494,7 @@ public class ReportController {
     /**
      * Очистить историю для определенного типа отчета
      */
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS') or hasRole('ADMIN_ALLOY')")
     @DeleteMapping("/history/{reportType}")
     public ResponseEntity<Void> clearHistory(@PathVariable String reportType) {
         reportHistoryService.clearHistory(reportType);
@@ -1382,7 +1504,7 @@ public class ReportController {
     /**
      * Очистить всю историю
      */
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS') or hasRole('ADMIN_ALLOY')")
     @DeleteMapping("/history/all")
     public ResponseEntity<Void> clearAllHistory() {
         reportHistoryService.clearAllHistory();

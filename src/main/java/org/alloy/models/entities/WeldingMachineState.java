@@ -15,79 +15,79 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "WeldingMachineState")
+@Table(name = "welding_machine_state")
 @Data
 @NoArgsConstructor
 public class WeldingMachineState {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
+    @Column(name = "id")
     private Long id;
 
-    @Column(name = "WeldingMachineID", nullable = false)
+    @Column(name = "welding_machineid", nullable = false)
     private Integer weldingMachineId;
 
     @CreationTimestamp
-    @Column(name = "DateCreated", nullable = false, updatable = false)
+    @Column(name = "date_created", nullable = false, updatable = false)
     private LocalDateTime dateCreated;
 
     @UpdateTimestamp
-    @Column(name = "DateUpdated", nullable = false)
+    @Column(name = "date_updated", nullable = false)
     private LocalDateTime dateUpdated;
 
-    @Column(name = "WeldingMachineStatus")
+    @Column(name = "welding_machine_status")
     @Enumerated(EnumType.ORDINAL)
     private WeldingMachineStatus weldingMachineStatus;
 
-    @Column(name = "RFID")
+    @Column(name = "rfid")
     private String rfid;
 
-    @Column(name = "Control")
+    @Column(name = "control")
     private String control;
 
-    @Column(name = "ControlStatus")
+    @Column(name = "control_status")
     private Integer controlStatus;
 
-    @Column(name = "ControlState")
+    @Column(name = "control_state")
     private String controlState;
 
-    @Column(name = "StateDurationMs", nullable = false)
+    @Column(name = "state_duration_ms", nullable = false)
     private Long stateDurationMs;
 
-    @Column(name = "ErrorCode")
+    @Column(name = "error_code")
     private String errorCode;
 
-    @Column(name = "WeldingMaterialID")
+    @Column(name = "welding_materialid")
     private Integer weldingMaterialId;
 
-    @Column(name = "LimitsExceeded")
+    @Column(name = "limits_exceeded")
     private Boolean limitsExceeded;
 
-    @Column(name = "WeldingLimitProgramID")
+    @Column(name = "welding_limit_programid")
     private Integer weldingLimitProgramId;
 
-    @Column(name = "WeldingLimitProgramName")
+    @Column(name = "welding_limit_program_name")
     private String weldingLimitProgramName;
 
-    @Column(name = "GasWeldingMaterialID")
+    @Column(name = "gas_welding_materialid")
     private Integer gasWeldingMaterialId;
 
-    @Column(name = "OrganizationUnitID")
+    @Column(name = "organization_unitid")
     private Integer organizationUnitId;
 
-    @Column(name = "MD5")
+    @Column(name = "md5")
     private String md5;
 
-    @Column(name = "NormGasFlow")
+    @Column(name = "norm_gas_flow")
     private Double normGasFlow;
 
     @JsonBackReference("machineStatesRef")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "WeldingMachineID", insertable = false, updatable = false)
+    @JoinColumn(name = "welding_machineid", insertable = false, updatable = false)
     private WeldingMachine weldingMachine;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "WeldingLimitProgramID", insertable = false, updatable = false)
+    @JoinColumn(name = "welding_limit_programid", insertable = false, updatable = false)
     private WeldingLimitProgram weldingLimitProgram;
 
     @JsonManagedReference("parameterValuesRef")

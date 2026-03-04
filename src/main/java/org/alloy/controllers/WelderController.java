@@ -24,14 +24,14 @@ public class WelderController {
     @Autowired
     private WelderService welderService;
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping
     public ResponseEntity<List<Welder>> getAllWelders() {
         List<Welder> welders = welderService.getAllWelders();
         return ResponseEntity.ok(welders);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/{id}")
     public ResponseEntity<Welder> getWelderById(@PathVariable Long id) {
         Optional<Welder> welder = welderService.getWelderById(id);
@@ -39,7 +39,7 @@ public class WelderController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @PostMapping
     public ResponseEntity<Welder> createWelder(@RequestBody WelderDTO welderDTO) {
         Welder createdWelder = welderService.createWelder(welderDTO);
@@ -50,7 +50,7 @@ public class WelderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdWelder);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @PutMapping("/{id}")
     public ResponseEntity<Welder> updateWelder(@PathVariable Long id, @RequestBody WelderDTO welderDTO) {
         Welder updatedWelder = welderService.updateWelder(id, welderDTO);
@@ -62,7 +62,7 @@ public class WelderController {
         return ResponseEntity.notFound().build();
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/{id}/rfid-availability")
     public ResponseEntity<Boolean> checkRfidCodeAvailability(
             @PathVariable Long id,
@@ -72,7 +72,7 @@ public class WelderController {
         return ResponseEntity.ok(isAvailable);
     }
 
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteWelder(@PathVariable Long id) {
         boolean deleted = welderService.deleteWelder(id);
@@ -82,35 +82,35 @@ public class WelderController {
         return ResponseEntity.notFound().build();
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/status/{status}")
     public ResponseEntity<List<Welder>> getWeldersByStatus(@PathVariable Welder.WelderStatus status) {
         List<Welder> welders = welderService.getWeldersByStatus(status);
         return ResponseEntity.ok(welders);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/department/{department}")
     public ResponseEntity<List<Welder>> getWeldersByDepartment(@PathVariable String department) {
         List<Welder> welders = welderService.getWeldersByDepartment(department);
         return ResponseEntity.ok(welders);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/name/{name}")
     public ResponseEntity<List<Welder>> getWeldersByName(@PathVariable String name) {
         List<Welder> welders = welderService.getWeldersByName(name);
         return ResponseEntity.ok(welders);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/grade/{grade}")
     public ResponseEntity<List<Welder>> getWeldersByGrade(@PathVariable String grade) {
         List<Welder> welders = welderService.getWeldersByGrade(grade);
         return ResponseEntity.ok(welders);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/rfid/{rfidCode}")
     public ResponseEntity<Welder> getWelderByRfidCode(@PathVariable String rfidCode) {
         Welder welder = welderService.getWelderByRfidCode(rfidCode);
@@ -120,7 +120,7 @@ public class WelderController {
         return ResponseEntity.notFound().build();
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/employee/{employeeId}")
     public ResponseEntity<Welder> getWelderByEmployeeId(@PathVariable String employeeId) {
         Welder welder = welderService.getWelderByEmployeeId(employeeId);
@@ -130,7 +130,7 @@ public class WelderController {
         return ResponseEntity.notFound().build();
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/search")
     public ResponseEntity<List<Welder>> searchWelders(
             @RequestParam(required = false) String name,
@@ -141,7 +141,7 @@ public class WelderController {
         return ResponseEntity.ok(welders);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS') or hasAuthority('PERMISSION_WELDER_CERTIFICATION_DATA')")
     @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadWelderPhoto(
             @PathVariable Long id,
@@ -154,7 +154,7 @@ public class WelderController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")
     @GetMapping("/{id}/photo")
     public ResponseEntity<byte[]> getWelderPhoto(@PathVariable Long id) {
         try {

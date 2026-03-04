@@ -18,14 +18,14 @@ public class CertificationController {
     @Autowired
     private CertificationService certificationService;
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_WELDER_CERTIFICATION_DATA','PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @GetMapping
     public ResponseEntity<List<Certification>> getAllCertifications() {
         List<Certification> certifications = certificationService.getAllCertifications();
         return ResponseEntity.ok(certifications);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_WELDER_CERTIFICATION_DATA','PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @GetMapping("/{id}")
     public ResponseEntity<Certification> getCertificationById(@PathVariable Long id) {
         Optional<Certification> certification = certificationService.getCertificationById(id);
@@ -33,14 +33,14 @@ public class CertificationController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_WELDER_CERTIFICATION_DATA','PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @GetMapping("/welder/{welderId}")
     public ResponseEntity<List<Certification>> getCertificationsByWelderId(@PathVariable Long welderId) {
         List<Certification> certifications = certificationService.getCertificationsByWelderId(welderId);
         return ResponseEntity.ok(certifications);
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WELDER_CERTIFICATION_DATA') or hasAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @PostMapping("/welder/{welderId}")
     public ResponseEntity<Certification> createCertification(
             @PathVariable Long welderId,
@@ -53,7 +53,7 @@ public class CertificationController {
         }
     }
 
-    @PreAuthorize("hasRole('Администратор') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WELDER_CERTIFICATION_DATA') or hasAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @PutMapping("/{id}")
     public ResponseEntity<Certification> updateCertification(
             @PathVariable Long id,
@@ -65,7 +65,7 @@ public class CertificationController {
         return ResponseEntity.notFound().build();
     }
 
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_WELDER_CERTIFICATION_DATA') or hasAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCertification(@PathVariable Long id) {
         boolean deleted = certificationService.deleteCertification(id);

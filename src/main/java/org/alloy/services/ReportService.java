@@ -2971,6 +2971,267 @@ public class ReportService {
         }
     }
 
+    /**
+     * Форматирует продолжительность в секундах как " HH:mm:ss" (как в ТЗ отчёта по неисправностям).
+     * При нулевой длительности — «—», т.к. в БД часто state_duration_ms = 0 (устройство не передало).
+     */
+    private String formatDurationSeconds(long totalSeconds) {
+        if (totalSeconds <= 0) return "—";
+        long h = totalSeconds / 3600;
+        long m = (totalSeconds % 3600) / 60;
+        long s = totalSeconds % 60;
+        return String.format(" %02d:%02d:%02d", h, m, s);
+    }
+
+    /**
+     * Генерирует отчёт "По неисправностям оборудования" в формате XLSX.
+     * Для нескольких аппаратов — блоки подряд с отступом 3 строки и цветовой границей.
+     * При отсутствии неисправностей в обеих таблицах выводится "нет неисправностей".
+     */
+    public byte[] generateEquipmentMalfunctionReportMultiSection(
+            List<EquipmentMalfunctionReportSectionDTO> sections,
+            EquipmentMalfunctionReportTemplateDTO template,
+            LocalDate periodStartDate,
+            LocalDate periodEndDate,
+            LocalTime periodStartTime,
+            LocalTime periodEndTime) throws IOException {
+        if (sections == null || sections.isEmpty()) {
+            EquipmentMalfunctionReportSectionDTO emptySection = new EquipmentMalfunctionReportSectionDTO(
+                    null, "", "", "", "", "",
+                    Collections.emptyList(), Collections.emptyList());
+            sections = Collections.singletonList(emptySection);
+        }
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Отчет по неисправностям");
+
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle labelStyle = workbook.createCellStyle();
+            Font boldFont = workbook.createFont();
+            boldFont.setBold(true);
+            labelStyle.setFont(boldFont);
+            CellStyle borderStyle = workbook.createCellStyle();
+            borderStyle.setBorderBottom(BorderStyle.MEDIUM);
+            borderStyle.setBorderTop(BorderStyle.MEDIUM);
+            borderStyle.setBorderLeft(BorderStyle.MEDIUM);
+            borderStyle.setBorderRight(BorderStyle.MEDIUM);
+            borderStyle.setBottomBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+            borderStyle.setTopBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+            borderStyle.setLeftBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+            borderStyle.setRightBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+            // Стиль границ таблиц: чёрная сетка как на образце (Суммарно за период / За период по датам)
+            CellStyle tableBorderStyle = workbook.createCellStyle();
+            tableBorderStyle.setBorderBottom(BorderStyle.THIN);
+            tableBorderStyle.setBorderTop(BorderStyle.THIN);
+            tableBorderStyle.setBorderLeft(BorderStyle.THIN);
+            tableBorderStyle.setBorderRight(BorderStyle.THIN);
+            tableBorderStyle.setBottomBorderColor(IndexedColors.BLACK.getIndex());
+            tableBorderStyle.setTopBorderColor(IndexedColors.BLACK.getIndex());
+            tableBorderStyle.setLeftBorderColor(IndexedColors.BLACK.getIndex());
+            tableBorderStyle.setRightBorderColor(IndexedColors.BLACK.getIndex());
+            CellStyle tableHeaderBorderStyle = workbook.createCellStyle();
+            tableHeaderBorderStyle.cloneStyleFrom(tableBorderStyle);
+            tableHeaderBorderStyle.setFont(boldFont);
+            // Серая линия в конце каждого блока аппарата (при нескольких аппаратах)
+            CellStyle graySeparatorStyle = workbook.createCellStyle();
+            graySeparatorStyle.setBorderBottom(BorderStyle.MEDIUM);
+            graySeparatorStyle.setBottomBorderColor(IndexedColors.GREY_50_PERCENT.getIndex());
+
+            int rowIdx = 0;
+            boolean periodWritten = false;
+            final boolean multipleSections = sections.size() > 1;
+
+            for (int s = 0; s < sections.size(); s++) {
+                EquipmentMalfunctionReportSectionDTO section = sections.get(s);
+                if (s > 0) {
+                    for (int i = 0; i < 3; i++) {
+                        Row gapRow = sheet.createRow(rowIdx++);
+                        for (int c = 0; c < 9; c++) {
+                            Cell cell = gapRow.createCell(c);
+                            cell.setCellStyle(borderStyle);
+                        }
+                    }
+                }
+
+                Row titleRow = sheet.createRow(rowIdx++);
+                Cell titleCell = titleRow.createCell(1);
+                titleCell.setCellValue("Отчет по неисправностям оборудования:");
+                titleCell.setCellStyle(headerStyle);
+                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 1, 2));
+
+                Row r0 = sheet.createRow(rowIdx++);
+                r0.createCell(4).setCellValue("Модель оборудования");
+                r0.getCell(4).setCellStyle(labelStyle);
+                r0.createCell(5).setCellValue(section.getEquipmentModel() != null ? section.getEquipmentModel() : "");
+
+                Row r1 = sheet.createRow(rowIdx++);
+                r1.createCell(4).setCellValue("Наименование оборудования");
+                r1.getCell(4).setCellStyle(labelStyle);
+                r1.createCell(5).setCellValue(section.getEquipmentName() != null ? section.getEquipmentName() : "");
+
+                Row r2 = sheet.createRow(rowIdx++);
+                r2.createCell(4).setCellValue("Подразделение:");
+                r2.getCell(4).setCellStyle(labelStyle);
+                r2.createCell(5).setCellValue(section.getEquipmentDepartment() != null ? section.getEquipmentDepartment() : "");
+
+                Row r3 = sheet.createRow(rowIdx++);
+                r3.createCell(4).setCellValue("Серийный №");
+                r3.getCell(4).setCellStyle(labelStyle);
+                r3.createCell(5).setCellValue(section.getSerialNumber() != null ? section.getSerialNumber() : "");
+
+                Row r4 = sheet.createRow(rowIdx++);
+                r4.createCell(4).setCellValue("Инв. №");
+                r4.getCell(4).setCellStyle(labelStyle);
+                r4.createCell(5).setCellValue(section.getInventoryNumber() != null ? section.getInventoryNumber() : "");
+
+                rowIdx++;
+
+                if (!periodWritten) {
+                    Row r5 = sheet.createRow(rowIdx++);
+                    r5.createCell(4).setCellValue("за период:");
+                    r5.getCell(4).setCellStyle(labelStyle);
+                    r5.createCell(5).setCellValue("с");
+                    r5.getCell(5).setCellStyle(labelStyle);
+                    r5.createCell(6).setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
+                    r5.createCell(7).setCellValue(periodStartTime != null ? formatTime(periodStartTime) : "00:00:00");
+                    Row r6 = sheet.createRow(rowIdx++);
+                    r6.createCell(5).setCellValue("по");
+                    r6.getCell(5).setCellStyle(labelStyle);
+                    r6.createCell(6).setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
+                    r6.createCell(7).setCellValue(periodEndTime != null ? formatTime(periodEndTime) : getPeriodEndTimeDisplay(periodEndDate));
+                    rowIdx++;
+                    periodWritten = true;
+                }
+
+                rowIdx++;
+
+                // Суммарно за период | За период по датам (с границами, заголовки на всю ширину таблиц)
+                int sectionHeaderRowIdx = rowIdx;
+                Row sectionHeaderRow = sheet.createRow(rowIdx++);
+                sectionHeaderRow.createCell(0).setCellValue("Суммарно за период");
+                sectionHeaderRow.getCell(0).setCellStyle(tableHeaderBorderStyle);
+                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(sectionHeaderRowIdx, sectionHeaderRowIdx, 0, 2));
+                sectionHeaderRow.createCell(4).setCellValue("За период по датам");
+                sectionHeaderRow.getCell(4).setCellStyle(tableHeaderBorderStyle);
+                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(sectionHeaderRowIdx, sectionHeaderRowIdx, 4, 7));
+
+                // Заголовки колонок обеих таблиц (с границами)
+                Row headerRow = sheet.createRow(rowIdx++);
+                String[] leftHeaders = { "Неисправность", "Кол-во", "Продолжительность" };
+                String[] rightHeaders = { "Неисправность", "Дата", "Количество", "Продолжительность" };
+                for (int c = 0; c < 3; c++) {
+                    Cell cell = headerRow.createCell(c);
+                    cell.setCellValue(leftHeaders[c]);
+                    cell.setCellStyle(tableHeaderBorderStyle);
+                }
+                for (int c = 4; c < 8; c++) {
+                    Cell cell = headerRow.createCell(c);
+                    cell.setCellValue(rightHeaders[c - 4]);
+                    cell.setCellStyle(tableHeaderBorderStyle);
+                }
+
+                List<EquipmentMalfunctionSummaryRowDTO> summaryRows = section.getSummaryRows();
+                if (summaryRows == null) summaryRows = Collections.emptyList();
+                // Суммарно за период: сортируем по количеству ошибок (от больших к меньшим)
+                List<EquipmentMalfunctionSummaryRowDTO> summaryRowsSorted = new ArrayList<>(summaryRows);
+                summaryRowsSorted.sort(Comparator.comparing(EquipmentMalfunctionSummaryRowDTO::getCount, Comparator.reverseOrder()));
+                List<EquipmentMalfunctionByDateRowDTO> byDateRows = section.getByDateRows();
+                if (byDateRows == null) byDateRows = Collections.emptyList();
+                // Правая таблица: сортируем по названию неисправности, затем по дате — для корректного объединения ячеек в колонке «Неисправность»
+                List<EquipmentMalfunctionByDateRowDTO> byDateRowsSorted = new ArrayList<>(byDateRows);
+                byDateRowsSorted.sort(Comparator
+                        .comparing(EquipmentMalfunctionByDateRowDTO::getMalfunctionName, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(EquipmentMalfunctionByDateRowDTO::getDate, Comparator.nullsFirst(Comparator.naturalOrder())));
+                boolean hasSummary = !summaryRowsSorted.isEmpty();
+                boolean hasByDate = !byDateRowsSorted.isEmpty();
+                int startDataRowIdx = rowIdx;
+
+                if (!hasSummary && !hasByDate) {
+                    Row noFaultRow = sheet.createRow(rowIdx++);
+                    for (int c = 0; c < 3; c++) {
+                        Cell cell = noFaultRow.createCell(c);
+                        if (c == 0) cell.setCellValue("нет неисправностей");
+                        cell.setCellStyle(tableBorderStyle);
+                    }
+                    for (int c = 4; c < 8; c++) {
+                        Cell cell = noFaultRow.createCell(c);
+                        if (c == 4) cell.setCellValue("нет неисправностей");
+                        cell.setCellStyle(tableBorderStyle);
+                    }
+                } else {
+                    int rowCount = Math.max(hasSummary ? summaryRowsSorted.size() : 0, hasByDate ? byDateRowsSorted.size() : 0);
+                    List<int[]> mergeRangesRight = new ArrayList<>(); // (firstRow, lastRow) для колонки 4
+                    int mergeStart = 0;
+                    for (int i = 0; i < rowCount; i++) {
+                        Row dataRow = sheet.createRow(rowIdx++);
+                        if (i < summaryRowsSorted.size()) {
+                            EquipmentMalfunctionSummaryRowDTO r = summaryRowsSorted.get(i);
+                            dataRow.createCell(0).setCellValue(r.getMalfunctionName() != null ? r.getMalfunctionName() : "");
+                            dataRow.createCell(1).setCellValue(r.getCount());
+                            dataRow.createCell(2).setCellValue(formatDurationSeconds(r.getDurationSeconds()));
+                        } else if (!hasSummary) {
+                            dataRow.createCell(0).setCellValue("");
+                            dataRow.createCell(1).setCellValue("");
+                            dataRow.createCell(2).setCellValue("");
+                        }
+                        for (int c = 0; c < 3; c++) {
+                            if (dataRow.getCell(c) == null) dataRow.createCell(c);
+                            dataRow.getCell(c).setCellStyle(tableBorderStyle);
+                        }
+                        if (i < byDateRowsSorted.size()) {
+                            EquipmentMalfunctionByDateRowDTO r = byDateRowsSorted.get(i);
+                            dataRow.createCell(4).setCellValue(r.getMalfunctionName() != null ? r.getMalfunctionName() : "");
+                            dataRow.createCell(5).setCellValue(r.getDate() != null ? r.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "");
+                            dataRow.createCell(6).setCellValue(r.getCount());
+                            dataRow.createCell(7).setCellValue(formatDurationSeconds(r.getDurationSeconds()));
+                            if (i > 0) {
+                                String prevName = byDateRowsSorted.get(i - 1).getMalfunctionName();
+                                if (prevName == null || !prevName.equals(r.getMalfunctionName())) {
+                                    mergeRangesRight.add(new int[] { mergeStart, i - 1 });
+                                    mergeStart = i;
+                                }
+                            }
+                        } else if (!hasByDate) {
+                            dataRow.createCell(4).setCellValue("");
+                            dataRow.createCell(5).setCellValue("");
+                            dataRow.createCell(6).setCellValue("");
+                            dataRow.createCell(7).setCellValue("");
+                        }
+                        for (int c = 4; c < 8; c++) {
+                            if (dataRow.getCell(c) == null) dataRow.createCell(c);
+                            dataRow.getCell(c).setCellStyle(tableBorderStyle);
+                        }
+                    }
+                    if (hasByDate && !byDateRowsSorted.isEmpty()) {
+                        mergeRangesRight.add(new int[] { mergeStart, rowCount - 1 });
+                    }
+                    for (int[] range : mergeRangesRight) {
+                        int firstRow = startDataRowIdx + range[0];
+                        int lastRow = startDataRowIdx + range[1];
+                        if (lastRow > firstRow) {
+                            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(firstRow, lastRow, 4, 4));
+                        }
+                    }
+                }
+                // Серая линия в конце блока аппарата (при нескольких аппаратах — удобочитаемость)
+                if (multipleSections) {
+                    Row separatorRow = sheet.createRow(rowIdx++);
+                    for (int c = 0; c < 9; c++) {
+                        Cell cell = separatorRow.createCell(c);
+                        cell.setCellStyle(graySeparatorStyle);
+                    }
+                }
+            }
+
+            for (int i = 0; i < 9; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
     private CellStyle createOutOfRangeRowStyle(Workbook workbook) {
         CellStyle style = workbook.createCellStyle();
         style.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());

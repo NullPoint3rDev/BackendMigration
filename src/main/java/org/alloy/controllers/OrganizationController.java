@@ -25,9 +25,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/organizations")
 @Tag(name = "Organizations", description = "API для управления организациями в системе. " +
-    "Позволяет создавать, просматривать, обновлять и удалять организации, " +
-    "а также выполнять поиск по различным параметрам. Поддерживает как мягкое, " +
-    "так и жесткое удаление организаций.")
+        "Позволяет создавать, просматривать, обновлять и удалять организации, " +
+        "а также выполнять поиск по различным параметрам. Поддерживает как мягкое, " +
+        "так и жесткое удаление организаций.")
 @SecurityRequirement(name = "JWT")
 public class OrganizationController {
 
@@ -44,164 +44,164 @@ public class OrganizationController {
     }
 
     @Operation(
-        summary = "Получить все организации",
-        description = "Возвращает список всех организаций в системе. " +
-                     "Организации возвращаются с полной информацией о структуре, " +
-                     "контактных данных и статусе."
+            summary = "Получить все организации",
+            description = "Возвращает список всех организаций в системе. " +
+                    "Организации возвращаются с полной информацией о структуре, " +
+                    "контактных данных и статусе."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Список организаций успешно получен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationShortDTO.class, type = "array"))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Недостаточно прав для доступа к списку организаций",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Список организаций успешно получен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = OrganizationShortDTO.class, type = "array"))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав для доступа к списку организаций",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
     @GetMapping
     public ResponseEntity<List<OrganizationShortDTO>> getAllOrganizations() {
         List<OrganizationShortDTO> organizations = organizationService.getAllOrganizations().stream()
-            .map(OrganizationMapper::toShortDTO)
-            .collect(Collectors.toList());
+                .map(OrganizationMapper::toShortDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(organizations);
     }
 
     @Operation(
-        summary = "Получить организацию по ID",
-        description = "Возвращает организацию по ее уникальному идентификатору. " +
-                     "Если организация не найдена, возвращается 404 ошибка."
+            summary = "Получить организацию по ID",
+            description = "Возвращает организацию по ее уникальному идентификатору. " +
+                    "Если организация не найдена, возвращается 404 ошибка."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Организация успешно найдена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationShortDTO.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Организация не найдена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Недостаточно прав для доступа к организации",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Организация успешно найдена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = OrganizationShortDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Организация не найдена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав для доступа к организации",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
     @GetMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> getOrganizationById(
-        @Parameter(description = "ID организации", required = true, example = "1")
-        @PathVariable Integer id
+            @Parameter(description = "ID организации", required = true, example = "1")
+            @PathVariable Integer id
     ) {
         return organizationService.getOrganizationById(id)
-            .map(OrganizationMapper::toShortDTO)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+                .map(OrganizationMapper::toShortDTO)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(
-        summary = "Поиск организаций",
-        description = "Выполняет поиск организаций по заданному поисковому запросу. " +
-                     "Поиск осуществляется по названию, описанию и другим релевантным полям. " +
-                     "Результаты возвращаются в виде списка организаций, отсортированных по релевантности."
+            summary = "Поиск организаций",
+            description = "Выполняет поиск организаций по заданному поисковому запросу. " +
+                    "Поиск осуществляется по названию, описанию и другим релевантным полям. " +
+                    "Результаты возвращаются в виде списка организаций, отсортированных по релевантности."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Поиск успешно выполнен",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationShortDTO.class, type = "array"))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Некорректный поисковый запрос",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Недостаточно прав для поиска организаций",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Поиск успешно выполнен",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = OrganizationShortDTO.class, type = "array"))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Некорректный поисковый запрос",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав для поиска организаций",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
     @GetMapping("/search")
     public ResponseEntity<List<OrganizationShortDTO>> searchOrganizations(
-        @Parameter(description = "Поисковый запрос", required = true, example = "ООО ТехноСварка")
-        @RequestParam String searchTerm
+            @Parameter(description = "Поисковый запрос", required = true, example = "ООО ТехноСварка")
+            @RequestParam String searchTerm
     ) {
         List<OrganizationShortDTO> organizations = organizationService.searchOrganizations(searchTerm).stream()
-            .map(OrganizationMapper::toShortDTO)
-            .collect(Collectors.toList());
+                .map(OrganizationMapper::toShortDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(organizations);
     }
 
     @Operation(
-        summary = "Создать новую организацию",
-        description = "Создает новую организацию в системе. " +
-                     "Организация должна содержать обязательные поля: название, " +
-                     "контактные данные и другую необходимую информацию."
+            summary = "Создать новую организацию",
+            description = "Создает новую организацию в системе. " +
+                    "Организация должна содержать обязательные поля: название, " +
+                    "контактные данные и другую необходимую информацию."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "201",
-            description = "Организация успешно создана",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationShortDTO.class))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Некорректные данные организации",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Недостаточно прав для создания организации",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Организация успешно создана",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = OrganizationShortDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Некорректные данные организации",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав для создания организации",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_DELETE_DEALERS','PERMISSION_CREATE_DELETE_ENTERPRISES','PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
     @PostMapping
     public ResponseEntity<OrganizationShortDTO> createOrganization(
-        @Parameter(description = "Данные организации", required = true)
-        @RequestBody Organization organization
+            @Parameter(description = "Данные организации", required = true)
+            @RequestBody Organization organization
     ) {
         try {
             Organization createdOrganization = organizationService.createOrganization(organization);
@@ -212,51 +212,51 @@ public class OrganizationController {
     }
 
     @Operation(
-        summary = "Обновить организацию",
-        description = "Обновляет существующую организацию по ее ID. " +
-                     "Можно изменить любые поля организации, кроме ID. " +
-                     "Если организация не найдена, возвращается 404 ошибка."
+            summary = "Обновить организацию",
+            description = "Обновляет существующую организацию по ее ID. " +
+                    "Можно изменить любые поля организации, кроме ID. " +
+                    "Если организация не найдена, возвращается 404 ошибка."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Организация успешно обновлена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = OrganizationShortDTO.class))
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Организация не найдена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Некорректные данные организации",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Недостаточно прав для обновления организации",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Организация успешно обновлена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = OrganizationShortDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Организация не найдена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Некорректные данные организации",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав для обновления организации",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_DELETE_DEALERS','PERMISSION_CREATE_DELETE_ENTERPRISES','PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
     @PutMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> updateOrganization(
-        @Parameter(description = "ID организации", required = true, example = "1")
-        @PathVariable Integer id,
-        
-        @Parameter(description = "Обновленные данные организации", required = true)
-        @RequestBody Organization organization
+            @Parameter(description = "ID организации", required = true, example = "1")
+            @PathVariable Integer id,
+
+            @Parameter(description = "Обновленные данные организации", required = true)
+            @RequestBody Organization organization
     ) {
         organization.setId(id);
         Organization updated = organizationService.updateOrganization(organization);
@@ -264,40 +264,40 @@ public class OrganizationController {
     }
 
     @Operation(
-        summary = "Удалить организацию (мягкое удаление)",
-        description = "Выполняет мягкое удаление организации по ее ID. " +
-                     "Организация помечается как удаленная, но данные сохраняются в базе. " +
-                     "Если организация не найдена, возвращается 404 ошибка."
+            summary = "Удалить организацию (мягкое удаление)",
+            description = "Выполняет мягкое удаление организации по ее ID. " +
+                    "Организация помечается как удаленная, но данные сохраняются в базе. " +
+                    "Если организация не найдена, возвращается 404 ошибка."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "204",
-            description = "Организация успешно удалена"
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Организация не найдена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Недостаточно прав для удаления организации",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Организация успешно удалена"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Организация не найдена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав для удаления организации",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_DELETE_DEALERS','PERMISSION_CREATE_DELETE_ENTERPRISES','PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrganization(
-        @Parameter(description = "ID организации", required = true, example = "1")
-        @PathVariable Integer id
+            @Parameter(description = "ID организации", required = true, example = "1")
+            @PathVariable Integer id
     ) {
         try {
             organizationService.deleteOrganization(id);
@@ -308,39 +308,39 @@ public class OrganizationController {
     }
 
     @Operation(
-        summary = "Удалить организацию (жесткое удаление)",
-        description = "Выполняет полное удаление организации и всех связанных данных из базы. " +
-                     "Операция необратима. Если организация не найдена, возвращается 404 ошибка."
+            summary = "Удалить организацию (жесткое удаление)",
+            description = "Выполняет полное удаление организации и всех связанных данных из базы. " +
+                    "Операция необратима. Если организация не найдена, возвращается 404 ошибка."
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "204",
-            description = "Организация успешно удалена"
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Организация не найдена",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Требуется аутентификация",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Недостаточно прав для жесткого удаления организации",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = ErrorResponse.class))
-        )
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Организация успешно удалена"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Организация не найдена",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Требуется аутентификация",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Недостаточно прав для жесткого удаления организации",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
-    @PreAuthorize("hasRole('Администратор')")
+    @PreAuthorize("hasAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY')")
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<Void> hardDeleteOrganization(
-        @Parameter(description = "ID организации", required = true, example = "1")
-        @PathVariable Integer id
+            @Parameter(description = "ID организации", required = true, example = "1")
+            @PathVariable Integer id
     ) {
         try {
             organizationService.hardDeleteOrganization(id);

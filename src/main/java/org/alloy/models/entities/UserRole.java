@@ -40,6 +40,10 @@ public class UserRole {
     @Column(name = "Permissions")
     private String permissions;
 
+    /** Уровень роли 1–6 для логики «наст N» (кто может выдавать настраиваемые права). */
+    @Column(name = "RoleLevel")
+    private Integer roleLevel;
+
     @JsonManagedReference("userRoleRef")
     @OneToMany(mappedBy = "userRole", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserAccount> userAccounts = new ArrayList<>();

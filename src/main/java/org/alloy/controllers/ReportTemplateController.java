@@ -27,7 +27,7 @@ public class ReportTemplateController {
     /**
      * Сохранение/обновление шаблона отчета
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @PostMapping
     public ResponseEntity<ReportTemplateDTO> saveTemplate(@RequestBody ReportTemplateDTO template) {
         try {
@@ -50,7 +50,7 @@ public class ReportTemplateController {
     /**
      * Получение шаблона отчета по ID
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/{templateId}")
     public ResponseEntity<ReportTemplateDTO> getTemplate(@PathVariable Long templateId) {
         try {
@@ -70,7 +70,7 @@ public class ReportTemplateController {
     /**
      * Получение всех активных шаблонов
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping
     public ResponseEntity<List<ReportTemplateDTO>> getAllTemplates() {
         try {
@@ -86,7 +86,7 @@ public class ReportTemplateController {
     /**
      * Получение шаблонов текущего пользователя
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @GetMapping("/my")
     public ResponseEntity<List<ReportTemplateDTO>> getMyTemplates() {
         try {
@@ -107,7 +107,7 @@ public class ReportTemplateController {
     /**
      * Удаление шаблона
      */
-    @PreAuthorize("hasRole('Администратор') or hasRole('Менеджер') or hasRole('Технолог')")
+    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
     @DeleteMapping("/{templateId}")
     public ResponseEntity<Void> deleteTemplate(@PathVariable Long templateId) {
         try {

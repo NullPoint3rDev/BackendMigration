@@ -15,7 +15,7 @@ import java.util.Map;
 @Service
 public class WeldingDataParserService {
     // Отдельный логгер для разобранных CORE-пакетов (настраивается в logback)
-  //  private static final org.slf4j.Logger CORE_PARSED_LOG = org.slf4j.LoggerFactory.getLogger("org.alloy.core.parsed");
+    //  private static final org.slf4j.Logger CORE_PARSED_LOG = org.slf4j.LoggerFactory.getLogger("org.alloy.core.parsed");
 
     @Value("${welding.parser.current_position:6}")
     private int currentPosition;
@@ -39,22 +39,22 @@ public class WeldingDataParserService {
     private DeviceModelService deviceModelService;
 
     public StateSummary parseWeldingData(String data, String mac) {
-       // System.out.println("[PARSER] 🚀 НАЧАЛО ПАРСИНГА");
+        // System.out.println("[PARSER] 🚀 НАЧАЛО ПАРСИНГА");
         //System.out.println("[PARSER] 🔍 Парсинг данных: " + data);
         //System.out.println("[PARSER] MAC: " + mac);
-        
+
         if (debugMode) {
-           // System.out.println("[PARSER] 🔍 Парсинг данных: " + data);
-          //  System.out.println("[PARSER] MAC: " + mac);
+            // System.out.println("[PARSER] 🔍 Парсинг данных: " + data);
+            //  System.out.println("[PARSER] MAC: " + mac);
         }
-        
+
         StateSummary state = new StateSummary();
         state.setDateCreated(LocalDateTime.now());
         state.setLastDatetimeUpdate(LocalDateTime.now());
 
         // Получаем модель устройства по MAC из БД или используем обратную совместимость
         DeviceModel deviceModel = deviceModelService.getDeviceModelByMac(mac);
-        
+
         // Проверяем соответствие формата пакета модели устройства (БЕЗ ЛОГИРОВАНИЯ!)
         if (deviceModel != null && !deviceModelService.isPacketFormatMatches(mac, data)) {
             // Молча игнорируем ошибки формата
@@ -77,7 +77,7 @@ public class WeldingDataParserService {
                 addProperty(props, "Current", String.valueOf(displayCurrent), "number");
                 addProperty(props, "Voltage", String.valueOf(displayVoltageTenth), "number");
                 addProperty(props, "Packet.Index", String.valueOf(core.index), "number");
-                
+
                 // Добавляем дополнительные свойства Core устройства
                 addProperty(props, "Time.Hours", String.valueOf(core.hours), "number");
                 addProperty(props, "Time.Minutes", String.valueOf(core.minutes), "number");
@@ -85,27 +85,27 @@ public class WeldingDataParserService {
                 addProperty(props, "Date.Day", String.valueOf(core.date), "number");
                 addProperty(props, "Date.Month", String.valueOf(core.month), "number");
                 addProperty(props, "Date.Year", String.valueOf(core.year), "number");
-                
+
                 // Преобразуем состояние аппарата из числа в текст
                 String machineStateText = getMachineStateText(core.weldingMachineState);
                 addProperty(props, "Состояние аппарата", machineStateText, "text");
                 // Также добавляем под ключом WeldingMachineState для совместимости с фронтендом
                 addProperty(props, "WeldingMachineState", machineStateText, "text");
                 addProperty(props, "State.GasFlow", String.valueOf(core.gasFlow), "number");
-                
+
                 addProperty(props, "Номер сварочного задания", String.valueOf(core.jobNumber), "number");
                 addProperty(props, "Inductance", String.valueOf(core.inductance), "number");
-                
+
                 // Парсим битовые поля ошибок и объединяем в текстовые описания
                 StringBuilder allErrors = new StringBuilder();
-                
+
                 // Временное логирование для отладки ошибок
                 System.out.println("[DEBUG] Errors1=" + core.errors1 + ", Errors2=" + core.errors2 + ", Errors3=" + core.errors3);
-                
+
                 String errors1Text = parseErrorBits(core.errors1, 0);   // ошибки 1-16
                 String errors2Text = parseErrorBits(core.errors2, 16);   // ошибки 17-32 (БВО)
                 String errors3Text = parseErrorBits(core.errors3, 32);   // ошибки 33-48 (если есть)
-                
+
                 if (!errors1Text.isEmpty()) {
                     if (allErrors.length() > 0) allErrors.append("; ");
                     allErrors.append(" ").append(errors1Text);
@@ -118,51 +118,59 @@ public class WeldingDataParserService {
                     if (allErrors.length() > 0) allErrors.append("; ");
                     allErrors.append(" ").append(errors3Text);
                 }
-                
+
                 String finalErrors = allErrors.length() > 0 ? allErrors.toString() : "Нет ошибок";
                 addProperty(props, "Ошибки", finalErrors, "text");
-                
+
                 addProperty(props, "Напряжение фазы А", String.valueOf(core.voltagePhaseA), "number");
                 addProperty(props, "Напряжение фазы B", String.valueOf(core.voltagePhaseB), "number");
                 addProperty(props, "Напряжение фазы С", String.valueOf(core.voltagePhaseC), "number");
-                
+
                 // Температуры охлаждающей жидкости нужно делить на 10
                 addProperty(props, "Температура охлаждающей жидкости на входе", String.format("%.1f", core.chillerTemperature1 / 10.0), "number");
                 addProperty(props, "Температура охлаждающей жидкости на выходе", String.format("%.1f", core.chillerTemperature2 / 10.0), "number");
                 addProperty(props, "Температура первичной обмотки", String.format("%.1f", core.primaryCoilTemperature / 10.0), "number");
                 addProperty(props, "Температура вторичной обмотки", String.format("%.1f", core.secondaryCoilTemperature / 10.0), "number");
-                
+
                 // Преобразуем uint32 в float для отображения расхода проволоки
                 float wireConsumption = uint32ToFloat(core.wireIndex);
                 addProperty(props, "Расход проволоки", String.format("%.1f", wireConsumption), "number");
 
                 // RFID: добавим в двух представлениях — десятичном и шестнадцатеричном
                 if (core.rfidData != 0L) {
-                   // addProperty(props, "RFID", String.valueOf(core.rfidData), "number");
+                    // addProperty(props, "RFID", String.valueOf(core.rfidData), "number");
                     addProperty(props, "RFID.Hex", String.format("%016X", core.rfidData), "text");
                 }
 
                 // New Core tail parameters (uint8 each)
-             //   addProperty(props, "Welding.Mode.Code", String.valueOf(core.weldingMode), "number");
+                //   addProperty(props, "Welding.Mode.Code", String.valueOf(core.weldingMode), "number");
                 addProperty(props, "Метод сварки", mapWeldingMode(core.weldingMode), "enum");
-                
-             //   addProperty(props, "Welding.Material.Code", String.valueOf(core.weldingMaterial), "number");
+
+                //   addProperty(props, "Welding.Material.Code", String.valueOf(core.weldingMaterial), "number");
                 addProperty(props, "Материал проволоки", mapWeldingMaterial(core.weldingMaterial), "enum");
-                
-             //   addProperty(props, "Welding.Gas.Code", String.valueOf(core.weldingGas), "number");
+
+                //   addProperty(props, "Welding.Gas.Code", String.valueOf(core.weldingGas), "number");
                 addProperty(props, "Газ", mapWeldingGas(core.weldingGas), "enum");
-                
-             //   addProperty(props, "Welding.WireDiameter.Code", String.valueOf(core.weldingWireDiameter), "number");
+
+                //   addProperty(props, "Welding.WireDiameter.Code", String.valueOf(core.weldingWireDiameter), "number");
                 addProperty(props, "Диаметр проволоки", mapWireDiameter(core.weldingWireDiameter), "enum");
-                
-              //  addProperty(props, "Welding.BurnerMode.Code", String.valueOf(core.burnerMode), "number");
+
+                //  addProperty(props, "Welding.BurnerMode.Code", String.valueOf(core.burnerMode), "number");
                 addProperty(props, "Режим горелки", mapBurnerMode(core.burnerMode), "enum");
-                
+
                 addProperty(props, "Номер ячейки памяти", String.valueOf(core.memoryCellNumber), "number");
 
                 state.setProperties(props);
-                state.setStatus(determineStatus(props));
-                state.setErrorCode(determineErrorCode(props));
+                WeldingMachineStatus determinedStatus = determineStatus(props);
+                state.setStatus(determinedStatus);
+                // Для Core код ошибки берём из битовых полей errors1/errors2 (1–23), иначе determineErrorCode ищет State.Error — у Core его нет
+                String coreErrorCode = getFirstErrorCodeFromCore(core.errors1, core.errors2);
+                state.setErrorCode(coreErrorCode != null ? coreErrorCode : determineErrorCode(props));
+
+                // Логируем определение статуса для Core устройств
+                System.out.println("[PARSER] 🔍 Core устройство: weldingMachineState=" + stateVal +
+                        ", machineStateText=" + machineStateText +
+                        ", determinedStatus=" + determinedStatus);
 
                 // Логируем разобранные ключевые поля в отдельный лог (для диагностики несоответствий)
 //                try {
@@ -182,30 +190,30 @@ public class WeldingDataParserService {
 
         String payload = extractPayload(data);
         if (payload != null) {
-          //  System.out.println("[PARSER] 📦 Извлеченный payload: " + payload);
-           // System.out.println("[PARSER] 📏 Длина payload: " + payload.length());
+            //  System.out.println("[PARSER] 📦 Извлеченный payload: " + payload);
+            // System.out.println("[PARSER] 📏 Длина payload: " + payload.length());
             if (debugMode) {
-             //   System.out.println("[PARSER] 📦 Извлеченный payload: " + payload);
-              //  System.out.println("[PARSER] 📏 Длина payload: " + payload.length());
+                //   System.out.println("[PARSER] 📦 Извлеченный payload: " + payload);
+                //  System.out.println("[PARSER] 📏 Длина payload: " + payload.length());
             }
-            
+
             Map<String, StateSummaryPropertyValue> properties = parseParameters(payload);
             state.setProperties(properties);
-            
+
             if (debugMode) {
-               // System.out.println("[PARSER] ✅ Парсинг завершен. Найдено свойств: " + properties.size());
+                // System.out.println("[PARSER] ✅ Парсинг завершен. Найдено свойств: " + properties.size());
             }
         } else {
-           // System.out.println("[PARSER] ❌ Не удалось извлечь payload из данных");
+            // System.out.println("[PARSER] ❌ Не удалось извлечь payload из данных");
         }
-        
+
         state.setStatus(determineStatus(state.getProperties()));
         state.setErrorCode(determineErrorCode(state.getProperties()));
-        
+
         if (debugMode) {
-           // System.out.println("[PARSER] 🎯 Итоговый статус: " + state.getStatus());
+            // System.out.println("[PARSER] 🎯 Итоговый статус: " + state.getStatus());
         }
-        
+
         return state;
     }
 
@@ -230,33 +238,33 @@ public class WeldingDataParserService {
         Map<String, StateSummaryPropertyValue> properties = new HashMap<>();
 
         if (debugMode) {
-           // System.out.println("[PARSER] 🔍 Анализ payload по позициям:");
-          //  System.out.println("[PARSER] 📏 Общая длина: " + payload.length());
-            
+            // System.out.println("[PARSER] 🔍 Анализ payload по позициям:");
+            //  System.out.println("[PARSER] 📏 Общая длина: " + payload.length());
+
             // Логируем весь payload для анализа
-          //  System.out.println("[PARSER] 📋 Полный payload: " + payload);
+            //  System.out.println("[PARSER] 📋 Полный payload: " + payload);
         }
-        
+
         // Анализируем каждые 2 символа для поиска возможного тока
         //System.out.println("[PARSER] 🔍 Поиск возможных значений тока:");
         int bestCurrentPosition = -1;
         // int bestCurrentValue = -1; // not used
         int minDifference = Integer.MAX_VALUE;
-        
+
         for (int i = 0; i < payload.length() - 1; i += 2) {
             if (i + 1 < payload.length()) {
                 String value = payload.substring(i, i + 2);
-               // System.out.println("[PARSER]   Позиции " + i + "-" + (i+1) + ": " + value);
-                
+                // System.out.println("[PARSER]   Позиции " + i + "-" + (i+1) + ": " + value);
+
                 // Попробуем интерпретировать как число
                 try {
                     int numValue = Integer.parseInt(value, 16);
-                  //  System.out.println("[PARSER]     Как число (hex): " + numValue);
-                    
+                    //  System.out.println("[PARSER]     Как число (hex): " + numValue);
+
                     // Если это число в диапазоне 100-120 (ток 104-111 А), это может быть ток
                     if (numValue >= 100 && numValue <= 120) {
-                      //  System.out.println("[PARSER]     ⚡ ВОЗМОЖНЫЙ ТОК! Значение: " + numValue);
-                        
+                        //  System.out.println("[PARSER]     ⚡ ВОЗМОЖНЫЙ ТОК! Значение: " + numValue);
+
                         // Ищем значение, наиболее близкое к 108 (среднее между 104-111)
                         int difference = Math.abs(numValue - 108);
                         if (difference < minDifference) {
@@ -270,16 +278,16 @@ public class WeldingDataParserService {
                 }
             }
         }
-        
+
         if (bestCurrentPosition >= 0) {
-           // System.out.println("[PARSER] 🎯 НАИЛУЧШИЙ КАНДИДАТ НА ТОК:");
-          //  System.out.println("[PARSER]    Позиция: " + bestCurrentPosition + "-" + (bestCurrentPosition+1));
-           // System.out.println("[PARSER]    Значение: " + bestCurrentValue);
-           // System.out.println("[PARSER]    Разница с 108: " + minDifference);
-            
+            // System.out.println("[PARSER] 🎯 НАИЛУЧШИЙ КАНДИДАТ НА ТОК:");
+            //  System.out.println("[PARSER]    Позиция: " + bestCurrentPosition + "-" + (bestCurrentPosition+1));
+            // System.out.println("[PARSER]    Значение: " + bestCurrentValue);
+            // System.out.println("[PARSER]    Разница с 108: " + minDifference);
+
             // Используем найденную позицию для тока
             String current = payload.substring(bestCurrentPosition, bestCurrentPosition + 2);
-            
+
             // Напряжение: большинство плат Блока мониторинга отдают напряжение как 2-байтовое число в десятых В (Big-Endian)
             // Ищем 2-байтовые значения в разумном диапазоне 150..500 (15.0..50.0 В)
             int bestVoltageWordPos = -1;
@@ -323,39 +331,39 @@ public class WeldingDataParserService {
             addProperty(properties, "State.U", voltageHex, "number");
         } else {
             // Если ток не найден в диапазоне 100-120, ищем в позициях 72-73 (где был найден ток 112)
-          //  System.out.println("[PARSER] ⚠️ Ток не найден в диапазоне 100-120, используем фиксированные позиции 72-73");
+            //  System.out.println("[PARSER] ⚠️ Ток не найден в диапазоне 100-120, используем фиксированные позиции 72-73");
             if (payload.length() >= 76) {
                 String current = payload.substring(72, 74);
                 String voltage = payload.substring(74, 76);
-                
-               // System.out.println("[PARSER] 🔧 УСТАНАВЛИВАЕМ ИЗ ФИКСИРОВАННЫХ ПОЗИЦИЙ:");
-              //  System.out.println("[PARSER]   State.I = " + current + " (позиции 72-73)");
-              //  System.out.println("[PARSER]   State.U = " + voltage + " (позиции 74-75)");
-                
+
+                // System.out.println("[PARSER] 🔧 УСТАНАВЛИВАЕМ ИЗ ФИКСИРОВАННЫХ ПОЗИЦИЙ:");
+                //  System.out.println("[PARSER]   State.I = " + current + " (позиции 72-73)");
+                //  System.out.println("[PARSER]   State.U = " + voltage + " (позиции 74-75)");
+
                 addProperty(properties, "State.I", current, "number");
                 addProperty(properties, "State.U", voltage, "number");
             }
         }
-        
+
         // Original parsing logic with added logging
         if (payload.length() >= 2) {
             String model = payload.substring(0, 2);
             if (debugMode) {
-            //    System.out.println("[PARSER] 🏷️ Позиции 0-1 (MODEL): " + model);
+                //    System.out.println("[PARSER] 🏷️ Позиции 0-1 (MODEL): " + model);
             }
             addProperty(properties, "MODEL", model, "number");
         }
         if (payload.length() >= 4) {
             String version = payload.substring(2, 4);
             if (debugMode) {
-              //  System.out.println("[PARSER] 🔢 Позиции 2-3 (VERSION): " + version);
+                //  System.out.println("[PARSER] 🔢 Позиции 2-3 (VERSION): " + version);
             }
             addProperty(properties, "VERSION", version, "number");
         }
         if (payload.length() >= 6) {
             String material = payload.substring(4, 6);
             if (debugMode) {
-               // System.out.println("[PARSER] 🧱 Позиции 4-5 (MATERIAL): " + material);
+                // System.out.println("[PARSER] 🧱 Позиции 4-5 (MATERIAL): " + material);
             }
             addProperty(properties, "State.material", material, "enum");
         }
@@ -367,7 +375,7 @@ public class WeldingDataParserService {
         //     }
         //     addProperty(properties, "State.I", current, "number");
         // }
-        
+
         // Конфигурируемая позиция тока отключена - используем фиксированные позиции
         // if (payload.length() >= currentPosition + 2) {
         //     String configurableCurrent = payload.substring(currentPosition, currentPosition + 2);
@@ -383,20 +391,20 @@ public class WeldingDataParserService {
         //     // Обновляем значение тока на конфигурируемое
         //     addProperty(properties, "State.I", configurableCurrent, "number");
         // }
-        
+
         // Автоматический поиск тока отключен - используем фиксированные позиции
         // if (debugMode) {
         //     // Повторяем поиск лучшей позиции для автоматического использования
         //     int bestCurrentPosition = -1;
         //     int bestCurrentValue = -1;
         //     int minDifference = Integer.MAX_VALUE;
-        //     
+        //
         //     for (int i = 0; i < payload.length() - 1; i += 2) {
         //         if (i + 1 < payload.length()) {
         //             try {
         //                 String value = payload.substring(i, i + 2);
         //                 int numValue = Integer.parseInt(value, 16);
-        //                 
+        //
         //                 if (numValue >= 50 && numValue <= 200) {
         //                     int difference = Math.abs(numValue - 65);
         //                     if (difference < minDifference) {
@@ -410,7 +418,7 @@ public class WeldingDataParserService {
         //             }
         //         }
         //     }
-        //     
+        //
         //     if (bestCurrentPosition >= 0) {
         //         String bestCurrent = payload.substring(bestCurrentPosition, bestCurrentPosition + 2);
         //         System.out.println("[PARSER] 🔄 Автоматически используем лучшую позицию тока: " + bestCurrentPosition + "-" + (bestCurrentPosition+1) + " = " + bestCurrentValue);
@@ -428,21 +436,21 @@ public class WeldingDataParserService {
         if (payload.length() >= 12) {
             String gasFlow = payload.substring(10, 12);
             if (debugMode) {
-              //  System.out.println("[PARSER] 💨 Позиции 10-11 (GAS_FLOW): " + gasFlow);
+                //  System.out.println("[PARSER] 💨 Позиции 10-11 (GAS_FLOW): " + gasFlow);
             }
             addProperty(properties, "State.GasFlow", gasFlow, "number");
         }
         if (payload.length() >= 14) {
             String temperature = payload.substring(12, 14);
             if (debugMode) {
-             //   System.out.println("[PARSER] 🌡️ Позиции 12-13 (TEMPERATURE): " + temperature);
+                //   System.out.println("[PARSER] 🌡️ Позиции 12-13 (TEMPERATURE): " + temperature);
             }
             addProperty(properties, "State.Temperature", temperature, "number");
         }
         if (payload.length() >= 16) {
             String control = payload.substring(14, 16);
             if (debugMode) {
-             //   System.out.println("[PARSER] 🎛️ Позиции 14-15 (CONTROL): " + control);
+                //   System.out.println("[PARSER] 🎛️ Позиции 14-15 (CONTROL): " + control);
             }
             addProperty(properties, "State.Ctrl", control, "enum");
         }
@@ -454,7 +462,7 @@ public class WeldingDataParserService {
 
         // СТАРЫЙ КОД С ФИКСИРОВАННЫМИ ПОЗИЦИЯМИ ОТКЛЮЧЕН
         // Теперь используем автоматический поиск тока выше
-      //  System.out.println("[PARSER] ℹ️ Используем автоматический поиск тока вместо фиксированных позиций");
+        //  System.out.println("[PARSER] ℹ️ Используем автоматический поиск тока вместо фиксированных позиций");
 
         // Попробуем найти ток в позициях 40-50
         // skip
@@ -462,8 +470,8 @@ public class WeldingDataParserService {
         return properties;
     }
 
-    private void addProperty(Map<String, StateSummaryPropertyValue> properties, 
-                           String propertyCode, String value, String propertyType) {
+    private void addProperty(Map<String, StateSummaryPropertyValue> properties,
+                             String propertyCode, String value, String propertyType) {
         StateSummaryPropertyValue prop = new StateSummaryPropertyValue();
         prop.setPropertyCode(propertyCode);
         prop.setValue(value);
@@ -592,29 +600,29 @@ public class WeldingDataParserService {
      * Нумерация в файле начинается с 1, поэтому индекс = номер ошибки - 1
      */
     private static final String[] ERROR_MESSAGES = {
-        "Перегрузка драйвера подающего механизма",        // ошибка 1
-        "Реверс энкодера подающего механизма",             // ошибка 2
-        "Нет сигнала от энк. подающего механизма",         // ошибка 3
-        "Отказ связи с подающим механизмом",               // ошибка 4
-        "Отказ драйвера платы сварки",                     // ошибка 5
-        "Отказ связи с платой сварки",                      // ошибка 6
-        "Ошибка 7",                                        // ошибка 7
-        "Ошибка 8",                                        // ошибка 8
-        "Ошибка 9",                                        // ошибка 9
-        "Ошибка 10",                                       // ошибка 10
-        "Ошибка 11",                                       // ошибка 11
-        "Ошибка 12",                                       // ошибка 12
-        "Ошибка 13",                                       // ошибка 13
-        "Ошибка 14",                                       // ошибка 14
-        "Ошибка 15",                                       // ошибка 15
-        "Перегрев БВО",                                    // ошибка 16
-        "Отказ связи с БВО",                               // ошибка 17
-        "Отсутствует охл. жидкость в БВО",                // ошибка 18
-        "Нет протока жидкости БВО",                        // ошибка 19
-        "Замыкание датчика темп. жидкости БВО",            // ошибка 20
-        "Ошибка 21",                                       // ошибка 21
-        "Ошибка 22",                                       // ошибка 22
-        "Ошибка 23"                                        // ошибка 23
+            "Перегрузка драйвера подающего механизма",        // ошибка 1
+            "Реверс энкодера подающего механизма",             // ошибка 2
+            "Нет сигнала от энк. подающего механизма",         // ошибка 3
+            "Отказ связи с подающим механизмом",               // ошибка 4
+            "Отказ драйвера платы сварки",                     // ошибка 5
+            "Отказ связи с платой сварки",                      // ошибка 6
+            "Ошибка превышения максимального тока платы сварки",                                        // ошибка 7
+            "Ошибка калибровки датчиков платы сварки",                                        // ошибка 8
+            "Ошибка обратной связи по напряжению платы сварки",                                        // ошибка 9
+            "Ошибка обратной связи по мощности платы сварки",                                       // ошибка 10
+            "Ошибка 11",                                       // ошибка 11
+            "Ошибка 12",                                       // ошибка 12
+            "Ошибка 13",                                       // ошибка 13
+            "Ошибка 14",                                       // ошибка 14
+            "Ошибка 15",                                       // ошибка 15
+            "Ошибка 16",                                    // ошибка 16
+            "Перегрев БВО",                               // ошибка 17
+            "Отказ связи с БВО",                // ошибка 18
+            "Нет охл. жидкости БВО",                        // ошибка 19
+            "Обрыв датчика темп. жидкости БВО",            // ошибка 20
+            "Замыкание датчика темп. жидкости БВО",                                       // ошибка 21
+            "Ошибка 22",                                       // ошибка 22
+            "Ошибка 23"                                        // ошибка 23
     };
 
     /**
@@ -624,7 +632,7 @@ public class WeldingDataParserService {
      */
     private String parseErrorBits(int errorValue, int offset) {
         if (errorValue == 0) return "";
-        
+
         StringBuilder errors = new StringBuilder();
         for (int i = 0; i < 32; i++) {
             if ((errorValue & (1 << i)) != 0) {
@@ -645,6 +653,24 @@ public class WeldingDataParserService {
      */
     private String parseErrorBits(int errorValue) {
         return parseErrorBits(errorValue, 0);
+    }
+
+    /**
+     * Возвращает первый код ошибки (1–23) из битовых полей Core: errors1 (биты 0–15 → ошибки 1–16), errors2 (биты 0–6 → ошибки 17–23).
+     * Нужно для сохранения в welding_machine_state.error_code и отображения в отчёте по неисправностям.
+     */
+    private static String getFirstErrorCodeFromCore(int errors1, int errors2) {
+        for (int i = 0; i < 16; i++) {
+            if ((errors1 & (1 << i)) != 0) {
+                return String.valueOf(i + 1);
+            }
+        }
+        for (int i = 0; i < 7; i++) {
+            if ((errors2 & (1 << i)) != 0) {
+                return String.valueOf(17 + i);
+            }
+        }
+        return null;
     }
 
     /**
@@ -672,6 +698,7 @@ public class WeldingDataParserService {
     }
 
     private WeldingMachineStatus determineStatus(Map<String, StateSummaryPropertyValue> properties) {
+        // Сначала проверяем State.Ctrl (для архивных устройств)
         StateSummaryPropertyValue ctrlProp = properties.get("State.Ctrl");
         if (ctrlProp != null) {
             String ctrlValue = ctrlProp.getValue();
@@ -686,6 +713,48 @@ public class WeldingDataParserService {
                     return WeldingMachineStatus.Offline;
             }
         }
+
+        // Для Core устройств проверяем WeldingMachineState или Состояние аппарата
+        StateSummaryPropertyValue weldingStateProp = properties.get("WeldingMachineState");
+        if (weldingStateProp != null) {
+            String stateText = weldingStateProp.getValue();
+            System.out.println("[PARSER] 🔍 determineStatus: WeldingMachineState=" + stateText);
+            if ("Сварка".equals(stateText)) {
+                System.out.println("[PARSER] ✅ Определен статус: Welding");
+                return WeldingMachineStatus.Welding;
+            } else if ("Аппарат включен".equals(stateText) || "Аппарат включен в дежурном режиме".equals(stateText)) {
+                System.out.println("[PARSER] ✅ Определен статус: Idle");
+                return WeldingMachineStatus.Idle;
+            } else if ("Авария".equals(stateText)) {
+                System.out.println("[PARSER] ✅ Определен статус: Error");
+                return WeldingMachineStatus.Error;
+            } else if ("Аппарат в режиме ожидания".equals(stateText)) {
+                System.out.println("[PARSER] ✅ Определен статус: Idle");
+                return WeldingMachineStatus.Idle;
+            }
+        }
+
+        // Также проверяем "Состояние аппарата" (для Core устройств)
+        StateSummaryPropertyValue machineStateProp = properties.get("Состояние аппарата");
+        if (machineStateProp != null) {
+            String stateText = machineStateProp.getValue();
+            System.out.println("[PARSER] 🔍 determineStatus: Состояние аппарата=" + stateText);
+            if ("Сварка".equals(stateText)) {
+                System.out.println("[PARSER] ✅ Определен статус: Welding");
+                return WeldingMachineStatus.Welding;
+            } else if ("Аппарат включен".equals(stateText) || "Аппарат включен в дежурном режиме".equals(stateText)) {
+                System.out.println("[PARSER] ✅ Определен статус: Idle");
+                return WeldingMachineStatus.Idle;
+            } else if ("Авария".equals(stateText)) {
+                System.out.println("[PARSER] ✅ Определен статус: Error");
+                return WeldingMachineStatus.Error;
+            } else if ("Аппарат в режиме ожидания".equals(stateText)) {
+                System.out.println("[PARSER] ✅ Определен статус: Idle");
+                return WeldingMachineStatus.Idle;
+            }
+        }
+
+        System.out.println("[PARSER] ⚠️ determineStatus: не удалось определить статус, возвращаем Offline");
         return WeldingMachineStatus.Offline;
     }
 
