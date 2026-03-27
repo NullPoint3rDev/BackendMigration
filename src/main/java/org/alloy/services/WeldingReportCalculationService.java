@@ -59,6 +59,7 @@ public class WeldingReportCalculationService {
                 return new AverageValues(BigDecimal.ZERO, BigDecimal.ZERO);
             }
 
+
             // Собираем ID состояний
             List<Long> stateIds = states.stream()
                     .map(WeldingMachineState::getId)
@@ -71,6 +72,7 @@ public class WeldingReportCalculationService {
             // Получаем значения напряжения (State.U) только для активной сварки
             List<WeldingMachineParameterValue> voltageValues = parameterValueRepository
                     .findByStateIdsAndPropertyCode(stateIds, "State.U");
+
 
             // Фильтруем только активную сварку (ток > 0) и рассчитываем средние значения
             BigDecimal averageCurrent = calculateAverageForActiveWelding(currentValues, "State.I");
@@ -92,9 +94,11 @@ public class WeldingReportCalculationService {
 
             BigDecimal weldingTimeSeconds = BigDecimal.valueOf(activeWeldingCount);
 
+
             return new AverageValues(averageCurrent, averageVoltage, weldingTimeSeconds);
 
         } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ❌ Ошибка расчета средних значений: " + e.getMessage());
             e.printStackTrace();
             return new AverageValues(BigDecimal.ZERO, BigDecimal.ZERO);
         }
@@ -139,6 +143,7 @@ public class WeldingReportCalculationService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal average = sum.divide(BigDecimal.valueOf(activeValues.size()), 1, RoundingMode.HALF_UP);
+
 
         return average;
     }
@@ -219,11 +224,14 @@ public class WeldingReportCalculationService {
 
                 dailyData.add(dayData);
 
+
                 // Переходим к следующему дню
                 currentDate = currentDate.plusDays(1);
             }
 
+
         } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ❌ Ошибка расчета данных по дням: " + e.getMessage());
             e.printStackTrace();
         }
 
@@ -257,16 +265,7 @@ public class WeldingReportCalculationService {
                     .findByStateIdsAndPropertyCode(stateIds, "State.U");
 
 
-
             // Логируем первые несколько значений для отладки
-            if (!currentValues.isEmpty()) {
-                currentValues.stream().limit(5).forEach(value ->
-                        System.out.println("[REPORT-CALC]   - " + value.getPropertyCode() + ": '" + value.getValue() + "'"));
-            }
-            if (!voltageValues.isEmpty()) {
-                voltageValues.stream().limit(5).forEach(value ->
-                        System.out.println("[REPORT-CALC]   - " + value.getPropertyCode() + ": '" + value.getValue() + "'"));
-            }
 
             // Рассчитываем средние значения
             BigDecimal averageCurrent = calculateAverageForActiveWelding(currentValues, "State.I");
@@ -293,6 +292,7 @@ public class WeldingReportCalculationService {
             return new AverageValues(averageCurrent, averageVoltage, weldingTimeSeconds);
 
         } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ❌ Ошибка расчета для периода: " + e.getMessage());
             return new AverageValues(BigDecimal.ZERO, BigDecimal.ZERO);
         }
     }
@@ -346,6 +346,10 @@ public class WeldingReportCalculationService {
                 || "Сварка".equalsIgnoreCase(stateNameByStateId.getOrDefault(s.getId(), "").trim());
     }
 
+    private static boolean isValidCurrentVoltagePoint(int currentAmps, int voltageVolts) {
+        return currentAmps > 0 && voltageVolts >= 0 && voltageVolts <= currentAmps;
+    }
+
     /**
      * Рассчитывает сегменты швов по статусу аппарата:
      * — Начало шва: первое состояние со статусом «Сварка» (Welding).
@@ -377,24 +381,12 @@ public class WeldingReportCalculationService {
                         currentByState.putIfAbsent(e.getKey(), e.getValue());
                 }
             }
-            // Напряжение: Voltage (CORE, в десятых) и State.U с COALESCE
+            // Напряжение: только Voltage (CORE, в десятых)
             java.util.Map<Long, Integer> voltageByState = new java.util.HashMap<>();
             java.util.Map<Long, Integer> voltageFromVoltage = loadParamMapByStateIds(stateIds, "Voltage", true);
             for (Long id : stateIds) {
                 if (voltageFromVoltage.containsKey(id) && voltageFromVoltage.get(id) != null && voltageFromVoltage.get(id) != 0) {
                     voltageByState.put(id, voltageFromVoltage.get(id) / 10);
-                }
-            }
-            for (String code : new String[] { "State.U" }) {
-                for (java.util.Map.Entry<Long, Integer> e : loadParamMapByStateIds(stateIds, code, true).entrySet()) {
-                    if (e.getValue() != null)
-                        voltageByState.putIfAbsent(e.getKey(), e.getValue());
-                }
-            }
-            for (String code : new String[] { "U", "Напряжение" }) {
-                for (java.util.Map.Entry<Long, Integer> e : loadParamMapByStateIds(stateIds, code).entrySet()) {
-                    if (e.getValue() != null)
-                        voltageByState.putIfAbsent(e.getKey(), e.getValue());
                 }
             }
 
@@ -428,7 +420,7 @@ public class WeldingReportCalculationService {
                         segmentWeightedCurrent = 0;
                         segmentWeightedVoltage = 0;
                     }
-                    if (I > MIN_ARC_CURRENT_AMPS_FOR_REPORT) {
+                    if (I > MIN_ARC_CURRENT_AMPS_FOR_REPORT && isValidCurrentVoltagePoint(I, U)) {
                         segmentWeightedCurrent += (long) I * dtMs;
                         segmentWeightedVoltage += (long) U * dtMs;
                     }
@@ -493,10 +485,8 @@ public class WeldingReportCalculationService {
                 }
             }
 
-            if (!result.isEmpty()) {
-                org.alloy.models.dto.WeldSegmentDTO first = result.get(0);
-            }
         } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ❌ Ошибка расчета сегментов швов: " + e.getMessage());
             e.printStackTrace();
         }
         return result;
@@ -538,7 +528,7 @@ public class WeldingReportCalculationService {
             if (overlapDt <= 0) continue;
             int I = currentByState.getOrDefault(s.getId(), 0);
             int U = voltageByState.getOrDefault(s.getId(), 0);
-            if (!isWeldingState(s, stateNameByStateId) || I <= MIN_ARC_CURRENT_AMPS_FOR_REPORT) continue;
+            if (!isWeldingState(s, stateNameByStateId) || I <= MIN_ARC_CURRENT_AMPS_FOR_REPORT || !isValidCurrentVoltagePoint(I, U)) continue;
             weightedI += (long) I * overlapDt;
             weightedU += (long) U * overlapDt;
             totalDt += overlapDt;
@@ -553,7 +543,8 @@ public class WeldingReportCalculationService {
             for (WeldingMachineState s : states) {
                 if (s.getDateCreated() == null) continue;
                 int I = currentByState.getOrDefault(s.getId(), 0);
-                if (!isWeldingState(s, stateNameByStateId) || I <= MIN_ARC_CURRENT_AMPS_FOR_REPORT) continue;
+                int U = voltageByState.getOrDefault(s.getId(), 0);
+                if (!isWeldingState(s, stateNameByStateId) || I <= MIN_ARC_CURRENT_AMPS_FOR_REPORT || !isValidCurrentVoltagePoint(I, U)) continue;
                 long dist = Math.min(
                         Math.abs(java.time.Duration.between(weldStartTime, s.getDateCreated()).toMillis()),
                         Math.abs(java.time.Duration.between(segmentEndTime, s.getDateCreated()).toMillis()));
@@ -586,7 +577,6 @@ public class WeldingReportCalculationService {
         java.util.Map<Long, Integer> map = new java.util.HashMap<>();
         if (stateIds == null || stateIds.isEmpty()) return map;
         final int BATCH_SIZE = 10_000;
-        int totalRows = 0;
         for (int i = 0; i < stateIds.size(); i += BATCH_SIZE) {
             int endIndex = Math.min(i + BATCH_SIZE, stateIds.size());
             List<Long> batch = stateIds.subList(i, endIndex);
@@ -594,7 +584,6 @@ public class WeldingReportCalculationService {
                 List<Object[]> rows = useCoalesce
                         ? parameterValueRepository.findStateIdAndValueNativeCoalesce(batch, propertyCode)
                         : parameterValueRepository.findStateIdAndValueNative(batch, propertyCode);
-                totalRows += rows.size();
                 for (Object[] row : rows) {
                     if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
                         long stateId = ((Number) row[0]).longValue();
@@ -603,10 +592,8 @@ public class WeldingReportCalculationService {
                         map.put(stateId, parseValueToInt(valueStr));
                     }
                 }
-                if (i == 0 && !rows.isEmpty() && rows.get(0) != null && rows.get(0).length >= 2) {
-                    Object[] first = rows.get(0);
-                }
             } catch (Exception e) {
+                System.err.println("[REPORT-CALC] ⚠️ Ошибка загрузки " + propertyCode + " батч " + i + "-" + endIndex + ": " + e.getMessage());
                 e.printStackTrace();
             }
         }
