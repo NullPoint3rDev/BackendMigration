@@ -10,28 +10,31 @@ import java.util.List;
 
 @Repository
 public interface WelderRepository extends JpaRepository<Welder, Long> {
-    
+
     List<Welder> findByStatus(Welder.WelderStatus status);
-    
+
     List<Welder> findByDepartmentContainingIgnoreCase(String department);
-    
+
     List<Welder> findByNameContainingIgnoreCase(String name);
-    
+
     List<Welder> findByGrade(String grade);
-    
+
     @Query("SELECT w FROM Welder w WHERE w.rfidCode = :rfidCode")
     Welder findByRfidCode(@Param("rfidCode") String rfidCode);
-    
+
     @Query("SELECT w FROM Welder w WHERE w.employeeId = :employeeId")
     Welder findByEmployeeId(@Param("employeeId") String employeeId);
-    
+
     @Query("SELECT w FROM Welder w WHERE " +
-           "(:name IS NULL OR LOWER(w.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-           "(:status IS NULL OR w.status = :status) AND " +
-           "(:department IS NULL OR LOWER(w.department) LIKE LOWER(CONCAT('%', :department, '%'))) AND " +
-           "(:grade IS NULL OR w.grade = :grade)")
-    List<Welder> findByFilters(@Param("name") String name, 
-                               @Param("status") Welder.WelderStatus status, 
-                               @Param("department") String department, 
+            "(:name IS NULL OR LOWER(w.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
+            "(:status IS NULL OR w.status = :status) AND " +
+            "(:department IS NULL OR LOWER(w.department) LIKE LOWER(CONCAT('%', :department, '%'))) AND " +
+            "(:grade IS NULL OR w.grade = :grade)")
+    List<Welder> findByFilters(@Param("name") String name,
+                               @Param("status") Welder.WelderStatus status,
+                               @Param("department") String department,
                                @Param("grade") String grade);
+
+    @Query("SELECT DISTINCT w FROM Welder w JOIN w.weldingMachines m WHERE m.organizationUnitId IN :unitIds")
+    List<Welder> findDistinctByWeldingMachinesOrganizationUnitIdIn(@Param("unitIds") List<Integer> unitIds);
 }

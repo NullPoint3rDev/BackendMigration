@@ -100,6 +100,9 @@ public class UserAccount {
     @Column(name = "RFID_Hex")
     private String rfidHex;
 
+    @Column(name = "AllowedUserActions")
+    private String allowedUserActions;
+
     @Column(name = "AllowEmailNotifications")
     private Boolean allowEmailNotifications;
 

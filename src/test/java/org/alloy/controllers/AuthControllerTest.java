@@ -17,10 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import org.alloy.TestConfig;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -70,7 +67,7 @@ class AuthControllerTest {
         passwordRequest.setPassword("TestPass123!");
 
         // Создаем тестовый ответ аутентификации
-        authResponse = new AuthenticationService.AuthenticationResponse("test-token", "test-session");
+        authResponse = new AuthenticationService.AuthenticationResponse("test-token", "test-session", 1);
     }
 
     /**
@@ -82,14 +79,15 @@ class AuthControllerTest {
         when(authenticationService.authenticate(anyString(), anyString(), any(HttpServletRequest.class)))
                 .thenReturn(authResponse);
 
-        // Выполняем POST запрос на /api/auth/login
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        // Выполняем POST запрос на /auth/login (context-path /api задаётся в application.yml)
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
                 // Проверяем статус ответа и содержимое JSON
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("test-token"))
-                .andExpect(jsonPath("$.sessionId").value("test-session"));
+                .andExpect(jsonPath("$.sessionId").value("test-session"))
+                .andExpect(jsonPath("$.userId").value(1));
 
         // Проверяем, что сервис был вызван с правильными параметрами
         verify(authenticationService).authenticate(loginRequest.getUsername(), loginRequest.getPassword(), any(HttpServletRequest.class));
@@ -104,9 +102,9 @@ class AuthControllerTest {
         when(authenticationService.authenticate(anyString(), anyString(), any(HttpServletRequest.class)))
                 .thenThrow(new AccountLockedException("Account is locked"));
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("Account Locked"));
 
@@ -122,9 +120,9 @@ class AuthControllerTest {
         when(authenticationService.authenticate(anyString(), anyString(), any(HttpServletRequest.class)))
                 .thenThrow(new RuntimeException("Invalid credentials"));
 
-        mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("Authentication Failed"));
 
@@ -139,8 +137,8 @@ class AuthControllerTest {
         // Настраиваем мок для успешного выхода
         doNothing().when(authenticationService).logout(anyString());
 
-        mockMvc.perform(post("/api/auth/logout")
-                .header("Authorization", "Bearer test-token"))
+        mockMvc.perform(post("/auth/logout")
+                        .header("Authorization", "Bearer test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Logged out successfully"));
 
@@ -155,8 +153,8 @@ class AuthControllerTest {
         // Настраиваем мок для выброса исключения при выходе
         doThrow(new RuntimeException("Logout failed")).when(authenticationService).logout(anyString());
 
-        mockMvc.perform(post("/api/auth/logout")
-                .header("Authorization", "Bearer test-token"))
+        mockMvc.perform(post("/auth/logout")
+                        .header("Authorization", "Bearer test-token"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("Logout failed"));
 
@@ -171,9 +169,9 @@ class AuthControllerTest {
         // Настраиваем мок для успешной валидации
         doNothing().when(authenticationService).validatePassword(anyString());
 
-        mockMvc.perform(post("/api/auth/validate-password")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(passwordRequest)))
+        mockMvc.perform(post("/auth/validate-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(passwordRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Password is valid"));
 
@@ -187,17 +185,17 @@ class AuthControllerTest {
     void validatePassword_ValidationFailed() throws Exception {
         // Создаем список ошибок валидации
         List<String> validationErrors = Arrays.asList(
-            "Password must be at least 8 characters",
-            "Password must contain at least one uppercase letter"
+                "Password must be at least 8 characters",
+                "Password must contain at least one uppercase letter"
         );
 
         // Настраиваем мок для выброса исключения валидации
         PasswordValidationException exception = new PasswordValidationException("Invalid password", validationErrors);
         doThrow(exception).when(authenticationService).validatePassword(anyString());
 
-        mockMvc.perform(post("/api/auth/validate-password")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(passwordRequest)))
+        mockMvc.perform(post("/auth/validate-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(passwordRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Password Validation Failed"))
                 .andExpect(jsonPath("$.validationErrors").exists());

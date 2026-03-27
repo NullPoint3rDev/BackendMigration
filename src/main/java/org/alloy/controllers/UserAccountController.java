@@ -14,6 +14,7 @@ import org.alloy.models.entities.UserRole;
 import org.alloy.models.dto.UserAccountDTO;
 import org.alloy.models.dto.mapper.UserAccountMapper;
 import org.alloy.services.UserAccountService;
+import org.alloy.services.Wt2AccessService;
 import org.alloy.repositories.UserRepository;
 import org.alloy.repositories.UserRoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,12 +53,14 @@ public class UserAccountController {
     private final UserAccountService userAccountService;
     private final UserRoleRepository userRoleRepository;
     private final UserRepository userRepository;
+    private final Wt2AccessService wt2AccessService;
 
     @Autowired
-    public UserAccountController(UserAccountService userAccountService, UserRoleRepository userRoleRepository, UserRepository userRepository) {
+    public UserAccountController(UserAccountService userAccountService, UserRoleRepository userRoleRepository, UserRepository userRepository, Wt2AccessService wt2AccessService) {
         this.userAccountService = userAccountService;
         this.userRoleRepository = userRoleRepository;
         this.userRepository = userRepository;
+        this.wt2AccessService = wt2AccessService;
     }
 
     @Operation(
@@ -90,7 +93,9 @@ public class UserAccountController {
     @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or hasRole('ADMIN_ALLOY')")
     @GetMapping
     public ResponseEntity<List<UserAccountDTO>> getAllUserAccounts() {
-        List<UserAccountDTO> userAccounts = userAccountService.getAllUserAccounts().stream()
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<UserAccountDTO> userAccounts = wt2AccessService
+                .filterUserAccounts(userAccountService.getAllUserAccounts(), principal).stream()
                 .map(UserAccountMapper::toDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
@@ -134,6 +139,8 @@ public class UserAccountController {
             @Parameter(description = "ID учетной записи", required = true, example = "1")
             @PathVariable Integer id
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanViewUserAccount(id, principal);
         return userAccountService.getUserAccountById(id)
                 .map(UserAccountMapper::toDTO)
                 .map(ResponseEntity::ok)
@@ -177,8 +184,12 @@ public class UserAccountController {
             @Parameter(description = "Имя пользователя", required = true, example = "john.doe")
             @PathVariable String userName
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
         return userAccountService.getUserAccountByUserName(userName)
-                .map(UserAccountMapper::toDTO)
+                .map(ua -> {
+                    wt2AccessService.assertCanViewUserAccount(ua.getId(), principal);
+                    return UserAccountMapper.toDTO(ua);
+                })
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -220,8 +231,12 @@ public class UserAccountController {
             @Parameter(description = "Email адрес", required = true, example = "john.doe@example.com")
             @PathVariable String email
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
         return userAccountService.getUserAccountByEmail(email)
-                .map(UserAccountMapper::toDTO)
+                .map(ua -> {
+                    wt2AccessService.assertCanViewUserAccount(ua.getId(), principal);
+                    return UserAccountMapper.toDTO(ua);
+                })
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -257,7 +272,10 @@ public class UserAccountController {
             @Parameter(description = "ID организационной единицы", required = true, example = "1")
             @PathVariable Integer organizationUnitId
     ) {
-        List<UserAccountDTO> userAccounts = userAccountService.getUserAccountsByOrganizationUnitId(organizationUnitId).stream()
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanViewOrganizationUnit(organizationUnitId, principal);
+        List<UserAccountDTO> userAccounts = wt2AccessService
+                .filterUserAccounts(userAccountService.getUserAccountsByOrganizationUnitId(organizationUnitId), principal).stream()
                 .map(UserAccountMapper::toDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
@@ -294,7 +312,9 @@ public class UserAccountController {
             @Parameter(description = "ID роли пользователя", required = true, example = "1")
             @PathVariable Integer userRoleId
     ) {
-        List<UserAccountDTO> userAccounts = userAccountService.getUserAccountsByUserRoleId(userRoleId).stream()
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<UserAccountDTO> userAccounts = wt2AccessService
+                .filterUserAccounts(userAccountService.getUserAccountsByUserRoleId(userRoleId), principal).stream()
                 .map(UserAccountMapper::toDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
@@ -335,7 +355,10 @@ public class UserAccountController {
             @Parameter(description = "Поисковый запрос", required = true, example = "john")
             @RequestParam String searchTerm
     ) {
-        List<UserAccountDTO> userAccounts = userAccountService.searchUserAccounts(organizationUnitId, searchTerm).stream()
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanViewOrganizationUnit(organizationUnitId, principal);
+        List<UserAccountDTO> userAccounts = wt2AccessService
+                .filterUserAccounts(userAccountService.searchUserAccounts(organizationUnitId, searchTerm), principal).stream()
                 .map(UserAccountMapper::toDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
@@ -465,7 +488,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or hasRole('ADMIN_ALLOY')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUserAccount(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -509,7 +532,7 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or hasRole('ADMIN_ALLOY')")
     @DeleteMapping("/{id}/hard")
     public ResponseEntity<Void> hardDeleteUserAccount(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
@@ -577,6 +600,8 @@ public class UserAccountController {
             return ResponseEntity.notFound().build();
         }
 
+        wt2AccessService.assertCanAssignRoleId(roleOpt.get().getId(), SecurityContextHolder.getContext().getAuthentication().getName());
+
         UserAccount user = userOpt.get();
         user.setUserRoleId(roleOpt.get().getId());
         UserAccount updated = userAccountService.updateUserAccount(user);
@@ -620,6 +645,8 @@ public class UserAccountController {
         if (!roleOpt.isPresent()) {
             return ResponseEntity.notFound().build();
         }
+
+        wt2AccessService.assertCanAssignRoleId(roleOpt.get().getId(), SecurityContextHolder.getContext().getAuthentication().getName());
 
         // Назначить роль
         User user = userOpt.get();

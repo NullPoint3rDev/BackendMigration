@@ -33,7 +33,7 @@ public class OrganizationUnitService {
     }
 
     public List<OrganizationUnit> getOrganizationUnitsByOrganizationId(Integer organizationId) {
-        return organizationUnitRepository.findByOrganizationId(organizationId);
+        return organizationUnitRepository.findByOrganizationIdAndStatus(organizationId, GeneralStatus.Active);
     }
 
     public List<OrganizationUnit> getOrganizationUnitsByParentId(Integer parentId) {

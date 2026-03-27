@@ -11,13 +11,16 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.WeldingMachineState;
 import org.alloy.models.WeldingMachineStatus;
 import org.alloy.services.WeldingMachineStateService;
+import org.alloy.services.Wt2AccessService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/welding-machine-states")
@@ -35,10 +38,12 @@ public class WeldingMachineStateController {
     }
 
     private final WeldingMachineStateService weldingMachineStateService;
+    private final Wt2AccessService wt2AccessService;
 
     @Autowired
-    public WeldingMachineStateController(WeldingMachineStateService weldingMachineStateService) {
+    public WeldingMachineStateController(WeldingMachineStateService weldingMachineStateService, Wt2AccessService wt2AccessService) {
         this.weldingMachineStateService = weldingMachineStateService;
+        this.wt2AccessService = wt2AccessService;
     }
 
     @Operation(
@@ -70,7 +75,9 @@ public class WeldingMachineStateController {
     })
     @GetMapping
     public ResponseEntity<List<WeldingMachineState>> getAllWeldingMachineStates() {
-        List<WeldingMachineState> states = weldingMachineStateService.getAllWeldingMachineStates();
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<WeldingMachineState> states = wt2AccessService.filterWeldingMachineStates(
+                weldingMachineStateService.getAllWeldingMachineStates(), principal);
         return ResponseEntity.ok(states);
     }
 
@@ -112,7 +119,12 @@ public class WeldingMachineStateController {
             @Parameter(description = "ID состояния", required = true, example = "1")
             @PathVariable Long id
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
         return weldingMachineStateService.getWeldingMachineStateById(id)
+                .map(s -> {
+                    wt2AccessService.assertCanAccessWeldingMachine(s.getWeldingMachineId(), principal);
+                    return s;
+                })
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -154,6 +166,8 @@ public class WeldingMachineStateController {
             @Parameter(description = "ID сварочной машины", required = true, example = "1")
             @PathVariable Integer machineId
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanAccessWeldingMachine(machineId, principal);
         List<WeldingMachineState> states = weldingMachineStateService.getWeldingMachineStatesByMachineId(machineId);
         return ResponseEntity.ok(states);
     }
@@ -195,6 +209,8 @@ public class WeldingMachineStateController {
             @Parameter(description = "ID сварочной машины", required = true, example = "1")
             @PathVariable Integer machineId
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanAccessWeldingMachine(machineId, principal);
         return weldingMachineStateService.getLatestWeldingMachineState(machineId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -240,6 +256,8 @@ public class WeldingMachineStateController {
             @Parameter(description = "Статус сварочной машины", required = true, example = "ACTIVE")
             @PathVariable WeldingMachineStatus status
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanAccessWeldingMachine(machineId, principal);
         List<WeldingMachineState> states = weldingMachineStateService.getWeldingMachineStatesByStatus(machineId, status);
         return ResponseEntity.ok(states);
     }
@@ -283,6 +301,10 @@ public class WeldingMachineStateController {
             @RequestBody WeldingMachineState state
     ) {
         try {
+            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (state.getWeldingMachineId() != null) {
+                wt2AccessService.assertCanAccessWeldingMachine(state.getWeldingMachineId(), principal);
+            }
             WeldingMachineState createdState = weldingMachineStateService.createWeldingMachineState(state);
             return new ResponseEntity<>(createdState, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
@@ -338,6 +360,9 @@ public class WeldingMachineStateController {
             @RequestBody WeldingMachineState state
     ) {
         try {
+            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            weldingMachineStateService.getWeldingMachineStateById(id).ifPresent(s ->
+                    wt2AccessService.assertCanAccessWeldingMachine(s.getWeldingMachineId(), principal));
             state.setId(id);
             WeldingMachineState updatedState = weldingMachineStateService.updateWeldingMachineState(state);
             return ResponseEntity.ok(updatedState);
@@ -383,6 +408,9 @@ public class WeldingMachineStateController {
             @PathVariable Long id
     ) {
         try {
+            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            weldingMachineStateService.getWeldingMachineStateById(id).ifPresent(s ->
+                    wt2AccessService.assertCanAccessWeldingMachine(s.getWeldingMachineId(), principal));
             weldingMachineStateService.deleteWeldingMachineState(id);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
@@ -427,6 +455,8 @@ public class WeldingMachineStateController {
             @PathVariable Integer machineId
     ) {
         try {
+            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanAccessWeldingMachine(machineId, principal);
             weldingMachineStateService.deleteAllWeldingMachineStates(machineId);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
@@ -471,7 +501,10 @@ public class WeldingMachineStateController {
             @RequestBody List<String> rfidCodes
     ) {
         try {
-            List<Integer> machineIds = weldingMachineStateService.getWeldingMachineIdsByRfidCodes(rfidCodes);
+            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            List<Integer> machineIds = weldingMachineStateService.getWeldingMachineIdsByRfidCodes(rfidCodes).stream()
+                    .filter(mid -> wt2AccessService.canAccessWeldingMachine(mid, principal))
+                    .collect(Collectors.toList());
             return ResponseEntity.ok(machineIds);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();

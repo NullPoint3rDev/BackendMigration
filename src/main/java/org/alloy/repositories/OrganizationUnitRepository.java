@@ -14,6 +14,8 @@ public interface OrganizationUnitRepository extends JpaRepository<OrganizationUn
 
     List<OrganizationUnit> findByOrganizationId(Integer organizationId);
 
+    List<OrganizationUnit> findByOrganizationIdAndStatus(Integer organizationId, org.alloy.models.GeneralStatus status);
+
     List<OrganizationUnit> findByParentId(Integer parentId);
 
     Optional<OrganizationUnit> findByNameAndOrganizationId(String name, Integer organizationId);

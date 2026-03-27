@@ -1,10 +1,13 @@
 package org.alloy.models.dto;
 
+import java.util.List;
+
 public class UserAccountDTO {
     private Integer id;
     private String username;
     private String email;
     private String fullName;
+    private Integer organizationId;
     private OrganizationUnitShortDTO organizationUnit;
     private Integer userRoleId;
     private String position;
@@ -20,7 +23,9 @@ public class UserAccountDTO {
     private String address;
     private String description;
     private String photo;
-    // ... другие нужные поля
+    private List<String> allowedUserActions;
+    /** Пароль (только для создания/обновления, не возвращается в ответах). */
+    private String password;
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -30,6 +35,8 @@ public class UserAccountDTO {
     public void setEmail(String email) { this.email = email; }
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
+    public Integer getOrganizationId() { return organizationId; }
+    public void setOrganizationId(Integer organizationId) { this.organizationId = organizationId; }
     public OrganizationUnitShortDTO getOrganizationUnit() { return organizationUnit; }
     public void setOrganizationUnit(OrganizationUnitShortDTO organizationUnit) { this.organizationUnit = organizationUnit; }
     public Integer getUserRoleId() { return userRoleId; }
@@ -60,4 +67,8 @@ public class UserAccountDTO {
     public void setDescription(String description) { this.description = description; }
     public String getPhoto() { return photo; }
     public void setPhoto(String photo) { this.photo = photo; }
+    public List<String> getAllowedUserActions() { return allowedUserActions; }
+    public void setAllowedUserActions(List<String> allowedUserActions) { this.allowedUserActions = allowedUserActions; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 } 

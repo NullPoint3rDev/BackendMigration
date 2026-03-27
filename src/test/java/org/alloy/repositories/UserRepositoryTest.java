@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -43,7 +44,7 @@ public class UserRepositoryTest {
         testUser.setUsername("testuser");
         testUser.setEmail("test@example.com");
         testUser.setPassword("password");
-        
+
         // Сохраняем пользователя в базе данных
         testUser = entityManager.persist(testUser);
         entityManager.flush();
@@ -88,18 +89,15 @@ public class UserRepositoryTest {
      */
     @Test
     void findByUsername_ShouldReturnUser() {
-        // Ищем существующего пользователя
-        User foundUser = userRepository.findByUsername("testuser");
-        
-        // Проверяем результаты
-        assertNotNull(foundUser, "Пользователь должен быть найден");
+        Optional<User> foundOpt = userRepository.findByUsername("testuser");
+        assertTrue(foundOpt.isPresent(), "Пользователь должен быть найден");
+        User foundUser = foundOpt.get();
         assertEquals(testUser.getId(), foundUser.getId(), "ID должен совпадать");
         assertEquals("testuser", foundUser.getUsername(), "Имя пользователя должно совпадать");
         assertEquals("test@example.com", foundUser.getEmail(), "Email должен совпадать");
 
-        // Проверяем поиск несуществующего пользователя
-        User notFoundUser = userRepository.findByUsername("nonexistent");
-        assertNull(notFoundUser, "Несуществующий пользователь не должен быть найден");
+        assertTrue(userRepository.findByUsername("nonexistent").isEmpty(),
+                "Несуществующий пользователь не должен быть найден");
     }
 
     /**
@@ -110,18 +108,15 @@ public class UserRepositoryTest {
      */
     @Test
     void findByEmail_ShouldReturnUser() {
-        // Ищем существующего пользователя
-        User foundUser = userRepository.findByEmail("test@example.com");
-        
-        // Проверяем результаты
-        assertNotNull(foundUser, "Пользователь должен быть найден");
+        Optional<User> foundOpt = userRepository.findByEmail("test@example.com");
+        assertTrue(foundOpt.isPresent(), "Пользователь должен быть найден");
+        User foundUser = foundOpt.get();
         assertEquals(testUser.getId(), foundUser.getId(), "ID должен совпадать");
         assertEquals("test@example.com", foundUser.getEmail(), "Email должен совпадать");
         assertEquals("testuser", foundUser.getUsername(), "Имя пользователя должно совпадать");
 
-        // Проверяем поиск несуществующего пользователя
-        User notFoundUser = userRepository.findByEmail("nonexistent@example.com");
-        assertNull(notFoundUser, "Пользователь с несуществующим email не должен быть найден");
+        assertTrue(userRepository.findByEmail("nonexistent@example.com").isEmpty(),
+                "Пользователь с несуществующим email не должен быть найден");
     }
 
     /**
@@ -154,12 +149,12 @@ public class UserRepositoryTest {
         // Проверяем результаты
         assertNotNull(users, "Список пользователей не должен быть null");
         assertEquals(3, users.size(), "Должно быть найдено 3 пользователя");
-        assertTrue(users.stream().anyMatch(u -> u.getUsername().equals("testuser")), 
-            "Должен быть найден тестовый пользователь");
-        assertTrue(users.stream().anyMatch(u -> u.getUsername().equals("user1")), 
-            "Должен быть найден пользователь 1");
-        assertTrue(users.stream().anyMatch(u -> u.getUsername().equals("user2")), 
-            "Должен быть найден пользователь 2");
+        assertTrue(users.stream().anyMatch(u -> u.getUsername().equals("testuser")),
+                "Должен быть найден тестовый пользователь");
+        assertTrue(users.stream().anyMatch(u -> u.getUsername().equals("user1")),
+                "Должен быть найден пользователь 1");
+        assertTrue(users.stream().anyMatch(u -> u.getUsername().equals("user2")),
+                "Должен быть найден пользователь 2");
     }
 
     /**
@@ -173,7 +168,7 @@ public class UserRepositoryTest {
     void save_ShouldUpdateExistingUser() {
         // Проверяем, что тестовый пользователь существует
         assertNotNull(testUser.getId(), "ID тестового пользователя не должен быть null");
-        
+
         // Изменяем данные пользователя
         String newEmail = "updated@example.com";
         String newPassword = "newpassword";
@@ -214,8 +209,7 @@ public class UserRepositoryTest {
         User foundUser = entityManager.find(User.class, testUser.getId());
         assertNull(foundUser, "Пользователь должен быть удален из базы данных");
 
-        // Проверяем, что пользователь не находится через репозиторий
-        User notFoundUser = userRepository.findByUsername(testUser.getUsername());
-        assertNull(notFoundUser, "Удаленный пользователь не должен быть найден");
+        assertTrue(userRepository.findByUsername(testUser.getUsername()).isEmpty(),
+                "Удаленный пользователь не должен быть найден");
     }
 }

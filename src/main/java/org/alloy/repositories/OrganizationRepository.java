@@ -17,8 +17,13 @@ public interface OrganizationRepository extends JpaRepository<Organization, Inte
 
     List<Organization> findByStatus(GeneralStatus status);
 
+    List<Organization> findByStatusNot(GeneralStatus status);
+
     @Query("SELECT o FROM Organization o WHERE o.name LIKE %:searchTerm% OR o.description LIKE %:searchTerm%")
     List<Organization> searchOrganizations(@Param("searchTerm") String searchTerm);
+
+    @Query("SELECT o FROM Organization o WHERE (o.name LIKE %:searchTerm% OR o.description LIKE %:searchTerm%) AND o.status <> :deleted")
+    List<Organization> searchOrganizationsNotDeleted(@Param("searchTerm") String searchTerm, @Param("deleted") GeneralStatus deleted);
 
     @Query("SELECT o FROM Organization o WHERE o.id IN :ids")
     List<Organization> findByIds(@Param("ids") List<Integer> ids);

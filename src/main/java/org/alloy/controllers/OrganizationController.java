@@ -12,7 +12,9 @@ import org.alloy.models.entities.Organization;
 import org.alloy.models.dto.OrganizationShortDTO;
 import org.alloy.models.dto.mapper.OrganizationMapper;
 import org.alloy.services.OrganizationService;
+import org.alloy.services.Wt2AccessService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
@@ -37,10 +39,12 @@ public class OrganizationController {
     }
 
     private final OrganizationService organizationService;
+    private final Wt2AccessService wt2AccessService;
 
     @Autowired
-    public OrganizationController(OrganizationService organizationService) {
+    public OrganizationController(OrganizationService organizationService, Wt2AccessService wt2AccessService) {
         this.organizationService = organizationService;
+        this.wt2AccessService = wt2AccessService;
     }
 
     @Operation(
@@ -69,10 +73,12 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES') or hasAnyRole('ADMIN_ALLOY','ADMIN_ENTERPRISE','USER_ENTERPRISE')")
     @GetMapping
     public ResponseEntity<List<OrganizationShortDTO>> getAllOrganizations() {
-        List<OrganizationShortDTO> organizations = organizationService.getAllOrganizations().stream()
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<OrganizationShortDTO> organizations = wt2AccessService
+                .filterOrganizations(organizationService.getAllOrganizations(), principal).stream()
                 .map(OrganizationMapper::toShortDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(organizations);
@@ -109,12 +115,14 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES') or hasAnyRole('ADMIN_ALLOY','ADMIN_ENTERPRISE','USER_ENTERPRISE')")
     @GetMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> getOrganizationById(
             @Parameter(description = "ID организации", required = true, example = "1")
             @PathVariable Integer id
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanViewOrganization(id, principal);
         return organizationService.getOrganizationById(id)
                 .map(OrganizationMapper::toShortDTO)
                 .map(ResponseEntity::ok)
@@ -153,13 +161,15 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES') or hasAnyRole('ADMIN_ALLOY','ADMIN_ENTERPRISE','USER_ENTERPRISE')")
     @GetMapping("/search")
     public ResponseEntity<List<OrganizationShortDTO>> searchOrganizations(
             @Parameter(description = "Поисковый запрос", required = true, example = "ООО ТехноСварка")
             @RequestParam String searchTerm
     ) {
-        List<OrganizationShortDTO> organizations = organizationService.searchOrganizations(searchTerm).stream()
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<OrganizationShortDTO> organizations = wt2AccessService
+                .filterOrganizations(organizationService.searchOrganizations(searchTerm), principal).stream()
                 .map(OrganizationMapper::toShortDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(organizations);
@@ -197,7 +207,7 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_DELETE_DEALERS','PERMISSION_CREATE_DELETE_ENTERPRISES','PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
+    @PreAuthorize("hasRole('ADMIN_ALLOY') or @userAccountService.hasAllowedUserAction(authentication.name, 'create_delete_enterprises')")
     @PostMapping
     public ResponseEntity<OrganizationShortDTO> createOrganization(
             @Parameter(description = "Данные организации", required = true)

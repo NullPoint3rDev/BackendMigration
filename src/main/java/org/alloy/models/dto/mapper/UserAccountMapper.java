@@ -3,7 +3,12 @@ package org.alloy.models.dto.mapper;
 import org.alloy.models.dto.UserAccountDTO;
 import org.alloy.models.dto.OrganizationUnitShortDTO;
 import org.alloy.models.dto.UserAccountShortDTO;
+import org.alloy.models.entities.Organization;
 import org.alloy.models.entities.UserAccount;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class UserAccountMapper {
     public static UserAccountDTO toDTO(UserAccount entity) {
@@ -13,6 +18,9 @@ public class UserAccountMapper {
         dto.setUsername(entity.getUserName());
         dto.setEmail(entity.getEmail());
         dto.setFullName(entity.getName());
+        if (entity.getOrganization() != null) {
+            dto.setOrganizationId(entity.getOrganization().getId());
+        }
         if (entity.getOrganizationUnit() != null) {
             OrganizationUnitShortDTO orgDto = new OrganizationUnitShortDTO();
             orgDto.setId(entity.getOrganizationUnit().getId());
@@ -33,6 +41,13 @@ public class UserAccountMapper {
         dto.setEducation(entity.getEducation());
         dto.setAddress(entity.getAddress());
         dto.setDescription(entity.getDescription());
+        if (entity.getAllowedUserActions() != null && !entity.getAllowedUserActions().isEmpty()) {
+            List<String> actions = Arrays.stream(entity.getAllowedUserActions().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+            dto.setAllowedUserActions(actions);
+        }
         return dto;
     }
 
@@ -51,6 +66,11 @@ public class UserAccountMapper {
         entity.setUserName(dto.getUsername());
         entity.setEmail(dto.getEmail());
         entity.setName(dto.getFullName());
+        if (dto.getOrganizationId() != null) {
+            Organization org = new Organization();
+            org.setId(dto.getOrganizationId());
+            entity.setOrganization(org);
+        }
         if (dto.getOrganizationUnit() != null) {
             entity.setOrganizationUnitId(dto.getOrganizationUnit().getId());
         }
@@ -68,6 +88,13 @@ public class UserAccountMapper {
         entity.setEducation(dto.getEducation());
         entity.setAddress(dto.getAddress());
         entity.setDescription(dto.getDescription());
+        if (dto.getAllowedUserActions() != null && !dto.getAllowedUserActions().isEmpty()) {
+            String actions = String.join(",", dto.getAllowedUserActions());
+            entity.setAllowedUserActions(actions);
+        }
+        if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
+            entity.setPasswordHash(dto.getPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
         return entity;
     }
 } 

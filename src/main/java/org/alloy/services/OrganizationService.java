@@ -21,7 +21,7 @@ public class OrganizationService {
     }
 
     public List<Organization> getAllOrganizations() {
-        return organizationRepository.findAll();
+        return organizationRepository.findByStatusNot(GeneralStatus.Deleted);
     }
 
     public Optional<Organization> getOrganizationById(Integer id) {
@@ -37,7 +37,10 @@ public class OrganizationService {
     }
 
     public List<Organization> searchOrganizations(String searchTerm) {
-        return organizationRepository.searchOrganizations(searchTerm);
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            return getAllOrganizations();
+        }
+        return organizationRepository.searchOrganizationsNotDeleted(searchTerm, GeneralStatus.Deleted);
     }
 
     @Transactional
