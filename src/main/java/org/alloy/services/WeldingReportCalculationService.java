@@ -36,6 +36,7 @@ public class WeldingReportCalculationService {
      * (требуется состояние «Сварка» и ток строго больше этого порога).
      */
     private static final int MIN_ARC_CURRENT_AMPS_FOR_REPORT = 10;
+    private static final double SEGMENT_VOLTAGE_OUTLIER_RATIO = 0.35d;
 
     /**
      * Рассчитывает средние значения тока и напряжения для указанного аппарата за период времени
@@ -350,6 +351,22 @@ public class WeldingReportCalculationService {
         return currentAmps > 0 && voltageVolts >= 0 && voltageVolts <= currentAmps;
     }
 
+    private static double calculateMedian(List<Integer> values) {
+        if (values == null || values.isEmpty()) return 0d;
+        List<Integer> sorted = new ArrayList<>(values);
+        sorted.sort(Integer::compareTo);
+        int n = sorted.size();
+        if ((n & 1) == 1) {
+            return sorted.get(n / 2);
+        }
+        return (sorted.get(n / 2 - 1) + sorted.get(n / 2)) / 2.0d;
+    }
+
+    private static boolean isWithinSegmentMedianBand(int voltageVolts, double medianVolts) {
+        if (medianVolts <= 0d) return true;
+        return Math.abs(voltageVolts - medianVolts) <= (medianVolts * SEGMENT_VOLTAGE_OUTLIER_RATIO);
+    }
+
     /**
      * Рассчитывает сегменты швов по статусу аппарата:
      * — Начало шва: первое состояние со статусом «Сварка» (Welding).
@@ -510,12 +527,32 @@ public class WeldingReportCalculationService {
 
         long segmentWindowMs = segmentEndTime != null ? java.time.Duration.between(weldStartTime, segmentEndTime).toMillis() : segmentDurationMs;
         if (segmentWindowMs <= 0) segmentWindowMs = segmentDurationMs;
-        long weightedI = 0;
-        long weightedU = 0;
-        long totalDt = 0;
-        for (WeldingMachineState s : states) {
+        List<Integer> candidateVoltages = new ArrayList<>();
+        class Point {
+            long overlapDt;
+            int i;
+            int u;
+            Point(long overlapDt, int i, int u) {
+                this.overlapDt = overlapDt;
+                this.i = i;
+                this.u = u;
+            }
+        }
+        List<Point> points = new ArrayList<>();
+
+        for (int idx = 0; idx < states.size(); idx++) {
+            WeldingMachineState s = states.get(idx);
             if (s.getDateCreated() == null) continue;
             long dtMs = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
+            if (dtMs <= 0) {
+                if (idx + 1 < states.size() && states.get(idx + 1).getDateCreated() != null) {
+                    long diff = java.time.Duration.between(s.getDateCreated(), states.get(idx + 1).getDateCreated()).toMillis();
+                    if (diff > 0) dtMs = diff;
+                } else if (segmentEndTime != null) {
+                    long diffToSegmentEnd = java.time.Duration.between(s.getDateCreated(), segmentEndTime).toMillis();
+                    if (diffToSegmentEnd > 0) dtMs = diffToSegmentEnd;
+                }
+            }
             if (dtMs <= 0) continue;
             java.time.LocalDateTime stateEnd = s.getDateCreated().plus(dtMs, java.time.temporal.ChronoUnit.MILLIS);
             if (!stateEnd.isAfter(weldStartTime) || (segmentEndTime != null && !s.getDateCreated().isBefore(segmentEndTime))) continue;
@@ -529,9 +566,19 @@ public class WeldingReportCalculationService {
             int I = currentByState.getOrDefault(s.getId(), 0);
             int U = voltageByState.getOrDefault(s.getId(), 0);
             if (!isWeldingState(s, stateNameByStateId) || I <= MIN_ARC_CURRENT_AMPS_FOR_REPORT || !isValidCurrentVoltagePoint(I, U)) continue;
-            weightedI += (long) I * overlapDt;
-            weightedU += (long) U * overlapDt;
-            totalDt += overlapDt;
+            points.add(new Point(overlapDt, I, U));
+            candidateVoltages.add(U);
+        }
+
+        double medianVoltage = calculateMedian(candidateVoltages);
+        long weightedI = 0;
+        long weightedU = 0;
+        long totalDt = 0;
+        for (Point p : points) {
+            if (!isWithinSegmentMedianBand(p.u, medianVoltage)) continue;
+            weightedI += (long) p.i * p.overlapDt;
+            weightedU += (long) p.u * p.overlapDt;
+            totalDt += p.overlapDt;
         }
         if (totalDt > 0) {
             seg.setAverageCurrent(BigDecimal.valueOf((double) weightedI / totalDt).setScale(1, RoundingMode.HALF_UP));

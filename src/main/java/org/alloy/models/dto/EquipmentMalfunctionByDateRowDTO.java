@@ -17,6 +17,7 @@ public class EquipmentMalfunctionByDateRowDTO {
 
     private String malfunctionName;
     private LocalDate date;
+    private String time;
     private int count;
     private long durationSeconds;
 }

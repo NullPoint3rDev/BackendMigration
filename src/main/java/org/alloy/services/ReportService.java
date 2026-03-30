@@ -3112,18 +3112,18 @@ public class ReportService {
                 sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(sectionHeaderRowIdx, sectionHeaderRowIdx, 0, 2));
                 sectionHeaderRow.createCell(4).setCellValue("За период по датам");
                 sectionHeaderRow.getCell(4).setCellStyle(tableHeaderBorderStyle);
-                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(sectionHeaderRowIdx, sectionHeaderRowIdx, 4, 7));
+                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(sectionHeaderRowIdx, sectionHeaderRowIdx, 4, 8));
 
                 // Заголовки колонок обеих таблиц (с границами)
                 Row headerRow = sheet.createRow(rowIdx++);
                 String[] leftHeaders = { "Неисправность", "Кол-во", "Продолжительность" };
-                String[] rightHeaders = { "Неисправность", "Дата", "Количество", "Продолжительность" };
+                String[] rightHeaders = { "Неисправность", "Дата", "Время", "Количество", "Продолжительность за сутки" };
                 for (int c = 0; c < 3; c++) {
                     Cell cell = headerRow.createCell(c);
                     cell.setCellValue(leftHeaders[c]);
                     cell.setCellStyle(tableHeaderBorderStyle);
                 }
-                for (int c = 4; c < 8; c++) {
+                for (int c = 4; c < 9; c++) {
                     Cell cell = headerRow.createCell(c);
                     cell.setCellValue(rightHeaders[c - 4]);
                     cell.setCellStyle(tableHeaderBorderStyle);
@@ -3140,7 +3140,8 @@ public class ReportService {
                 List<EquipmentMalfunctionByDateRowDTO> byDateRowsSorted = new ArrayList<>(byDateRows);
                 byDateRowsSorted.sort(Comparator
                         .comparing(EquipmentMalfunctionByDateRowDTO::getMalfunctionName, Comparator.nullsFirst(Comparator.naturalOrder()))
-                        .thenComparing(EquipmentMalfunctionByDateRowDTO::getDate, Comparator.nullsFirst(Comparator.naturalOrder())));
+                        .thenComparing(EquipmentMalfunctionByDateRowDTO::getDate, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(EquipmentMalfunctionByDateRowDTO::getTime, Comparator.nullsFirst(Comparator.naturalOrder())));
                 boolean hasSummary = !summaryRowsSorted.isEmpty();
                 boolean hasByDate = !byDateRowsSorted.isEmpty();
                 int startDataRowIdx = rowIdx;
@@ -3152,7 +3153,7 @@ public class ReportService {
                         if (c == 0) cell.setCellValue("нет неисправностей");
                         cell.setCellStyle(tableBorderStyle);
                     }
-                    for (int c = 4; c < 8; c++) {
+                    for (int c = 4; c < 9; c++) {
                         Cell cell = noFaultRow.createCell(c);
                         if (c == 4) cell.setCellValue("нет неисправностей");
                         cell.setCellStyle(tableBorderStyle);
@@ -3181,8 +3182,9 @@ public class ReportService {
                             EquipmentMalfunctionByDateRowDTO r = byDateRowsSorted.get(i);
                             dataRow.createCell(4).setCellValue(r.getMalfunctionName() != null ? r.getMalfunctionName() : "");
                             dataRow.createCell(5).setCellValue(r.getDate() != null ? r.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "");
-                            dataRow.createCell(6).setCellValue(r.getCount());
-                            dataRow.createCell(7).setCellValue(formatDurationSeconds(r.getDurationSeconds()));
+                            dataRow.createCell(6).setCellValue(r.getTime() != null ? r.getTime() : "");
+                            dataRow.createCell(7).setCellValue(r.getCount());
+                            dataRow.createCell(8).setCellValue(formatDurationSeconds(r.getDurationSeconds()));
                             if (i > 0) {
                                 String prevName = byDateRowsSorted.get(i - 1).getMalfunctionName();
                                 if (prevName == null || !prevName.equals(r.getMalfunctionName())) {
@@ -3195,8 +3197,9 @@ public class ReportService {
                             dataRow.createCell(5).setCellValue("");
                             dataRow.createCell(6).setCellValue("");
                             dataRow.createCell(7).setCellValue("");
+                            dataRow.createCell(8).setCellValue("");
                         }
-                        for (int c = 4; c < 8; c++) {
+                        for (int c = 4; c < 9; c++) {
                             if (dataRow.getCell(c) == null) dataRow.createCell(c);
                             dataRow.getCell(c).setCellStyle(tableBorderStyle);
                         }

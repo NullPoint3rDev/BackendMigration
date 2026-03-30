@@ -2339,8 +2339,10 @@ public class ReportDataService {
                 for (MalfunctionSegment seg : segments) {
                     String name = seg.malfunctionName;
                     summaryMap.computeIfAbsent(name, k -> new SummaryAcc()).add(1, seg.durationSeconds);
-                    byDateMap.computeIfAbsent(name, k -> new LinkedHashMap<>())
-                            .computeIfAbsent(seg.date, d -> new SummaryAcc()).add(1, seg.durationSeconds);
+                    if (seg.date != null) {
+                        byDateMap.computeIfAbsent(name, k -> new LinkedHashMap<>())
+                                .computeIfAbsent(seg.date, d -> new SummaryAcc()).add(1, seg.durationSeconds, seg.time);
+                    }
                 }
                 List<EquipmentMalfunctionSummaryRowDTO> summaryRows = new ArrayList<>();
                 for (Map.Entry<String, SummaryAcc> e : summaryMap.entrySet()) {
@@ -2349,10 +2351,18 @@ public class ReportDataService {
                 List<EquipmentMalfunctionByDateRowDTO> byDateRows = new ArrayList<>();
                 for (Map.Entry<String, Map<LocalDate, SummaryAcc>> e : byDateMap.entrySet()) {
                     for (Map.Entry<LocalDate, SummaryAcc> de : e.getValue().entrySet()) {
-                        byDateRows.add(new EquipmentMalfunctionByDateRowDTO(e.getKey(), de.getKey(), de.getValue().count, capMalfunctionDurationSec(de.getValue().durationSec)));
+                        byDateRows.add(new EquipmentMalfunctionByDateRowDTO(
+                                e.getKey(),
+                                de.getKey(),
+                                formatTimesForReport(de.getValue()),
+                                de.getValue().count,
+                                capMalfunctionDurationSec(de.getValue().durationSec)));
                     }
                 }
-                byDateRows.sort(Comparator.comparing(EquipmentMalfunctionByDateRowDTO::getDate).thenComparing(EquipmentMalfunctionByDateRowDTO::getMalfunctionName));
+                byDateRows.sort(Comparator
+                        .comparing(EquipmentMalfunctionByDateRowDTO::getDate, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(EquipmentMalfunctionByDateRowDTO::getTime, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(EquipmentMalfunctionByDateRowDTO::getMalfunctionName, Comparator.nullsFirst(Comparator.naturalOrder())));
                 String equipmentModel = "";
                 String equipmentName = "";
                 String equipmentDepartment = "";
@@ -2405,8 +2415,10 @@ public class ReportDataService {
             for (MalfunctionSegment seg : segments) {
                 String name = seg.malfunctionName;
                 summaryMap.computeIfAbsent(name, k -> new SummaryAcc()).add(1, seg.durationSeconds);
-                byDateMap.computeIfAbsent(name, k -> new LinkedHashMap<>())
-                        .computeIfAbsent(seg.date, d -> new SummaryAcc()).add(1, seg.durationSeconds);
+                if (seg.date != null) {
+                    byDateMap.computeIfAbsent(name, k -> new LinkedHashMap<>())
+                            .computeIfAbsent(seg.date, d -> new SummaryAcc()).add(1, seg.durationSeconds, seg.time);
+                }
             }
             List<EquipmentMalfunctionSummaryRowDTO> summaryRows = new ArrayList<>();
             for (Map.Entry<String, SummaryAcc> e : summaryMap.entrySet()) {
@@ -2415,10 +2427,18 @@ public class ReportDataService {
             List<EquipmentMalfunctionByDateRowDTO> byDateRows = new ArrayList<>();
             for (Map.Entry<String, Map<LocalDate, SummaryAcc>> e : byDateMap.entrySet()) {
                 for (Map.Entry<LocalDate, SummaryAcc> de : e.getValue().entrySet()) {
-                    byDateRows.add(new EquipmentMalfunctionByDateRowDTO(e.getKey(), de.getKey(), de.getValue().count, capMalfunctionDurationSec(de.getValue().durationSec)));
+                    byDateRows.add(new EquipmentMalfunctionByDateRowDTO(
+                            e.getKey(),
+                            de.getKey(),
+                            formatTimesForReport(de.getValue()),
+                            de.getValue().count,
+                            capMalfunctionDurationSec(de.getValue().durationSec)));
                 }
             }
-            byDateRows.sort(Comparator.comparing(EquipmentMalfunctionByDateRowDTO::getDate).thenComparing(EquipmentMalfunctionByDateRowDTO::getMalfunctionName));
+            byDateRows.sort(Comparator
+                    .comparing(EquipmentMalfunctionByDateRowDTO::getDate, Comparator.nullsFirst(Comparator.naturalOrder()))
+                    .thenComparing(EquipmentMalfunctionByDateRowDTO::getTime, Comparator.nullsFirst(Comparator.naturalOrder()))
+                    .thenComparing(EquipmentMalfunctionByDateRowDTO::getMalfunctionName, Comparator.nullsFirst(Comparator.naturalOrder())));
             String equipmentModel = "";
             String equipmentName = "";
             String equipmentDepartment = "";
@@ -2468,17 +2488,30 @@ public class ReportDataService {
     private static class SummaryAcc {
         int count;
         long durationSec;
+        java.util.SortedSet<LocalTime> times = new java.util.TreeSet<>();
         void add(int c, long d) { count += c; durationSec += d; }
+        void add(int c, long d, LocalTime t) {
+            add(c, d);
+            if (t != null) times.add(t);
+        }
+    }
+
+    private static String formatTimesForReport(SummaryAcc acc) {
+        if (acc == null || acc.times == null || acc.times.isEmpty()) return "";
+        java.time.format.DateTimeFormatter tf = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss");
+        return acc.times.stream().map(t -> t.format(tf)).collect(java.util.stream.Collectors.joining("\n"));
     }
 
     /** Один непрерывный отрезок неисправности (после слияния с разрывом ≤1 сек). */
     private static class MalfunctionSegment {
         final String malfunctionName;
         final LocalDate date;
+        final LocalTime time;
         final long durationSeconds;
-        MalfunctionSegment(String malfunctionName, LocalDate date, long durationSeconds) {
+        MalfunctionSegment(String malfunctionName, LocalDate date, LocalTime time, long durationSeconds) {
             this.malfunctionName = malfunctionName;
             this.date = date;
+            this.time = time;
             this.durationSeconds = durationSeconds;
         }
     }
@@ -2492,6 +2525,7 @@ public class ReportDataService {
         LocalDateTime segmentEnd = null;
         long segmentDurationSec = 0;
         LocalDate segmentDate = null;
+        LocalTime segmentStartTime = null;
         for (WeldingMachineState s : states) {
             String name = (s.getErrorCode() != null && !s.getErrorCode().trim().isEmpty()) ? s.getErrorCode().trim() : "Неизвестная ошибка";
             LocalDateTime stateStart = s.getDateCreated();
@@ -2503,16 +2537,17 @@ public class ReportDataService {
                 segmentEnd = stateEnd;
             } else {
                 if (currentName != null) {
-                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentStartTime, segmentDurationSec));
                 }
                 currentName = name;
                 segmentEnd = stateEnd;
                 segmentDurationSec = durationSec;
                 segmentDate = stateStart != null ? stateStart.toLocalDate() : null;
+                segmentStartTime = stateStart != null ? stateStart.toLocalTime() : null;
             }
         }
         if (currentName != null) {
-            out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+            out.add(new MalfunctionSegment(currentName, segmentDate, segmentStartTime, segmentDurationSec));
         }
         return out;
     }
@@ -2630,6 +2665,7 @@ public class ReportDataService {
         LocalDateTime segmentEnd = null;
         long segmentDurationSec = 0;
         LocalDate segmentDate = null;
+        LocalTime segmentStartTime = null;
         for (int i = 0; i < n; i++) {
             WeldingMachineState s = states.get(i);
             String name = resolveMalfunctionName(s.getErrorCode());
@@ -2643,16 +2679,17 @@ public class ReportDataService {
                 segmentEnd = stateEnd;
             } else {
                 if (currentName != null) {
-                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentStartTime, segmentDurationSec));
                 }
                 currentName = name;
                 segmentEnd = stateEnd;
                 segmentDurationSec = durationSec;
                 segmentDate = stateStart.toLocalDate();
+                segmentStartTime = stateStart.toLocalTime();
             }
         }
         if (currentName != null) {
-            out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+            out.add(new MalfunctionSegment(currentName, segmentDate, segmentStartTime, segmentDurationSec));
         }
         return out;
     }
@@ -2729,6 +2766,7 @@ public class ReportDataService {
         LocalDateTime segmentEnd = null;
         long segmentDurationSec = 0;
         LocalDate segmentDate = null;
+        LocalTime segmentStartTime = null;
         for (int i = 0; i < n; i++) {
             Object[] row = rows.get(i);
             Object errorCodeRaw = extractErrorCodeFromRow(row, machineIdToExclude);
@@ -2751,16 +2789,17 @@ public class ReportDataService {
                 segmentEnd = stateEnd;
             } else {
                 if (currentName != null) {
-                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+                    out.add(new MalfunctionSegment(currentName, segmentDate, segmentStartTime, segmentDurationSec));
                 }
                 currentName = name;
                 segmentEnd = stateEnd;
                 segmentDurationSec = durationSec;
                 segmentDate = stateStart.toLocalDate();
+                segmentStartTime = stateStart.toLocalTime();
             }
         }
         if (currentName != null) {
-            out.add(new MalfunctionSegment(currentName, segmentDate, segmentDurationSec));
+            out.add(new MalfunctionSegment(currentName, segmentDate, segmentStartTime, segmentDurationSec));
         }
         return out;
     }
