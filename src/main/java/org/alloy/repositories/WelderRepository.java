@@ -22,6 +22,12 @@ public interface WelderRepository extends JpaRepository<Welder, Long> {
     @Query("SELECT w FROM Welder w WHERE w.rfidCode = :rfidCode")
     Welder findByRfidCode(@Param("rfidCode") String rfidCode);
 
+    /**
+     * Legacy {@code Welders.rfid_code} или строка в {@code rfid_passes}.
+     */
+    @Query("SELECT DISTINCT w FROM Welder w LEFT JOIN w.rfidPasses p WHERE w.rfidCode = :code OR p.code = :code")
+    List<Welder> findAllByRfidCodeOrPass(@Param("code") String code);
+
     @Query("SELECT w FROM Welder w WHERE w.employeeId = :employeeId")
     Welder findByEmployeeId(@Param("employeeId") String employeeId);
 

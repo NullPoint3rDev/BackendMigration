@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -135,12 +136,15 @@ public class WelderController {
     @GetMapping("/rfid/{rfidCode}")
     public ResponseEntity<Welder> getWelderByRfidCode(@PathVariable String rfidCode) {
         Welder welder = welderService.getWelderByRfidCode(rfidCode);
-        if (welder != null) {
-            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
-            wt2AccessService.assertCanViewWelder(welder.getId(), principal);
-            return ResponseEntity.ok(welder);
+        if (welder == null) {
+            return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.notFound().build();
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<Welder> allowed = wt2AccessService.filterWelders(Collections.singletonList(welder), principal);
+        if (allowed.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(allowed.get(0));
     }
 
     @PreAuthorize("hasAnyAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS','PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS','PERMISSION_BIND_WELDERS_TO_EQUIPMENT')")

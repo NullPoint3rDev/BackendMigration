@@ -20,6 +20,8 @@ public interface RfidPassRepository extends JpaRepository<RfidPass, Long> {
 
     Optional<RfidPass> findByCode(String code);
 
+    List<RfidPass> findAllByCode(String code);
+
     @Query("SELECT rp FROM RfidPass rp WHERE rp.code = :code AND rp.welder.department = :department")
     List<RfidPass> findByCodeAndDepartment(@Param("code") String code, @Param("department") String department);
 

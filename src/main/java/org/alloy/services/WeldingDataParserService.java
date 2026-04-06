@@ -122,6 +122,23 @@ public class WeldingDataParserService {
                 String finalErrors = allErrors.length() > 0 ? allErrors.toString() : "Нет ошибок";
                 addProperty(props, "Ошибки", finalErrors, "text");
 
+                // Парсим битовые поля предупреждений
+                StringBuilder allWarnings = new StringBuilder();
+                String warnings1Text = parseWarningBits(core.warnings1, 0);
+                String warnings2Text = parseWarningBits(core.warnings2, 16);
+                String warnings3Text = parseWarningBits(core.warnings3, 32);
+                if (!warnings1Text.isEmpty()) allWarnings.append(warnings1Text);
+                if (!warnings2Text.isEmpty()) {
+                    if (allWarnings.length() > 0) allWarnings.append(", ");
+                    allWarnings.append(warnings2Text);
+                }
+                if (!warnings3Text.isEmpty()) {
+                    if (allWarnings.length() > 0) allWarnings.append(", ");
+                    allWarnings.append(warnings3Text);
+                }
+                String finalWarnings = allWarnings.length() > 0 ? allWarnings.toString() : "Нет предупреждений";
+                addProperty(props, "Предупреждения", finalWarnings, "text");
+
                 addProperty(props, "Напряжение фазы А", String.valueOf(core.voltagePhaseA), "number");
                 addProperty(props, "Напряжение фазы B", String.valueOf(core.voltagePhaseB), "number");
                 addProperty(props, "Напряжение фазы С", String.valueOf(core.voltagePhaseC), "number");
@@ -129,8 +146,8 @@ public class WeldingDataParserService {
                 // Температуры охлаждающей жидкости нужно делить на 10
                 addProperty(props, "Температура охлаждающей жидкости на входе", String.format("%.1f", core.chillerTemperature1 / 10.0), "number");
                 addProperty(props, "Температура охлаждающей жидкости на выходе", String.format("%.1f", core.chillerTemperature2 / 10.0), "number");
-                addProperty(props, "Температура первичной обмотки", String.format("%.1f", core.primaryCoilTemperature / 10.0), "number");
-                addProperty(props, "Температура вторичной обмотки", String.format("%.1f", core.secondaryCoilTemperature / 10.0), "number");
+                addProperty(props, "Температура первичной обмотки", String.valueOf(core.primaryCoilTemperature), "number");
+                addProperty(props, "Температура вторичной обмотки", String.valueOf(core.secondaryCoilTemperature), "number");
 
                 // Преобразуем uint32 в float для отображения расхода проволоки
                 float wireConsumption = uint32ToFloat(core.wireIndex);
@@ -596,6 +613,17 @@ public class WeldingDataParserService {
     }
 
     /**
+     * Массив описаний предупреждений (индекс соответствует номеру бита)
+     * Нумерация начинается с 1, поэтому индекс = номер предупреждения - 1
+     */
+    private static final String[] WARNING_MESSAGES = {
+            "Предупреждение калибровки тока",                          // предупреждение 1
+            "Предупреждение калибровки напряжения",                    // предупреждение 2
+            "Предупреждение обратной связи по мощности",               // предупреждение 3
+            "Предупреждение ограничения драйвера платы сварки"         // предупреждение 4
+    };
+
+    /**
      * Массив описаний ошибок (индекс соответствует номеру бита)
      * Нумерация в файле начинается с 1, поэтому индекс = номер ошибки - 1
      */
@@ -653,6 +681,29 @@ public class WeldingDataParserService {
      */
     private String parseErrorBits(int errorValue) {
         return parseErrorBits(errorValue, 0);
+    }
+
+    /**
+     * Парсит битовое поле предупреждений и возвращает список текстовых описаний.
+     * @param warningValue значение предупреждения
+     * @param offset смещение для индексации (0 для Warnings1, 16 для Warnings2, 32 для Warnings3)
+     */
+    private String parseWarningBits(int warningValue, int offset) {
+        if (warningValue == 0) return "";
+
+        StringBuilder warnings = new StringBuilder();
+        for (int i = 0; i < 32; i++) {
+            if ((warningValue & (1 << i)) != 0) {
+                if (warnings.length() > 0) warnings.append(", ");
+                int warnIndex = i + offset;
+                if (warnIndex < WARNING_MESSAGES.length) {
+                    warnings.append(WARNING_MESSAGES[warnIndex]);
+                } else {
+                    warnings.append("Неизвестное предупреждение ").append(warnIndex + 1);
+                }
+            }
+        }
+        return warnings.toString();
     }
 
     /**

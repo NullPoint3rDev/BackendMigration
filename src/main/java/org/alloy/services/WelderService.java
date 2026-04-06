@@ -9,14 +9,19 @@ import org.alloy.repositories.WelderRepository;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,6 +42,52 @@ public class WelderService {
     private CertificationService certificationService;
 
     private static final String UPLOAD_DIR = "uploads/welders";
+
+    /** Маска 64 бит — типичный размер RFID в hex; снимаем расхождения ведущих нулей между аппаратом и БД. */
+    private static final BigInteger RFID_HEX_MASK_64 = BigInteger.ONE.shiftLeft(64).subtract(BigInteger.ONE);
+
+    /**
+     * Варианты строки RFID для поиска: исходная, регистр, канонический 16 hex (младшие 64 бит).
+     */
+    private static List<String> expandRfidCodeCandidates(String raw) {
+        if (raw == null) {
+            return Collections.emptyList();
+        }
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        out.add(trimmed);
+        String compact = trimmed.replaceAll("\\s+", "");
+        out.add(compact);
+        String upper = compact.toUpperCase(Locale.ROOT);
+        out.add(upper);
+        out.add(upper.toLowerCase(Locale.ROOT));
+        if (upper.matches("[0-9A-F]+")) {
+            try {
+                String hexForParse = upper.length() % 2 != 0 ? "0" + upper : upper;
+                BigInteger bi = new BigInteger(hexForParse, 16);
+                String stripped = bi.toString(16).toUpperCase(Locale.ROOT);
+                out.add(stripped);
+                out.add(stripped.toLowerCase(Locale.ROOT));
+                BigInteger low64 = bi.and(RFID_HEX_MASK_64);
+                String canon16 = String.format(Locale.ROOT, "%016X", low64);
+                out.add(canon16);
+                out.add(canon16.toLowerCase(Locale.ROOT));
+                for (int hexDigits = 16; hexDigits <= 32; hexDigits += 8) {
+                    if (bi.bitLength() <= hexDigits * 4) {
+                        String padded = String.format(Locale.ROOT, "%0" + hexDigits + "X", bi);
+                        out.add(padded);
+                        out.add(padded.toLowerCase(Locale.ROOT));
+                    }
+                }
+            } catch (Exception ignored) {
+                // оставляем только строковые варианты
+            }
+        }
+        return new ArrayList<>(out);
+    }
 
     public List<Welder> getAllWelders() {
         return welderRepository.findAll();
@@ -248,8 +299,32 @@ public class WelderService {
         return welderRepository.findByGrade(grade);
     }
 
+    /**
+     * Поиск сварщика по RFID: поле {@code Welders.rfid_code} (legacy) и таблица {@code rfid_passes} (актуальные пропуска).
+     */
+    @Transactional(readOnly = true)
     public Welder getWelderByRfidCode(String rfidCode) {
-        return welderRepository.findByRfidCode(rfidCode);
+        if (rfidCode == null || rfidCode.trim().isEmpty()) {
+            return null;
+        }
+        for (String candidate : expandRfidCodeCandidates(rfidCode)) {
+            List<Welder> byJoin = welderRepository.findAllByRfidCodeOrPass(candidate);
+            if (byJoin != null && !byJoin.isEmpty()) {
+                return byJoin.get(0);
+            }
+            Welder byLegacy = welderRepository.findByRfidCode(candidate);
+            if (byLegacy != null) {
+                return byLegacy;
+            }
+            List<RfidPass> passes = rfidPassRepository.findAllByCode(candidate);
+            if (passes != null && !passes.isEmpty()) {
+                Welder w = passes.get(0).getWelder();
+                if (w != null) {
+                    return w;
+                }
+            }
+        }
+        return null;
     }
 
     public Welder getWelderByEmployeeId(String employeeId) {

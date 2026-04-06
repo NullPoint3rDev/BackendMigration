@@ -3031,6 +3031,11 @@ public class ReportService {
             CellStyle tableHeaderBorderStyle = workbook.createCellStyle();
             tableHeaderBorderStyle.cloneStyleFrom(tableBorderStyle);
             tableHeaderBorderStyle.setFont(boldFont);
+            // Стиль для многострочного текста в ячейках таблицы (время по датам)
+            CellStyle tableBorderWrapStyle = workbook.createCellStyle();
+            tableBorderWrapStyle.cloneStyleFrom(tableBorderStyle);
+            tableBorderWrapStyle.setWrapText(true);
+            tableBorderWrapStyle.setVerticalAlignment(VerticalAlignment.TOP);
             // Серая линия в конце каждого блока аппарата (при нескольких аппаратах)
             CellStyle graySeparatorStyle = workbook.createCellStyle();
             graySeparatorStyle.setBorderBottom(BorderStyle.MEDIUM);
@@ -3182,7 +3187,10 @@ public class ReportService {
                             EquipmentMalfunctionByDateRowDTO r = byDateRowsSorted.get(i);
                             dataRow.createCell(4).setCellValue(r.getMalfunctionName() != null ? r.getMalfunctionName() : "");
                             dataRow.createCell(5).setCellValue(r.getDate() != null ? r.getDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "");
-                            dataRow.createCell(6).setCellValue(r.getTime() != null ? r.getTime() : "");
+                            // Для совместимости с разными версиями Excel используем CRLF + включенный wrapText.
+                            Cell timeCell = dataRow.createCell(6);
+                            String timeValue = r.getTime() != null ? r.getTime().replace("\n", "\r\n") : "";
+                            timeCell.setCellValue(timeValue);
                             dataRow.createCell(7).setCellValue(r.getCount());
                             dataRow.createCell(8).setCellValue(formatDurationSeconds(r.getDurationSeconds()));
                             if (i > 0) {
@@ -3201,8 +3209,15 @@ public class ReportService {
                         }
                         for (int c = 4; c < 9; c++) {
                             if (dataRow.getCell(c) == null) dataRow.createCell(c);
-                            dataRow.getCell(c).setCellStyle(tableBorderStyle);
+                            // Колонка "Время" может быть многострочной
+                            if (c == 6) {
+                                dataRow.getCell(c).setCellStyle(tableBorderWrapStyle);
+                            } else {
+                                dataRow.getCell(c).setCellStyle(tableBorderStyle);
+                            }
                         }
+                        // Позволяем Excel автоматически рассчитать высоту строки под переносы.
+                        dataRow.setHeight((short) -1);
                     }
                     if (hasByDate && !byDateRowsSorted.isEmpty()) {
                         mergeRangesRight.add(new int[] { mergeStart, rowCount - 1 });

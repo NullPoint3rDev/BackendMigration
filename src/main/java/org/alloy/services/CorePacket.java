@@ -43,7 +43,7 @@ public class CorePacket {
     public long wireIndex;             // uint32
 
     public long rfidData;               // uint64
-    
+
     // New tail parameters (each is uint8)
     public int weldingMode;             // uint8 (modes_t)
     public int weldingMaterial;         // uint8 (materials_t)
@@ -51,6 +51,11 @@ public class CorePacket {
     public int weldingWireDiameter;     // uint8 (diameters_t)
     public int burnerMode;              // uint8 (burnerMode_t)
     public int memoryCellNumber;        // uint8 (0 means not using memory cell)
+
+    // Warnings: 6 bytes (3 x int16) immediately after memoryCellNumber
+    public int warnings1;              // int16
+    public int warnings2;              // int16
+    public int warnings3;              // int16
 
     public double getDisplayCurrent() {
         return (weldingMachineState == 1) ? weldingCurrent : current;
@@ -90,6 +95,7 @@ public class CorePacket {
                 ", weldingWireDiameter=" + weldingWireDiameter +
                 ", burnerMode=" + burnerMode +
                 ", memoryCellNumber=" + memoryCellNumber +
+                ", warnings=[" + warnings1 + "," + warnings2 + "," + warnings3 + "]" +
                 '}';
     }
 }
