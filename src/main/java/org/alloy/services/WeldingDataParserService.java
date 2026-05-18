@@ -146,12 +146,13 @@ public class WeldingDataParserService {
                 // Температуры охлаждающей жидкости нужно делить на 10
                 addProperty(props, "Температура охлаждающей жидкости на входе", String.format("%.1f", core.chillerTemperature1 / 10.0), "number");
                 addProperty(props, "Температура охлаждающей жидкости на выходе", String.format("%.1f", core.chillerTemperature2 / 10.0), "number");
-                addProperty(props, "Температура первичной обмотки", String.valueOf(core.primaryCoilTemperature), "number");
-                addProperty(props, "Температура вторичной обмотки", String.valueOf(core.secondaryCoilTemperature), "number");
+                addProperty(props, "Температура первичной обмотки", String.format("%.1f", core.primaryCoilTemperature / 10.0), "number");
+                addProperty(props, "Температура вторичной обмотки", String.format("%.1f", core.secondaryCoilTemperature / 10.0), "number");
 
-                // Преобразуем uint32 в float для отображения расхода проволоки
-                float wireConsumption = uint32ToFloat(core.wireIndex);
-                addProperty(props, "Расход проволоки", String.format("%.1f", wireConsumption), "number");
+                // Скорость подачи проволоки с аппарата (м/мин); в БД хранится под именем «Расход проволоки» (историческое имя параметра)
+                float wireFeedMetersPerMin = uint32ToFloat(core.wireIndex);
+                addProperty(props, "Расход проволоки", String.format("%.1f", wireFeedMetersPerMin), "number");
+
 
                 // RFID: добавим в двух представлениях — десятичном и шестнадцатеричном
                 if (core.rfidData != 0L) {
@@ -180,9 +181,9 @@ public class WeldingDataParserService {
                 state.setProperties(props);
                 WeldingMachineStatus determinedStatus = determineStatus(props);
                 state.setStatus(determinedStatus);
-                // Для Core код ошибки берём из битовых полей errors1/errors2 (1–23), иначе determineErrorCode ищет State.Error — у Core его нет
+                // Core: только битовые errors1/errors2 → error_code; не используем State.Ctrl / State.Error (архив)
                 String coreErrorCode = getFirstErrorCodeFromCore(core.errors1, core.errors2);
-                state.setErrorCode(coreErrorCode != null ? coreErrorCode : determineErrorCode(props));
+                state.setErrorCode(coreErrorCode);
 
                 // Логируем определение статуса для Core устройств
                 System.out.println("[PARSER] 🔍 Core устройство: weldingMachineState=" + stateVal +
@@ -203,6 +204,8 @@ public class WeldingDataParserService {
 //                } catch (Exception ignore) {}
                 return state;
             }
+            // Core-аппарат, но пакет не разобрался как Core — не подмешиваем archive-парсер (State.Ctrl / State.I / …)
+            return buildCoreParseFailedState();
         }
 
         String payload = extractPayload(data);
@@ -241,6 +244,29 @@ public class WeldingDataParserService {
             if (mac.equalsIgnoreCase(part.trim())) return true;
         }
         return false;
+    }
+
+    /**
+     * Признак набора свойств, собранного веткой Core ({@link CorePacketParser}): не смешивать с архивными ключами State.Ctrl / State.Error.
+     */
+    private static boolean isCorePropertyMap(Map<String, StateSummaryPropertyValue> properties) {
+        if (properties == null || properties.isEmpty()) {
+            return false;
+        }
+        return properties.containsKey("Packet.Index")
+                || properties.containsKey("WeldingMachineState")
+                || properties.containsKey("Состояние аппарата");
+    }
+
+    /** Core-пакет не распознан — без архивного payload, чтобы в БД не попадали State.Ctrl и т.п. */
+    private StateSummary buildCoreParseFailedState() {
+        StateSummary state = new StateSummary();
+        state.setDateCreated(LocalDateTime.now());
+        state.setLastDatetimeUpdate(LocalDateTime.now());
+        state.setProperties(new HashMap<>());
+        state.setStatus(WeldingMachineStatus.Offline);
+        state.setErrorCode(null);
+        return state;
     }
 
     private String extractPayload(String data) {
@@ -628,27 +654,27 @@ public class WeldingDataParserService {
      * Нумерация в файле начинается с 1, поэтому индекс = номер ошибки - 1
      */
     private static final String[] ERROR_MESSAGES = {
-            "Перегрузка драйвера подающего механизма",        // ошибка 1
-            "Реверс энкодера подающего механизма",             // ошибка 2
-            "Нет сигнала от энк. подающего механизма",         // ошибка 3
-            "Отказ связи с подающим механизмом",               // ошибка 4
-            "Отказ драйвера платы сварки",                     // ошибка 5
-            "Отказ связи с платой сварки",                      // ошибка 6
-            "Ошибка превышения максимального тока платы сварки",                                        // ошибка 7
-            "Ошибка калибровки датчиков платы сварки",                                        // ошибка 8
-            "Ошибка обратной связи по напряжению платы сварки",                                        // ошибка 9
-            "Ошибка обратной связи по мощности платы сварки",                                       // ошибка 10
+            "Неисправность цепи упр. ЭД МП",        // ошибка 1
+            "Неисправность ДПР МП",             // ошибка 2
+            "Нет сигнала ДПР МП",         // ошибка 3
+            "Нет связи с МП",               // ошибка 4
+            "Отказ драйвера ПУ ИП",                     // ошибка 5
+            "Нет связи с ПУ ИП",                      // ошибка 6
+            "Перегрев инвертора ИП",                                        // ошибка 7
+            "Ошибка 8",                                        // ошибка 8
+            "Ошибка 9",                                        // ошибка 9
+            "Ошибка 10",                                       // ошибка 10
             "Ошибка 11",                                       // ошибка 11
             "Ошибка 12",                                       // ошибка 12
             "Ошибка 13",                                       // ошибка 13
             "Ошибка 14",                                       // ошибка 14
             "Ошибка 15",                                       // ошибка 15
             "Ошибка 16",                                    // ошибка 16
-            "Перегрев БВО",                               // ошибка 17
-            "Отказ связи с БВО",                // ошибка 18
-            "Нет охл. жидкости БВО",                        // ошибка 19
-            "Обрыв датчика темп. жидкости БВО",            // ошибка 20
-            "Замыкание датчика темп. жидкости БВО",                                       // ошибка 21
+            "Перегрев охл. жидкости БВО",                               // ошибка 17
+            "Нет связи с БВО",                // ошибка 18
+            "Нет протока жидкости БВО",                        // ошибка 19
+            "Неиспр. ДТ на выходе БВО",            // ошибка 20
+            "Неиспр. ДТ на входе БВО:",                                       // ошибка 21
             "Ошибка 22",                                       // ошибка 22
             "Ошибка 23"                                        // ошибка 23
     };
@@ -749,7 +775,20 @@ public class WeldingDataParserService {
     }
 
     private WeldingMachineStatus determineStatus(Map<String, StateSummaryPropertyValue> properties) {
-        // Сначала проверяем State.Ctrl (для архивных устройств)
+        if (properties == null || properties.isEmpty()) {
+            return WeldingMachineStatus.Offline;
+        }
+        // Сначала Core: WeldingMachineState / Состояние аппарата (не опираться на State.Ctrl, даже если ключи случайно попали в map)
+        if (isCorePropertyMap(properties)) {
+            WeldingMachineStatus fromCore = resolveStatusFromCoreMachineStateText(properties);
+            if (fromCore != null) {
+                return fromCore;
+            }
+            System.out.println("[PARSER] ⚠️ determineStatus: Core-свойства без распознанного текста состояния, Offline");
+            return WeldingMachineStatus.Offline;
+        }
+
+        // Архивные устройства: State.Ctrl
         StateSummaryPropertyValue ctrlProp = properties.get("State.Ctrl");
         if (ctrlProp != null) {
             String ctrlValue = ctrlProp.getValue();
@@ -765,54 +804,60 @@ public class WeldingDataParserService {
             }
         }
 
-        // Для Core устройств проверяем WeldingMachineState или Состояние аппарата
-        StateSummaryPropertyValue weldingStateProp = properties.get("WeldingMachineState");
-        if (weldingStateProp != null) {
-            String stateText = weldingStateProp.getValue();
-            System.out.println("[PARSER] 🔍 determineStatus: WeldingMachineState=" + stateText);
-            if ("Сварка".equals(stateText)) {
-                System.out.println("[PARSER] ✅ Определен статус: Welding");
-                return WeldingMachineStatus.Welding;
-            } else if ("Аппарат включен".equals(stateText) || "Аппарат включен в дежурном режиме".equals(stateText)) {
-                System.out.println("[PARSER] ✅ Определен статус: Idle");
-                return WeldingMachineStatus.Idle;
-            } else if ("Авария".equals(stateText)) {
-                System.out.println("[PARSER] ✅ Определен статус: Error");
-                return WeldingMachineStatus.Error;
-            } else if ("Аппарат в режиме ожидания".equals(stateText)) {
-                System.out.println("[PARSER] ✅ Определен статус: Idle");
-                return WeldingMachineStatus.Idle;
-            }
-        }
-
-        // Также проверяем "Состояние аппарата" (для Core устройств)
-        StateSummaryPropertyValue machineStateProp = properties.get("Состояние аппарата");
-        if (machineStateProp != null) {
-            String stateText = machineStateProp.getValue();
-            System.out.println("[PARSER] 🔍 determineStatus: Состояние аппарата=" + stateText);
-            if ("Сварка".equals(stateText)) {
-                System.out.println("[PARSER] ✅ Определен статус: Welding");
-                return WeldingMachineStatus.Welding;
-            } else if ("Аппарат включен".equals(stateText) || "Аппарат включен в дежурном режиме".equals(stateText)) {
-                System.out.println("[PARSER] ✅ Определен статус: Idle");
-                return WeldingMachineStatus.Idle;
-            } else if ("Авария".equals(stateText)) {
-                System.out.println("[PARSER] ✅ Определен статус: Error");
-                return WeldingMachineStatus.Error;
-            } else if ("Аппарат в режиме ожидания".equals(stateText)) {
-                System.out.println("[PARSER] ✅ Определен статус: Idle");
-                return WeldingMachineStatus.Idle;
-            }
-        }
-
         System.out.println("[PARSER] ⚠️ determineStatus: не удалось определить статус, возвращаем Offline");
         return WeldingMachineStatus.Offline;
     }
 
+    /** Текст состояния Core из WeldingMachineState или «Состояние аппарата». */
+    private WeldingMachineStatus resolveStatusFromCoreMachineStateText(Map<String, StateSummaryPropertyValue> properties) {
+        StateSummaryPropertyValue weldingStateProp = properties.get("WeldingMachineState");
+        if (weldingStateProp != null) {
+            String stateText = weldingStateProp.getValue();
+            System.out.println("[PARSER] 🔍 determineStatus (Core): WeldingMachineState=" + stateText);
+            WeldingMachineStatus s = mapCoreStateTextToStatus(stateText);
+            if (s != null) {
+                return s;
+            }
+        }
+        StateSummaryPropertyValue machineStateProp = properties.get("Состояние аппарата");
+        if (machineStateProp != null) {
+            String stateText = machineStateProp.getValue();
+            System.out.println("[PARSER] 🔍 determineStatus (Core): Состояние аппарата=" + stateText);
+            return mapCoreStateTextToStatus(stateText);
+        }
+        return null;
+    }
+
+    private static WeldingMachineStatus mapCoreStateTextToStatus(String stateText) {
+        if (stateText == null) {
+            return null;
+        }
+        if ("Сварка".equals(stateText)) {
+            System.out.println("[PARSER] ✅ Определен статус (Core): Welding");
+            return WeldingMachineStatus.Welding;
+        }
+        if ("Аппарат включен".equals(stateText) || "Аппарат включен в дежурном режиме".equals(stateText)) {
+            System.out.println("[PARSER] ✅ Определен статус (Core): Idle");
+            return WeldingMachineStatus.Idle;
+        }
+        if ("Авария".equals(stateText)) {
+            System.out.println("[PARSER] ✅ Определен статус (Core): Error");
+            return WeldingMachineStatus.Error;
+        }
+        if ("Аппарат в режиме ожидания".equals(stateText)) {
+            System.out.println("[PARSER] ✅ Определен статус (Core): Idle");
+            return WeldingMachineStatus.Idle;
+        }
+        return null;
+    }
+
+    /** Код ошибки только для архивного формата (State.Ctrl + State.Error). Для Core — null, код задаётся в parseWeldingData из битов errors1/errors2. */
     private String determineErrorCode(Map<String, StateSummaryPropertyValue> properties) {
+        if (properties == null || properties.isEmpty() || isCorePropertyMap(properties)) {
+            return null;
+        }
         StateSummaryPropertyValue ctrlProp = properties.get("State.Ctrl");
         if (ctrlProp != null && "02".equals(ctrlProp.getValue())) {
-            // Если статус ошибки, возвращаем код ошибки
             StateSummaryPropertyValue errorProp = properties.get("State.Error");
             if (errorProp != null) {
                 return errorProp.getValue();

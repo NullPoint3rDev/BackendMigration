@@ -61,6 +61,10 @@ public class UserAccount {
     @Column(name = "Email")
     private String email;
 
+    /** Подтверждён ли email (код из письма). */
+    @Column(name = "EmailVerified")
+    private Boolean emailVerified;
+
     @Column(name = "Position")
     private String position;
 

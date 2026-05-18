@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,8 +26,14 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
             @Param("stateIds") List<Long> stateIds,
             @Param("propertyCode") String propertyCode);
 
+    @Query("SELECT wmpv FROM WeldingMachineParameterValue wmpv WHERE wmpv.weldingMachineStateId IN :stateIds AND wmpv.propertyCode IN :propertyCodes")
+    List<WeldingMachineParameterValue> findByStateIdsAndPropertyCodes(
+            @Param("stateIds") List<Long> stateIds,
+            @Param("propertyCodes") List<String> propertyCodes);
+
     /**
-     * Нативный запрос: [state_id, value] по property_code (колонка welding_machine_stateid в БД).
+     * Нативный запрос для совместимости со схемой БД (snake_case: welding_machine_stateid, property_code).
+     * Возвращает [state_id, value] для построения карты по stateId без зависимости от маппинга сущности.
      */
     @Query(
             value = "SELECT welding_machine_stateid, value FROM welding_machine_parameter_value " +
@@ -37,7 +44,7 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
             @Param("propertyCode") String propertyCode);
 
     /**
-     * То же, но колонка welding_machine_state_id (с подчёркиванием) — для БД с таким именем.
+     * Как {@link #findStateIdAndValueNative}, но для схемы со snake_case-колонкой {@code welding_machine_state_id}.
      */
     @Query(
             value = "SELECT welding_machine_state_id, value FROM welding_machine_parameter_value " +
@@ -58,8 +65,21 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
             @Param("stateIds") List<Long> stateIds,
             @Param("propertyCode") String propertyCode);
 
-    // Найти все уникальные ID состояний, которые содержат RFID код в properties
+    // Найти все уникальные ID состояний, которые содержат RFID код в properties (за всю историю — тяжёлый запрос)
     @Query("SELECT DISTINCT wmpv.weldingMachineStateId FROM WeldingMachineParameterValue wmpv " +
             "WHERE wmpv.propertyCode IN ('RFID.Hex', 'RFID', 'Rfid', 'rfid') AND wmpv.value = :rfidCode")
     List<Long> findStateIdsByRfidInProperties(@Param("rfidCode") String rfidCode);
+
+    /**
+     * То же по смыслу, что {@link #findStateIdsByRfidInProperties}, но только для состояний в интервале {@code date_created}.
+     * Нужен для отчётов: без фильтра по дате список id может содержать миллионы записей за всё время.
+     */
+    @Query("SELECT DISTINCT wmpv.weldingMachineStateId FROM WeldingMachineParameterValue wmpv, WeldingMachineState wms " +
+            "WHERE wmpv.weldingMachineStateId = wms.id AND " +
+            "wmpv.propertyCode IN ('RFID.Hex', 'RFID', 'Rfid', 'rfid') AND wmpv.value = :rfidCode AND " +
+            "wms.dateCreated >= :start AND wms.dateCreated <= :end")
+    List<Long> findStateIdsByRfidInPropertiesAndDateRange(
+            @Param("rfidCode") String rfidCode,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }

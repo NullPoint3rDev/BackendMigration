@@ -13,6 +13,7 @@ import org.alloy.models.entities.UserAccount;
 import org.alloy.models.entities.UserRole;
 import org.alloy.models.dto.UserAccountDTO;
 import org.alloy.models.dto.mapper.UserAccountMapper;
+import org.alloy.services.EmailVerificationService;
 import org.alloy.services.UserAccountService;
 import org.alloy.services.Wt2AccessService;
 import org.alloy.repositories.UserRepository;
@@ -54,13 +55,15 @@ public class UserAccountController {
     private final UserRoleRepository userRoleRepository;
     private final UserRepository userRepository;
     private final Wt2AccessService wt2AccessService;
+    private final EmailVerificationService emailVerificationService;
 
     @Autowired
-    public UserAccountController(UserAccountService userAccountService, UserRoleRepository userRoleRepository, UserRepository userRepository, Wt2AccessService wt2AccessService) {
+    public UserAccountController(UserAccountService userAccountService, UserRoleRepository userRoleRepository, UserRepository userRepository, Wt2AccessService wt2AccessService, EmailVerificationService emailVerificationService) {
         this.userAccountService = userAccountService;
         this.userRoleRepository = userRoleRepository;
         this.userRepository = userRepository;
         this.wt2AccessService = wt2AccessService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @Operation(
@@ -456,6 +459,25 @@ public class UserAccountController {
         UserAccount entity = UserAccountMapper.toEntity(userAccountDTO);
         entity.setId(id);
         return ResponseEntity.ok(UserAccountMapper.toDTO(userAccountService.updateUserAccount(entity)));
+    }
+
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or @userAccountService.isOwner(#id, authentication.name)")
+    @PostMapping("/{id}/email-verification/send")
+    public ResponseEntity<Void> sendEmailVerificationCode(@PathVariable Integer id) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        emailVerificationService.sendVerificationCode(id, principal);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or @userAccountService.isOwner(#id, authentication.name)")
+    @PostMapping("/{id}/email-verification/confirm")
+    public ResponseEntity<UserAccountDTO> confirmEmailVerification(
+            @PathVariable Integer id,
+            @RequestBody Map<String, String> body) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        String code = body != null ? body.get("code") : null;
+        UserAccount updated = emailVerificationService.confirmVerificationCode(id, code, principal);
+        return ResponseEntity.ok(UserAccountMapper.toDTO(updated));
     }
 
     @Operation(

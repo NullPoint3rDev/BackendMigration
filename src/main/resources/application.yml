@@ -4,8 +4,19 @@ spring:
     username: postgres
     password: 1900AscotPkwy
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 2
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      keepalive-time: 300000
+      leak-detection-threshold: 60000
 
   jpa:
+    # Иначе сессия/соединение могут тянуться на весь HTTP-запрос (тяжёлые отчёты/история → leak warnings, обрывы PG).
+    #open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: false
@@ -60,24 +71,24 @@ server:
     mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
     min-response-size: 1024
 
-# Конфигурация сварочных аппаратов
-#welding:
-#  device:
-#    host: 95.172.58.219
-#    port: 3000
-#    mac: 8CAAB50C4254
-#  # Настройки для множественных аппаратов
-#  devices:
-#    - mac: 8CAAB50C4254
-#      type: MP-500
-#      ip: 95.172.58.219
-#      port: 3000
-#      description: Основной сварочный аппарат
-#    - mac: DC4F220AC7D4
-#      type: MX-Pulse
-#      ip: 95.172.58.220
-#      port: 3000
-#      description: Дополнительный сварочный аппарат
+  # Конфигурация сварочных аппаратов
+  #welding:
+  #  device:
+  #    host: 95.172.58.219
+  #    port: 3000
+  #    mac: 8CAAB50C4254
+  #  # Настройки для множественных аппаратов
+  #  devices:
+  #    - mac: 8CAAB50C4254
+  #      type: MP-500
+  #      ip: 95.172.58.219
+  #      port: 3000
+  #      description: Основной сварочный аппарат
+  #    - mac: DC4F220AC7D4
+  #      type: MX-Pulse
+  #      ip: 95.172.58.220
+  #      port: 3000
+  #      description: Дополнительный сварочный аппарат
   # Тестовый режим для демонстрации
   test:
     enabled: false
@@ -100,7 +111,7 @@ welding:
       ip: 89.109.8.59 # IP адрес локального сервера
     allowed:
       macs: 8CAAB50C4254,E09806083396, ECFABCC9703B, C82B9620E506, E098060B22D2  #Разрешенные MAC-адреса (все устройства)
-    parser: 
+    parser:
       debug: false  # Отладочный режим парсера
     outbound:
       enabled: true  # Включить исходящие пакеты
@@ -113,3 +124,9 @@ welding:
     voltage_scale_welding: 10  # Масштаб для напряжения при сварке (welding)
     voltage_offset_idle: 0    # Калибровочный сдвиг (отключен)
     voltage_offset_welding: 0 # Калибровочный сдвиг (отключен)
+
+# Отчёты: расход проволоки в кг = скорость подачи (м/мин) × погонная масса (кг/м) × время (мин)
+# Значение по умолчанию — сталь Ø1.2 мм (~0.0089 кг/м)
+report:
+  wire:
+    linear-density-kg-per-meter: 0.000089

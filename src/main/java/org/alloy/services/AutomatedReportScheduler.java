@@ -16,6 +16,8 @@ import org.alloy.models.dto.EquipmentWorkReportDTO;
 import org.alloy.models.dto.WelderWorkReportTemplateDTO;
 import org.alloy.models.dto.WelderWorkReportSectionDTO;
 import org.alloy.models.dto.WelderWorkReportDTO;
+import org.alloy.models.dto.EquipmentMalfunctionReportTemplateDTO;
+import org.alloy.models.dto.EquipmentMalfunctionReportSectionDTO;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.Welder;
@@ -245,12 +247,11 @@ public class AutomatedReportScheduler {
             // Создаем имя файла
             String fileName = createFileName(automatedReport);
 
-            // Определяем формат файла: EXCEL для отчётов по оборудованию, сварщику и расходу проволоки
-            String fileFormat = "EXCEL";
-            String tt = automatedReport.getTemplateType() != null ? automatedReport.getTemplateType().trim().toLowerCase() : "";
-            if (!"wire-consumption".equals(tt) && !"equipment".equals(tt) && !"welder".equals(tt)) {
-                fileFormat = "PDF";
-            }
+            // Определяем формат файла: EXCEL для отчётов по оборудованию, сварщику, неисправностям и расходу проволоки
+            String ttResolved = resolveTemplateTypeForFileFormat(automatedReport);
+            String fileFormat = ("wire-consumption".equals(ttResolved) || "equipment".equals(ttResolved)
+                    || "welder".equals(ttResolved) || "equipment-malfunction".equals(ttResolved))
+                    ? "EXCEL" : "PDF";
 
             // Сохраняем отчет в историю с данными
             ReportHistory reportHistory = new ReportHistory(
@@ -302,6 +303,135 @@ public class AutomatedReportScheduler {
     }
 
     /**
+     * Нормализует тип отчёта: учитывает reportType в шаблоне и строку «по неисправностям оборудования».
+     */
+    private String normalizeTemplateTypeFromTemplate(ReportTemplateDTO reportTemplate, String automatedTemplateTypeLower) {
+        String templateType = automatedTemplateTypeLower != null ? automatedTemplateTypeLower : "";
+        if (reportTemplate.getReportParameters() != null && reportTemplate.getReportParameters().get("reportType") != null) {
+            String reportType = reportTemplate.getReportParameters().get("reportType").toString().trim();
+            if ("По работе оборудования (швы)".equals(reportType)) return "equipment";
+            if ("По работе сварщика (швы)".equals(reportType)) return "welder";
+            if ("По расходу проволоки".equals(reportType)) return "wire-consumption";
+            if ("По неисправностям оборудования".equals(reportType)) return "equipment-malfunction";
+        }
+        if (templateType.contains("неисправност")) return "equipment-malfunction";
+        return templateType;
+    }
+
+    /**
+     * Тип отчёта для формата файла (xlsx vs pdf): при наличии шаблона — по reportType в шаблоне.
+     */
+    private String resolveTemplateTypeForFileFormat(AutomatedReport automatedReport) {
+        String tt = automatedReport.getTemplateType() != null ? automatedReport.getTemplateType().trim().toLowerCase() : "";
+        if (automatedReport.getTemplateId() != null) {
+            Optional<ReportTemplateDTO> tOpt = reportTemplateService.getTemplateById(automatedReport.getTemplateId());
+            if (tOpt.isPresent()) {
+                return normalizeTemplateTypeFromTemplate(tOpt.get(), tt);
+            }
+        }
+        return tt;
+    }
+
+    /**
+     * Генерирует отчёт «По неисправностям оборудования» из общего шаблона (как {@link org.alloy.controllers.ReportController#generateEquipmentMalfunctionReport}).
+     */
+    private byte[] generateEquipmentMalfunctionReportFromTemplate(ReportTemplateDTO reportTemplate) throws Exception {
+        EquipmentMalfunctionReportTemplateDTO template = convertToMalfunctionTemplate(reportTemplate);
+        if (template.getSelectedEquipmentIds() == null || template.getSelectedEquipmentIds().isEmpty()) {
+            throw new IllegalArgumentException("Equipment malfunction report template has no selected equipment (selectedEquipmentIds)");
+        }
+
+        Object[] period = resolveEquipmentMalfunctionPeriod(reportTemplate);
+        java.time.LocalDate periodStartDate = (java.time.LocalDate) period[0];
+        java.time.LocalDate periodEndDate = (java.time.LocalDate) period[1];
+        java.time.LocalTime periodStartTime = (java.time.LocalTime) period[2];
+        java.time.LocalTime periodEndTime = (java.time.LocalTime) period[3];
+
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(periodEndDate, periodEndTime);
+        if (endDateTime.isAfter(now)) {
+            periodEndDate = now.toLocalDate();
+            periodEndTime = now.toLocalTime();
+        }
+
+        List<EquipmentMalfunctionReportSectionDTO> sections = reportDataService.getEquipmentMalfunctionData(
+                template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+
+        return reportService.generateEquipmentMalfunctionReportMultiSection(
+                sections, template, periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+    }
+
+    /**
+     * Период для отчёта по неисправностям: «За 24 часа» / «За 7 дней» — скользящее окно до «сейчас»; иначе — как в {@link #parsePeriodFromTemplate}.
+     */
+    private Object[] resolveEquipmentMalfunctionPeriod(ReportTemplateDTO reportTemplate) {
+        java.time.LocalDate periodStartDate = java.time.LocalDate.now();
+        java.time.LocalDate periodEndDate = java.time.LocalDate.now();
+        java.time.LocalTime periodStartTime = java.time.LocalTime.MIN;
+        java.time.LocalTime periodEndTime = java.time.LocalTime.of(23, 59, 59);
+
+        String periodTypeFromRequest = "";
+        if (reportTemplate.getPeriodSettings() != null) {
+            Object pt = reportTemplate.getPeriodSettings().get("periodType");
+            if (pt != null) periodTypeFromRequest = pt.toString().trim();
+        }
+        if ("За 24 часа".equals(periodTypeFromRequest) || "LAST_24_HOURS".equalsIgnoreCase(periodTypeFromRequest)
+                || "24h".equalsIgnoreCase(periodTypeFromRequest)) {
+            java.time.LocalDateTime end = java.time.LocalDateTime.now();
+            java.time.LocalDateTime start = end.minusHours(24);
+            periodStartDate = start.toLocalDate();
+            periodEndDate = end.toLocalDate();
+            periodStartTime = start.toLocalTime();
+            periodEndTime = end.toLocalTime();
+        } else if ("За 7 дней".equals(periodTypeFromRequest) || "LAST_7_DAYS".equalsIgnoreCase(periodTypeFromRequest)
+                || "7DAYS".equalsIgnoreCase(periodTypeFromRequest)) {
+            java.time.LocalDateTime end = java.time.LocalDateTime.now();
+            java.time.LocalDateTime start = end.minusDays(7);
+            periodStartDate = start.toLocalDate();
+            periodEndDate = end.toLocalDate();
+            periodStartTime = start.toLocalTime();
+            periodEndTime = end.toLocalTime();
+        } else {
+            Object[] fallback = parsePeriodFromTemplate(reportTemplate);
+            periodStartDate = (java.time.LocalDate) fallback[0];
+            periodEndDate = (java.time.LocalDate) fallback[1];
+            periodStartTime = (java.time.LocalTime) fallback[2];
+            periodEndTime = (java.time.LocalTime) fallback[3];
+        }
+        return new Object[]{ periodStartDate, periodEndDate, periodStartTime, periodEndTime };
+    }
+
+    /**
+     * Преобразует ReportTemplateDTO в EquipmentMalfunctionReportTemplateDTO.
+     */
+    private EquipmentMalfunctionReportTemplateDTO convertToMalfunctionTemplate(ReportTemplateDTO reportTemplate) {
+        EquipmentMalfunctionReportTemplateDTO template = new EquipmentMalfunctionReportTemplateDTO();
+        template.setTemplateId(reportTemplate.getId());
+        template.setTemplateName(reportTemplate.getName());
+        if (reportTemplate.getReportParameters() != null) {
+            Map<String, Object> params = reportTemplate.getReportParameters();
+            @SuppressWarnings("unchecked")
+            List<Number> ids = params.containsKey("selectedEquipmentIds") ? (List<Number>) params.get("selectedEquipmentIds") : null;
+            if (ids != null && !ids.isEmpty()) {
+                List<Integer> equipmentIds = new ArrayList<>();
+                for (Number n : ids) equipmentIds.add(n.intValue());
+                template.setSelectedEquipmentIds(equipmentIds);
+            }
+            List<String> cols = new ArrayList<>();
+            if (Boolean.TRUE.equals(params.get("equipmentModel"))) cols.add("equipmentModel");
+            if (Boolean.TRUE.equals(params.get("equipmentName"))) cols.add("equipmentName");
+            if (Boolean.TRUE.equals(params.get("equipmentDepartment"))) cols.add("equipmentDepartment");
+            if (Boolean.TRUE.equals(params.get("serialNumber"))) cols.add("serialNumber");
+            if (Boolean.TRUE.equals(params.get("inventoryNumber"))) cols.add("inventoryNumber");
+            if (Boolean.TRUE.equals(params.get("malfunctions"))) cols.add("malfunctions");
+            if (!cols.isEmpty()) {
+                template.setSelectedColumns(cols);
+            }
+        }
+        return template;
+    }
+
+    /**
      * Генерирует отчет в зависимости от типа, используя шаблон если доступен
      */
     private byte[] generateReportByType(ReportRequestDTO request, AutomatedReport automatedReport) throws Exception {
@@ -349,18 +479,16 @@ public class AutomatedReportScheduler {
             ReportTemplateDTO reportTemplate = templateOpt.get();
 
             // Тип отчёта: из AutomatedReport или из шаблона (для старых записей, где templateType мог быть ошибочно wire-consumption)
-            String templateType = automatedReport.getTemplateType() != null ? automatedReport.getTemplateType().trim().toLowerCase() : "";
-            if (reportTemplate.getReportParameters() != null && reportTemplate.getReportParameters().get("reportType") != null) {
-                String reportType = reportTemplate.getReportParameters().get("reportType").toString().trim();
-                if ("По работе оборудования (швы)".equals(reportType)) templateType = "equipment";
-                else if ("По работе сварщика (швы)".equals(reportType)) templateType = "welder";
-                else if ("По расходу проволоки".equals(reportType)) templateType = "wire-consumption";
-            }
+            String templateType = normalizeTemplateTypeFromTemplate(reportTemplate,
+                    automatedReport.getTemplateType() != null ? automatedReport.getTemplateType().trim().toLowerCase() : "");
             if ("equipment".equals(templateType)) {
                 return generateEquipmentReportFromTemplate(reportTemplate, automatedReport);
             }
             if ("welder".equals(templateType)) {
                 return generateWelderReportFromTemplate(reportTemplate, automatedReport);
+            }
+            if ("equipment-malfunction".equals(templateType)) {
+                return generateEquipmentMalfunctionReportFromTemplate(reportTemplate);
             }
 
             // По умолчанию: отчёт по расходу проволоки
@@ -1026,13 +1154,7 @@ public class AutomatedReportScheduler {
                 Optional<ReportTemplateDTO> templateOpt = reportTemplateService.getTemplateById(automatedReport.getTemplateId());
                 if (templateOpt.isPresent()) {
                     ReportTemplateDTO reportTemplate = templateOpt.get();
-                    String tt = templateType.trim().toLowerCase();
-                    if (reportTemplate.getReportParameters() != null && reportTemplate.getReportParameters().get("reportType") != null) {
-                        String reportType = reportTemplate.getReportParameters().get("reportType").toString().trim();
-                        if ("По работе оборудования (швы)".equals(reportType)) tt = "equipment";
-                        else if ("По работе сварщика (швы)".equals(reportType)) tt = "welder";
-                        else if ("По расходу проволоки".equals(reportType)) tt = "wire-consumption";
-                    }
+                    String tt = normalizeTemplateTypeFromTemplate(reportTemplate, templateType.trim().toLowerCase());
                     if ("equipment".equals(tt)) {
                         EquipmentWorkReportTemplateDTO equipmentTemplate = convertToEquipmentTemplate(reportTemplate);
                         if (equipmentTemplate.getSelectedEquipmentIds() != null && !equipmentTemplate.getSelectedEquipmentIds().isEmpty()) {
@@ -1049,6 +1171,23 @@ public class AutomatedReportScheduler {
                             return reportDataService.getWelderWorkDataNew(welderTemplate,
                                     (java.time.LocalDate) period[0], (java.time.LocalDate) period[1],
                                     (java.time.LocalTime) period[2], (java.time.LocalTime) period[3]);
+                        }
+                    }
+                    if ("equipment-malfunction".equals(tt)) {
+                        EquipmentMalfunctionReportTemplateDTO malfunctionTemplate = convertToMalfunctionTemplate(reportTemplate);
+                        if (malfunctionTemplate.getSelectedEquipmentIds() != null && !malfunctionTemplate.getSelectedEquipmentIds().isEmpty()) {
+                            Object[] period = resolveEquipmentMalfunctionPeriod(reportTemplate);
+                            java.time.LocalDate ps = (java.time.LocalDate) period[0];
+                            java.time.LocalDate pe = (java.time.LocalDate) period[1];
+                            java.time.LocalTime pt1 = (java.time.LocalTime) period[2];
+                            java.time.LocalTime pt2 = (java.time.LocalTime) period[3];
+                            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                            java.time.LocalDateTime endDt = java.time.LocalDateTime.of(pe, pt2);
+                            if (endDt.isAfter(now)) {
+                                pe = now.toLocalDate();
+                                pt2 = now.toLocalTime();
+                            }
+                            return reportDataService.getEquipmentMalfunctionData(malfunctionTemplate, ps, pe, pt1, pt2);
                         }
                     }
                     // wire-consumption
@@ -1085,11 +1224,10 @@ public class AutomatedReportScheduler {
      */
     private String createFileName(AutomatedReport automatedReport) {
         String timestamp = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        String tt = automatedReport.getTemplateType() != null ? automatedReport.getTemplateType().trim().toLowerCase() : "";
-        String extension = "xlsx";
-        if (!"wire-consumption".equals(tt) && !"equipment".equals(tt) && !"welder".equals(tt)) {
-            extension = "pdf";
-        }
+        String ttResolved = resolveTemplateTypeForFileFormat(automatedReport);
+        String extension = ("wire-consumption".equals(ttResolved) || "equipment".equals(ttResolved)
+                || "welder".equals(ttResolved) || "equipment-malfunction".equals(ttResolved))
+                ? "xlsx" : "pdf";
         return String.format("%s_%s_%s.%s",
                 automatedReport.getTemplateType(),
                 automatedReport.getName().replaceAll("[^a-zA-Z0-9]", "_"),

@@ -655,8 +655,17 @@ public class ReportController {
                         if (general.getReportParameters() != null) {
                             Map<String, Object> params = general.getReportParameters();
                             if (Boolean.TRUE.equals(params.get("workOutsideActualCurrent"))) template.setIncludeActualCurrentRange(true);
-                            if (params.get("minSeamInterval") != null) template.setMinIntervalBetweenWeldsSec(((Number) params.get("minSeamInterval")).intValue());
-                            if (params.get("minSeamDuration") != null) template.setMinWeldDurationSec(((Number) params.get("minSeamDuration")).intValue());
+                            // Как в generateWelderWorkReport: не подставлять пороги, если в шаблоне они выключены (иначе min=10 с «съедает» все короткие швы).
+                            if (params.containsKey("minSeamInterval") && !Boolean.FALSE.equals(params.get("minSeamIntervalEnabled"))) {
+                                template.setMinIntervalBetweenWeldsSec(((Number) params.get("minSeamInterval")).intValue());
+                            } else if (params.containsKey("minIntervalBetweenWeldsSec")) {
+                                template.setMinIntervalBetweenWeldsSec(((Number) params.get("minIntervalBetweenWeldsSec")).intValue());
+                            }
+                            if (params.containsKey("minSeamDuration") && !Boolean.FALSE.equals(params.get("minSeamDurationEnabled"))) {
+                                template.setMinWeldDurationSec(((Number) params.get("minSeamDuration")).intValue());
+                            } else if (params.containsKey("minWeldDurationSec")) {
+                                template.setMinWeldDurationSec(((Number) params.get("minWeldDurationSec")).intValue());
+                            }
                             if (params.get("actualCurrentMin") != null) template.setActualCurrentMin(((Number) params.get("actualCurrentMin")).intValue());
                             if (params.get("actualCurrentMax") != null) template.setActualCurrentMax(((Number) params.get("actualCurrentMax")).intValue());
                             List<String> cols = new java.util.ArrayList<>();

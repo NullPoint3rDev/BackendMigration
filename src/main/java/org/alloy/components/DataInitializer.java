@@ -1,18 +1,24 @@
 package org.alloy.components;
 
 import org.alloy.repositories.UserPermissionRepository;
+import org.alloy.repositories.UserAccountRepository;
 import org.alloy.repositories.UserRoleRepository;
 import org.alloy.repositories.UserRolePermissionRepository;
+import org.alloy.repositories.UserRepository;
 import org.alloy.services.UserRolePermissionService;
 import org.alloy.services.UserRoleService;
 import org.alloy.models.GeneralStatus;
+import org.alloy.models.User;
+import org.alloy.models.entities.UserAccount;
 import org.alloy.models.entities.UserPermission;
 import org.alloy.models.entities.UserRole;
 import org.alloy.models.entities.UserRolePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -35,11 +41,26 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private UserRolePermissionRepository userRolePermissionRepository;
 
+    @Autowired
+    private UserAccountRepository userAccountRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    private static final String DEMO_ROLE_NAME = "DEMO_READONLY";
+    private static final String DEMO_LOGIN = "Demo";
+    private static final String DEMO_PASSWORD = "Demo123!@#";
+    private static final String DEMO_EMAIL = "demo@local";
+
     @Override
     public void run (String... args) throws Exception {
         createDefaultRoles();
         createDefaultPermissions();
         assignPermissionsToRoles();
+        ensureDemoReadonlyUser();
     }
 
     private void createDefaultRoles() {
@@ -278,5 +299,51 @@ public class DataInitializer implements CommandLineRunner {
                 userRolePermissionRepository.save(rolePermission);
             }
         }
+    }
+
+    private void ensureDemoReadonlyUser() {
+        UserRole demoRole = userRoleRepository.findByName(DEMO_ROLE_NAME).orElseGet(() -> {
+            UserRole role = new UserRole();
+            role.setName(DEMO_ROLE_NAME);
+            role.setDescription("Demo user with readonly access and report generation");
+            role.setStatus(GeneralStatus.Active);
+            return userRoleRepository.save(role);
+        });
+
+        List<String> demoPermissions = Arrays.asList(
+                "RECOVER_OWN_LOGIN_PASSWORD",
+                "VISIBILITY_EDIT_ALLOY",
+                "VISIBILITY_EDIT_DEALERS",
+                "VISIBILITY_EDIT_ENTERPRISES",
+                "WIFI_MODULES_FORM_ACCESS",
+                "VIEW_EQUIPMENT_HISTORY_GRAPHS",
+                "WELDER_CERTIFICATION_DATA",
+                "WORK_WITH_NOTIFICATIONS",
+                "WORK_WITH_REPORTS"
+        );
+
+        for (String permissionName : demoPermissions) {
+            assignPermissionToRole(demoRole.getId(), permissionName, true, false);
+        }
+
+        String encodedPassword = passwordEncoder.encode(DEMO_PASSWORD);
+
+        UserAccount demoAccount = userAccountRepository.findByUserName(DEMO_LOGIN).orElseGet(UserAccount::new);
+        demoAccount.setUserName(DEMO_LOGIN);
+        demoAccount.setEmail(DEMO_EMAIL);
+        demoAccount.setUserRoleId(demoRole.getId());
+        demoAccount.setStatus(GeneralStatus.Active);
+        demoAccount.setFailedLoginsCount(0);
+        demoAccount.setEmailVerified(true);
+        demoAccount.setPasswordHash(encodedPassword.getBytes(StandardCharsets.UTF_8));
+        userAccountRepository.save(demoAccount);
+
+        User demoAuthUser = userRepository.findByUsername(DEMO_LOGIN).orElseGet(User::new);
+        demoAuthUser.setUsername(DEMO_LOGIN);
+        demoAuthUser.setEmail(DEMO_EMAIL);
+        demoAuthUser.setUserRoleId(demoRole.getId());
+        demoAuthUser.setStatus(0);
+        demoAuthUser.setPassword(encodedPassword);
+        userRepository.save(demoAuthUser);
     }
 }

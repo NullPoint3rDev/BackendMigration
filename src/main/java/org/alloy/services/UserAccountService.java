@@ -32,6 +32,9 @@ public class UserAccountService {
     private FileStorageService fileStorageService;
 
     @Autowired
+    private EmailVerificationService emailVerificationService;
+
+    @Autowired
     public UserAccountService(UserAccountRepository userAccountRepository, UserRepository userRepository) {
         this.userAccountRepository = userAccountRepository;
         this.userRepository = userRepository;
@@ -140,6 +143,10 @@ public class UserAccountService {
         // Set creation date
         userAccount.setDateCreated(LocalDateTime.now());
 
+        if (userAccount.getEmailVerified() == null) {
+            userAccount.setEmailVerified(false);
+        }
+
         UserAccount saved = userAccountRepository.save(userAccount);
 
         // Also create a record in the "users" table for Spring Security authentication
@@ -200,6 +207,15 @@ public class UserAccountService {
         }
         if (userAccount.getPhoto() == null && existing.getPhoto() != null) {
             userAccount.setPhoto(existing.getPhoto());
+        }
+
+        String oldEmail = normalizeEmail(existing.getEmail());
+        String newEmail = normalizeEmail(userAccount.getEmail());
+        if (!java.util.Objects.equals(oldEmail, newEmail)) {
+            emailVerificationService.deleteByUserAccountId(existing.getId());
+            userAccount.setEmailVerified(false);
+        } else {
+            userAccount.setEmailVerified(Boolean.TRUE.equals(existing.getEmailVerified()));
         }
 
         UserAccount saved = userAccountRepository.save(userAccount);
@@ -308,5 +324,13 @@ public class UserAccountService {
 
     public byte[] getPhoto(UUID photoId) throws IOException {
         return fileStorageService.getFile(photoId);
+    }
+
+    private static String normalizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        String t = email.trim();
+        return t.isEmpty() ? null : t;
     }
 }

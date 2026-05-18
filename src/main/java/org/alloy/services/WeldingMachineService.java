@@ -106,48 +106,76 @@ public class WeldingMachineService {
         return weldingMachineRepository.save(weldingMachine);
     }
 
-    public WeldingMachine updateWeldingMachine(WeldingMachine weldingMachine) {
-        // Validate ID
-        if (weldingMachine.getId() == null) {
+    public WeldingMachine updateWeldingMachine(WeldingMachine incoming) {
+        if (incoming == null || incoming.getId() == null) {
             throw new IllegalArgumentException("ID is required for update");
         }
 
-        // Check if welding machine exists
-        WeldingMachine existingMachine = weldingMachineRepository.findById(weldingMachine.getId())
+        WeldingMachine existing = weldingMachineRepository.findById(incoming.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Welding machine not found"));
 
-        // Preserve not-null fields if they are not provided in the update payload
-        if (weldingMachine.getStatus() == null) {
-            weldingMachine.setStatus(existingMachine.getStatus());
+        // Обновляем только скалярные поля на managed-сущности. Нельзя save(incoming):
+        // у нового объекта пустые @OneToMany с orphanRemoval — Hibernate удалит все states/maintenances.
+        if (incoming.getName() != null) {
+            existing.setName(incoming.getName());
         }
-
-        // Check if new serial number conflicts with existing one
-        String existingSerialNumber = existingMachine.getSerialNumber();
-        String newSerialNumber = weldingMachine.getSerialNumber();
-        
-        // Only check for conflicts if both serial numbers are not null and different
-        if (newSerialNumber != null && !Objects.equals(existingSerialNumber, newSerialNumber)) {
-            if (weldingMachineRepository.findBySerialNumber(newSerialNumber).isPresent()) {
+        if (incoming.getMac() != null && !incoming.getMac().trim().isEmpty()) {
+            existing.setMac(incoming.getMac().trim());
+        }
+        if (incoming.getDeviceModel() != null) {
+            existing.setDeviceModel(incoming.getDeviceModel());
+        }
+        if (incoming.getSerialNumber() != null) {
+            String newSerialNumber = incoming.getSerialNumber();
+            if (!Objects.equals(existing.getSerialNumber(), newSerialNumber)
+                    && weldingMachineRepository.findBySerialNumber(newSerialNumber).isPresent()) {
                 throw new IllegalArgumentException("A welding machine with this serial number already exists");
             }
+            existing.setSerialNumber(newSerialNumber);
+        }
+        if (incoming.getInventoryNumber() != null) {
+            existing.setInventoryNumber(incoming.getInventoryNumber());
+        }
+        if (incoming.getYearManufactured() != null) {
+            existing.setYearManufactured(incoming.getYearManufactured());
+        }
+        if (incoming.getDateStartedUsing() != null) {
+            existing.setDateStartedUsing(incoming.getDateStartedUsing());
+        }
+        if (incoming.getLastServiceOn() != null) {
+            existing.setLastServiceOn(incoming.getLastServiceOn());
+        }
+        if (incoming.getModules() != null) {
+            existing.setModules(incoming.getModules());
+        }
+        if (incoming.getMaintenanceRegulation() != null) {
+            existing.setMaintenanceRegulation(incoming.getMaintenanceRegulation());
+        }
+        if (incoming.getMaintenanceInterval() != null) {
+            existing.setMaintenanceInterval(incoming.getMaintenanceInterval());
+        }
+        if (incoming.getUserServiceNotifiedBeforeHours() != null) {
+            existing.setUserServiceNotifiedBeforeHours(incoming.getUserServiceNotifiedBeforeHours());
+        }
+        if (incoming.getStatus() != null) {
+            existing.setStatus(incoming.getStatus());
         }
 
-        // Verify that the referenced entities exist
-        if (weldingMachine.getWeldingMachineTypeId() != null) {
-            WeldingMachineType type = weldingMachineTypeRepository.findById(weldingMachine.getWeldingMachineTypeId())
+        if (incoming.getWeldingMachineTypeId() != null) {
+            WeldingMachineType type = weldingMachineTypeRepository.findById(incoming.getWeldingMachineTypeId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid welding machine type ID"));
-            weldingMachine.setWeldingMachineType(type);
+            existing.setWeldingMachineTypeId(type.getId());
+            existing.setWeldingMachineType(type);
         }
-        if (weldingMachine.getOrganizationUnitId() != null) {
-            OrganizationUnit orgUnit = organizationUnitRepository.findById(weldingMachine.getOrganizationUnitId())
+
+        if (incoming.getOrganizationUnitId() != null) {
+            OrganizationUnit orgUnit = organizationUnitRepository.findById(incoming.getOrganizationUnitId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid organization unit ID"));
-            weldingMachine.setOrganizationUnit(orgUnit);
+            existing.setOrganizationUnitId(orgUnit.getId());
+            existing.setOrganizationUnit(orgUnit);
         }
 
-        // Preserve creation date
-        weldingMachine.setDateCreated(existingMachine.getDateCreated());
-
-        return weldingMachineRepository.save(weldingMachine);
+        return weldingMachineRepository.save(existing);
     }
 
     public void deleteWeldingMachine(Integer id) {

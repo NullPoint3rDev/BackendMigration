@@ -17,6 +17,7 @@ public class UserAccountMapper {
         dto.setId(entity.getId());
         dto.setUsername(entity.getUserName());
         dto.setEmail(entity.getEmail());
+        dto.setEmailVerified(Boolean.TRUE.equals(entity.getEmailVerified()));
         dto.setFullName(entity.getName());
         if (entity.getOrganization() != null) {
             dto.setOrganizationId(entity.getOrganization().getId());

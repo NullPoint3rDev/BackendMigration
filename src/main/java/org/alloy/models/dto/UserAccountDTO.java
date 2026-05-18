@@ -6,6 +6,8 @@ public class UserAccountDTO {
     private Integer id;
     private String username;
     private String email;
+    /** Подтверждён ли email (только чтение с сервера). */
+    private Boolean emailVerified;
     private String fullName;
     private Integer organizationId;
     private OrganizationUnitShortDTO organizationUnit;
@@ -33,6 +35,8 @@ public class UserAccountDTO {
     public void setUsername(String username) { this.username = username; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public Boolean getEmailVerified() { return emailVerified; }
+    public void setEmailVerified(Boolean emailVerified) { this.emailVerified = emailVerified; }
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
     public Integer getOrganizationId() { return organizationId; }

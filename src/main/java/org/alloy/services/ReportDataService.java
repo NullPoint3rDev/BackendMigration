@@ -16,7 +16,9 @@ import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.RfidPass;
 import org.alloy.models.EquipmentErrorMessages;
+import org.alloy.models.WeldingMachineStatus;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -56,6 +58,13 @@ public class ReportDataService {
 
     @Autowired
     private RfidPassRepository rfidPassRepository;
+
+    /**
+     * Погонная масса проволоки (кг/м) для перевода скорости подачи (м/мин) в расход массы в отчётах.
+     * По умолчанию — сталь Ø1.2 мм (~0.0089). Переопределяется в {@code report.wire.linear-density-kg-per-meter}.
+     */
+    @Value("${report.wire.linear-density-kg-per-meter:0.000089}")
+    private BigDecimal wireLinearDensityKgPerMeter;
 
     public List<WireConsumptionReportDTO> getWireConsumptionData(ReportRequestDTO request) {
         // Моковые данные для демонстрации (старый формат для обратной совместимости)
@@ -486,9 +495,11 @@ public class ReportDataService {
             Set<Integer> machineIdsInReport = merged.stream().map(r -> r.machineId).collect(Collectors.toSet());
             Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
             for (Integer mid : machineIdsInReport) {
-                statesByMachineId.put(mid, weldingMachineStateRepository.findByWeldingMachineIdAndDateRange(mid, startDateTime, endDateTime));
+                List<WeldingMachineState> list = weldingMachineStateRepository.findByWeldingMachineIdAndDateRange(mid, startDateTime, endDateTime);
+                list.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+                statesByMachineId.put(mid, list);
             }
-            // Параметры «режим» одним батчем по всем stateId (скорость проволоки не грузим — аппарат пока не присылает, в отчёте нули)
+            // Параметры «режим» одним батчем по всем stateId; скорость подачи проволоки (м/мин) — параметр «Расход проволоки» в БД
             List<Long> allStateIds = statesByMachineId.values().stream()
                     .flatMap(list -> list.stream().map(WeldingMachineState::getId))
                     .collect(Collectors.toList());
@@ -503,6 +514,8 @@ public class ReportDataService {
                     if (!workModeByStateId.isEmpty()) break;
                 }
             }
+            Map<Long, BigDecimal> wireFeedByStateId = new HashMap<>();
+            loadWireFeedByStateId(allStateIds, wireFeedByStateId);
             // Дата и время из посылки аппарата (CORE: Date.*, Time.*) — чтобы в отчёте было «когда аппарат сказал, что идёт сварка»
             Map<Long, LocalDateTime> deviceDateTimeByStateId = buildDeviceDateTimeByStateId(allStateIds);
 
@@ -510,13 +523,18 @@ public class ReportDataService {
                 if (r.durationSec.longValue() < minDurationSec) continue;
                 int currentInt = r.avgCurrent.intValue();
                 if (currentInt < 1) currentInt = 0;
-                boolean outOfRange = actualMin != null && actualMax != null && (currentInt < actualMin || currentInt > actualMax);
+                // Подсветка «вне диапазона» только если в шаблоне явно включены пределы факт. тока (как в шапке Excel).
+                boolean outOfRange = Boolean.TRUE.equals(template.getIncludeActualCurrentRange())
+                        && actualMin != null && actualMax != null
+                        && (currentInt < actualMin || currentInt > actualMax);
 
                 LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
                 LocalDateTime displayDateTime = getDeviceDateTimeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, deviceDateTimeByStateId);
                 if (displayDateTime == null) displayDateTime = r.startTime;
                 String workMode = getWorkModeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, workModeByStateId);
-                // Аппарат пока не присылает скорость подачи проволоки — в столбце выводим 0; когда будет — подставить getWireFeedFromCache(...)
+                BigDecimal wireFeedMpm = getWireFeedFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
+                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(
+                        statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
                 BigDecimal energyKwh = calculateEnergyPerWeld(r.avgVoltage, r.avgCurrent, r.durationSec);
                 if (result.size() < 2) {
                     System.out.println("[REPORT-DATA] row: avgCurrent=" + r.avgCurrent + " avgVoltage=" + r.avgVoltage + " durationSec=" + r.durationSec + " -> energyKwh=" + energyKwh);
@@ -528,7 +546,8 @@ public class ReportDataService {
                 dto.setEquipmentModel(r.equipmentModel);
                 dto.setEquipmentName(r.machineName);
                 dto.setWorkMode(workMode != null ? workMode : "");
-                dto.setWireFeedSpeedMpm(BigDecimal.ZERO);
+                dto.setWireFeedSpeedMpm(wireFeedMpm != null ? wireFeedMpm : BigDecimal.ZERO);
+                dto.setWireConsumptionKg(wireKg != null ? wireKg : BigDecimal.ZERO);
                 dto.setCurrentAmps(r.avgCurrent.setScale(1, RoundingMode.HALF_UP));
                 dto.setVoltageVolts(r.avgVoltage.setScale(1, RoundingMode.HALF_UP));
                 dto.setWeldDurationSec(r.durationSec.setScale(1, RoundingMode.HALF_UP));
@@ -645,6 +664,8 @@ public class ReportDataService {
                 }
             }
             Map<Long, LocalDateTime> deviceDateTimeByStateId = buildDeviceDateTimeByStateId(allStateIds);
+            Map<Long, BigDecimal> wireFeedByStateId = new HashMap<>();
+            loadWireFeedByStateId(allStateIds, wireFeedByStateId);
             // RFID по stateId из параметров: нативный запрос, при пустой карте — JPA (разные имена колонок в БД)
             Map<Long, String> rfidByStateId = loadRfidByStateIdFromParamsNative(allStateIds);
             if (rfidByStateId.isEmpty() && !allStateIds.isEmpty()) {
@@ -685,12 +706,17 @@ public class ReportDataService {
                 if (r.durationSec.longValue() < minDurationSec) continue;
                 int currentInt = r.avgCurrent.intValue();
                 if (currentInt < 1) currentInt = 0;
-                boolean outOfRange = actualMin != null && actualMax != null && (currentInt < actualMin || currentInt > actualMax);
+                boolean outOfRange = Boolean.TRUE.equals(template.getIncludeActualCurrentRange())
+                        && actualMin != null && actualMax != null
+                        && (currentInt < actualMin || currentInt > actualMax);
 
                 LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
                 LocalDateTime displayDateTime = getDeviceDateTimeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, deviceDateTimeByStateId);
                 if (displayDateTime == null) displayDateTime = r.startTime;
                 String workMode = getWorkModeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, workModeByStateId);
+                BigDecimal wireFeedMpm = getWireFeedFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
+                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(
+                        statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
 
                 String welderFullName = "";
                 String welderTabNumber = "";
@@ -747,7 +773,8 @@ public class ReportDataService {
                 dto.setEquipmentModel(r.equipmentModel);
                 dto.setEquipmentName(r.machineName);
                 dto.setWorkMode(workMode != null ? workMode : "");
-                dto.setWireFeedSpeedMpm(BigDecimal.ZERO);
+                dto.setWireFeedSpeedMpm(wireFeedMpm != null ? wireFeedMpm : BigDecimal.ZERO);
+                dto.setWireConsumptionKg(wireKg != null ? wireKg : BigDecimal.ZERO);
                 dto.setCurrentAmps(r.avgCurrent.setScale(1, RoundingMode.HALF_UP));
                 dto.setVoltageVolts(r.avgVoltage.setScale(1, RoundingMode.HALF_UP));
                 dto.setWeldDurationSec(r.durationSec.setScale(1, RoundingMode.HALF_UP));
@@ -835,12 +862,120 @@ public class ReportDataService {
         return best;
     }
 
+    /**
+     * Пересечение состояния с сегментом шва. Если длительность в БД = 0, считаем состояние «точкой» во времени
+     * (пересечение есть, если момент попадает в [segmentStart, segmentEnd)).
+     */
     private boolean overlapsSegment(WeldingMachineState s, LocalDateTime segmentStart, LocalDateTime segmentEnd) {
         LocalDateTime stateStart = s.getDateCreated();
         if (stateStart == null) return false;
         long durationMs = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
+        if (durationMs <= 0) {
+            return !stateStart.isBefore(segmentStart) && stateStart.isBefore(segmentEnd);
+        }
         LocalDateTime stateEnd = stateStart.plus(durationMs, ChronoUnit.MILLIS);
         return stateStart.isBefore(segmentEnd) && stateEnd.isAfter(segmentStart);
+    }
+
+    /**
+     * Эффективная длительность состояния (мс): как в {@link WeldingReportCalculationService} —
+     * при нулевом {@code state_duration_ms} берётся разрыв до следующего состояния по времени на том же аппарате.
+     */
+    private long effectiveStateDurationMs(WeldingMachineState s, List<WeldingMachineState> sortedSameMachineByDate) {
+        long d = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
+        if (d > 0) return d;
+        if (sortedSameMachineByDate == null || sortedSameMachineByDate.isEmpty() || s.getDateCreated() == null) {
+            return 0L;
+        }
+        int i = -1;
+        for (int k = 0; k < sortedSameMachineByDate.size(); k++) {
+            if (s.getId() != null && s.getId().equals(sortedSameMachineByDate.get(k).getId())) {
+                i = k;
+                break;
+            }
+        }
+        if (i < 0 || i + 1 >= sortedSameMachineByDate.size()) return 0L;
+        LocalDateTime nextT = sortedSameMachineByDate.get(i + 1).getDateCreated();
+        if (nextT == null) return 0L;
+        long gap = java.time.Duration.between(s.getDateCreated(), nextT).toMillis();
+        return gap > 0 ? gap : 0L;
+    }
+
+    /**
+     * Длительность пересечения интервала состояния с полуинтервалом [segmentStart, segmentEnd), мс.
+     * {@code sortedSameMachineByDate} — все состояния аппарата за период, по возрастанию {@code dateCreated}.
+     */
+    private long overlapDurationMs(WeldingMachineState s, LocalDateTime segmentStart, LocalDateTime segmentEnd,
+                                   List<WeldingMachineState> sortedSameMachineByDate) {
+        LocalDateTime stateStart = s.getDateCreated();
+        if (stateStart == null) return 0L;
+        long durationMs = effectiveStateDurationMs(s, sortedSameMachineByDate);
+        if (durationMs <= 0) return 0L;
+        LocalDateTime stateEnd = stateStart.plus(durationMs, ChronoUnit.MILLIS);
+        if (!(stateStart.isBefore(segmentEnd) && stateEnd.isAfter(segmentStart))) return 0L;
+        LocalDateTime overlapStart = stateStart.isBefore(segmentStart) ? segmentStart : stateStart;
+        LocalDateTime overlapEnd = stateEnd.isAfter(segmentEnd) ? segmentEnd : stateEnd;
+        if (!overlapStart.isBefore(overlapEnd)) return 0L;
+        return java.time.Duration.between(overlapStart, overlapEnd).toMillis();
+    }
+
+    /**
+     * Масса проволоки за шов (кг): только состояния Welding,
+     * скорость подачи из БД (м/мин), погонная масса из настройки (кг/м).
+     */
+    private BigDecimal calculateWireConsumptionKgForWeldSegment(
+            List<WeldingMachineState> machineStates,
+            LocalDateTime segmentStart,
+            LocalDateTime segmentEnd,
+            Map<Long, BigDecimal> wireFeedByStateId) {
+        if (machineStates == null || machineStates.isEmpty()
+                || wireFeedByStateId == null || wireFeedByStateId.isEmpty()
+                || wireLinearDensityKgPerMeter == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal density = wireLinearDensityKgPerMeter;
+        BigDecimal sum = BigDecimal.ZERO;
+        List<WeldingMachineState> sorted = new ArrayList<>(machineStates);
+        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+        for (WeldingMachineState s : machineStates) {
+            if (s.getWeldingMachineStatus() != WeldingMachineStatus.Welding) continue;
+            long overlapMs = overlapDurationMs(s, segmentStart, segmentEnd, sorted);
+            if (overlapMs <= 0) continue;
+            BigDecimal mpm = wireFeedByStateId.get(s.getId());
+            if (mpm == null || mpm.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal minutes = BigDecimal.valueOf(overlapMs)
+                    .divide(BigDecimal.valueOf(60_000), 8, RoundingMode.HALF_UP);
+            sum = sum.add(mpm.multiply(density).multiply(minutes));
+        }
+        return sum.setScale(5, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Суммарный расход проволоки (кг) за период по состояниям сварки: м/мин × кг/м × мин.
+     */
+    private BigDecimal calculateWireConsumptionKgFromWeldingStates(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> wireFeedByStateId) {
+        if (states == null || states.isEmpty()
+                || wireFeedByStateId == null || wireFeedByStateId.isEmpty()
+                || wireLinearDensityKgPerMeter == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal density = wireLinearDensityKgPerMeter;
+        BigDecimal sum = BigDecimal.ZERO;
+        List<WeldingMachineState> sorted = new ArrayList<>(states);
+        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+        for (WeldingMachineState s : states) {
+            if (s.getWeldingMachineStatus() != WeldingMachineStatus.Welding) continue;
+            long durMs = effectiveStateDurationMs(s, sorted);
+            if (durMs <= 0) continue;
+            BigDecimal mpm = wireFeedByStateId.get(s.getId());
+            if (mpm == null || mpm.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal minutes = BigDecimal.valueOf(durMs)
+                    .divide(BigDecimal.valueOf(60_000), 8, RoundingMode.HALF_UP);
+            sum = sum.add(mpm.multiply(density).multiply(minutes));
+        }
+        return sum.setScale(5, RoundingMode.HALF_UP);
     }
 
     /**
@@ -928,15 +1063,28 @@ public class ReportDataService {
 
     /**
      * Поиск пропуска по коду: сначала точное совпадение, затем вариант без ведущих нулей (hex).
+     * В БД может быть несколько строк с одним code — берём одну детерминированно (см. pickOneRfidPass).
      */
     private Optional<RfidPass> findRfidPassByCode(String code) {
         if (code == null || code.trim().isEmpty()) return Optional.empty();
         String trimmed = code.trim();
-        Optional<RfidPass> exact = rfidPassRepository.findByCode(trimmed);
-        if (exact.isPresent()) return exact;
+        Optional<RfidPass> picked = pickOneRfidPass(rfidPassRepository.findAllByCode(trimmed));
+        if (picked.isPresent()) return picked;
         String normalized = normalizeHexLeadingZeros(trimmed);
-        if (!normalized.equals(trimmed)) return rfidPassRepository.findByCode(normalized);
+        if (!normalized.equals(trimmed)) {
+            return pickOneRfidPass(rfidPassRepository.findAllByCode(normalized));
+        }
         return Optional.empty();
+    }
+
+    /** При дубликатах code: предпочитаем пропуск с привязкой к сварщику, иначе с меньшим id. */
+    private static Optional<RfidPass> pickOneRfidPass(List<RfidPass> list) {
+        if (list == null || list.isEmpty()) return Optional.empty();
+        if (list.size() == 1) return Optional.of(list.get(0));
+        return list.stream()
+                .min(Comparator
+                        .comparing((RfidPass p) -> p.getWelder() == null ? 1 : 0)
+                        .thenComparing(RfidPass::getId, Comparator.nullsLast(Long::compareTo)));
     }
 
     private static String normalizeHexLeadingZeros(String hex) {
@@ -1203,6 +1351,7 @@ public class ReportDataService {
             if (!rfidCodes.isEmpty()) {
                 // Находим все состояния машин с этими RFID за период
                 List<WeldingMachineState> states = new ArrayList<>();
+                Set<Long> seenStateIds = new HashSet<>();
                 Set<Integer> foundMachineIds = new HashSet<>(); // Для отслеживания найденных аппаратов
 
                 for (String rfid : rfidCodes) {
@@ -1210,42 +1359,34 @@ public class ReportDataService {
                     // Ищем в поле rfid таблицы WeldingMachineState
                     List<WeldingMachineState> statesForRfid = weldingMachineStateRepository
                             .findByRfidAndDateRange(rfid, startDateTime, endDateTime);
-                    states.addAll(statesForRfid);
+                    for (WeldingMachineState s : statesForRfid) {
+                        if (seenStateIds.add(s.getId())) {
+                            states.add(s);
+                        }
+                    }
 
-                    // Также ищем в properties через WeldingMachineParameterValue (для старых записей, где RFID сохранен только в properties)
-                    List<Long> stateIdsWithRfid = parameterValueRepository.findStateIdsByRfidInProperties(rfid);
+                    // Старые записи: RFID только в properties — раньше брали id за всю историю и делали findById на каждый (очень медленно).
+                    // Теперь только id состояний в том же интервале дат + загрузка батчами.
+                    List<Long> stateIdsWithRfid = parameterValueRepository.findStateIdsByRfidInPropertiesAndDateRange(
+                            rfid, startDateTime, endDateTime);
                     if (!stateIdsWithRfid.isEmpty()) {
-                        // Получаем состояния по найденным ID и фильтруем по дате
-                        for (Long stateId : stateIdsWithRfid) {
-                            Optional<WeldingMachineState> stateOpt = weldingMachineStateRepository.findById(stateId);
-                            if (stateOpt.isPresent()) {
-                                WeldingMachineState state = stateOpt.get();
-                                // Фильтруем по дате
-                                if ((state.getDateCreated().isAfter(startDateTime) || state.getDateCreated().isEqual(startDateTime))
-                                        && (state.getDateCreated().isBefore(endDateTime) || state.getDateCreated().isEqual(endDateTime))) {
-                                    if (!states.contains(state)) {
-                                        states.add(state);
-                                    }
+                        final int STATE_BATCH = 3000;
+                        for (int i = 0; i < stateIdsWithRfid.size(); i += STATE_BATCH) {
+                            int endIdx = Math.min(i + STATE_BATCH, stateIdsWithRfid.size());
+                            List<Long> batchIds = stateIdsWithRfid.subList(i, endIdx);
+                            for (WeldingMachineState state : weldingMachineStateRepository.findAllById(batchIds)) {
+                                foundMachineIds.add(state.getWeldingMachineId());
+                                if (seenStateIds.add(state.getId())) {
+                                    states.add(state);
                                 }
                             }
                         }
                     }
 
                     // Также находим все уникальные ID аппаратов, которые использовали этот RFID (даже если нет состояний за период)
-                    // Ищем в поле rfid
                     List<Integer> machineIdsForRfid = weldingMachineStateRepository
                             .findDistinctWeldingMachineIdsByRfidCodes(Collections.singletonList(rfid));
                     foundMachineIds.addAll(machineIdsForRfid);
-
-                    // Также ищем в properties для получения всех аппаратов, которые использовали этот RFID
-                    if (!stateIdsWithRfid.isEmpty()) {
-                        for (Long stateId : stateIdsWithRfid) {
-                            Optional<WeldingMachineState> stateOpt = weldingMachineStateRepository.findById(stateId);
-                            if (stateOpt.isPresent()) {
-                                foundMachineIds.add(stateOpt.get().getWeldingMachineId());
-                            }
-                        }
-                    }
                 }
 
                 if (!states.isEmpty()) {
@@ -1646,6 +1787,9 @@ public class ReportDataService {
                     .map(WeldingMachineState::getId)
                     .collect(Collectors.toList());
 
+            Map<Long, BigDecimal> wireFeedByStateId = new HashMap<>();
+            loadWireFeedByStateId(stateIds, wireFeedByStateId);
+
             // Получаем параметры (разбиваем на батчи, если список слишком большой)
             // PostgreSQL не поддерживает более 32767 параметров в одном запросе
             List<WeldingMachineParameterValue> currentValues = getParameterValuesInBatches(stateIds, "Current");
@@ -1692,8 +1836,7 @@ public class ReportDataService {
             String wire = getWireFromStates(wireMaterialValues, wireDiameterValues, states);
             dto.setWire(wire != null && !wire.isEmpty() ? wire : "0");
 
-            // Расход проволоки - пока всегда 0, так как логика расчета еще не определена
-            dto.setWireConsumption(BigDecimal.ZERO);
+            dto.setWireConsumption(calculateWireConsumptionKgFromWeldingStates(states, wireFeedByStateId));
 
             return dto;
 
@@ -1792,28 +1935,44 @@ public class ReportDataService {
     }
 
     /**
-     * Загружает «Расход проволоки» (или скорость проволоки) нативным запросом по stateIds и заполняет map.
-     * Используется, когда загрузка через сущности возвращает пустой результат (snake_case в БД).
+     * Скорость подачи проволоки (м/мин) по stateId: сначала JPA (Value и при пустом — RawValue),
+     * затем нативный запрос COALESCE(value, raw_value) для недостающих id (совместимость со схемой БД).
      */
-    private void loadWireFeedByStateIdNative(List<Long> stateIds, Map<Long, BigDecimal> wireFeedByStateId) {
+    private void loadWireFeedByStateId(List<Long> stateIds, Map<Long, BigDecimal> wireFeedByStateId) {
         if (stateIds == null || stateIds.isEmpty()) return;
-        final int BATCH_SIZE = 10_000;
-        for (int i = 0; i < stateIds.size(); i += BATCH_SIZE) {
-            int endIndex = Math.min(i + BATCH_SIZE, stateIds.size());
-            List<Long> batch = stateIds.subList(i, endIndex);
+        List<WeldingMachineParameterValue> jpaRows = getParameterValuesInBatches(stateIds, "Расход проволоки");
+        for (WeldingMachineParameterValue pv : jpaRows) {
+            if (pv == null || pv.getWeldingMachineStateId() == null) continue;
+            String s = pv.getValue();
+            if (s == null || s.trim().isEmpty()) s = pv.getRawValue();
+            if (s == null || s.trim().isEmpty()) continue;
             try {
-                List<Object[]> rows = parameterValueRepository.findStateIdAndValueNative(batch, "Расход проволоки");
+                wireFeedByStateId.put(pv.getWeldingMachineStateId(),
+                        new BigDecimal(s.trim().replace(",", ".")));
+            } catch (NumberFormatException ignored) { }
+        }
+        List<Long> missing = stateIds.stream()
+                .filter(id -> !wireFeedByStateId.containsKey(id))
+                .collect(Collectors.toList());
+        if (missing.isEmpty()) return;
+        final int BATCH_SIZE = 10_000;
+        for (int i = 0; i < missing.size(); i += BATCH_SIZE) {
+            int endIndex = Math.min(i + BATCH_SIZE, missing.size());
+            List<Long> batch = missing.subList(i, endIndex);
+            try {
+                List<Object[]> rows = parameterValueRepository.findStateIdAndValueNativeCoalesce(batch, "Расход проволоки");
                 for (Object[] row : rows) {
                     if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
                         try {
                             long stateId = ((Number) row[0]).longValue();
                             String valueStr = row[1].toString().trim().replace(",", ".");
+                            if (valueStr.isEmpty()) continue;
                             wireFeedByStateId.put(stateId, new BigDecimal(valueStr));
                         } catch (NumberFormatException ignored) { }
                     }
                 }
             } catch (Exception e) {
-                System.err.println("[REPORT-DATA] loadWireFeedByStateIdNative батч " + i + "-" + endIndex + ": " + e.getMessage());
+                System.err.println("[REPORT-DATA] loadWireFeedByStateId native батч " + i + "-" + endIndex + ": " + e.getMessage());
             }
         }
     }
@@ -2117,15 +2276,6 @@ public class ReportDataService {
     }
 
     /**
-     * Рассчитывает расход проволоки (кг) на основе времени горения дуги
-     * ВРЕМЕННО: всегда возвращает 0, так как логика расчета еще не определена
-     */
-    private BigDecimal calculateWireConsumption(Duration arcBurningTime) {
-        // TODO: Определить логику расчета расхода проволоки
-        return BigDecimal.ZERO;
-    }
-
-    /**
      * Группирует данные по сварщикам и сортирует по суммарным значениям
      */
     private List<WireConsumptionReportDTO> groupAndSortWireConsumptionData(
@@ -2326,10 +2476,15 @@ public class ReportDataService {
         final List<Integer> selectedIds = new ArrayList<>(machineIds);
         if (!selectedIds.isEmpty()) {
             List<Object[]> rawForMachines = weldingMachineStateRepository.findErrorStatesNative(selectedIds, startDateTime, endDateTime);
+            List<Object[]> rawWarningsForMachines = weldingMachineStateRepository.findStatesNativeWithWarnings(selectedIds, startDateTime, endDateTime);
             Map<Long, String> errorCodeFromParams = loadErrorCodeFromParameters(extractStateIdsFromRawRows(rawForMachines));
             Map<Integer, List<Object[]>> byMachineRaw = rawForMachines.stream()
                     .filter(row -> extractMachineIdFromRow(row, selectedIds) >= 0)
                     .collect(Collectors.groupingBy(row -> extractMachineIdFromRow(row, selectedIds)));
+            Map<Integer, List<Object[]>> byMachineWarningsRaw = rawWarningsForMachines == null ? Collections.emptyMap() :
+                    rawWarningsForMachines.stream()
+                            .filter(row -> extractMachineIdFromRow(row, selectedIds) >= 0)
+                            .collect(Collectors.groupingBy(row -> extractMachineIdFromRow(row, selectedIds)));
             for (Integer mid : selectedIds) {
                 List<Object[]> machineRows = new ArrayList<>(byMachineRaw.getOrDefault(mid, Collections.emptyList()));
                 machineRows.sort(Comparator.comparing(row -> toLocalDateTime(extractDateFromRow(row)), Comparator.nullsLast(Comparator.naturalOrder())));
@@ -2337,6 +2492,18 @@ public class ReportDataService {
                 Map<String, SummaryAcc> summaryMap = new LinkedHashMap<>();
                 Map<String, Map<LocalDate, SummaryAcc>> byDateMap = new LinkedHashMap<>();
                 for (MalfunctionSegment seg : segments) {
+                    String name = seg.malfunctionName;
+                    summaryMap.computeIfAbsent(name, k -> new SummaryAcc()).add(1, seg.durationSeconds);
+                    if (seg.date != null) {
+                        byDateMap.computeIfAbsent(name, k -> new LinkedHashMap<>())
+                                .computeIfAbsent(seg.date, d -> new SummaryAcc()).add(1, seg.durationSeconds, seg.time);
+                    }
+                }
+                // Добавляем предупреждения как отдельные строки в тот же отчёт.
+                List<Object[]> warningRows = new ArrayList<>(byMachineWarningsRaw.getOrDefault(mid, Collections.emptyList()));
+                warningRows.sort(Comparator.comparing(row -> toLocalDateTime(extractDateFromRow(row)), Comparator.nullsLast(Comparator.naturalOrder())));
+                List<MalfunctionSegment> warningSegments = buildWarningSegmentsFromFullStateRows(warningRows);
+                for (MalfunctionSegment seg : warningSegments) {
                     String name = seg.malfunctionName;
                     summaryMap.computeIfAbsent(name, k -> new SummaryAcc()).add(1, seg.durationSeconds);
                     if (seg.date != null) {
@@ -2386,9 +2553,12 @@ public class ReportDataService {
 
         // Нет выбранных аппаратов — берём все ошибки из нативного запроса и фильтруем по дате в Java
         List<Object[]> rawErrorStatesAll = weldingMachineStateRepository.findErrorStatesNativeAllUnbounded();
-        if (rawErrorStatesAll.isEmpty()) {
-            return Collections.emptyList();
-        }
+        List<Object[]> rawWarningsAll = weldingMachineStateRepository.findStatesNativeWithWarningsAll(startDateTime, endDateTime);
+
+        boolean hasAnyWarnings = rawWarningsAll != null && rawWarningsAll.stream().anyMatch(r -> hasNonEmptyWarningText(r != null && r.length > 4 ? r[4] : null));
+        if ((rawErrorStatesAll == null || rawErrorStatesAll.isEmpty()) && !hasAnyWarnings) return Collections.emptyList();
+
+        if (rawErrorStatesAll == null) rawErrorStatesAll = Collections.emptyList();
         List<Object[]> rawErrorStatesFiltered = rawErrorStatesAll.stream()
                 .filter(row -> {
                     LocalDateTime dt = toLocalDateTime(row[2]);
@@ -2397,22 +2567,53 @@ public class ReportDataService {
                     return !d.isBefore(startDate) && !d.isAfter(endDate);
                 })
                 .collect(Collectors.toList());
-        if (rawErrorStatesFiltered.isEmpty()) {
-            return Collections.emptyList();
-        }
-        machineIds = rawErrorStatesFiltered.stream().map(row -> (Integer) row[1]).distinct().sorted().collect(Collectors.toList());
-        final List<Integer> filterIds = machineIds;
-        List<Object[]> rawErrorStates = rawErrorStatesFiltered.stream().filter(row -> filterIds.contains(row[1])).collect(Collectors.toList());
+        List<Object[]> rawErrorStates = rawErrorStatesFiltered;
+        Map<Integer, List<Object[]>> byMachine = rawErrorStates.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(row -> ((Number) row[1]).intValue()));
+        Map<Integer, List<Object[]>> byMachineWarnings = rawWarningsAll == null ? Collections.emptyMap() :
+                rawWarningsAll.stream()
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.groupingBy(row -> ((Number) row[1]).intValue()));
+
+        // Машины из ошибок + машины из предупреждений (чтобы отчёт не был пустым, если есть только предупреждения)
+        Set<Integer> errorMachineIdSet = rawErrorStatesFiltered.stream()
+                .filter(Objects::nonNull)
+                .map(row -> ((Number) row[1]).intValue())
+                .collect(Collectors.toSet());
+        Set<Integer> warningMachineIdSet = rawWarningsAll == null ? Collections.emptySet() :
+                rawWarningsAll.stream()
+                        .filter(r -> hasNonEmptyWarningText(r != null && r.length > 4 ? r[4] : null))
+                        .map(r -> ((Number) r[1]).intValue())
+                        .collect(Collectors.toSet());
+        machineIds = new ArrayList<>();
+        machineIds.addAll(errorMachineIdSet);
+        machineIds.addAll(warningMachineIdSet);
+        machineIds = machineIds.stream().distinct().sorted().collect(Collectors.toList());
+
         Map<Long, String> errorCodeFromParams = loadErrorCodeFromParameters(extractStateIdsFromRawRows(rawErrorStates));
-        Map<Integer, List<Object[]>> byMachine = rawErrorStates.stream().collect(Collectors.groupingBy(row -> (Integer) row[1]));
         for (Integer mid : machineIds) {
             List<Object[]> machineRows = byMachine.getOrDefault(mid, Collections.emptyList());
             machineRows = new ArrayList<>(machineRows);
             machineRows.sort(Comparator.comparing(row -> toLocalDateTime(row[2])));
+
             List<MalfunctionSegment> segments = buildMalfunctionSegmentsFromRaw(machineRows, mid, errorCodeFromParams);
             Map<String, SummaryAcc> summaryMap = new LinkedHashMap<>();
             Map<String, Map<LocalDate, SummaryAcc>> byDateMap = new LinkedHashMap<>();
             for (MalfunctionSegment seg : segments) {
+                String name = seg.malfunctionName;
+                summaryMap.computeIfAbsent(name, k -> new SummaryAcc()).add(1, seg.durationSeconds);
+                if (seg.date != null) {
+                    byDateMap.computeIfAbsent(name, k -> new LinkedHashMap<>())
+                            .computeIfAbsent(seg.date, d -> new SummaryAcc()).add(1, seg.durationSeconds, seg.time);
+                }
+            }
+
+            // Добавляем предупреждения в ту же секцию.
+            List<Object[]> warningRows = new ArrayList<>(byMachineWarnings.getOrDefault(mid, Collections.emptyList()));
+            warningRows.sort(Comparator.comparing(row -> toLocalDateTime(row[2])));
+            List<MalfunctionSegment> warningSegments = buildWarningSegmentsFromFullStateRows(warningRows);
+            for (MalfunctionSegment seg : warningSegments) {
                 String name = seg.malfunctionName;
                 summaryMap.computeIfAbsent(name, k -> new SummaryAcc()).add(1, seg.durationSeconds);
                 if (seg.date != null) {
@@ -2801,6 +3002,143 @@ public class ReportDataService {
         if (currentName != null) {
             out.add(new MalfunctionSegment(currentName, segmentDate, segmentStartTime, segmentDurationSec));
         }
+        return out;
+    }
+
+    private static boolean hasNonEmptyWarningText(Object warningTextObj) {
+        if (warningTextObj == null) return false;
+        String s = String.valueOf(warningTextObj).trim();
+        if (s.isEmpty()) return false;
+        String lower = s.toLowerCase(Locale.ROOT);
+        if ("null".equals(lower)) return false;
+        // Значение, которое выставляет парсер, когда предупреждений нет
+        if ("нет предупреждений".equals(lower) || "no warnings".equals(lower)) return false;
+        return true;
+    }
+
+    private static List<String> splitWarningMessages(Object warningTextObj) {
+        if (!hasNonEmptyWarningText(warningTextObj)) return Collections.emptyList();
+        String s = String.valueOf(warningTextObj).trim();
+        if (s.isEmpty()) return Collections.emptyList();
+
+        // Парсер/фронт используют разделители запятая/точка с запятой.
+        String[] parts = s.split("[,;]");
+        return Arrays.stream(parts)
+                .map(p -> p == null ? "" : p.trim())
+                .filter(p -> !p.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Строит сегменты предупреждений: объединяет подряд идущие состояния для одного и того же сообщения,
+     * если разрыв между концом предыдущего сегмента и началом текущего <= 1 сек.
+     *
+     * Имена сегментов имеют вид: "Предупреждение: <text>".
+     *
+     * Ожидаемые колонки в rows (из welding_machine_state_repository.findStatesNativeWithWarnings*):
+     * [0]=id, [1]=welding_machineid, [2]=date_created, [3]=state_duration_ms, [4]=warning_text.
+     */
+    private List<MalfunctionSegment> buildWarningSegmentsFromFullStateRows(List<Object[]> rows) {
+        if (rows == null || rows.isEmpty()) return Collections.emptyList();
+
+        // 1) Эффективная длительность каждого рядa (как в buildMalfunctionSegmentsFromRaw)
+        final int n = rows.size();
+        long[] effectiveDurationMs = new long[n];
+        final long maxSegmentDurationMs = 30L * 60 * 1000; // ограничение на 30 минут на сегмент
+        for (int i = 0; i < n; i++) {
+            Object[] row = rows.get(i);
+            long fromDb = 0L;
+            if (row != null && row.length > 3 && row[3] instanceof Number) {
+                fromDb = ((Number) row[3]).longValue();
+                if (fromDb < 0) fromDb = 0;
+            }
+            if (fromDb > 0) {
+                effectiveDurationMs[i] = Math.min(fromDb, maxSegmentDurationMs);
+            } else {
+                LocalDateTime start = toLocalDateTime(extractDateFromRow(row));
+                if (i + 1 < n) {
+                    LocalDateTime nextStart = toLocalDateTime(extractDateFromRow(rows.get(i + 1)));
+                    if (start != null && nextStart != null) {
+                        long gapMs = ChronoUnit.MILLIS.between(start, nextStart);
+                        if (gapMs < 0) gapMs = 0;
+                        effectiveDurationMs[i] = Math.min(gapMs, maxSegmentDurationMs);
+                    }
+                }
+            }
+        }
+
+        // 2) Сегментация по конкретным сообщениям предупреждений
+        final long maxGapMs = 1000L;
+        class Acc {
+            int lastIndex;
+            LocalDate segmentDate;
+            LocalTime segmentStartTime;
+            LocalDateTime segmentEnd;
+            long durationSeconds;
+        }
+
+        Map<String, Acc> accByName = new LinkedHashMap<>();
+        List<MalfunctionSegment> out = new ArrayList<>();
+
+        for (int i = 0; i < n; i++) {
+            Object[] row = rows.get(i);
+            if (row == null) continue;
+
+            LocalDateTime stateStart = toLocalDateTime(extractDateFromRow(row));
+            if (stateStart == null) continue;
+
+            long durationMs = effectiveDurationMs[i];
+            LocalDateTime stateEnd = stateStart.plus(durationMs, ChronoUnit.MILLIS);
+            long durationSec = (durationMs + 500) / 1000;
+
+            Object warningTextObj = row.length > 4 ? row[4] : null;
+            List<String> messages = splitWarningMessages(warningTextObj);
+            if (messages.isEmpty()) continue;
+
+            // На одном state может быть несколько предупреждений: разделяем на строки.
+            // Dedup на уровне state, чтобы не плодить дубликаты при повторяющихся формулировках.
+            Set<String> uniqueMessages = new LinkedHashSet<>(messages);
+            for (String msg : uniqueMessages) {
+                if (msg == null || msg.trim().isEmpty()) continue;
+                String name = "" + msg.trim();
+
+                Acc acc = accByName.get(name);
+                boolean canMerge = acc != null
+                        && acc.lastIndex == i - 1
+                        && acc.segmentEnd != null
+                        && ChronoUnit.MILLIS.between(acc.segmentEnd, stateStart) <= maxGapMs;
+
+                if (canMerge) {
+                    acc.durationSeconds += durationSec;
+                    acc.segmentEnd = stateEnd;
+                    // segmentDate/segmentStartTime не меняются (они уже от старта сегмента)
+                } else {
+                    if (acc != null) {
+                        out.add(new MalfunctionSegment(name, acc.segmentDate, acc.segmentStartTime, acc.durationSeconds));
+                    }
+                    Acc next = new Acc();
+                    next.lastIndex = i;
+                    next.segmentDate = stateStart.toLocalDate();
+                    next.segmentStartTime = stateStart.toLocalTime();
+                    next.segmentEnd = stateEnd;
+                    next.durationSeconds = durationSec;
+                    accByName.put(name, next);
+                }
+            }
+        }
+
+        // Добавляем все ещё "открытые" сегменты
+        for (Map.Entry<String, Acc> e : accByName.entrySet()) {
+            Acc acc = e.getValue();
+            if (acc == null || acc.segmentDate == null || acc.segmentStartTime == null) continue;
+            out.add(new MalfunctionSegment(e.getKey(), acc.segmentDate, acc.segmentStartTime, acc.durationSeconds));
+        }
+
+        out.sort(Comparator
+                .comparing((MalfunctionSegment s) -> s.date, Comparator.nullsFirst(Comparator.naturalOrder()))
+                .thenComparing(s -> s.time, Comparator.nullsFirst(Comparator.naturalOrder()))
+                .thenComparing(s -> s.malfunctionName, Comparator.nullsFirst(Comparator.naturalOrder())));
+
         return out;
     }
 } 

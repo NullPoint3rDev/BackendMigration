@@ -1698,8 +1698,8 @@ public class ReportService {
             document.add(new Paragraph("Аппарат: " + (item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "")));
             document.add(new Paragraph("Сварщик: " + (item.getWelderName() != null ? item.getWelderName() : "")));
             document.add(new Paragraph("Расход проволоки (кг): " + (item.getWireConsumption() != null ? item.getWireConsumption().toString() : "0")));
-            document.add(new Paragraph("Время горения дуги: " + (item.getArcBurningTime() != null ? formatDuration(item.getArcBurningTime()) : "0")));
-            document.add(new Paragraph("Время в сети: " + (item.getTimeInNetwork() != null ? formatDuration(item.getTimeInNetwork()) : "0")));
+            document.add(new Paragraph("Время горения дуги: " + (item.getArcBurningTime() != null ? formatDurationAsTotalHms(item.getArcBurningTime()) : "0")));
+            document.add(new Paragraph("Время в сети: " + (item.getTimeInNetwork() != null ? formatDurationAsTotalHms(item.getTimeInNetwork()) : "0")));
             document.add(new Paragraph("Подразделение: " + (item.getOrganizationUnitName() != null ? item.getOrganizationUnitName() : "")));
             document.add(new Paragraph("---"));
         }
@@ -2123,7 +2123,7 @@ public class ReportService {
             f5.setCellStyle(labelStyle);
             Cell g5 = r5.createCell(6);
             g5.setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
-            r5.createCell(7).setCellValue("00:00");
+            r5.createCell(7).setCellValue(periodStartTime != null ? formatTime(periodStartTime) : "00:00:00");
 
             // Row 6 (index 5): F6/G6/H6 — по, дата, время
             Row r6 = sheet.createRow(5);
@@ -2194,10 +2194,15 @@ public class ReportService {
 
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
+            CellStyle totalWeldGrayStyle = createTotalWeldTimeGrayStyle(workbook);
+            CellStyle totalWeldGrayStyleWithFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0");
+            CellStyle totalWeldGrayStyleWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
+            CellStyle totalWeldGrayStyleWireKgFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.00000");
 
             int rowIdx = headerRowIndex + 1;
-            if (data != null) {
-                for (WelderWorkReportDTO item : data) {
+            List<WelderWorkReportDTO> rowList = data != null ? data : Collections.emptyList();
+            if (!rowList.isEmpty()) {
+                for (WelderWorkReportDTO item : rowList) {
                     Row row = sheet.createRow(rowIdx++);
                     boolean highlight = Boolean.TRUE.equals(item.getCurrentOutOfRange());
                     CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
@@ -2208,10 +2213,51 @@ public class ReportService {
                         if ("currentAmps".equals(key) || "voltageVolts".equals(key) || "weldDurationSec".equals(key)) {
                             String format = "voltageVolts".equals(key) ? "0.0" : "0";
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
+                        } else if ("energyConsumedKwh".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
+                        } else if ("wireConsumptionKg".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.00000");
                         }
                         cell.setCellStyle(cellStyle);
                         setWelderWorkCellValue(cell, item, key);
                     }
+                }
+            }
+            BigDecimal totalWeldSecSingle = rowList.stream()
+                    .map(WelderWorkReportDTO::getWeldDurationSec)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalEnergyKwhSingle = rowList.stream()
+                    .map(WelderWorkReportDTO::getEnergyConsumedKwh)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalWireKgSingle = rowList.stream()
+                    .map(WelderWorkReportDTO::getWireConsumptionKg)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            int weldColSingle = -1;
+            int energyColSingle = -1;
+            int wireColSingle = -1;
+            for (int i = 0; i < columnDefs.size(); i++) {
+                String k = columnDefs.get(i).key;
+                if ("weldDurationSec".equals(k)) weldColSingle = i;
+                if ("energyConsumedKwh".equals(k)) energyColSingle = i;
+                if ("wireConsumptionKg".equals(k)) wireColSingle = i;
+            }
+            Row totalRowWelderSingle = sheet.createRow(rowIdx++);
+            for (int col = 0; col < columnDefs.size(); col++) {
+                Cell cell = totalRowWelderSingle.createCell(col);
+                if (col == weldColSingle && weldColSingle >= 0) {
+                    cell.setCellStyle(totalWeldGrayStyleWithFormat);
+                    if (!isNullOrZero(totalWeldSecSingle)) cell.setCellValue(totalWeldSecSingle.doubleValue());
+                } else if (col == energyColSingle && energyColSingle >= 0) {
+                    cell.setCellStyle(totalWeldGrayStyleWithDecimalFormat);
+                    if (!isNullOrZero(totalEnergyKwhSingle)) cell.setCellValue(totalEnergyKwhSingle.doubleValue());
+                } else if (col == wireColSingle && wireColSingle >= 0) {
+                    cell.setCellStyle(totalWeldGrayStyleWireKgFormat);
+                    cell.setCellValue(totalWireKgSingle.doubleValue());
+                } else {
+                    cell.setCellStyle(totalWeldGrayStyle);
                 }
             }
 
@@ -2268,6 +2314,7 @@ public class ReportService {
             CellStyle totalWeldGrayStyle = createTotalWeldTimeGrayStyle(workbook);
             CellStyle totalWeldGrayStyleWithFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0");
             CellStyle totalWeldGrayStyleWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
+            CellStyle totalWeldGrayStyleWireKgFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.00000");
 
             int rowIdx = 0;
             Row titleRow = sheet.createRow(rowIdx++);
@@ -2318,7 +2365,7 @@ public class ReportService {
                     f5.setCellStyle(labelStyle);
                     Cell g5 = r5.createCell(6);
                     g5.setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
-                    r5.createCell(7).setCellValue("00:00");
+                    r5.createCell(7).setCellValue(periodStartTime != null ? formatTime(periodStartTime) : "00:00:00");
 
                     Row r6 = sheet.createRow(rowIdx++);
                     Cell f6 = r6.createCell(5);
@@ -2396,6 +2443,8 @@ public class ReportService {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
                         } else if ("energyConsumedKwh".equals(key)) {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
+                        } else if ("wireConsumptionKg".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.00000");
                         }
                         cell.setCellStyle(cellStyle);
                         if ("index".equals(key)) {
@@ -2405,7 +2454,7 @@ public class ReportService {
                         }
                     }
                 }
-                // Строка итогов: суммарное время шва и суммарная затраченная энергия (серые ячейки)
+                // Строка итогов: суммарное время шва, расход проволоки (кг), затраченная энергия (серые ячейки)
                 BigDecimal totalWeldSec = rows.stream()
                         .map(WelderWorkReportDTO::getWeldDurationSec)
                         .filter(Objects::nonNull)
@@ -2414,23 +2463,31 @@ public class ReportService {
                         .map(WelderWorkReportDTO::getEnergyConsumedKwh)
                         .filter(Objects::nonNull)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal totalWireKg = rows.stream()
+                        .map(WelderWorkReportDTO::getWireConsumptionKg)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                int weldDurationColWelder = -1;
                 int energyColWelder = -1;
+                int wireColWelder = -1;
                 for (int i = 0; i < columnDefs.size(); i++) {
-                    if ("energyConsumedKwh".equals(columnDefs.get(i).key)) {
-                        energyColWelder = i;
-                        break;
-                    }
+                    String k = columnDefs.get(i).key;
+                    if ("weldDurationSec".equals(k)) weldDurationColWelder = i;
+                    if ("energyConsumedKwh".equals(k)) energyColWelder = i;
+                    if ("wireConsumptionKg".equals(k)) wireColWelder = i;
                 }
                 Row totalRow = sheet.createRow(rowIdx++);
-                final int weldDurationColWelder = 6;
                 for (int col = 0; col < columnDefs.size(); col++) {
                     Cell cell = totalRow.createCell(col);
-                    if (col == weldDurationColWelder) {
+                    if (col == weldDurationColWelder && weldDurationColWelder >= 0) {
                         cell.setCellStyle(totalWeldGrayStyleWithFormat);
                         if (!isNullOrZero(totalWeldSec)) cell.setCellValue(totalWeldSec.doubleValue());
-                    } else if (col == energyColWelder) {
+                    } else if (col == energyColWelder && energyColWelder >= 0) {
                         cell.setCellStyle(totalWeldGrayStyleWithDecimalFormat);
                         if (!isNullOrZero(totalEnergyKwh)) cell.setCellValue(totalEnergyKwh.doubleValue());
+                    } else if (col == wireColWelder && wireColWelder >= 0) {
+                        cell.setCellStyle(totalWeldGrayStyleWireKgFormat);
+                        cell.setCellValue(totalWireKg.doubleValue());
                     } else {
                         cell.setCellStyle(totalWeldGrayStyle);
                     }
@@ -2537,7 +2594,11 @@ public class ReportService {
                 if (!isNullOrZero(item.getWireFeedSpeedMpm())) cell.setCellValue(item.getWireFeedSpeedMpm().doubleValue());
                 break;
             case "wireConsumptionKg":
-                if (!isNullOrZero(item.getWireConsumptionKg())) cell.setCellValue(item.getWireConsumptionKg().doubleValue());
+                if (isMmaWorkMode(item.getWorkMode())) {
+                    cell.setCellValue(0.0d);
+                } else if (!isNullOrZero(item.getWireConsumptionKg())) {
+                    cell.setCellValue(item.getWireConsumptionKg().doubleValue());
+                }
                 break;
             case "energyConsumedKwh":
                 if (!isNullOrZero(item.getEnergyConsumedKwh())) cell.setCellValue(item.getEnergyConsumedKwh().doubleValue());
@@ -2584,6 +2645,12 @@ public class ReportService {
         return value == null || value.compareTo(BigDecimal.ZERO) == 0;
     }
 
+    private static boolean isMmaWorkMode(String workMode) {
+        if (workMode == null) return false;
+        String normalized = workMode.trim().toUpperCase(Locale.ROOT);
+        return normalized.contains("MMA") || normalized.contains("ММА");
+    }
+
     private void setEquipmentWorkCellValue(Cell cell, EquipmentWorkReportDTO item, String key) {
         switch (key) {
             case "index":
@@ -2620,7 +2687,11 @@ public class ReportService {
                 if (!isNullOrZero(item.getWeldDurationSec())) cell.setCellValue(item.getWeldDurationSec().doubleValue());
                 break;
             case "wireConsumptionKg":
-                if (!isNullOrZero(item.getWireConsumptionKg())) cell.setCellValue(item.getWireConsumptionKg().doubleValue());
+                if (isMmaWorkMode(item.getWorkMode())) {
+                    cell.setCellValue(0.0d);
+                } else if (!isNullOrZero(item.getWireConsumptionKg())) {
+                    cell.setCellValue(item.getWireConsumptionKg().doubleValue());
+                }
                 break;
             case "energyConsumedKwh":
                 if (!isNullOrZero(item.getEnergyConsumedKwh())) cell.setCellValue(item.getEnergyConsumedKwh().doubleValue());
@@ -2703,7 +2774,7 @@ public class ReportService {
             r5.createCell(5).setCellValue("с");
             r5.getCell(5).setCellStyle(labelStyle);
             r5.createCell(6).setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
-            r5.createCell(7).setCellValue("00:00");
+            r5.createCell(7).setCellValue(periodStartTime != null ? formatTime(periodStartTime) : "00:00:00");
 
             Row r6 = sheet.createRow(rowIdx++);
             r6.createCell(5).setCellValue("по");
@@ -2747,10 +2818,16 @@ public class ReportService {
 
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
+            CellStyle totalEquipGrayStyle = createTotalWeldTimeGrayStyle(workbook);
+            CellStyle totalEquipGrayStyleWithFormat = createCellStyleWithNumberFormat(workbook, totalEquipGrayStyle, "0");
+            CellStyle totalEquipGrayStyleWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalEquipGrayStyle, "0.000");
+            CellStyle totalEquipGrayStyleWireKgFormat = createCellStyleWithNumberFormat(workbook, totalEquipGrayStyle, "0.00000");
+
             // Подсвечивать оранжевым «вне диапазона» только если в шаблоне включены пределы факт.тока
             boolean useOutOfRangeHighlight = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
-            if (data != null) {
-                for (EquipmentWorkReportDTO item : data) {
+            List<EquipmentWorkReportDTO> equipRowList = data != null ? data : Collections.emptyList();
+            if (!equipRowList.isEmpty()) {
+                for (EquipmentWorkReportDTO item : equipRowList) {
                     Row row = sheet.createRow(rowIdx++);
                     boolean highlight = useOutOfRangeHighlight && Boolean.TRUE.equals(item.getCurrentOutOfRange());
                     CellStyle rowStyle = highlight ? outOfRangeRowStyle : normalDataStyle;
@@ -2761,10 +2838,51 @@ public class ReportService {
                         if ("voltageVolts".equals(key) || "weldDurationSec".equals(key) || "currentAmps".equals(key)) {
                             String format = "voltageVolts".equals(key) ? "0.0" : "0";
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
+                        } else if ("energyConsumedKwh".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
+                        } else if ("wireConsumptionKg".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.00000");
                         }
                         cell.setCellStyle(cellStyle);
                         setEquipmentWorkCellValue(cell, item, key);
                     }
+                }
+            }
+            BigDecimal totalWeldSecEquipSingle = equipRowList.stream()
+                    .map(EquipmentWorkReportDTO::getWeldDurationSec)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalEnergyKwhEquipSingle = equipRowList.stream()
+                    .map(EquipmentWorkReportDTO::getEnergyConsumedKwh)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalWireKgEquipSingle = equipRowList.stream()
+                    .map(EquipmentWorkReportDTO::getWireConsumptionKg)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            int weldColEq = -1;
+            int energyColEq = -1;
+            int wireColEq = -1;
+            for (int i = 0; i < columnDefs.size(); i++) {
+                String k = columnDefs.get(i).key;
+                if ("weldDurationSec".equals(k)) weldColEq = i;
+                if ("energyConsumedKwh".equals(k)) energyColEq = i;
+                if ("wireConsumptionKg".equals(k)) wireColEq = i;
+            }
+            Row totalRowEquipSingle = sheet.createRow(rowIdx++);
+            for (int col = 0; col < columnDefs.size(); col++) {
+                Cell cell = totalRowEquipSingle.createCell(col);
+                if (col == weldColEq && weldColEq >= 0) {
+                    cell.setCellStyle(totalEquipGrayStyleWithFormat);
+                    if (!isNullOrZero(totalWeldSecEquipSingle)) cell.setCellValue(totalWeldSecEquipSingle.doubleValue());
+                } else if (col == energyColEq && energyColEq >= 0) {
+                    cell.setCellStyle(totalEquipGrayStyleWithDecimalFormat);
+                    if (!isNullOrZero(totalEnergyKwhEquipSingle)) cell.setCellValue(totalEnergyKwhEquipSingle.doubleValue());
+                } else if (col == wireColEq && wireColEq >= 0) {
+                    cell.setCellStyle(totalEquipGrayStyleWireKgFormat);
+                    cell.setCellValue(totalWireKgEquipSingle.doubleValue());
+                } else {
+                    cell.setCellStyle(totalEquipGrayStyle);
                 }
             }
 
@@ -2814,6 +2932,7 @@ public class ReportService {
             CellStyle totalWeldGrayStyleEquip = createTotalWeldTimeGrayStyle(workbook);
             CellStyle totalWeldGrayStyleEquipWithFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0");
             CellStyle totalWeldGrayStyleEquipWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0.000");
+            CellStyle totalWeldGrayStyleEquipWireKgFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0.00000");
 
             int rowIdx = 0;
             Row titleRow = sheet.createRow(rowIdx++);
@@ -2856,7 +2975,7 @@ public class ReportService {
                     r5.createCell(5).setCellValue("с");
                     r5.getCell(5).setCellStyle(labelStyle);
                     r5.createCell(6).setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
-                    r5.createCell(7).setCellValue("00:00");
+                    r5.createCell(7).setCellValue(periodStartTime != null ? formatTime(periodStartTime) : "00:00:00");
                     Row r6 = sheet.createRow(rowIdx++);
                     r6.createCell(5).setCellValue("по");
                     r6.getCell(5).setCellStyle(labelStyle);
@@ -2918,6 +3037,8 @@ public class ReportService {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, format);
                         } else if ("energyConsumedKwh".equals(key)) {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
+                        } else if ("wireConsumptionKg".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.00000");
                         }
                         cell.setCellStyle(cellStyle);
                         if ("index".equals(key)) {
@@ -2927,13 +3048,15 @@ public class ReportService {
                         }
                     }
                 }
-                // Строка итогов: суммарное время шва и суммарная затраченная энергия (серые ячейки)
+                // Строка итогов: суммарное время шва, расход проволоки (кг), затраченная энергия (серые ячейки)
                 int weldDurationColEquip = -1;
                 int energyColEquip = -1;
+                int wireColEquip = -1;
                 for (int i = 0; i < columnDefs.size(); i++) {
                     String key = columnDefs.get(i).key;
                     if ("weldDurationSec".equals(key)) weldDurationColEquip = i;
                     if ("energyConsumedKwh".equals(key)) energyColEquip = i;
+                    if ("wireConsumptionKg".equals(key)) wireColEquip = i;
                 }
                 BigDecimal totalWeldSecEquip = rows.stream()
                         .map(EquipmentWorkReportDTO::getWeldDurationSec)
@@ -2943,15 +3066,22 @@ public class ReportService {
                         .map(EquipmentWorkReportDTO::getEnergyConsumedKwh)
                         .filter(Objects::nonNull)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal totalWireKgEquip = rows.stream()
+                        .map(EquipmentWorkReportDTO::getWireConsumptionKg)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
                 Row totalRowEquip = sheet.createRow(rowIdx++);
                 for (int col = 0; col < columnDefs.size(); col++) {
                     Cell cell = totalRowEquip.createCell(col);
-                    if (col == weldDurationColEquip) {
+                    if (col == weldDurationColEquip && weldDurationColEquip >= 0) {
                         cell.setCellStyle(totalWeldGrayStyleEquipWithFormat);
                         if (!isNullOrZero(totalWeldSecEquip)) cell.setCellValue(totalWeldSecEquip.doubleValue());
-                    } else if (col == energyColEquip) {
+                    } else if (col == energyColEquip && energyColEquip >= 0) {
                         cell.setCellStyle(totalWeldGrayStyleEquipWithDecimalFormat);
                         if (!isNullOrZero(totalEnergyKwhEquip)) cell.setCellValue(totalEnergyKwhEquip.doubleValue());
+                    } else if (col == wireColEquip && wireColEquip >= 0) {
+                        cell.setCellStyle(totalWeldGrayStyleEquipWireKgFormat);
+                        cell.setCellValue(totalWireKgEquip.doubleValue());
                     } else {
                         cell.setCellStyle(totalWeldGrayStyleEquip);
                     }
@@ -3513,13 +3643,13 @@ public class ReportService {
                         cell.setCellValue(item.getWeldingMachineName() != null ? item.getWeldingMachineName() : "");
                         break;
                     case "timeOnline":
-                        cell.setCellValue(formatDuration(item.getTimeInNetwork()));
+                        cell.setCellValue(formatDurationAsTotalHms(item.getTimeInNetwork()));
                         break;
                     case "equipmentModel":
                         cell.setCellValue(item.getEquipmentModel() != null ? item.getEquipmentModel() : "");
                         break;
                     case "arcBurningTime":
-                        cell.setCellValue(formatDuration(item.getArcBurningTime()));
+                        cell.setCellValue(formatDurationAsTotalHms(item.getArcBurningTime()));
                         break;
                     case "efficiency":
                         if (item.getEquipmentEfficiency() != null) {
@@ -3572,6 +3702,24 @@ public class ReportService {
         long minutes = duration.toMinutes() % 60;
         long seconds = duration.getSeconds() % 60;
         return String.format("%d:%02d:%02d:%02d", days, hours, minutes, seconds);
+    }
+
+    /**
+     * Продолжительность только как суммарные часы, минуты и секунды (без отдельного счётчика суток).
+     * Пример: 2 суток и 3 ч → {@code 51:00:00}, а не {@code 2:03:00:00} в формате {@link #formatDuration}.
+     */
+    private String formatDurationAsTotalHms(Duration duration) {
+        if (duration == null) {
+            return "";
+        }
+        long totalSeconds = duration.getSeconds();
+        if (totalSeconds < 0) {
+            totalSeconds = 0;
+        }
+        long h = totalSeconds / 3600;
+        long m = (totalSeconds % 3600) / 60;
+        long s = totalSeconds % 60;
+        return String.format("%d:%02d:%02d", h, m, s);
     }
 
     /**
