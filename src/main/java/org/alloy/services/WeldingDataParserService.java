@@ -178,6 +178,11 @@ public class WeldingDataParserService {
 
                 addProperty(props, "Номер ячейки памяти", String.valueOf(core.memoryCellNumber), "number");
 
+                addProperty(props, "Core.WorkTimeSincePowerOn", String.valueOf(core.workTimeSincePowerOn), "number");
+                addProperty(props, "Core.WeldingTimeSincePowerOn", String.valueOf(core.weldingTimeSincePowerOn), "number");
+                addProperty(props, "Время работы с включения", String.valueOf(core.workTimeSincePowerOn), "number");
+                addProperty(props, "Время сварки с включения", String.valueOf(core.weldingTimeSincePowerOn), "number");
+
                 state.setProperties(props);
                 WeldingMachineStatus determinedStatus = determineStatus(props);
                 state.setStatus(determinedStatus);

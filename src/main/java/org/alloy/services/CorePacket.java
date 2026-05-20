@@ -57,6 +57,11 @@ public class CorePacket {
     public int warnings2;              // int16
     public int warnings3;              // int16
 
+    /** Время работы аппарата с момента включения (uint32, Big-Endian; единица — по прошивке, часто с или мс). */
+    public long workTimeSincePowerOn;
+    /** Время сварки с момента включения аппарата (uint32, Big-Endian). */
+    public long weldingTimeSincePowerOn;
+
     public double getDisplayCurrent() {
         return (weldingMachineState == 1) ? weldingCurrent : current;
     }
@@ -96,6 +101,8 @@ public class CorePacket {
                 ", burnerMode=" + burnerMode +
                 ", memoryCellNumber=" + memoryCellNumber +
                 ", warnings=[" + warnings1 + "," + warnings2 + "," + warnings3 + "]" +
+                ", workTimeSincePowerOn=" + workTimeSincePowerOn +
+                ", weldingTimeSincePowerOn=" + weldingTimeSincePowerOn +
                 '}';
     }
 }

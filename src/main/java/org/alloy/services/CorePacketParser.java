@@ -37,7 +37,7 @@ public class CorePacketParser {
             // 2. uint8_t Hours
             if (off < bytes.length) p.hours = readU8(bytes, off++);
 
-            // 3. uint8_t Minutes  
+            // 3. uint8_t Minutes
             if (off < bytes.length) p.minutes = readU8(bytes, off++);
 
             // 4. uint8_t Seconds
@@ -130,6 +130,10 @@ public class CorePacketParser {
             if (off + 1 < bytes.length) { p.warnings1 = readI16BE(bytes, off); off += 2; }
             if (off + 1 < bytes.length) { p.warnings2 = readI16BE(bytes, off); off += 2; }
             if (off + 1 < bytes.length) { p.warnings3 = readI16BE(bytes, off); off += 2; }
+
+            // 37-38. Время работы и время сварки с момента включения (uint32_t each, big-endian)
+            if (off + 3 < bytes.length) { p.workTimeSincePowerOn = readU32BE(bytes, off); off += 4; }
+            if (off + 3 < bytes.length) { p.weldingTimeSincePowerOn = readU32BE(bytes, off); off += 4; }
 
             // Убрали логирование для ускорения
         } catch (Exception ex) {
