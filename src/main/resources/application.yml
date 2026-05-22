@@ -130,3 +130,11 @@ welding:
 report:
   wire:
     linear-density-kg-per-meter: 0.000089
+
+# Суточные плитки мониторинга (пересчёт из welding_machine_state)
+monitor:
+  daily-stats:
+    timezone: Europe/Moscow
+    stale-seconds: 60
+    scheduler-delay-ms: 180000
+    recompute-debounce-ms: 15000

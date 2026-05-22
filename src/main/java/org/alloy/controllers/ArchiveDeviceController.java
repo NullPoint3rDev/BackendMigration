@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.alloy.models.dto.WeldingMachineDailyStatsDTO;
+
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.List;
 
@@ -31,6 +34,9 @@ public class ArchiveDeviceController {
 
     @Autowired
     private TelemetryHistoryService telemetryHistoryService;
+
+    @Autowired
+    private WeldingMachineDailyStatsService weldingMachineDailyStatsService;
 
     /**
      * Получить текущее состояние устройства (как в archive проекте)
@@ -67,6 +73,28 @@ public class ArchiveDeviceController {
      * История телеметрии по аппарату за период (максимум 24 часа).
      * fromMs/toMs — epoch millis (клиент присылает из datetime-local).
      */
+    /**
+     * Суточная статистика мониторинга (проволока кг, таймеры активности) — пересчёт из БД.
+     */
+    @GetMapping("/daily-stats")
+    public ResponseEntity<?> getDailyStats(
+            @RequestParam String mac,
+            @RequestParam(required = false) String date
+    ) {
+        try {
+            LocalDate statDate = null;
+            if (date != null && !date.isBlank()) {
+                statDate = LocalDate.parse(date.trim());
+            }
+            WeldingMachineDailyStatsDTO dto = weldingMachineDailyStatsService.getDailyStatsByMac(mac, statDate);
+            return ResponseEntity.ok(dto);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/telemetry-history")
     public ResponseEntity<?> getTelemetryHistory(
             @RequestParam String mac,
