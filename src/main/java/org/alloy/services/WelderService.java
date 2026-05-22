@@ -219,25 +219,25 @@ public class WelderService {
 
             Welder savedWelder = welderRepository.save(welder);
 
-            // Удаляем старые RFID пропуска
-            List<RfidPass> existingPasses = rfidPassRepository.findByWelderId(id);
-            if (!existingPasses.isEmpty()) {
-                rfidPassRepository.deleteAll(existingPasses);
-            }
-
-            // Сохраняем новые RFID пропуска
-            if (welderDTO.getRfidCodes() != null && !welderDTO.getRfidCodes().isEmpty()) {
-                List<RfidPass> rfidPasses = new ArrayList<>();
-                for (String code : welderDTO.getRfidCodes()) {
-                    if (code != null && !code.trim().isEmpty()) {
-                        RfidPass rfidPass = new RfidPass();
-                        rfidPass.setCode(code.trim());
-                        rfidPass.setWelder(savedWelder);
-                        rfidPasses.add(rfidPass);
-                    }
+            // RFID обновляем только если поле передано в DTO (null — не трогать пропуска)
+            if (welderDTO.getRfidCodes() != null) {
+                List<RfidPass> existingPasses = rfidPassRepository.findByWelderId(id);
+                if (!existingPasses.isEmpty()) {
+                    rfidPassRepository.deleteAll(existingPasses);
                 }
-                if (!rfidPasses.isEmpty()) {
-                    rfidPassRepository.saveAll(rfidPasses);
+                if (!welderDTO.getRfidCodes().isEmpty()) {
+                    List<RfidPass> rfidPasses = new ArrayList<>();
+                    for (String code : welderDTO.getRfidCodes()) {
+                        if (code != null && !code.trim().isEmpty()) {
+                            RfidPass rfidPass = new RfidPass();
+                            rfidPass.setCode(code.trim());
+                            rfidPass.setWelder(savedWelder);
+                            rfidPasses.add(rfidPass);
+                        }
+                    }
+                    if (!rfidPasses.isEmpty()) {
+                        rfidPassRepository.saveAll(rfidPasses);
+                    }
                 }
             }
 
