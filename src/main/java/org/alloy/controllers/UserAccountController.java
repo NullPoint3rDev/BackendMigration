@@ -13,6 +13,7 @@ import org.alloy.models.entities.UserAccount;
 import org.alloy.models.entities.UserRole;
 import org.alloy.models.dto.UserAccountDTO;
 import org.alloy.models.dto.mapper.UserAccountMapper;
+import org.alloy.security.SessionManagementService;
 import org.alloy.services.EmailVerificationService;
 import org.alloy.services.UserAccountService;
 import org.alloy.services.Wt2AccessService;
@@ -56,14 +57,30 @@ public class UserAccountController {
     private final UserRepository userRepository;
     private final Wt2AccessService wt2AccessService;
     private final EmailVerificationService emailVerificationService;
+    private final SessionManagementService sessionManagementService;
 
     @Autowired
-    public UserAccountController(UserAccountService userAccountService, UserRoleRepository userRoleRepository, UserRepository userRepository, Wt2AccessService wt2AccessService, EmailVerificationService emailVerificationService) {
+    public UserAccountController(
+            UserAccountService userAccountService,
+            UserRoleRepository userRoleRepository,
+            UserRepository userRepository,
+            Wt2AccessService wt2AccessService,
+            EmailVerificationService emailVerificationService,
+            SessionManagementService sessionManagementService) {
         this.userAccountService = userAccountService;
         this.userRoleRepository = userRoleRepository;
         this.userRepository = userRepository;
         this.wt2AccessService = wt2AccessService;
         this.emailVerificationService = emailVerificationService;
+        this.sessionManagementService = sessionManagementService;
+    }
+
+    private void applyOnlineStatus(UserAccountDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        String username = dto.getUsername();
+        dto.setOnline(username != null && sessionManagementService.isUserOnline(username));
     }
 
     @Operation(
@@ -100,6 +117,7 @@ public class UserAccountController {
         List<UserAccountDTO> userAccounts = wt2AccessService
                 .filterUserAccounts(userAccountService.getAllUserAccounts(), principal).stream()
                 .map(UserAccountMapper::toDTO)
+                .peek(this::applyOnlineStatus)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(userAccounts);
     }

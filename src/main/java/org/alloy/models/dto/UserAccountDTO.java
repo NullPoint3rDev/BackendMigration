@@ -15,6 +15,8 @@ public class UserAccountDTO {
     private String position;
     private String phone;
     private String status;
+    /** Есть ли активная сессия (пользователь залогинен). */
+    private Boolean online;
     private String workplace;
     private String category;
     private String personnelNumber;
@@ -51,6 +53,8 @@ public class UserAccountDTO {
     public void setPhone(String phone) { this.phone = phone; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public Boolean getOnline() { return online; }
+    public void setOnline(Boolean online) { this.online = online; }
     public String getWorkplace() { return workplace; }
     public void setWorkplace(String workplace) { this.workplace = workplace; }
     public String getCategory() { return category; }

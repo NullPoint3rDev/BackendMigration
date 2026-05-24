@@ -3,9 +3,12 @@ package org.alloy.security;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class SessionManagementService {
@@ -17,13 +20,13 @@ public class SessionManagementService {
     public UUID createSession(String username, String userAgent, String ipAddress) {
         // Remove any existing sessions for this user
         removeUserSessions(username);
-        
+
         UUID sessionId = UUID.randomUUID();
         UserSession session = new UserSession(username, sessionId, userAgent, ipAddress);
-        
+
         activeSessions.put(username, session);
         sessionTokens.put(sessionId, username);
-        
+
         return sessionId;
     }
 
@@ -46,19 +49,19 @@ public class SessionManagementService {
         if (username == null) {
             return false;
         }
-        
+
         UserSession session = activeSessions.get(username);
         if (session == null) {
             sessionTokens.remove(sessionId);
             return false;
         }
-        
+
         // Check if session has expired (24 hours)
         if (session.getCreatedAt().plusHours(24).isBefore(LocalDateTime.now())) {
             removeSession(sessionId);
             return false;
         }
-        
+
         return true;
     }
 
@@ -68,6 +71,37 @@ public class SessionManagementService {
             return null;
         }
         return activeSessions.get(username);
+    }
+
+    /** Имена пользователей с активной (не истёкшей) сессией. */
+    public Set<String> getActiveUsernames() {
+        purgeExpiredSessions();
+        return Collections.unmodifiableSet(activeSessions.keySet());
+    }
+
+    public boolean isUserOnline(String username) {
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+        purgeExpiredSessions();
+        UserSession session = activeSessions.get(username);
+        if (session == null) {
+            return false;
+        }
+        if (session.getCreatedAt().plusHours(24).isBefore(LocalDateTime.now())) {
+            removeUserSessions(username);
+            return false;
+        }
+        return true;
+    }
+
+    private void purgeExpiredSessions() {
+        LocalDateTime now = LocalDateTime.now();
+        Set<String> expired = activeSessions.entrySet().stream()
+                .filter(e -> e.getValue().getCreatedAt().plusHours(24).isBefore(now))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        expired.forEach(this::removeUserSessions);
     }
 
     public static class UserSession {
