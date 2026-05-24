@@ -410,4 +410,20 @@ public class WelderService {
 
         return Files.readAllBytes(filePath);
     }
+
+    public void deleteWelderPhoto(Long welderId) throws IOException {
+        Welder welder = welderRepository.findById(welderId)
+                .orElseThrow(() -> new RuntimeException("Welder not found"));
+
+        String photoPath = welder.getPhoto();
+        if (photoPath != null && !photoPath.isEmpty()) {
+            Path filePath = Paths.get(photoPath);
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+            }
+        }
+
+        welder.setPhoto(null);
+        welderRepository.save(welder);
+    }
 }

@@ -1,7 +1,10 @@
 package org.alloy.security;
 
+import org.alloy.models.GeneralStatus;
 import org.alloy.models.User;
+import org.alloy.models.entities.UserAccount;
 import org.alloy.models.entities.UserRolePermission;
+import org.alloy.repositories.UserAccountRepository;
 import org.alloy.repositories.UserPermissionGrantRepository;
 import org.alloy.repositories.UserRepository;
 import org.alloy.repositories.UserRolePermissionRepository;
@@ -15,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -22,15 +26,18 @@ import java.util.stream.Collectors;
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final UserAccountRepository userAccountRepository;
     private final UserRolePermissionRepository userRolePermissionRepository;
     private final UserRoleRepository userRoleRepository;
     private final UserPermissionGrantRepository userPermissionGrantRepository;
 
     public CustomUserDetailsService(UserRepository userRepository,
+                                    UserAccountRepository userAccountRepository,
                                     UserRolePermissionRepository userRolePermissionRepository,
                                     UserRoleRepository userRoleRepository,
                                     UserPermissionGrantRepository userPermissionGrantRepository) {
         this.userRepository = userRepository;
+        this.userAccountRepository = userAccountRepository;
         this.userRolePermissionRepository = userRolePermissionRepository;
         this.userRoleRepository = userRoleRepository;
         this.userPermissionGrantRepository = userPermissionGrantRepository;
@@ -40,13 +47,20 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         System.out.println("CustomUserDetailsService: Попытка загрузки пользователя: " + username);
 
+        Optional<UserAccount> userAccountOpt = userAccountRepository.findByUserName(username);
+        if (userAccountOpt.isPresent()) {
+            GeneralStatus accountStatus = userAccountOpt.get().getStatus();
+            if (accountStatus == GeneralStatus.Blocked || accountStatus == GeneralStatus.Deleted) {
+                throw new UsernameNotFoundException("User account is blocked");
+            }
+        }
+
         return userRepository.findByUsername(username)
                 .map(user -> {
                     System.out.println("CustomUserDetailsService: Пользователь найден в базе: " + username + ", статус: " + user.getStatus());
 
-                    // Проверяем статус пользователя (0 = Active, 1 = Blocked)
-                    if (user.getStatus() != null && user.getStatus() == 1) {
-                        System.out.println("CustomUserDetailsService: Попытка входа для заблокированного пользователя: " + username);
+                    // users.status: 0 = Active, 1 = Blocked, 2 = Deleted
+                    if (user.getStatus() != null && (user.getStatus() == 1 || user.getStatus() == 2)) {
                         throw new UsernameNotFoundException("User account is blocked");
                     }
 

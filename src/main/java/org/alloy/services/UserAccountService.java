@@ -5,6 +5,7 @@ import org.alloy.models.User;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.repositories.UserAccountRepository;
 import org.alloy.repositories.UserRepository;
+import org.alloy.security.SessionManagementService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,6 +36,9 @@ public class UserAccountService {
     private EmailVerificationService emailVerificationService;
 
     @Autowired
+    private SessionManagementService sessionManagementService;
+
+    @Autowired
     public UserAccountService(UserAccountRepository userAccountRepository, UserRepository userRepository) {
         this.userAccountRepository = userAccountRepository;
         this.userRepository = userRepository;
@@ -43,6 +47,36 @@ public class UserAccountService {
     @Autowired
     public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
+    }
+
+    /** Статус в таблице users для Spring Security: 0 — активен, 1 — заблокирован, 2 — удалён. */
+    private static int toAuthUserStatus(GeneralStatus status) {
+        if (status == null || status == GeneralStatus.Active || status == GeneralStatus.Pending) {
+            return 0;
+        }
+        if (status == GeneralStatus.Blocked) {
+            return 1;
+        }
+        if (status == GeneralStatus.Deleted) {
+            return 2;
+        }
+        if (status == GeneralStatus.Inactive) {
+            return 3;
+        }
+        return 0;
+    }
+
+    private void syncAuthUserRecord(UserAccount userAccount, String lookupUsername, String rawPasswordOrNull) {
+        userRepository.findByUsername(lookupUsername).ifPresent(authUser -> {
+            authUser.setUsername(userAccount.getUserName());
+            authUser.setEmail(userAccount.getEmail() != null ? userAccount.getEmail() : userAccount.getUserName() + "@local");
+            authUser.setUserRoleId(userAccount.getUserRoleId());
+            authUser.setStatus(toAuthUserStatus(userAccount.getStatus()));
+            if (rawPasswordOrNull != null && userAccount.getPasswordHash() != null) {
+                authUser.setPassword(new String(userAccount.getPasswordHash()));
+            }
+            userRepository.save(authUser);
+        });
     }
 
     public List<UserAccount> getAllUserAccounts() {
@@ -157,7 +191,7 @@ public class UserAccountService {
             authUser.setPassword(new String(userAccount.getPasswordHash()));
             authUser.setEmail(userAccount.getEmail() != null ? userAccount.getEmail() : userAccount.getUserName() + "@local");
             authUser.setUserRoleId(userAccount.getUserRoleId());
-            authUser.setStatus(0);
+            authUser.setStatus(toAuthUserStatus(saved.getStatus()));
             userRepository.save(authUser);
         }
 
@@ -220,17 +254,10 @@ public class UserAccountService {
 
         UserAccount saved = userAccountRepository.save(userAccount);
 
-        // Sync the "users" table for Spring Security authentication
-        Optional<User> authUserOpt = userRepository.findByUsername(oldUsername);
-        if (authUserOpt.isPresent()) {
-            User authUser = authUserOpt.get();
-            authUser.setUsername(userAccount.getUserName());
-            authUser.setEmail(userAccount.getEmail() != null ? userAccount.getEmail() : userAccount.getUserName() + "@local");
-            authUser.setUserRoleId(userAccount.getUserRoleId());
-            if (rawPassword != null) {
-                authUser.setPassword(new String(saved.getPasswordHash()));
-            }
-            userRepository.save(authUser);
+        syncAuthUserRecord(saved, oldUsername, rawPassword);
+
+        if (saved.getStatus() == GeneralStatus.Blocked || saved.getStatus() == GeneralStatus.Deleted) {
+            sessionManagementService.removeUserSessions(saved.getUserName());
         }
 
         return saved;

@@ -205,4 +205,17 @@ public class WelderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    @PreAuthorize("hasAuthority('PERMISSION_ADD_DELETE_EDIT_WELDERS') or hasAuthority('PERMISSION_WELDER_CERTIFICATION_DATA')")
+    @DeleteMapping("/{id}/photo")
+    public ResponseEntity<Void> deleteWelderPhoto(@PathVariable Long id) {
+        try {
+            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanViewWelder(id, principal);
+            welderService.deleteWelderPhoto(id);
+            return ResponseEntity.noContent().build();
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.UserAccount;
+import org.alloy.security.AccountBlockedException;
 import org.alloy.security.AccountLockedException;
 import org.alloy.security.AuthenticationService;
 import org.alloy.security.PasswordValidationException;
@@ -112,6 +113,11 @@ public class AuthController {
             errorMap.put("error", "Account Locked");
             errorMap.put("message", e.getMessage());
             e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorMap);
+        } catch (AccountBlockedException e) {
+            Map<String, String> errorMap = new HashMap<>();
+            errorMap.put("error", "Account Blocked");
+            errorMap.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorMap);
         } catch (Exception e) {
             Map<String, String> errorMap = new HashMap<>();

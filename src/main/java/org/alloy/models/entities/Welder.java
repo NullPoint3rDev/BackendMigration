@@ -120,7 +120,8 @@ public class Welder {
         ACTIVE("Активен"),
         INACTIVE("Неактивен"),
         ON_LEAVE("В отпуске"),
-        DISMISSED("Уволен");
+        DISMISSED("Уволен"),
+        BLOCKED("Заблокирован");
 
         private final String displayName;
 

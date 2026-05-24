@@ -79,6 +79,11 @@ public class UserAccountController {
         if (dto == null) {
             return;
         }
+        String status = dto.getStatus();
+        if (status != null && "Blocked".equalsIgnoreCase(status.trim())) {
+            dto.setOnline(false);
+            return;
+        }
         String username = dto.getUsername();
         dto.setOnline(username != null && sessionManagementService.isUserOnline(username));
     }
