@@ -21,6 +21,8 @@ public class WeldingMachineDTO {
     private LocalDateTime commissionDate;
     private Integer manufactureYear;
     private LocalDateTime lastService;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime lastPoweredOnAt;
     private OrganizationUnitShortDTO organizationUnit;
     private WeldingMachineTypeShortDTO weldingMachineType;
     // ... другие нужные поля
@@ -52,6 +54,8 @@ public class WeldingMachineDTO {
     public void setManufactureYear(Integer manufactureYear) { this.manufactureYear = manufactureYear; }
     public LocalDateTime getLastService() { return lastService; }
     public void setLastService(LocalDateTime lastService) { this.lastService = lastService; }
+    public LocalDateTime getLastPoweredOnAt() { return lastPoweredOnAt; }
+    public void setLastPoweredOnAt(LocalDateTime lastPoweredOnAt) { this.lastPoweredOnAt = lastPoweredOnAt; }
     public OrganizationUnitShortDTO getOrganizationUnit() { return organizationUnit; }
     public void setOrganizationUnit(OrganizationUnitShortDTO organizationUnit) { this.organizationUnit = organizationUnit; }
     public WeldingMachineTypeShortDTO getWeldingMachineType() { return weldingMachineType; }

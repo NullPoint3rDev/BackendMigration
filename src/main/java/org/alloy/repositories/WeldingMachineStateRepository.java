@@ -28,6 +28,13 @@ public interface WeldingMachineStateRepository extends JpaRepository<WeldingMach
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
+    @Query("SELECT wms FROM WeldingMachineState wms WHERE wms.weldingMachineId = :weldingMachineId AND wms.dateCreated BETWEEN :startDate AND :endDate ORDER BY wms.dateCreated DESC")
+    List<WeldingMachineState> findByWeldingMachineIdAndDateRange(
+            @Param("weldingMachineId") Integer weldingMachineId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
     @Query("SELECT wms FROM WeldingMachineState wms WHERE wms.weldingMachineId = :weldingMachineId AND wms.dateCreated BETWEEN :startDate AND :endDate ORDER BY wms.dateCreated ASC")
     List<WeldingMachineState> findByWeldingMachineIdAndDateRangeAsc(
             @Param("weldingMachineId") Integer weldingMachineId,

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,6 +41,9 @@ public class WelderService {
 
     @Autowired
     private CertificationService certificationService;
+
+    @Autowired
+    private WeldingMachineLastPoweredOnService weldingMachineLastPoweredOnService;
 
     private static final String UPLOAD_DIR = "uploads/welders";
 
@@ -97,15 +101,35 @@ public class WelderService {
         Optional<Welder> welder = welderRepository.findById(id);
         if (welder.isPresent()) {
             Welder w = welder.get();
-            // Загружаем RFID пропуска
+            // Загружаем RFID пропуска (не заменяем коллекцию — иначе Hibernate orphanRemoval)
             List<RfidPass> rfidPasses = rfidPassRepository.findByWelderId(id);
-            w.setRfidPasses(rfidPasses);
-            // Загружаем связанные аппараты (инициализируем коллекцию)
-            if (w.getWeldingMachines() != null) {
-                w.getWeldingMachines().size(); // Инициализация lazy коллекции
+            if (w.getRfidPasses() == null) {
+                w.setRfidPasses(new java.util.ArrayList<>());
+            } else {
+                w.getRfidPasses().clear();
             }
+            if (rfidPasses != null && !rfidPasses.isEmpty()) {
+                w.getRfidPasses().addAll(rfidPasses);
+            }
+            enrichLastPoweredOnForDisplay(w);
         }
         return welder;
+    }
+
+    private void enrichLastPoweredOnForDisplay(Welder welder) {
+        if (welder.getWeldingMachines() == null || welder.getWeldingMachines().isEmpty()) {
+            return;
+        }
+        welder.getWeldingMachines().size();
+        for (WeldingMachine machine : welder.getWeldingMachines()) {
+            if (machine == null || machine.getId() == null || machine.getLastPoweredOnAt() != null) {
+                continue;
+            }
+            LocalDateTime fromHistory = weldingMachineLastPoweredOnService.resolveForDisplay(machine.getId());
+            if (fromHistory != null) {
+                machine.setLastPoweredOnAt(fromHistory);
+            }
+        }
     }
 
     public Welder createWelder(Welder welder) {

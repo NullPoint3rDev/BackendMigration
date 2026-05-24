@@ -49,7 +49,7 @@ public class Organization {
     @Column(name = "Website")
     private String website;
 
-    @Column(name = "Logo")
+    @Column(name = "Logo", columnDefinition = "TEXT")
     private String logo;
 
     @Column(name = "Settings")

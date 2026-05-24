@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import javax.persistence.*;
 import java.time.LocalDate;
@@ -98,6 +100,8 @@ public class Welder {
 
     @OneToMany(mappedBy = "welder", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Schema(description = "RFID пропуска сварщика")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private List<RfidPass> rfidPasses;
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -108,6 +112,8 @@ public class Welder {
     )
     @JsonIgnoreProperties({"welders", "weldingMachineStates", "maintenances", "weldingLimitPrograms", "weldingMachineType", "organizationUnit"})
     @Schema(description = "Связанные сварочные аппараты")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private List<WeldingMachine> weldingMachines = new ArrayList<>();
 
     public enum WelderStatus {

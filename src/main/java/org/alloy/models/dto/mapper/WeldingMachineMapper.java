@@ -25,6 +25,7 @@ public class WeldingMachineMapper {
             }
         }
         dto.setLastService(entity.getLastServiceOn());
+        dto.setLastPoweredOnAt(entity.getLastPoweredOnAt());
         // OrganizationUnitShortDTO
         if (entity.getOrganizationUnit() != null) {
             OrganizationUnitShortDTO orgDto = new OrganizationUnitShortDTO();

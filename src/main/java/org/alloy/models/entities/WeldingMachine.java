@@ -4,8 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.DeviceModel;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -19,6 +22,7 @@ import java.util.List;
 @Table(name = "WeldingMachine")
 @Data
 @NoArgsConstructor
+@JsonIgnoreProperties({"welders", "weldingMachineStates", "maintenances", "weldingLimitPrograms", "weldingMachineType", "organizationUnit"})
 @Schema(description = "Сварочная машина")
 public class WeldingMachine {
     @Id
@@ -128,16 +132,26 @@ public class WeldingMachine {
     @Column(name = "LastOnlineOn")
     private LocalDateTime lastOnlineOn;
 
+    @Column(name = "LastPoweredOnAt")
+    @Schema(description = "Дата и время последнего включения аппарата")
+    private LocalDateTime lastPoweredOnAt;
+
     @JsonManagedReference("maintenanceRef")
     @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private List<Maintenance> maintenances = new ArrayList<>();
 
     @JsonManagedReference("limitProgramsRef")
     @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private List<WeldingLimitProgram> weldingLimitPrograms = new ArrayList<>();
 
     @JsonManagedReference("machineStatesRef")
     @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private List<WeldingMachineState> weldingMachineStates = new ArrayList<>();
 
     @JsonBackReference("machineTypeRef")
@@ -153,5 +167,7 @@ public class WeldingMachine {
     @ManyToMany(mappedBy = "weldingMachines", fetch = FetchType.LAZY)
     @JsonIgnore
     @Schema(description = "Связанные сварщики")
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private List<Welder> welders = new ArrayList<>();
 }

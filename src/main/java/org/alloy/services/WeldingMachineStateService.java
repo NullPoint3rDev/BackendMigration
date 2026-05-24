@@ -44,6 +44,9 @@ public class WeldingMachineStateService {
     @Autowired
     private WeldingMachineParameterValueService parameterValueService;
 
+    @Autowired
+    private WeldingMachineLastPoweredOnService weldingMachineLastPoweredOnService;
+
     // Черный список MAC-адресов, для которых запрещено автоматическое создание аппаратов
     private static final java.util.Set<String> BLOCKED_MAC_ADDRESSES = java.util.Set.of(
             "ECFABCCA42E8"  // Тестовый MAC, не должен автоматически создаваться
@@ -189,6 +192,11 @@ public class WeldingMachineStateService {
 
             // Сохраняем состояние
             weldingMachineStateRepository.save(state);
+            weldingMachineLastPoweredOnService.updateFromTelemetry(
+                    machine,
+                    prevOpt.orElse(null),
+                    stateSummary,
+                    now);
             System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата ID=" + machine.getId() + " (MAC=" + mac + "), дата=" + now);
 
             // Сохраняем параметры (State.I, State.U и др.)
