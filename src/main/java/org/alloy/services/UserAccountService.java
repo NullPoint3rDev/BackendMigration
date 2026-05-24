@@ -80,7 +80,7 @@ public class UserAccountService {
     }
 
     public List<UserAccount> getAllUserAccounts() {
-        return userAccountRepository.findByStatusNot(GeneralStatus.Deleted);
+        return userAccountRepository.findAllActiveWithOrganization(GeneralStatus.Deleted);
     }
 
     public Optional<UserAccount> getUserAccountById(Integer id) {
@@ -209,6 +209,15 @@ public class UserAccountService {
             wt2AccessService.assertCanCreateOrUpdateUserAccount(userAccount, auth.getName(), userAccount.getId());
         }
         UserAccount existing = existingOpt.get();
+        if (auth != null && auth.isAuthenticated() && auth.getName() != null) {
+            userAccountRepository.findByUserName(auth.getName()).ifPresent(self -> {
+                if (self.getId().equals(userAccount.getId())
+                        && userAccount.getStatus() == GeneralStatus.Blocked
+                        && existing.getStatus() != GeneralStatus.Blocked) {
+                    userAccount.setStatus(existing.getStatus());
+                }
+            });
+        }
         String oldUsername = existing.getUserName();
 
         // Check if username is already used by another non-deleted user

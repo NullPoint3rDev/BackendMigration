@@ -27,6 +27,12 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Intege
 
     List<UserAccount> findByStatusNot(GeneralStatus status);
 
+    @Query("SELECT DISTINCT ua FROM UserAccount ua "
+            + "LEFT JOIN FETCH ua.organization "
+            + "LEFT JOIN FETCH ua.organizationUnit "
+            + "WHERE ua.status <> :deleted")
+    List<UserAccount> findAllActiveWithOrganization(@Param("deleted") GeneralStatus deleted);
+
     @Query("SELECT ua FROM UserAccount ua WHERE ua.organizationUnitId = :organizationUnitId AND (ua.userName LIKE %:searchTerm% OR ua.name LIKE %:searchTerm% OR ua.email LIKE %:searchTerm%)")
     List<UserAccount> searchUserAccounts(@Param("organizationUnitId") Integer organizationUnitId, @Param("searchTerm") String searchTerm);
 
@@ -38,4 +44,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Intege
 
     @Query("SELECT ua FROM UserAccount ua LEFT JOIN FETCH ua.organization WHERE ua.userName = :userName AND ua.status <> :deleted")
     Optional<UserAccount> findActiveByUserNameWithOrganization(@Param("userName") String userName, @Param("deleted") GeneralStatus deleted);
+
+    @Query("SELECT ua FROM UserAccount ua WHERE ua.organizationUnitId IS NULL AND ua.status <> :deleted")
+    List<UserAccount> findByOrganizationUnitIdIsNullAndStatusNot(@Param("deleted") GeneralStatus deleted);
 }

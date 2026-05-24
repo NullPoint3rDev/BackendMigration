@@ -21,6 +21,8 @@ public class UserAccountMapper {
         dto.setFullName(entity.getName());
         if (entity.getOrganization() != null) {
             dto.setOrganizationId(entity.getOrganization().getId());
+        } else if (entity.getOrganizationUnit() != null && entity.getOrganizationUnit().getOrganizationId() != null) {
+            dto.setOrganizationId(entity.getOrganizationUnit().getOrganizationId());
         }
         if (entity.getOrganizationUnit() != null) {
             OrganizationUnitShortDTO orgDto = new OrganizationUnitShortDTO();
