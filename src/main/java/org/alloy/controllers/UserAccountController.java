@@ -115,10 +115,11 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or hasRole('ADMIN_ALLOY')")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_ADMIN_ALLOY','PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or hasAnyRole('ADMIN_ALLOY','USER_ALLOY')")
     @GetMapping
     public ResponseEntity<List<UserAccountDTO>> getAllUserAccounts() {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanReadUsers(principal);
         List<UserAccountDTO> userAccounts = wt2AccessService
                 .filterUserAccounts(userAccountService.getAllUserAccounts(), principal).stream()
                 .map(UserAccountMapper::toDTO)
@@ -159,13 +160,14 @@ public class UserAccountController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or hasRole('ADMIN_ALLOY') or @userAccountService.isOwner(#id, authentication.name)")
+    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_EDIT_USER_ALLOY','PERMISSION_CREATE_EDIT_ADMIN_DEALER','PERMISSION_CREATE_EDIT_USER_DEALER','PERMISSION_CREATE_EDIT_ADMIN_ENTERPRISE','PERMISSION_CREATE_EDIT_USER_ENTERPRISE') or hasAnyRole('ADMIN_ALLOY','USER_ALLOY') or @userAccountService.isOwner(#id, authentication.name)")
     @GetMapping("/{id}")
     public ResponseEntity<UserAccountDTO> getUserAccountById(
             @Parameter(description = "ID учетной записи", required = true, example = "1")
             @PathVariable Integer id
     ) {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanReadUsers(principal);
         wt2AccessService.assertCanViewUserAccount(id, principal);
         return userAccountService.getUserAccountById(id)
                 .map(UserAccountMapper::toDTO)

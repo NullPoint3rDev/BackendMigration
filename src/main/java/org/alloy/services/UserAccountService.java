@@ -4,6 +4,7 @@ import org.alloy.models.GeneralStatus;
 import org.alloy.models.User;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.repositories.UserAccountRepository;
+import org.alloy.security.AllowedUserActionsHelper;
 import org.alloy.repositories.UserRepository;
 import org.alloy.security.SessionManagementService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -181,6 +182,8 @@ public class UserAccountService {
             userAccount.setEmailVerified(false);
         }
 
+        sanitizeAllowedUserActions(userAccount);
+
         UserAccount saved = userAccountRepository.save(userAccount);
 
         // Also create a record in the "users" table for Spring Security authentication
@@ -260,6 +263,8 @@ public class UserAccountService {
         } else {
             userAccount.setEmailVerified(Boolean.TRUE.equals(existing.getEmailVerified()));
         }
+
+        sanitizeAllowedUserActions(userAccount);
 
         UserAccount saved = userAccountRepository.save(userAccount);
 
@@ -360,6 +365,14 @@ public class UserAccountService {
 
     public byte[] getPhoto(UUID photoId) throws IOException {
         return fileStorageService.getFile(photoId);
+    }
+
+    private static void sanitizeAllowedUserActions(UserAccount userAccount) {
+        if (userAccount == null || userAccount.getAllowedUserActions() == null) {
+            return;
+        }
+        userAccount.setAllowedUserActions(
+                AllowedUserActionsHelper.sanitizeAllowedUserActionsCsv(userAccount.getAllowedUserActions()));
     }
 
     private static String normalizeEmail(String email) {

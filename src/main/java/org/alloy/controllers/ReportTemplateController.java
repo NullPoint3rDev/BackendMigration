@@ -3,6 +3,7 @@ package org.alloy.controllers;
 import org.alloy.models.dto.ReportTemplateDTO;
 import org.alloy.services.ReportTemplateService;
 import org.alloy.services.UserAccountService;
+import org.alloy.services.Wt2AccessService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,13 +26,20 @@ public class ReportTemplateController {
     @Autowired
     private UserAccountService userAccountService;
 
+    @Autowired
+    private Wt2AccessService wt2AccessService;
+
+    private static final String REPORTS_PREAUTH =
+            "hasAuthority('PERMISSION_WORK_WITH_REPORTS') or hasRole('ADMIN_ALLOY') or hasRole('USER_ALLOY')";
+
     /**
      * Сохранение/обновление шаблона отчета
      */
-    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
+    @PreAuthorize(REPORTS_PREAUTH)
     @PostMapping
     public ResponseEntity<ReportTemplateDTO> saveTemplate(@RequestBody ReportTemplateDTO template) {
         try {
+            assertReportsAccess();
             Integer userId = getCurrentUserId();
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -38,6 +47,8 @@ public class ReportTemplateController {
 
             ReportTemplateDTO savedTemplate = templateService.saveTemplate(template, userId);
             return ResponseEntity.ok(savedTemplate);
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatus()).build();
         } catch (SecurityException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
@@ -50,10 +61,11 @@ public class ReportTemplateController {
     /**
      * Получение шаблона отчета по ID
      */
-    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
+    @PreAuthorize(REPORTS_PREAUTH)
     @GetMapping("/{templateId}")
     public ResponseEntity<ReportTemplateDTO> getTemplate(@PathVariable Long templateId) {
         try {
+            assertReportsAccess();
             Optional<ReportTemplateDTO> templateOpt = templateService.getTemplateById(templateId);
             if (templateOpt.isPresent()) {
                 return ResponseEntity.ok(templateOpt.get());
@@ -70,10 +82,11 @@ public class ReportTemplateController {
     /**
      * Получение всех активных шаблонов
      */
-    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
+    @PreAuthorize(REPORTS_PREAUTH)
     @GetMapping
     public ResponseEntity<List<ReportTemplateDTO>> getAllTemplates() {
         try {
+            assertReportsAccess();
             List<ReportTemplateDTO> templates = templateService.getAllActiveTemplates();
             return ResponseEntity.ok(templates);
         } catch (Exception e) {
@@ -86,10 +99,11 @@ public class ReportTemplateController {
     /**
      * Получение шаблонов текущего пользователя
      */
-    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
+    @PreAuthorize(REPORTS_PREAUTH)
     @GetMapping("/my")
     public ResponseEntity<List<ReportTemplateDTO>> getMyTemplates() {
         try {
+            assertReportsAccess();
             Integer userId = getCurrentUserId();
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -107,10 +121,11 @@ public class ReportTemplateController {
     /**
      * Удаление шаблона
      */
-    @PreAuthorize("hasAuthority('PERMISSION_WORK_WITH_REPORTS')")
+    @PreAuthorize(REPORTS_PREAUTH)
     @DeleteMapping("/{templateId}")
     public ResponseEntity<Void> deleteTemplate(@PathVariable Long templateId) {
         try {
+            assertReportsAccess();
             Integer userId = getCurrentUserId();
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -118,6 +133,8 @@ public class ReportTemplateController {
 
             templateService.deleteTemplate(templateId, userId);
             return ResponseEntity.ok().build();
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatus()).build();
         } catch (SecurityException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (IllegalArgumentException e) {
@@ -127,6 +144,11 @@ public class ReportTemplateController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    private void assertReportsAccess() {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanWorkWithReports(principal);
     }
 
     /**

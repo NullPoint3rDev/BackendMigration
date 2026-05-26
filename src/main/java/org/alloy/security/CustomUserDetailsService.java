@@ -109,6 +109,15 @@ public class CustomUserDetailsService implements UserDetailsService {
             authorities.add(new SimpleGrantedAuthority("ROLE_GUEST"));
         }
 
+        userAccountRepository.findByUserName(user.getUsername()).ifPresent(account -> {
+            boolean adminAlloy = authorities.stream()
+                    .anyMatch(a -> "ROLE_ADMIN_ALLOY".equals(a.getAuthority()));
+            if (AllowedUserActionsHelper.canWorkWithReports(
+                    AllowedUserActionsHelper.parseActions(account), adminAlloy)) {
+                authorities.add(new SimpleGrantedAuthority("PERMISSION_WORK_WITH_REPORTS"));
+            }
+        });
+
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 password,

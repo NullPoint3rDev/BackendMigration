@@ -117,7 +117,7 @@ public class WeldingMachineDailyStatsService {
         states.sort(Comparator.comparing(WeldingMachineState::getDateCreated, Comparator.nullsLast(Comparator.naturalOrder())));
 
         long offMs = 0L;
-        long standbyMs = 0L;
+        long errorMs = 0L;
         long onMs = 0L;
         long weldingMs = 0L;
 
@@ -140,8 +140,8 @@ public class WeldingMachineDailyStatsService {
                 case welding:
                     weldingMs += overlapMs;
                     break;
-                case standby:
-                    standbyMs += overlapMs;
+                case error:
+                    errorMs += overlapMs;
                     break;
                 case on:
                     onMs += overlapMs;
@@ -163,7 +163,7 @@ public class WeldingMachineDailyStatsService {
         row.setStatDate(statDate);
         row.setWireConsumptionKg(wireKg);
         row.setOffMs(offMs);
-        row.setStandbyMs(standbyMs);
+        row.setStandbyMs(errorMs);
         row.setOnMs(onMs);
         row.setWeldingMs(weldingMs);
         row.setLastStateId(lastStateId);
@@ -357,7 +357,9 @@ public class WeldingMachineDailyStatsService {
         dto.setStatDate(row.getStatDate());
         dto.setWireConsumptionKg(row.getWireConsumptionKg() != null ? row.getWireConsumptionKg() : BigDecimal.ZERO);
         dto.setOffMs(row.getOffMs() != null ? row.getOffMs() : 0L);
-        dto.setStandbyMs(row.getStandbyMs() != null ? row.getStandbyMs() : 0L);
+        long errorMs = row.getStandbyMs() != null ? row.getStandbyMs() : 0L;
+        dto.setErrorMs(errorMs);
+        dto.setStandbyMs(0L);
         dto.setOnMs(row.getOnMs() != null ? row.getOnMs() : 0L);
         dto.setWeldingMs(row.getWeldingMs() != null ? row.getWeldingMs() : 0L);
         if (row.getComputedAt() != null) {

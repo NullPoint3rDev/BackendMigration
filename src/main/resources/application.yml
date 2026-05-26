@@ -12,7 +12,7 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       keepalive-time: 300000
-      leak-detection-threshold: 60000
+      leak-detection-threshold: 180000
 
   jpa:
     # Иначе сессия/соединение могут тянуться на весь HTTP-запрос (тяжёлые отчёты/история → leak warnings, обрывы PG).

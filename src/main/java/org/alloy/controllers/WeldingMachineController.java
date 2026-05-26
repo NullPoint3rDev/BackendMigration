@@ -86,6 +86,7 @@ public class WeldingMachineController {
     @GetMapping
     public ResponseEntity<List<WeldingMachineDTO>> getAllWeldingMachines() {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanReadEquipment(principal);
         List<WeldingMachineDTO> weldingMachines = wt2AccessService
                 .filterWeldingMachines(weldingMachineService.getAllWeldingMachines(), principal).stream()
                 .map(WeldingMachineMapper::toDTO)
@@ -131,7 +132,7 @@ public class WeldingMachineController {
             @PathVariable Integer id
     ) {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
-        wt2AccessService.assertCanAccessWeldingMachine(id, principal);
+        wt2AccessService.assertCanAccessWeldingMachineForRead(id, principal);
         return weldingMachineService.getWeldingMachineById(id)
                 .map(WeldingMachineMapper::toDTO)
                 .map(ResponseEntity::ok)
@@ -396,6 +397,7 @@ public class WeldingMachineController {
 
         try {
             String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanWriteEquipment(principal);
             WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
             wt2AccessService.assertEnterpriseCanManageMachineOrgUnit(entity.getOrganizationUnitId(), principal);
             return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineMapper.toDTO(weldingMachineService.createWeldingMachine(entity)));
@@ -457,6 +459,7 @@ public class WeldingMachineController {
         }
 
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanWriteEquipment(principal);
         wt2AccessService.assertCanAccessWeldingMachine(id, principal);
 
         // Валидация MAC-адреса
@@ -546,6 +549,7 @@ public class WeldingMachineController {
     ) {
         try {
             String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanWriteEquipment(principal);
             wt2AccessService.assertCanAccessWeldingMachine(id, principal);
             weldingMachineService.deleteWeldingMachine(id);
             return ResponseEntity.noContent().build();
@@ -592,6 +596,7 @@ public class WeldingMachineController {
     ) {
         try {
             String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanWriteEquipment(principal);
             wt2AccessService.assertCanAccessWeldingMachine(id, principal);
             weldingMachineService.hardDeleteWeldingMachine(id);
             return ResponseEntity.noContent().build();

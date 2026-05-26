@@ -27,15 +27,16 @@ public final class MonitorActivityClassifier {
             return MonitorActivityMode.welding;
         }
         String stateLower = normalize(machineStateText);
-        if (stateLower.contains("дежур") || stateLower.contains("standby")
-                || stateLower.contains("waiting") || stateLower.contains("ожидан")) {
-            return MonitorActivityMode.standby;
+        if (isErrorState(state, stateLower)) {
+            return MonitorActivityMode.error;
         }
         if (stateLower.contains("выключ") || "off".equals(stateLower) || stateLower.contains("offline")
                 || stateLower.contains("не в сети")) {
             return MonitorActivityMode.off;
         }
-        if (stateLower.contains("включ") || "on".equals(stateLower) || stateLower.contains("idle")
+        if (stateLower.contains("дежур") || stateLower.contains("standby")
+                || stateLower.contains("waiting") || stateLower.contains("ожидан")
+                || stateLower.contains("включ") || "on".equals(stateLower) || stateLower.contains("idle")
                 || stateLower.contains("ready")) {
             return MonitorActivityMode.on;
         }
@@ -43,9 +44,26 @@ public final class MonitorActivityClassifier {
             return MonitorActivityMode.off;
         }
         if (state.getWeldingMachineStatus() == WeldingMachineStatus.Error) {
-            return MonitorActivityMode.off;
+            return MonitorActivityMode.error;
         }
         return MonitorActivityMode.on;
+    }
+
+    private static boolean isErrorState(WeldingMachineState state, String stateLower) {
+        if (stateLower.contains("авария") || stateLower.contains("error")
+                || stateLower.contains("ошибка") || stateLower.contains("emergency")
+                || stateLower.contains("failure")) {
+            return true;
+        }
+        String errorCode = state.getErrorCode();
+        if (errorCode == null || errorCode.isBlank()) {
+            return false;
+        }
+        try {
+            return Integer.parseInt(errorCode.trim()) > 0;
+        } catch (NumberFormatException e) {
+            return true;
+        }
     }
 
     private static boolean isWelding(

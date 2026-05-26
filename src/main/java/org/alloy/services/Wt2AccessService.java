@@ -14,8 +14,11 @@ import org.alloy.repositories.UserAccountRepository;
 import org.alloy.repositories.UserRoleRepository;
 import org.alloy.repositories.WelderRepository;
 import org.alloy.repositories.WeldingMachineRepository;
+import org.alloy.security.AllowedUserActionsHelper;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -75,6 +78,127 @@ public class Wt2AccessService {
         return roleName(ua).map(ROLE_ADMIN_ALLOY::equals).orElse(false);
     }
 
+    public boolean isUserAlloy(UserAccount ua) {
+        return roleName(ua).map(ROLE_USER_ALLOY::equals).orElse(false);
+    }
+
+    private Optional<UserAccount> requireActor(String principalName) {
+        return findActiveByUserNameWithOrganization(principalName);
+    }
+
+    private Set<String> allowedActionsFor(String principalName) {
+        return requireActor(principalName)
+                .map(AllowedUserActionsHelper::parseActions)
+                .orElse(Collections.emptySet());
+    }
+
+    private boolean enforceUserAlloyGrants(UserAccount ua) {
+        return ua != null && isUserAlloy(ua);
+    }
+
+    private void denyWriteIfViewOnly(boolean canWrite, String message) {
+        if (!canWrite) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, message);
+        }
+    }
+
+    public void assertCanReadEquipment(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        if (!AllowedUserActionsHelper.canReadEquipment(allowedActionsFor(principalName), false)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав на просмотр оборудования");
+        }
+    }
+
+    public void assertCanWriteEquipment(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        denyWriteIfViewOnly(
+                AllowedUserActionsHelper.canWriteEquipment(allowedActionsFor(principalName), false),
+                "Нет прав на изменение оборудования");
+    }
+
+    public void assertCanReadWelders(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        if (!AllowedUserActionsHelper.canReadWelders(allowedActionsFor(principalName), false)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав на просмотр сварщиков");
+        }
+    }
+
+    public void assertCanWriteWelders(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        denyWriteIfViewOnly(
+                AllowedUserActionsHelper.canWriteWelders(allowedActionsFor(principalName), false),
+                "Нет прав на изменение сварщиков");
+    }
+
+    public void assertCanReadUsers(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        if (!AllowedUserActionsHelper.canReadUsers(allowedActionsFor(principalName), false)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав на просмотр пользователей");
+        }
+    }
+
+    public void assertCanWriteUsers(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        denyWriteIfViewOnly(
+                AllowedUserActionsHelper.canWriteUsers(allowedActionsFor(principalName), false),
+                "Нет прав на изменение пользователей");
+    }
+
+    public void assertCanReadOrganizations(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        if (!AllowedUserActionsHelper.canReadOrganizations(allowedActionsFor(principalName), false)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав на просмотр организаций");
+        }
+    }
+
+    public void assertCanWriteOrganizations(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        denyWriteIfViewOnly(
+                AllowedUserActionsHelper.canWriteOrganizations(allowedActionsFor(principalName), false),
+                "Нет прав на изменение организаций");
+    }
+
+    public void assertCanWorkWithReports(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            return;
+        }
+        boolean adminAlloy = isAdminAlloy(uaOpt.get());
+        if (!AllowedUserActionsHelper.canWorkWithReports(allowedActionsFor(principalName), adminAlloy)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав на работу с отчётами");
+        }
+    }
+
+    /** Просмотр аппарата: скоуп предприятия + право на чтение оборудования. */
+    public void assertCanAccessWeldingMachineForRead(Integer weldingMachineId, String principalName) {
+        assertCanReadEquipment(principalName);
+        assertCanAccessWeldingMachine(weldingMachineId, principalName);
+    }
+
     public boolean isEnterpriseScopedRole(UserAccount ua) {
         return roleName(ua).map(n -> ROLE_ADMIN_ENTERPRISE.equals(n) || ROLE_USER_ENTERPRISE.equals(n)).orElse(false);
     }
@@ -105,7 +229,29 @@ public class Wt2AccessService {
     }
 
     public static boolean isAlloyOrganizationName(String name) {
-        return name != null && "alloy".equals(name.trim().toLowerCase(Locale.ROOT));
+        if (name == null) {
+            return false;
+        }
+        String n = name.trim().toLowerCase(Locale.ROOT);
+        return "alloy".equals(n) || "эллой".equals(n);
+    }
+
+    /** Доступ к организации Alloy: Admin Alloy, visibility_edit_alloy или своё предприятие у USER_ALLOY. */
+    private boolean canViewAlloyOrganization(UserAccount ua, Organization org) {
+        if (org == null || !isAlloyOrganizationName(org.getName())) {
+            return true;
+        }
+        if (isAdminAlloy(ua)) {
+            return true;
+        }
+        if (AllowedUserActionsHelper.hasAction(AllowedUserActionsHelper.parseActions(ua), "visibility_edit_alloy")) {
+            return true;
+        }
+        if (isUserAlloy(ua)) {
+            Integer userOrgId = resolveOrganizationId(ua);
+            return userOrgId != null && userOrgId.equals(org.getId());
+        }
+        return false;
     }
 
     public List<Integer> organizationUnitIdsForOrganization(Integer organizationId) {
@@ -132,7 +278,7 @@ public class Wt2AccessService {
             return all.stream().filter(o -> orgId.equals(o.getId())).collect(Collectors.toList());
         }
         if (!isAdminAlloy(ua)) {
-            return all.stream().filter(o -> !isAlloyOrganizationName(o.getName())).collect(Collectors.toList());
+            return all.stream().filter(o -> canViewAlloyOrganization(ua, o)).collect(Collectors.toList());
         }
         return all;
     }
@@ -152,7 +298,7 @@ public class Wt2AccessService {
         }
         if (!isAdminAlloy(ua)) {
             organizationRepository.findById(organizationId).ifPresent(o -> {
-                if (isAlloyOrganizationName(o.getName())) {
+                if (!canViewAlloyOrganization(ua, o)) {
                     throw new AccessDeniedException("Нет доступа к организации Alloy");
                 }
             });
@@ -423,6 +569,9 @@ public class Wt2AccessService {
             return;
         }
         Optional<UserAccount> actorOpt = findActiveByUserNameWithOrganization(principalName);
+        if (actorOpt.isPresent() && enforceUserAlloyGrants(actorOpt.get())) {
+            assertCanWriteUsers(principalName);
+        }
         if (!actorOpt.isPresent()) {
             return;
         }

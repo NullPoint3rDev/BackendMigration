@@ -314,6 +314,7 @@ public class OrganizationUnitController {
             System.out.println("Получены данные для создания подразделения: " + organizationUnitDTO);
             OrganizationUnit entity = OrganizationUnitMapper.toEntity(organizationUnitDTO);
             String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanWriteOrganizations(principal);
             wt2AccessService.assertEnterpriseCanManageOrganizationUnit(entity, principal);
             System.out.println("Преобразовано в сущность: " + entity);
             OrganizationUnit createdEntity = organizationUnitService.createOrganizationUnit(entity);
@@ -383,6 +384,7 @@ public class OrganizationUnitController {
         OrganizationUnit entity = OrganizationUnitMapper.toEntity(organizationUnitDTO);
         entity.setId(id);
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanWriteOrganizations(principal);
         wt2AccessService.assertCanViewOrganizationUnit(id, principal);
         wt2AccessService.assertEnterpriseCanManageOrganizationUnit(entity, principal);
         return ResponseEntity.ok(OrganizationUnitMapper.toDTO(organizationUnitService.updateOrganizationUnit(entity)));
@@ -425,6 +427,7 @@ public class OrganizationUnitController {
     ) {
         try {
             String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanWriteOrganizations(principal);
             wt2AccessService.assertCanViewOrganizationUnit(id, principal);
             organizationUnitService.deleteOrganizationUnit(id);
             return ResponseEntity.noContent().build();
@@ -469,6 +472,7 @@ public class OrganizationUnitController {
     ) {
         try {
             String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanWriteOrganizations(principal);
             wt2AccessService.assertCanViewOrganizationUnit(id, principal);
             organizationUnitService.hardDeleteOrganizationUnit(id);
             return ResponseEntity.noContent().build();

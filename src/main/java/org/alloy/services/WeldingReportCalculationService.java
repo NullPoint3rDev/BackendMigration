@@ -374,133 +374,110 @@ public class WeldingReportCalculationService {
      * — Время шва: сумма длительностей всех последовательных состояний «Сварка» в этом интервале (секунды).
      */
     public List<org.alloy.models.dto.WeldSegmentDTO> calculateWeldSegments(Integer machineId, LocalDateTime startDate, LocalDateTime endDate) {
+        List<WeldingMachineState> states = weldingMachineStateRepository
+                .findByWeldingMachineIdAndDateRange(machineId, startDate, endDate);
+        if (states.isEmpty()) {
+            return new ArrayList<>();
+        }
+        states.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+        return calculateWeldSegmentsFromStates(states);
+    }
+
+    /**
+     * Расчёт сегментов швов по уже загруженным состояниям аппарата (без повторного запроса в БД).
+     */
+    public List<org.alloy.models.dto.WeldSegmentDTO> calculateWeldSegmentsFromStates(List<WeldingMachineState> states) {
         List<org.alloy.models.dto.WeldSegmentDTO> result = new ArrayList<>();
+        if (states == null || states.isEmpty()) {
+            return result;
+        }
         try {
-            List<WeldingMachineState> states = weldingMachineStateRepository
-                    .findByWeldingMachineIdAndDateRange(machineId, startDate, endDate);
-            if (states.isEmpty()) {
-                return result;
+            List<WeldingMachineState> sorted = new ArrayList<>(states);
+            sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+            List<Long> fullStateIds = sorted.stream().map(WeldingMachineState::getId).collect(java.util.stream.Collectors.toList());
+            Integer machineId = sorted.stream().map(WeldingMachineState::getWeldingMachineId)
+                    .filter(java.util.Objects::nonNull).findFirst().orElse(null);
+            LocalDateTime rangeStart = null;
+            LocalDateTime rangeEnd = null;
+            for (WeldingMachineState s : sorted) {
+                if (s.getDateCreated() == null) continue;
+                if (rangeStart == null || s.getDateCreated().isBefore(rangeStart)) rangeStart = s.getDateCreated();
+                if (rangeEnd == null || s.getDateCreated().isAfter(rangeEnd)) rangeEnd = s.getDateCreated();
             }
-            states.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-            List<Long> stateIds = states.stream().map(WeldingMachineState::getId).collect(java.util.stream.Collectors.toList());
+            boolean useMachineDateRange = machineId != null && rangeStart != null && rangeEnd != null;
+            boolean largePeriod = sorted.size() >= LARGE_PERIOD_STATE_COUNT;
+            long phase1Ms = System.currentTimeMillis();
 
-            // Ток: Current и State.I с COALESCE(value, raw_value); остальные коды — по value
-            java.util.Map<Long, Integer> currentByState = new java.util.HashMap<>();
-            for (String code : new String[] { "Current", "State.I" }) {
-                for (java.util.Map.Entry<Long, Integer> e : loadParamMapByStateIds(stateIds, code, true).entrySet()) {
-                    if (e.getValue() != null)
-                        currentByState.putIfAbsent(e.getKey(), e.getValue());
-                }
-            }
-            for (String code : new String[] { "I", "Ток" }) {
-                for (java.util.Map.Entry<Long, Integer> e : loadParamMapByStateIds(stateIds, code).entrySet()) {
-                    if (e.getValue() != null)
-                        currentByState.putIfAbsent(e.getKey(), e.getValue());
-                }
-            }
-            // Напряжение: только Voltage (CORE, в десятых)
-            java.util.Map<Long, Integer> voltageByState = new java.util.HashMap<>();
-            java.util.Map<Long, Integer> voltageFromVoltage = loadParamMapByStateIds(stateIds, "Voltage", true);
-            for (Long id : stateIds) {
-                if (voltageFromVoltage.containsKey(id) && voltageFromVoltage.get(id) != null && voltageFromVoltage.get(id) != 0) {
-                    voltageByState.put(id, voltageFromVoltage.get(id) / 10);
-                }
+            java.util.Map<Long, String> stateNameByStateId = useMachineDateRange
+                    ? loadStateNameByMachineDateRange(machineId, rangeStart, rangeEnd)
+                    : loadStateNameByStateIds(fullStateIds);
+            java.util.Map<Long, LocalDateTime> deviceTimeByStateId = new java.util.HashMap<>();
+            if (useMachineDateRange && !largePeriod) {
+                deviceTimeByStateId = loadDeviceDateTimeByMachinePeriodCombined(machineId, rangeStart, rangeEnd);
+            } else if (!useMachineDateRange) {
+                deviceTimeByStateId = loadDeviceDateTimeByStateIds(collectWeldingRelatedStateIds(sorted));
             }
 
-            // Состояние «Сварка»: по колонке welding_machine_status или по параметру
-            java.util.Map<Long, String> stateNameByStateId = loadStateNameByStateIds(stateIds);
-            // Время аппарата (CORE Date.*/Time.*) — для длительности и отображения, чтобы не было расхождения с серверным временем
-            java.util.Map<Long, LocalDateTime> deviceTimeByStateId = loadDeviceDateTimeByStateIds(stateIds);
-
+            java.util.List<PendingWeldSegment> pending = new java.util.ArrayList<>();
             boolean inWeld = false;
             LocalDateTime weldStartTime = null;
             Long weldStartStateId = null;
-            long segmentWeightedCurrent = 0;
-            long segmentWeightedVoltage = 0;
 
-            for (int i = 0; i < states.size(); i++) {
-                WeldingMachineState s = states.get(i);
+            for (int i = 0; i < sorted.size(); i++) {
+                WeldingMachineState s = sorted.get(i);
                 boolean isWelding = isWeldingState(s, stateNameByStateId);
-                long dtMs = s.getStateDurationMs() != null ? s.getStateDurationMs() : 0L;
-                if (dtMs <= 0 && i + 1 < states.size()) {
-                    long diff = java.time.Duration.between(s.getDateCreated(), states.get(i + 1).getDateCreated()).toMillis();
-                    if (diff > 0) dtMs = diff;
-                }
-                int I = currentByState.getOrDefault(s.getId(), 0);
-                int U = voltageByState.getOrDefault(s.getId(), 0);
 
                 if (isWelding) {
                     if (!inWeld) {
                         inWeld = true;
                         weldStartTime = s.getDateCreated();
                         weldStartStateId = s.getId();
-                        segmentWeightedCurrent = 0;
-                        segmentWeightedVoltage = 0;
-                    }
-                    if (I > MIN_ARC_CURRENT_AMPS_FOR_REPORT && isValidCurrentVoltagePoint(I, U)) {
-                        segmentWeightedCurrent += (long) I * dtMs;
-                        segmentWeightedVoltage += (long) U * dtMs;
                     }
                 } else {
                     if (inWeld && weldStartTime != null && weldStartStateId != null && s.getDateCreated() != null) {
-                        LocalDateTime segmentStartForDto = weldStartTime;
-                        LocalDateTime segmentEndTime = s.getDateCreated();
-                        long segmentDurationMs = java.time.Duration.between(weldStartTime, segmentEndTime).toMillis();
-                        LocalDateTime deviceStart = deviceTimeByStateId.get(weldStartStateId);
-                        LocalDateTime deviceEnd = deviceTimeByStateId.get(s.getId());
-                        if (deviceStart != null && deviceEnd != null && !deviceEnd.isBefore(deviceStart)) {
-                            segmentDurationMs = java.time.Duration.between(deviceStart, deviceEnd).toMillis();
-                            segmentStartForDto = deviceStart;
-                            segmentEndTime = deviceEnd;
-                        }
-                        if (i + 1 < states.size()) {
-                            WeldingMachineState next = states.get(i + 1);
-                            boolean nextWelding = isWeldingState(next, stateNameByStateId);
-                            if (nextWelding) {
-                                LocalDateTime nextDevice = deviceTimeByStateId.get(next.getId());
-                                LocalDateTime startForDur = deviceStart != null ? deviceStart : weldStartTime;
-                                if (nextDevice != null && startForDur != null && nextDevice.isAfter(startForDur)) {
-                                    long durToNext = java.time.Duration.between(startForDur, nextDevice).toMillis();
-                                    if (durToNext > 0 && durToNext < segmentDurationMs) {
-                                        segmentDurationMs = durToNext;
-                                        segmentEndTime = nextDevice;
-                                    }
-                                }
-                            }
-                        }
-                        if (segmentDurationMs > 0) {
-                            LocalDateTime serverEnd = s.getDateCreated();
-                            org.alloy.models.dto.WeldSegmentDTO seg = buildSegmentDto(
-                                    weldStartTime, serverEnd, segmentDurationMs, segmentWeightedCurrent, segmentWeightedVoltage,
-                                    states, currentByState, voltageByState, segmentStartForDto, stateNameByStateId);
-                            result.add(seg);
-                        }
+                        PendingWeldSegment p = buildPendingWeldSegment(
+                                sorted, i, weldStartTime, weldStartStateId, s, stateNameByStateId, deviceTimeByStateId);
+                        if (p != null) pending.add(p);
                     }
                     inWeld = false;
                 }
             }
-
             if (inWeld && weldStartTime != null) {
-                long segmentDurationMs = 0;
-                for (int j = 0; j < states.size(); j++) {
-                    WeldingMachineState sx = states.get(j);
-                    boolean w = isWeldingState(sx, stateNameByStateId);
-                    if (w && sx.getDateCreated() != null && !sx.getDateCreated().isBefore(weldStartTime)) {
-                        long d = sx.getStateDurationMs() != null ? sx.getStateDurationMs() : 0L;
-                        if (d <= 0 && j + 1 < states.size())
-                            d = java.time.Duration.between(sx.getDateCreated(), states.get(j + 1).getDateCreated()).toMillis();
-                        segmentDurationMs += d;
-                    } else if (!w) break;
-                }
-                if (segmentDurationMs > 0) {
-                    LocalDateTime segmentEndTime = weldStartTime.plus(segmentDurationMs, java.time.temporal.ChronoUnit.MILLIS);
-                    LocalDateTime displayStart = deviceTimeByStateId.get(weldStartStateId);
-                    org.alloy.models.dto.WeldSegmentDTO seg = buildSegmentDto(
-                            weldStartTime, segmentEndTime, segmentDurationMs, segmentWeightedCurrent, segmentWeightedVoltage,
-                            states, currentByState, voltageByState, displayStart, stateNameByStateId);
-                    result.add(seg);
-                }
+                PendingWeldSegment p = buildPendingOpenWeldSegment(
+                        sorted, weldStartTime, weldStartStateId, stateNameByStateId, deviceTimeByStateId);
+                if (p != null) pending.add(p);
             }
+
+            if (largePeriod && useMachineDateRange && !pending.isEmpty()) {
+                java.util.Set<Long> deviceStateIds = collectDeviceTimeStateIdsForPending(sorted, pending);
+                deviceTimeByStateId = loadDeviceDateTimeByStateIds(new java.util.ArrayList<>(deviceStateIds));
+                refinePendingSegmentsWithDeviceTime(sorted, pending, stateNameByStateId, deviceTimeByStateId);
+            }
+
+            java.util.Set<Long> iuStateIds = collectStateIdsAroundPendingSegments(sorted, pending);
+            long phase2Ms = System.currentTimeMillis();
+            java.util.Map<Long, Integer> currentByState = new java.util.HashMap<>();
+            java.util.Map<Long, Integer> voltageByState = new java.util.HashMap<>();
+            loadCurrentAndVoltageForWeldSegments(
+                    machineId, rangeStart, rangeEnd, fullStateIds, iuStateIds, sorted.size(),
+                    useMachineDateRange, currentByState, voltageByState);
+            long phase3Ms = System.currentTimeMillis();
+
+            for (PendingWeldSegment p : pending) {
+                List<WeldingMachineState> windowStates = statesInTimeWindow(
+                        sorted, p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5));
+                LocalDateTime serverEnd = p.serverEnd != null ? p.serverEnd : p.segmentEndTime;
+                result.add(buildSegmentDto(
+                        p.weldStartTime, serverEnd, p.segmentDurationMs, 0, 0,
+                        windowStates, currentByState, voltageByState, p.segmentStartForDto, stateNameByStateId));
+            }
+
+            System.out.println("[REPORT-CALC] machineId=" + machineId + " states=" + sorted.size()
+                    + " segments=" + result.size() + " iuIds=" + iuStateIds.size()
+                    + " largePeriod=" + largePeriod + " deviceTimeKeys=" + deviceTimeByStateId.size()
+                    + " phase1Ms=" + (phase2Ms - phase1Ms) + " iuLoadMs=" + (phase3Ms - phase2Ms)
+                    + " buildMs=" + (System.currentTimeMillis() - phase3Ms)
+                    + " I=" + currentByState.size() + " U=" + voltageByState.size());
 
         } catch (Exception e) {
             System.err.println("[REPORT-CALC] ❌ Ошибка расчета сегментов швов: " + e.getMessage());
@@ -613,6 +590,373 @@ public class WeldingReportCalculationService {
         return seg;
     }
 
+    /** Порог: за длинный период не грузим Date./Time.* на все состояния — только границы швов. */
+    private static final int LARGE_PERIOD_STATE_COUNT = 80_000;
+
+    private static class PendingWeldSegment {
+        LocalDateTime weldStartTime;
+        Long weldStartStateId;
+        Long weldEndStateId;
+        int endIndex = -1;
+        LocalDateTime segmentEndTime;
+        LocalDateTime serverEnd;
+        LocalDateTime segmentStartForDto;
+        long segmentDurationMs;
+    }
+
+    private PendingWeldSegment buildPendingWeldSegment(
+            List<WeldingMachineState> sorted, int endIndex, LocalDateTime weldStartTime, Long weldStartStateId,
+            WeldingMachineState endState, java.util.Map<Long, String> stateNameByStateId,
+            java.util.Map<Long, LocalDateTime> deviceTimeByStateId) {
+        LocalDateTime segmentStartForDto = weldStartTime;
+        LocalDateTime segmentEndTime = endState.getDateCreated();
+        long segmentDurationMs = java.time.Duration.between(weldStartTime, segmentEndTime).toMillis();
+        LocalDateTime deviceStart = deviceTimeByStateId.get(weldStartStateId);
+        LocalDateTime deviceEnd = deviceTimeByStateId.get(endState.getId());
+        if (deviceStart != null && deviceEnd != null && !deviceEnd.isBefore(deviceStart)) {
+            segmentDurationMs = java.time.Duration.between(deviceStart, deviceEnd).toMillis();
+            segmentStartForDto = deviceStart;
+            segmentEndTime = deviceEnd;
+        }
+        if (endIndex + 1 < sorted.size()) {
+            WeldingMachineState next = sorted.get(endIndex + 1);
+            if (isWeldingState(next, stateNameByStateId)) {
+                LocalDateTime nextDevice = deviceTimeByStateId.get(next.getId());
+                LocalDateTime startForDur = deviceStart != null ? deviceStart : weldStartTime;
+                if (nextDevice != null && startForDur != null && nextDevice.isAfter(startForDur)) {
+                    long durToNext = java.time.Duration.between(startForDur, nextDevice).toMillis();
+                    if (durToNext > 0 && durToNext < segmentDurationMs) {
+                        segmentDurationMs = durToNext;
+                        segmentEndTime = nextDevice;
+                    }
+                }
+            }
+        }
+        if (segmentDurationMs <= 0) return null;
+        PendingWeldSegment p = new PendingWeldSegment();
+        p.weldStartTime = weldStartTime;
+        p.weldStartStateId = weldStartStateId;
+        p.weldEndStateId = endState.getId();
+        p.endIndex = endIndex;
+        p.segmentEndTime = segmentEndTime;
+        p.serverEnd = endState.getDateCreated();
+        p.segmentStartForDto = segmentStartForDto;
+        p.segmentDurationMs = segmentDurationMs;
+        return p;
+    }
+
+    private PendingWeldSegment buildPendingOpenWeldSegment(
+            List<WeldingMachineState> sorted, LocalDateTime weldStartTime, Long weldStartStateId,
+            java.util.Map<Long, String> stateNameByStateId,
+            java.util.Map<Long, LocalDateTime> deviceTimeByStateId) {
+        long segmentDurationMs = 0;
+        for (int j = 0; j < sorted.size(); j++) {
+            WeldingMachineState sx = sorted.get(j);
+            if (isWeldingState(sx, stateNameByStateId) && sx.getDateCreated() != null
+                    && !sx.getDateCreated().isBefore(weldStartTime)) {
+                long d = sx.getStateDurationMs() != null ? sx.getStateDurationMs() : 0L;
+                if (d <= 0 && j + 1 < sorted.size()) {
+                    d = java.time.Duration.between(sx.getDateCreated(), sorted.get(j + 1).getDateCreated()).toMillis();
+                }
+                segmentDurationMs += d;
+            } else if (!isWeldingState(sx, stateNameByStateId)) {
+                break;
+            }
+        }
+        if (segmentDurationMs <= 0) return null;
+        PendingWeldSegment p = new PendingWeldSegment();
+        p.weldStartTime = weldStartTime;
+        p.weldStartStateId = weldStartStateId;
+        p.segmentDurationMs = segmentDurationMs;
+        p.segmentEndTime = weldStartTime.plus(segmentDurationMs, java.time.temporal.ChronoUnit.MILLIS);
+        p.segmentStartForDto = deviceTimeByStateId.getOrDefault(weldStartStateId, weldStartTime);
+        p.serverEnd = p.segmentEndTime;
+        return p;
+    }
+
+    private static java.util.Set<Long> collectStateIdsAroundPendingSegments(
+            List<WeldingMachineState> sorted, java.util.List<PendingWeldSegment> pending) {
+        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        for (PendingWeldSegment p : pending) {
+            for (WeldingMachineState s : statesInTimeWindow(
+                    sorted, p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5))) {
+                if (s.getId() != null) ids.add(s.getId());
+            }
+        }
+        return ids;
+    }
+
+    /** stateId для Date./Time.* только на границах швов (не весь период 300k+). */
+    private static java.util.Set<Long> collectDeviceTimeStateIdsForPending(
+            List<WeldingMachineState> sorted, java.util.List<PendingWeldSegment> pending) {
+        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        for (PendingWeldSegment p : pending) {
+            if (p.weldStartStateId != null) ids.add(p.weldStartStateId);
+            if (p.weldEndStateId != null) ids.add(p.weldEndStateId);
+            if (p.endIndex >= 0 && p.endIndex + 1 < sorted.size()) {
+                WeldingMachineState next = sorted.get(p.endIndex + 1);
+                if (next.getId() != null) ids.add(next.getId());
+            }
+        }
+        return ids;
+    }
+
+    private void refinePendingSegmentsWithDeviceTime(
+            List<WeldingMachineState> sorted,
+            java.util.List<PendingWeldSegment> pending,
+            java.util.Map<Long, String> stateNameByStateId,
+            java.util.Map<Long, LocalDateTime> deviceTimeByStateId) {
+        if (deviceTimeByStateId == null || deviceTimeByStateId.isEmpty()) return;
+        for (PendingWeldSegment p : pending) {
+            if (p.endIndex >= 0 && p.weldEndStateId != null && p.endIndex < sorted.size()) {
+                WeldingMachineState endState = sorted.get(p.endIndex);
+                PendingWeldSegment refined = buildPendingWeldSegment(
+                        sorted, p.endIndex, p.weldStartTime, p.weldStartStateId, endState,
+                        stateNameByStateId, deviceTimeByStateId);
+                if (refined != null) copyPendingTiming(p, refined);
+            } else if (p.weldStartStateId != null) {
+                PendingWeldSegment refined = buildPendingOpenWeldSegment(
+                        sorted, p.weldStartTime, p.weldStartStateId, stateNameByStateId, deviceTimeByStateId);
+                if (refined != null) copyPendingTiming(p, refined);
+            }
+        }
+    }
+
+    private static void copyPendingTiming(PendingWeldSegment target, PendingWeldSegment source) {
+        target.segmentEndTime = source.segmentEndTime;
+        target.serverEnd = source.serverEnd;
+        target.segmentStartForDto = source.segmentStartForDto;
+        target.segmentDurationMs = source.segmentDurationMs;
+    }
+
+    /** Ток/напряжение: по окнам швов (батчи), либо один JOIN на весь период, если окон почти весь интервал. */
+    private void loadCurrentAndVoltageForWeldSegments(
+            Integer machineId, LocalDateTime rangeStart, LocalDateTime rangeEnd, List<Long> fullStateIds,
+            java.util.Set<Long> iuStateIds, int totalStates, boolean useMachineDateRange,
+            java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
+        int iuCount = iuStateIds != null ? iuStateIds.size() : 0;
+        boolean useFullPeriod = !useMachineDateRange || iuCount == 0
+                || iuCount >= totalStates * 0.65;
+        if (useFullPeriod && useMachineDateRange) {
+            loadArcElectricalByMachinePeriodCombined(machineId, rangeStart, rangeEnd, currentByState, voltageByState);
+            return;
+        }
+        java.util.List<Long> idList = new java.util.ArrayList<>(iuStateIds);
+        for (String code : new String[] { "Current", "State.I" }) {
+            mergeParamMap(currentByState, loadParamMapByStateIds(idList, code, true));
+        }
+        for (String code : new String[] { "I", "Ток" }) {
+            mergeParamMap(currentByState, loadParamMapByStateIds(idList, code, false));
+        }
+        java.util.Map<Long, Integer> voltageRaw = loadParamMapByStateIds(idList, "Voltage", true);
+        for (java.util.Map.Entry<Long, Integer> e : voltageRaw.entrySet()) {
+            if (e.getValue() != null && e.getValue() != 0) {
+                voltageByState.put(e.getKey(), e.getValue() / 10);
+            }
+        }
+    }
+
+    private void loadArcElectricalByMachinePeriodCombined(
+            Integer machineId, LocalDateTime start, LocalDateTime end,
+            java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
+        if (machineId == null || start == null || end == null) return;
+        try {
+            List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
+                    machineId, start, end,
+                    java.util.Arrays.asList("Current", "State.I", "I", "Ток", "Voltage"));
+            for (Object[] row : rows) {
+                if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                long stateId = ((Number) row[0]).longValue();
+                String code = row[1].toString();
+                String valueStr = row[2].toString();
+                if ("null".equalsIgnoreCase(valueStr.trim())) continue;
+                if ("Voltage".equals(code)) {
+                    int v = parseValueToInt(valueStr);
+                    if (v != 0) voltageByState.put(stateId, v / 10);
+                } else {
+                    currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ⚠️ combined I/U machine+period: " + e.getMessage());
+        }
+    }
+
+    /** stateId для загрузки параметров: Welding + соседние состояния (границы шва). */
+    private static List<Long> collectWeldingRelatedStateIds(List<WeldingMachineState> sorted) {
+        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        for (int i = 0; i < sorted.size(); i++) {
+            WeldingMachineState s = sorted.get(i);
+            if (s.getId() == null) continue;
+            if (s.getWeldingMachineStatus() == WeldingMachineStatus.Welding) {
+                ids.add(s.getId());
+                if (i > 0 && sorted.get(i - 1).getId() != null) ids.add(sorted.get(i - 1).getId());
+                if (i + 1 < sorted.size() && sorted.get(i + 1).getId() != null) ids.add(sorted.get(i + 1).getId());
+            }
+        }
+        if (ids.isEmpty()) {
+            return sorted.stream().map(WeldingMachineState::getId)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        return new ArrayList<>(ids);
+    }
+
+    private static int lowerBoundByDateCreated(List<WeldingMachineState> sorted, java.time.LocalDateTime t) {
+        int lo = 0, hi = sorted.size();
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            java.time.LocalDateTime dc = sorted.get(mid).getDateCreated();
+            if (dc == null || dc.isBefore(t)) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    private static List<WeldingMachineState> statesInTimeWindow(
+            List<WeldingMachineState> sorted, java.time.LocalDateTime fromInclusive, java.time.LocalDateTime toExclusive) {
+        if (sorted == null || sorted.isEmpty()) return java.util.Collections.emptyList();
+        int lo = lowerBoundByDateCreated(sorted, fromInclusive);
+        int hi = lowerBoundByDateCreated(sorted, toExclusive);
+        if (lo >= hi || lo >= sorted.size()) return java.util.Collections.emptyList();
+        return sorted.subList(lo, Math.min(hi, sorted.size()));
+    }
+
+    private static void mergeParamMap(java.util.Map<Long, Integer> target, java.util.Map<Long, Integer> source) {
+        if (source == null) return;
+        for (java.util.Map.Entry<Long, Integer> e : source.entrySet()) {
+            if (e.getValue() != null) target.putIfAbsent(e.getKey(), e.getValue());
+        }
+    }
+
+    private java.util.Map<Long, Integer> loadParamMapForPeriod(
+            Integer machineId, LocalDateTime rangeStart, LocalDateTime rangeEnd,
+            List<Long> fallbackStateIds, String propertyCode, boolean useCoalesce, boolean useMachineDateRange) {
+        if (useMachineDateRange) {
+            return loadParamMapByMachineDateRange(machineId, rangeStart, rangeEnd, propertyCode, useCoalesce);
+        }
+        return loadParamMapByStateIds(fallbackStateIds, propertyCode, useCoalesce);
+    }
+
+    private java.util.Map<Long, Integer> loadParamMapByMachineDateRange(
+            Integer machineId, LocalDateTime start, LocalDateTime end, String propertyCode, boolean useCoalesce) {
+        java.util.Map<Long, Integer> map = new java.util.HashMap<>();
+        if (machineId == null || start == null || end == null) return map;
+        try {
+            List<Object[]> rows = useCoalesce
+                    ? parameterValueRepository.findStateIdAndValueByMachineDateRangeCoalesce(machineId, start, end, propertyCode)
+                    : parameterValueRepository.findStateIdAndValueByMachineDateRange(machineId, start, end, propertyCode);
+            for (Object[] row : rows) {
+                if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                    long stateId = ((Number) row[0]).longValue();
+                    String valueStr = row[1].toString();
+                    if ("null".equalsIgnoreCase(valueStr.trim())) continue;
+                    map.put(stateId, parseValueToInt(valueStr));
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ⚠️ machine+period " + propertyCode + ": " + e.getMessage());
+        }
+        return map;
+    }
+
+    private java.util.Map<Long, String> loadStateNameByMachineDateRange(
+            Integer machineId, LocalDateTime start, LocalDateTime end) {
+        java.util.Map<Long, String> map = new java.util.HashMap<>();
+        if (machineId == null || start == null || end == null) return map;
+        try {
+            List<Object[]> rows = parameterValueRepository.findStateIdAndValueByMachineDateRangeAndCodes(
+                    machineId, start, end, java.util.Arrays.asList("WeldingMachineState", "Состояние аппарата"));
+            for (Object[] row : rows) {
+                if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                    long stateId = ((Number) row[0]).longValue();
+                    map.putIfAbsent(stateId, row[1].toString().trim());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ⚠️ machine+period state names: " + e.getMessage());
+        }
+        return map;
+    }
+
+    /** Date./Time.* за период одним JOIN (не десятки батчей по stateId). */
+    private java.util.Map<Long, LocalDateTime> loadDeviceDateTimeByMachinePeriodCombined(
+            Integer machineId, LocalDateTime start, LocalDateTime end) {
+        java.util.Map<Long, LocalDateTime> out = new java.util.HashMap<>();
+        if (machineId == null || start == null || end == null) return out;
+        java.util.Map<String, java.util.Map<Long, Integer>> parts = new java.util.HashMap<>();
+        for (String c : new String[] { "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds" }) {
+            parts.put(c, new java.util.HashMap<>());
+        }
+        try {
+            List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
+                    machineId, start, end, java.util.Arrays.asList(
+                            "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds"));
+            for (Object[] row : rows) {
+                if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                long stateId = ((Number) row[0]).longValue();
+                String code = row[1].toString();
+                java.util.Map<Long, Integer> map = parts.get(code);
+                if (map == null) continue;
+                try {
+                    map.put(stateId, Integer.parseInt(row[2].toString().trim()));
+                } catch (NumberFormatException ignored) { }
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ⚠️ device time machine+period: " + e.getMessage());
+        }
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (java.util.Map<Long, Integer> m : parts.values()) ids.addAll(m.keySet());
+        for (Long id : ids) {
+            Integer y = parts.get("Date.Year").get(id);
+            Integer mo = parts.get("Date.Month").get(id);
+            Integer d = parts.get("Date.Day").get(id);
+            Integer h = parts.get("Time.Hours").get(id);
+            Integer mi = parts.get("Time.Minutes").get(id);
+            Integer se = parts.get("Time.Seconds").get(id);
+            if (y == null || mo == null || d == null || h == null || mi == null || se == null) continue;
+            if (y < 100) y = 2000 + y;
+            if (mo < 1 || mo > 12 || d < 1 || d > 31) continue;
+            if (h < 0 || h > 23 || mi < 0 || mi > 59 || se < 0 || se > 59) continue;
+            try {
+                out.put(id, LocalDateTime.of(y, mo, d, h, mi, se));
+            } catch (Exception ignored) { }
+        }
+        return out;
+    }
+
+    private java.util.Map<Long, LocalDateTime> loadDeviceDateTimeByMachineDateRange(
+            Integer machineId, LocalDateTime start, LocalDateTime end) {
+        java.util.Map<Long, LocalDateTime> out = new java.util.HashMap<>();
+        if (machineId == null || start == null || end == null) return out;
+        java.util.Map<Long, Integer> year = loadParamMapByMachineDateRange(machineId, start, end, "Date.Year", false);
+        java.util.Map<Long, Integer> month = loadParamMapByMachineDateRange(machineId, start, end, "Date.Month", false);
+        java.util.Map<Long, Integer> day = loadParamMapByMachineDateRange(machineId, start, end, "Date.Day", false);
+        java.util.Map<Long, Integer> hour = loadParamMapByMachineDateRange(machineId, start, end, "Time.Hours", false);
+        java.util.Map<Long, Integer> min = loadParamMapByMachineDateRange(machineId, start, end, "Time.Minutes", false);
+        java.util.Map<Long, Integer> sec = loadParamMapByMachineDateRange(machineId, start, end, "Time.Seconds", false);
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        ids.addAll(year.keySet());
+        ids.addAll(month.keySet());
+        ids.addAll(day.keySet());
+        for (Long id : ids) {
+            Integer y = year.get(id);
+            Integer mo = month.get(id);
+            Integer d = day.get(id);
+            Integer h = hour.get(id);
+            Integer mi = min.get(id);
+            Integer se = sec.get(id);
+            if (y == null || mo == null || d == null || h == null || mi == null || se == null) continue;
+            if (y < 100) y = 2000 + y;
+            if (mo < 1 || mo > 12 || d < 1 || d > 31) continue;
+            if (h < 0 || h > 23 || mi < 0 || mi > 59 || se < 0 || se > 59) continue;
+            try {
+                out.put(id, LocalDateTime.of(y, mo, d, h, mi, se));
+            } catch (Exception ignored) { }
+        }
+        return out;
+    }
+
     /**
      * Загружает карту stateId → значение параметра (value или, при useCoalesce, COALESCE(value, raw_value)).
      */
@@ -653,19 +997,39 @@ public class WeldingReportCalculationService {
     private java.util.Map<Long, LocalDateTime> loadDeviceDateTimeByStateIds(List<Long> stateIds) {
         java.util.Map<Long, LocalDateTime> out = new java.util.HashMap<>();
         if (stateIds == null || stateIds.isEmpty()) return out;
-        java.util.Map<Long, Integer> year = loadParamMapByStateIds(stateIds, "Date.Year");
-        java.util.Map<Long, Integer> month = loadParamMapByStateIds(stateIds, "Date.Month");
-        java.util.Map<Long, Integer> day = loadParamMapByStateIds(stateIds, "Date.Day");
-        java.util.Map<Long, Integer> hour = loadParamMapByStateIds(stateIds, "Time.Hours");
-        java.util.Map<Long, Integer> min = loadParamMapByStateIds(stateIds, "Time.Minutes");
-        java.util.Map<Long, Integer> sec = loadParamMapByStateIds(stateIds, "Time.Seconds");
-        for (Long id : stateIds) {
-            Integer y = year.get(id);
-            Integer mo = month.get(id);
-            Integer d = day.get(id);
-            Integer h = hour.get(id);
-            Integer mi = min.get(id);
-            Integer se = sec.get(id);
+        java.util.Map<String, java.util.Map<Long, Integer>> parts = new java.util.HashMap<>();
+        for (String c : new String[] { "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds" }) {
+            parts.put(c, new java.util.HashMap<>());
+        }
+        final int batchSize = 10_000;
+        java.util.List<String> codes = java.util.Arrays.asList(
+                "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds");
+        for (int i = 0; i < stateIds.size(); i += batchSize) {
+            java.util.List<Long> batch = stateIds.subList(i, Math.min(i + batchSize, stateIds.size()));
+            try {
+                java.util.List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueNativeByStateIds(batch, codes);
+                for (Object[] row : rows) {
+                    if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                    long stateId = ((Number) row[0]).longValue();
+                    String code = row[1].toString();
+                    java.util.Map<Long, Integer> map = parts.get(code);
+                    if (map == null) continue;
+                    try {
+                        map.put(stateId, Integer.parseInt(row[2].toString().trim()));
+                    } catch (NumberFormatException ignored) { }
+                }
+            } catch (Exception e) {
+                System.err.println("[REPORT-CALC] ⚠️ device time batch: " + e.getMessage());
+            }
+        }
+        java.util.Set<Long> ids = new java.util.HashSet<>(stateIds);
+        for (Long id : ids) {
+            Integer y = parts.get("Date.Year").get(id);
+            Integer mo = parts.get("Date.Month").get(id);
+            Integer d = parts.get("Date.Day").get(id);
+            Integer h = parts.get("Time.Hours").get(id);
+            Integer mi = parts.get("Time.Minutes").get(id);
+            Integer se = parts.get("Time.Seconds").get(id);
             if (y == null || mo == null || d == null || h == null || mi == null || se == null) continue;
             if (y < 100) y = 2000 + y;
             if (mo < 1 || mo > 12 || d < 1 || d > 31) continue;

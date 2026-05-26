@@ -423,6 +423,7 @@ public class ReportDataService {
 
         try {
             System.out.println("[REPORT-DATA] getWelderWorkDataNew: welderIds=" + welderIds + " period=" + startDateTime + ".." + endDateTime);
+            Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
             List<WeldRow> rawRows = new ArrayList<>();
             for (Integer welderId : welderIds) {
                 List<String> rfidCodes = getRfidCodesForWelder(welderId);
@@ -442,7 +443,14 @@ public class ReportDataService {
                     Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(machineId);
                     String machineName = machineOpt.map(WeldingMachine::getName).orElse("");
                     String equipmentModel = machineOpt.map(m -> m.getDeviceModel() != null ? m.getDeviceModel().name() : "").orElse("");
-                    List<org.alloy.models.dto.WeldSegmentDTO> segments = calculationService.calculateWeldSegments(machineId, startDateTime, endDateTime);
+                    List<WeldingMachineState> machineStates = statesByMachineId.computeIfAbsent(machineId, mid -> {
+                        List<WeldingMachineState> list = weldingMachineStateRepository
+                                .findByWeldingMachineIdAndDateRange(mid, startDateTime, endDateTime);
+                        list.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+                        return list;
+                    });
+                    List<org.alloy.models.dto.WeldSegmentDTO> segments =
+                            calculationService.calculateWeldSegmentsFromStates(machineStates);
                     System.out.println("[REPORT-DATA] machineId=" + machineId + " segments=" + segments.size() + (segments.isEmpty() ? "" : " first: avgI=" + segments.get(0).getAverageCurrent() + " avgU=" + segments.get(0).getAverageVoltage() + " durSec=" + segments.get(0).getDurationSeconds()));
                     for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
                         if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
@@ -491,18 +499,8 @@ public class ReportDataService {
             }
             System.out.println("[REPORT-DATA] merged rows=" + merged.size());
 
-            // Один раз загружаем состояния по всем аппаратам за период (вместо запроса на каждый шов)
             Set<Integer> machineIdsInReport = merged.stream().map(r -> r.machineId).collect(Collectors.toSet());
-            Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
-            for (Integer mid : machineIdsInReport) {
-                List<WeldingMachineState> list = weldingMachineStateRepository.findByWeldingMachineIdAndDateRange(mid, startDateTime, endDateTime);
-                list.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-                statesByMachineId.put(mid, list);
-            }
-            // Параметры «режим» одним батчем по всем stateId; скорость подачи проволоки (м/мин) — параметр «Расход проволоки» в БД
-            List<Long> allStateIds = statesByMachineId.values().stream()
-                    .flatMap(list -> list.stream().map(WeldingMachineState::getId))
-                    .collect(Collectors.toList());
+            List<Long> allStateIds = collectStateIdsForWelderMerged(statesByMachineId, merged);
             Map<Long, String> workModeByStateId = new HashMap<>();
             if (!allStateIds.isEmpty()) {
                 for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
@@ -529,12 +527,13 @@ public class ReportDataService {
                         && (currentInt < actualMin || currentInt > actualMax);
 
                 LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
-                LocalDateTime displayDateTime = getDeviceDateTimeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, deviceDateTimeByStateId);
+                List<WeldingMachineState> segmentStates = statesInTimeWindow(
+                        statesByMachineId.get(r.machineId), r.startTime.minusSeconds(5), segmentEnd.plusSeconds(5));
+                LocalDateTime displayDateTime = getDeviceDateTimeFromCache(segmentStates, r.startTime, segmentEnd, deviceDateTimeByStateId);
                 if (displayDateTime == null) displayDateTime = r.startTime;
-                String workMode = getWorkModeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, workModeByStateId);
-                BigDecimal wireFeedMpm = getWireFeedFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
-                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(
-                        statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
+                String workMode = getWorkModeFromCache(segmentStates, r.startTime, segmentEnd, workModeByStateId);
+                BigDecimal wireFeedMpm = getWireFeedFromCache(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
+                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
                 BigDecimal energyKwh = calculateEnergyPerWeld(r.avgVoltage, r.avgCurrent, r.durationSec);
                 if (result.size() < 2) {
                     System.out.println("[REPORT-DATA] row: avgCurrent=" + r.avgCurrent + " avgVoltage=" + r.avgVoltage + " durationSec=" + r.durationSec + " -> energyKwh=" + energyKwh);
@@ -593,12 +592,25 @@ public class ReportDataService {
         if (machineIds.isEmpty()) return result;
 
         try {
+            long reportStartMs = System.currentTimeMillis();
+            Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
+            Map<String, Optional<RfidPass>> rfidPassCache = new HashMap<>();
             List<EquipmentWeldRow> rawRows = new ArrayList<>();
             for (Integer machineId : machineIds) {
                 Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(machineId);
                 String machineName = machineOpt.map(WeldingMachine::getName).orElse("");
                 String equipmentModel = machineOpt.map(m -> m.getDeviceModel() != null ? m.getDeviceModel().name() : "").orElse("");
-                List<org.alloy.models.dto.WeldSegmentDTO> segments = calculationService.calculateWeldSegments(machineId, startDateTime, endDateTime);
+                long loadStatesMs = System.currentTimeMillis();
+                List<WeldingMachineState> machineStates = weldingMachineStateRepository
+                        .findByWeldingMachineIdAndDateRange(machineId, startDateTime, endDateTime);
+                machineStates.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+                statesByMachineId.put(machineId, machineStates);
+                long segStartMs = System.currentTimeMillis();
+                List<org.alloy.models.dto.WeldSegmentDTO> segments =
+                        calculationService.calculateWeldSegmentsFromStates(machineStates);
+                System.out.println("[REPORT-DATA] machine " + machineId + " states=" + machineStates.size()
+                        + " segments=" + segments.size() + " loadMs=" + (segStartMs - loadStatesMs)
+                        + " calcMs=" + (System.currentTimeMillis() - segStartMs));
                 for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
                     if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
                     long durSec = seg.getDurationSeconds().longValue();
@@ -643,41 +655,68 @@ public class ReportDataService {
             }
 
             Set<Integer> machineIdsInReport = merged.stream().map(r -> r.machineId).collect(Collectors.toSet());
-            Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
-            for (Integer mid : machineIdsInReport) {
-                List<WeldingMachineState> list = weldingMachineStateRepository.findByWeldingMachineIdAndDateRange(mid, startDateTime, endDateTime);
-                list.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-                statesByMachineId.put(mid, list);
-            }
-            List<Long> allStateIds = statesByMachineId.values().stream()
-                    .flatMap(list -> list.stream().map(WeldingMachineState::getId))
-                    .collect(Collectors.toList());
+            List<Long> allStateIds = collectStateIdsForEquipmentMerged(statesByMachineId, merged);
+            boolean enrichByMachinePeriod = machineIds.size() == 1 && machineIdsInReport.size() == 1;
+            Integer singleMachineId = enrichByMachinePeriod ? machineIds.get(0) : null;
+
+            long enrichStartMs = System.currentTimeMillis();
             Map<Long, String> workModeByStateId = new HashMap<>();
-            if (!allStateIds.isEmpty()) {
-                for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
-                    List<WeldingMachineParameterValue> workModeVals = getParameterValuesInBatches(allStateIds, code);
-                    for (WeldingMachineParameterValue pv : workModeVals) {
-                        if (pv.getValue() != null && !pv.getValue().trim().isEmpty())
-                            workModeByStateId.putIfAbsent(pv.getWeldingMachineStateId(), pv.getValue().trim());
-                    }
-                    if (!workModeByStateId.isEmpty()) break;
-                }
-            }
-            Map<Long, LocalDateTime> deviceDateTimeByStateId = buildDeviceDateTimeByStateId(allStateIds);
+            Map<Long, LocalDateTime> deviceDateTimeByStateId = new HashMap<>();
             Map<Long, BigDecimal> wireFeedByStateId = new HashMap<>();
-            loadWireFeedByStateId(allStateIds, wireFeedByStateId);
-            // RFID по stateId из параметров: нативный запрос, при пустой карте — JPA (разные имена колонок в БД)
-            Map<Long, String> rfidByStateId = loadRfidByStateIdFromParamsNative(allStateIds);
-            if (rfidByStateId.isEmpty() && !allStateIds.isEmpty()) {
-                for (String code : new String[] { "RFID.Hex", "RFID", "State.RFID", "Rfid" }) {
-                    List<WeldingMachineParameterValue> rfidVals = getParameterValuesInBatches(allStateIds, code);
-                    for (WeldingMachineParameterValue pv : rfidVals) {
-                        if (pv.getValue() != null && !pv.getValue().trim().isEmpty())
-                            rfidByStateId.putIfAbsent(pv.getWeldingMachineStateId(), pv.getValue().trim());
+            int totalStatesLoaded = statesByMachineId.values().stream().mapToInt(List::size).sum();
+            /** До ~35k id: батчи IN; при 80k+ IN на PostgreSQL медленнее одного JOIN за период. */
+            final int enrichByStateIdsMax = 35_000;
+            Set<Long> enrichStateIdSet = allStateIds.isEmpty() ? Collections.emptySet() : new HashSet<>(allStateIds);
+            /** Один JOIN за период, в карты — только stateId швов (±5 мин); для 7 суток / 300k+ states. */
+            boolean enrichByFilteredMachinePeriod = enrichByMachinePeriod && singleMachineId != null
+                    && !enrichStateIdSet.isEmpty()
+                    && enrichStateIdSet.size() < totalStatesLoaded * 0.6;
+            boolean enrichByStateIds = enrichByMachinePeriod && singleMachineId != null
+                    && !enrichStateIdSet.isEmpty()
+                    && enrichStateIdSet.size() < totalStatesLoaded * 0.5
+                    && enrichStateIdSet.size() <= enrichByStateIdsMax
+                    && !enrichByFilteredMachinePeriod;
+            long enrichParamsMs = enrichStartMs;
+            if (enrichByFilteredMachinePeriod) {
+                loadEquipmentEnrichmentByMachinePeriodFiltered(
+                        singleMachineId, startDateTime, endDateTime, enrichStateIdSet,
+                        workModeByStateId, wireFeedByStateId, deviceDateTimeByStateId);
+            } else if (enrichByStateIds) {
+                loadEquipmentEnrichmentByStateIds(allStateIds, workModeByStateId, wireFeedByStateId, deviceDateTimeByStateId);
+            } else if (enrichByMachinePeriod && singleMachineId != null) {
+                loadEquipmentEnrichmentByMachinePeriod(
+                        singleMachineId, startDateTime, endDateTime,
+                        workModeByStateId, wireFeedByStateId, deviceDateTimeByStateId);
+            } else {
+                if (!allStateIds.isEmpty()) {
+                    for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
+                        List<WeldingMachineParameterValue> workModeVals = getParameterValuesInBatches(allStateIds, code);
+                        for (WeldingMachineParameterValue pv : workModeVals) {
+                            if (pv.getValue() != null && !pv.getValue().trim().isEmpty())
+                                workModeByStateId.putIfAbsent(pv.getWeldingMachineStateId(), pv.getValue().trim());
+                        }
+                        if (!workModeByStateId.isEmpty()) break;
                     }
-                    if (!rfidByStateId.isEmpty()) break;
                 }
+                deviceDateTimeByStateId = buildDeviceDateTimeByStateId(allStateIds);
+                loadWireFeedByStateId(allStateIds, wireFeedByStateId);
             }
+            enrichParamsMs = System.currentTimeMillis() - enrichStartMs;
+            boolean needWelderColumns = templateNeedsWelderColumns(template);
+            long rfidStartMs = System.currentTimeMillis();
+            Map<Long, String> rfidByStateId = needWelderColumns
+                    ? (!allStateIds.isEmpty()
+                    ? loadRfidByStateIdFromParamsNative(allStateIds)
+                    : (enrichByMachinePeriod && singleMachineId != null
+                    ? loadRfidByMachinePeriodNative(singleMachineId, startDateTime, endDateTime)
+                    : Collections.emptyMap()))
+                    : Collections.emptyMap();
+            long rfidMs = System.currentTimeMillis() - rfidStartMs;
+            System.out.println("[REPORT-DATA] equipment enrichMs=" + (System.currentTimeMillis() - enrichStartMs)
+                    + " enrichParamsMs=" + enrichParamsMs + " rfidMs=" + rfidMs
+                    + " enrichFilteredPeriod=" + enrichByFilteredMachinePeriod
+                    + " enrichByStateIds=" + enrichByStateIds + " allStateIds=" + allStateIds.size()
+                    + " workMode=" + workModeByStateId.size() + " wireFeed=" + wireFeedByStateId.size());
             String sampleRfid = rfidByStateId.isEmpty() ? " (нет RFID в параметрах)" : rfidByStateId.entrySet().stream().limit(2).map(e -> e.getKey() + "->" + e.getValue()).collect(Collectors.joining("; "));
             System.out.println("[REPORT-DATA] equipment report: allStateIds=" + allStateIds.size() + " rfidByStateId=" + rfidByStateId.size() + " " + sampleRfid);
 
@@ -691,13 +730,21 @@ public class ReportDataService {
                     statesWithRfidInParamsByMachineId.put(mid, withRfid);
                 }
             }
-            // Предвычисление: по машине и дате — состояния с непустым state.rfid (для fallback по колонке)
+            // Предвычисление: по машине и дате — состояния с непустым state.rfid (только дни из отчёта)
             Map<Integer, Map<LocalDate, List<WeldingMachineState>>> statesWithRfidColumnByMachineAndDay = new HashMap<>();
             for (Integer mid : machineIdsInReport) {
                 Map<LocalDate, List<WeldingMachineState>> byDay = new HashMap<>();
-                for (WeldingMachineState s : statesByMachineId.get(mid)) {
+                Set<LocalDate> reportDays = merged.stream()
+                        .filter(row -> row.machineId == mid && row.startTime != null)
+                        .map(row -> row.startTime.toLocalDate())
+                        .collect(Collectors.toSet());
+                List<WeldingMachineState> machineStates = statesByMachineId.get(mid);
+                if (machineStates == null) continue;
+                for (WeldingMachineState s : machineStates) {
                     if (s.getDateCreated() == null || s.getRfid() == null || s.getRfid().trim().isEmpty()) continue;
-                    byDay.computeIfAbsent(s.getDateCreated().toLocalDate(), k -> new ArrayList<>()).add(s);
+                    LocalDate day = s.getDateCreated().toLocalDate();
+                    if (!reportDays.contains(day)) continue;
+                    byDay.computeIfAbsent(day, k -> new ArrayList<>()).add(s);
                 }
                 statesWithRfidColumnByMachineAndDay.put(mid, byDay);
             }
@@ -711,18 +758,19 @@ public class ReportDataService {
                         && (currentInt < actualMin || currentInt > actualMax);
 
                 LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
-                LocalDateTime displayDateTime = getDeviceDateTimeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, deviceDateTimeByStateId);
+                List<WeldingMachineState> segmentStates = statesInTimeWindow(
+                        statesByMachineId.get(r.machineId), r.startTime.minusSeconds(5), segmentEnd.plusSeconds(5));
+                LocalDateTime displayDateTime = getDeviceDateTimeFromCache(segmentStates, r.startTime, segmentEnd, deviceDateTimeByStateId);
                 if (displayDateTime == null) displayDateTime = r.startTime;
-                String workMode = getWorkModeFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, workModeByStateId);
-                BigDecimal wireFeedMpm = getWireFeedFromCache(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
-                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(
-                        statesByMachineId.get(r.machineId), r.startTime, segmentEnd, wireFeedByStateId);
+                String workMode = getWorkModeFromCache(segmentStates, r.startTime, segmentEnd, workModeByStateId);
+                BigDecimal wireFeedMpm = getWireFeedFromCache(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
+                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
 
                 String welderFullName = "";
                 String welderTabNumber = "";
                 String welderProfession = "";
                 Long welderId = null;
-                WeldingMachineState stateInSegment = getStateInSegment(statesByMachineId.get(r.machineId), r.startTime, segmentEnd, rfidByStateId);
+                WeldingMachineState stateInSegment = getStateInSegment(segmentStates, r.startTime, segmentEnd, rfidByStateId);
                 String rfidCode = null;
                 if (stateInSegment != null) {
                     rfidCode = (stateInSegment.getRfid() != null && !stateInSegment.getRfid().trim().isEmpty())
@@ -752,7 +800,7 @@ public class ReportDataService {
                     System.out.println("[REPORT-DATA] equipment row: segmentStart=" + r.startTime + " stateInSegmentId=" + (stateInSegment != null ? stateInSegment.getId() : null) + " rfidCode=" + rfidCode);
                 }
                 if (rfidCode != null) {
-                    Optional<RfidPass> passOpt = findRfidPassByCode(rfidCode);
+                    Optional<RfidPass> passOpt = findRfidPassByCode(rfidCode, rfidPassCache);
                     if (result.size() < 3) {
                         System.out.println("[REPORT-DATA] equipment rfid lookup: code=" + rfidCode + " passFound=" + passOpt.isPresent() + (passOpt.isPresent() && passOpt.get().getWelder() != null ? " welder=" + passOpt.get().getWelder().getName() : ""));
                     }
@@ -792,11 +840,311 @@ public class ReportDataService {
             for (int i = 0; i < result.size(); i++) {
                 result.get(i).setIndex(i + 1);
             }
+            System.out.println("[REPORT-DATA] equipment report done: merged=" + merged.size() + " rows=" + result.size()
+                    + " enrichByMachinePeriod=" + enrichByMachinePeriod + " totalMs=" + (System.currentTimeMillis() - reportStartMs));
         } catch (Exception e) {
             System.err.println("[REPORT-DATA] Ошибка getEquipmentWorkDataNew: " + e.getMessage());
             e.printStackTrace();
         }
         return result;
+    }
+
+    private static boolean templateNeedsWelderColumns(EquipmentWorkReportTemplateDTO template) {
+        if (template == null || template.getSelectedColumns() == null) return true;
+        for (String col : template.getSelectedColumns()) {
+            if (col == null) continue;
+            String c = col.trim();
+            if ("welderFullName".equals(c) || "welderTabNumber".equals(c) || "profession".equals(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Параметры обогащения только для stateId вокруг швов (не весь период 300k+). */
+    private void loadEquipmentEnrichmentByStateIds(
+            List<Long> stateIds,
+            Map<Long, String> workModeByStateId,
+            Map<Long, BigDecimal> wireFeedByStateId,
+            Map<Long, LocalDateTime> deviceDateTimeByStateId) {
+        if (stateIds == null || stateIds.isEmpty()) return;
+        List<String> codes = Arrays.asList(
+                "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl",
+                "Расход проволоки",
+                "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds");
+        Map<String, Map<Long, Integer>> dateParts = new HashMap<>();
+        for (String c : new String[] { "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds" }) {
+            dateParts.put(c, new HashMap<>());
+        }
+        final int batchSize = 10_000;
+        for (int i = 0; i < stateIds.size(); i += batchSize) {
+            List<Long> batch = stateIds.subList(i, Math.min(i + batchSize, stateIds.size()));
+            try {
+                List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueNativeByStateIds(batch, codes);
+                for (Object[] row : rows) {
+                    if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                    long stateId = ((Number) row[0]).longValue();
+                    String code = row[1].toString();
+                    String valueStr = row[2].toString().trim();
+                    if (valueStr.isEmpty() || "null".equalsIgnoreCase(valueStr)) continue;
+                    if ("Расход проволоки".equals(code)) {
+                        try {
+                            wireFeedByStateId.put(stateId, new BigDecimal(valueStr.replace(",", ".")));
+                        } catch (NumberFormatException ignored) { }
+                    } else if (dateParts.containsKey(code)) {
+                        try {
+                            dateParts.get(code).put(stateId, Integer.parseInt(valueStr));
+                        } catch (NumberFormatException ignored) { }
+                    } else {
+                        workModeByStateId.putIfAbsent(stateId, valueStr);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[REPORT-DATA] equipment enrichment batch " + i + ": " + e.getMessage());
+            }
+        }
+        Set<Long> dateStateIds = new HashSet<>();
+        for (Map<Long, Integer> m : dateParts.values()) dateStateIds.addAll(m.keySet());
+        for (Long stateId : dateStateIds) {
+            Integer year = dateParts.get("Date.Year").get(stateId);
+            Integer month = dateParts.get("Date.Month").get(stateId);
+            Integer day = dateParts.get("Date.Day").get(stateId);
+            Integer hour = dateParts.get("Time.Hours").get(stateId);
+            Integer min = dateParts.get("Time.Minutes").get(stateId);
+            Integer sec = dateParts.get("Time.Seconds").get(stateId);
+            if (year == null || month == null || day == null || hour == null || min == null || sec == null) continue;
+            if (year < 100) year = 2000 + year;
+            if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+            if (hour < 0 || hour > 23 || min < 0 || min > 59 || sec < 0 || sec > 59) continue;
+            try {
+                deviceDateTimeByStateId.put(stateId, LocalDateTime.of(year, month, day, hour, min, sec));
+            } catch (Exception ignored) { }
+        }
+    }
+
+    /**
+     * Один JOIN по аппарату+периоду, в карты попадают только stateId из швов (быстрее батчей IN за сутки).
+     */
+    private void loadEquipmentEnrichmentByMachinePeriodFiltered(
+            Integer machineId, LocalDateTime start, LocalDateTime end, Set<Long> allowedStateIds,
+            Map<Long, String> workModeByStateId,
+            Map<Long, BigDecimal> wireFeedByStateId,
+            Map<Long, LocalDateTime> deviceDateTimeByStateId) {
+        if (machineId == null || start == null || end == null || allowedStateIds == null || allowedStateIds.isEmpty()) return;
+        List<String> codes = Arrays.asList(
+                "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl",
+                "Расход проволоки",
+                "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds");
+        Map<String, Map<Long, Integer>> dateParts = new HashMap<>();
+        for (String c : new String[] { "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds" }) {
+            dateParts.put(c, new HashMap<>());
+        }
+        Map<String, Map<Long, String>> workModeByCode = new HashMap<>();
+        try {
+            List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
+                    machineId, start, end, codes);
+            for (Object[] row : rows) {
+                if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                long stateId = ((Number) row[0]).longValue();
+                if (!allowedStateIds.contains(stateId)) continue;
+                String code = row[1].toString();
+                String valueStr = row[2].toString().trim();
+                if (valueStr.isEmpty() || "null".equalsIgnoreCase(valueStr)) continue;
+                if ("Расход проволоки".equals(code)) {
+                    try {
+                        wireFeedByStateId.put(stateId, new BigDecimal(valueStr.replace(",", ".")));
+                    } catch (NumberFormatException ignored) { }
+                } else if (dateParts.containsKey(code)) {
+                    try {
+                        dateParts.get(code).put(stateId, Integer.parseInt(valueStr));
+                    } catch (NumberFormatException ignored) { }
+                } else {
+                    workModeByCode.computeIfAbsent(code, k -> new HashMap<>()).put(stateId, valueStr);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] equipment enrichment filtered period: " + e.getMessage());
+        }
+        for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
+            Map<Long, String> m = workModeByCode.get(code);
+            if (m == null) continue;
+            for (Map.Entry<Long, String> e : m.entrySet()) {
+                workModeByStateId.putIfAbsent(e.getKey(), e.getValue());
+            }
+        }
+        Set<Long> dateStateIds = new HashSet<>();
+        for (Map<Long, Integer> m : dateParts.values()) dateStateIds.addAll(m.keySet());
+        for (Long stateId : dateStateIds) {
+            if (!allowedStateIds.contains(stateId)) continue;
+            Integer year = dateParts.get("Date.Year").get(stateId);
+            Integer month = dateParts.get("Date.Month").get(stateId);
+            Integer day = dateParts.get("Date.Day").get(stateId);
+            Integer hour = dateParts.get("Time.Hours").get(stateId);
+            Integer min = dateParts.get("Time.Minutes").get(stateId);
+            Integer sec = dateParts.get("Time.Seconds").get(stateId);
+            if (year == null || month == null || day == null || hour == null || min == null || sec == null) continue;
+            if (year < 100) year = 2000 + year;
+            if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+            if (hour < 0 || hour > 23 || min < 0 || min > 59 || sec < 0 || sec > 59) continue;
+            try {
+                deviceDateTimeByStateId.put(stateId, LocalDateTime.of(year, month, day, hour, min, sec));
+            } catch (Exception ignored) { }
+        }
+    }
+
+    /** Один проход JOIN по аппарату+периоду: режим, подача проволоки, Date/Time (вместо 6+ отдельных запросов). */
+    private void loadEquipmentEnrichmentByMachinePeriod(
+            Integer machineId, LocalDateTime start, LocalDateTime end,
+            Map<Long, String> workModeByStateId,
+            Map<Long, BigDecimal> wireFeedByStateId,
+            Map<Long, LocalDateTime> deviceDateTimeByStateId) {
+        if (machineId == null || start == null || end == null) return;
+        List<String> codes = Arrays.asList(
+                "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl",
+                "Расход проволоки",
+                "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds");
+        Map<String, Map<Long, Integer>> dateParts = new HashMap<>();
+        for (String c : new String[] { "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds" }) {
+            dateParts.put(c, new HashMap<>());
+        }
+        Map<String, Map<Long, String>> workModeByCode = new HashMap<>();
+        try {
+            List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
+                    machineId, start, end, codes);
+            for (Object[] row : rows) {
+                if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                long stateId = ((Number) row[0]).longValue();
+                String code = row[1].toString();
+                String valueStr = row[2].toString().trim();
+                if (valueStr.isEmpty() || "null".equalsIgnoreCase(valueStr)) continue;
+                if ("Расход проволоки".equals(code)) {
+                    try {
+                        wireFeedByStateId.put(stateId, new BigDecimal(valueStr.replace(",", ".")));
+                    } catch (NumberFormatException ignored) { }
+                } else if (dateParts.containsKey(code)) {
+                    try {
+                        dateParts.get(code).put(stateId, Integer.parseInt(valueStr));
+                    } catch (NumberFormatException ignored) { }
+                } else {
+                    workModeByCode.computeIfAbsent(code, k -> new HashMap<>()).put(stateId, valueStr);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] equipment enrichment combined query: " + e.getMessage());
+        }
+        for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
+            Map<Long, String> m = workModeByCode.get(code);
+            if (m == null) continue;
+            for (Map.Entry<Long, String> e : m.entrySet()) {
+                workModeByStateId.putIfAbsent(e.getKey(), e.getValue());
+            }
+        }
+        Set<Long> dateStateIds = new HashSet<>();
+        for (Map<Long, Integer> m : dateParts.values()) dateStateIds.addAll(m.keySet());
+        for (Long stateId : dateStateIds) {
+            Integer year = dateParts.get("Date.Year").get(stateId);
+            Integer month = dateParts.get("Date.Month").get(stateId);
+            Integer day = dateParts.get("Date.Day").get(stateId);
+            Integer hour = dateParts.get("Time.Hours").get(stateId);
+            Integer min = dateParts.get("Time.Minutes").get(stateId);
+            Integer sec = dateParts.get("Time.Seconds").get(stateId);
+            if (year == null || month == null || day == null || hour == null || min == null || sec == null) continue;
+            if (year < 100) year = 2000 + year;
+            if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+            if (hour < 0 || hour > 23 || min < 0 || min > 59 || sec < 0 || sec > 59) continue;
+            try {
+                deviceDateTimeByStateId.put(stateId, LocalDateTime.of(year, month, day, hour, min, sec));
+            } catch (Exception ignored) { }
+        }
+    }
+
+    private void loadWorkModeByMachinePeriod(Integer machineId, LocalDateTime start, LocalDateTime end, Map<Long, String> out) {
+        if (machineId == null || start == null || end == null) return;
+        for (String code : new String[] { "Метод сварки", "WeldingMachineState", "Режим работы", "State.Mode", "State.Ctrl" }) {
+            try {
+                for (Object[] row : parameterValueRepository.findStateIdAndValueByMachineDateRange(machineId, start, end, code)) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                        String v = row[1].toString().trim();
+                        if (!v.isEmpty()) out.putIfAbsent(((Number) row[0]).longValue(), v);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[REPORT-DATA] workMode machine+period " + code + ": " + e.getMessage());
+            }
+            if (!out.isEmpty()) return;
+        }
+    }
+
+    private Map<Long, LocalDateTime> buildDeviceDateTimeByMachinePeriod(Integer machineId, LocalDateTime start, LocalDateTime end) {
+        Map<Long, LocalDateTime> out = new HashMap<>();
+        if (machineId == null || start == null || end == null) return out;
+        String[] codes = { "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds" };
+        Map<String, Map<Long, Integer>> byCode = new HashMap<>();
+        for (String code : codes) {
+            Map<Long, Integer> map = new HashMap<>();
+            try {
+                for (Object[] row : parameterValueRepository.findStateIdAndValueByMachineDateRange(machineId, start, end, code)) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                        try {
+                            map.put(((Number) row[0]).longValue(), Integer.parseInt(row[1].toString().trim()));
+                        } catch (NumberFormatException ignored) { }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[REPORT-DATA] deviceTime machine+period " + code + ": " + e.getMessage());
+            }
+            byCode.put(code, map);
+        }
+        Set<Long> ids = new HashSet<>();
+        for (Map<Long, Integer> m : byCode.values()) ids.addAll(m.keySet());
+        for (Long stateId : ids) {
+            Integer year = byCode.get("Date.Year").get(stateId);
+            Integer month = byCode.get("Date.Month").get(stateId);
+            Integer day = byCode.get("Date.Day").get(stateId);
+            Integer hour = byCode.get("Time.Hours").get(stateId);
+            Integer min = byCode.get("Time.Minutes").get(stateId);
+            Integer sec = byCode.get("Time.Seconds").get(stateId);
+            if (year == null || month == null || day == null || hour == null || min == null || sec == null) continue;
+            if (year < 100) year = 2000 + year;
+            if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+            if (hour < 0 || hour > 23 || min < 0 || min > 59 || sec < 0 || sec > 59) continue;
+            try {
+                out.put(stateId, LocalDateTime.of(year, month, day, hour, min, sec));
+            } catch (Exception ignored) { }
+        }
+        return out;
+    }
+
+    private void loadWireFeedByMachinePeriod(Integer machineId, LocalDateTime start, LocalDateTime end, Map<Long, BigDecimal> wireFeedByStateId) {
+        if (machineId == null || start == null || end == null) return;
+        try {
+            for (Object[] row : parameterValueRepository.findStateIdAndValueByMachineDateRangeCoalesce(machineId, start, end, "Расход проволоки")) {
+                if (row == null || row.length < 2 || row[0] == null || row[1] == null) continue;
+                try {
+                    String s = row[1].toString().trim().replace(",", ".");
+                    if (!s.isEmpty()) wireFeedByStateId.put(((Number) row[0]).longValue(), new BigDecimal(s));
+                } catch (NumberFormatException ignored) { }
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-DATA] wireFeed machine+period: " + e.getMessage());
+        }
+    }
+
+    /** RFID в параметрах за период по аппарату (без батчей по tens of thousands stateId). */
+    private Map<Long, String> loadRfidByMachinePeriodNative(Integer machineId, LocalDateTime start, LocalDateTime end) {
+        Map<Long, String> map = new HashMap<>();
+        for (String code : new String[] { "RFID.Hex", "RFID", "State.RFID", "Rfid" }) {
+            try {
+                for (Object[] row : parameterValueRepository.findStateIdAndValueByMachineDateRange(machineId, start, end, code)) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                        String v = row[1].toString().trim();
+                        if (!v.isEmpty()) map.putIfAbsent(((Number) row[0]).longValue(), v);
+                    }
+                }
+            } catch (Exception ignored) { }
+            if (!map.isEmpty()) break;
+        }
+        return map;
     }
 
     private static class EquipmentWeldRow {
@@ -819,6 +1167,60 @@ public class ReportDataService {
         c.avgCurrent = r.avgCurrent;
         c.avgVoltage = r.avgVoltage;
         return c;
+    }
+
+    private static int lowerBoundByDateCreated(List<WeldingMachineState> sorted, LocalDateTime t) {
+        if (sorted == null || sorted.isEmpty()) return 0;
+        int lo = 0, hi = sorted.size();
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            LocalDateTime dc = sorted.get(mid).getDateCreated();
+            if (dc == null || dc.isBefore(t)) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    /** Подсписок состояний с dateCreated в [fromInclusive, toExclusive), список отсортирован по dateCreated. */
+    private static List<WeldingMachineState> statesInTimeWindow(
+            List<WeldingMachineState> sorted, LocalDateTime fromInclusive, LocalDateTime toExclusive) {
+        if (sorted == null || sorted.isEmpty()) return Collections.emptyList();
+        int lo = lowerBoundByDateCreated(sorted, fromInclusive);
+        int hi = lowerBoundByDateCreated(sorted, toExclusive);
+        if (lo >= hi || lo >= sorted.size()) return Collections.emptyList();
+        return sorted.subList(lo, Math.min(hi, sorted.size()));
+    }
+
+    private static List<Long> collectStateIdsForEquipmentMerged(
+            Map<Integer, List<WeldingMachineState>> statesByMachineId, List<EquipmentWeldRow> merged) {
+        return collectStateIdsAroundWeldRows(statesByMachineId, merged, r -> r.machineId, r -> r.startTime, r -> r.durationSec);
+    }
+
+    private static List<Long> collectStateIdsForWelderMerged(
+            Map<Integer, List<WeldingMachineState>> statesByMachineId, List<WeldRow> merged) {
+        return collectStateIdsAroundWeldRows(statesByMachineId, merged, r -> r.machineId, r -> r.startTime, r -> r.durationSec);
+    }
+
+    private static <R> List<Long> collectStateIdsAroundWeldRows(
+            Map<Integer, List<WeldingMachineState>> statesByMachineId,
+            List<R> merged,
+            java.util.function.Function<R, Integer> machineId,
+            java.util.function.Function<R, LocalDateTime> startTime,
+            java.util.function.Function<R, BigDecimal> durationSec) {
+        if (merged == null || merged.isEmpty()) return Collections.emptyList();
+        Set<Long> ids = new LinkedHashSet<>();
+        for (R row : merged) {
+            LocalDateTime start = startTime.apply(row);
+            BigDecimal dur = durationSec.apply(row);
+            if (start == null || dur == null) continue;
+            LocalDateTime end = start.plusSeconds(dur.longValue());
+            List<WeldingMachineState> sorted = statesByMachineId.get(machineId.apply(row));
+            if (sorted == null) continue;
+            for (WeldingMachineState s : statesInTimeWindow(sorted, start.minusMinutes(5), end.plusMinutes(5))) {
+                if (s.getId() != null) ids.add(s.getId());
+            }
+        }
+        return new ArrayList<>(ids);
     }
 
     /**
@@ -937,7 +1339,7 @@ public class ReportDataService {
         BigDecimal sum = BigDecimal.ZERO;
         List<WeldingMachineState> sorted = new ArrayList<>(machineStates);
         sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-        for (WeldingMachineState s : machineStates) {
+        for (WeldingMachineState s : sorted) {
             if (s.getWeldingMachineStatus() != WeldingMachineStatus.Welding) continue;
             long overlapMs = overlapDurationMs(s, segmentStart, segmentEnd, sorted);
             if (overlapMs <= 0) continue;
@@ -1066,8 +1468,27 @@ public class ReportDataService {
      * В БД может быть несколько строк с одним code — берём одну детерминированно (см. pickOneRfidPass).
      */
     private Optional<RfidPass> findRfidPassByCode(String code) {
+        return findRfidPassByCode(code, null);
+    }
+
+    /**
+     * Поиск RFID-пропуска с кэшем на время одной генерации отчёта (избегает повторных запросов на один код).
+     */
+    private Optional<RfidPass> findRfidPassByCode(String code, Map<String, Optional<RfidPass>> cache) {
         if (code == null || code.trim().isEmpty()) return Optional.empty();
         String trimmed = code.trim();
+        if (cache != null) {
+            if (cache.containsKey(trimmed)) {
+                return cache.get(trimmed);
+            }
+            Optional<RfidPass> resolved = resolveRfidPassByCode(trimmed);
+            cache.put(trimmed, resolved);
+            return resolved;
+        }
+        return resolveRfidPassByCode(trimmed);
+    }
+
+    private Optional<RfidPass> resolveRfidPassByCode(String trimmed) {
         Optional<RfidPass> picked = pickOneRfidPass(rfidPassRepository.findAllByCode(trimmed));
         if (picked.isPresent()) return picked;
         String normalized = normalizeHexLeadingZeros(trimmed);

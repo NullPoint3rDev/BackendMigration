@@ -82,4 +82,69 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
             @Param("rfidCode") String rfidCode,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    /**
+     * Параметры за период по аппарату (один JOIN вместо тысяч батчей IN по stateId) — отчёты за 7+ дней.
+     */
+    @Query(
+            value = "SELECT s.id, p.value FROM welding_machine_state s " +
+                    "INNER JOIN welding_machine_parameter_value p ON p.welding_machine_stateid = s.id " +
+                    "WHERE s.welding_machineid = :machineId " +
+                    "AND s.date_created >= :start AND s.date_created <= :end " +
+                    "AND p.property_code = :propertyCode",
+            nativeQuery = true)
+    List<Object[]> findStateIdAndValueByMachineDateRange(
+            @Param("machineId") Integer machineId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("propertyCode") String propertyCode);
+
+    @Query(
+            value = "SELECT s.id, COALESCE(p.value, p.raw_value) FROM welding_machine_state s " +
+                    "INNER JOIN welding_machine_parameter_value p ON p.welding_machine_stateid = s.id " +
+                    "WHERE s.welding_machineid = :machineId " +
+                    "AND s.date_created >= :start AND s.date_created <= :end " +
+                    "AND p.property_code = :propertyCode",
+            nativeQuery = true)
+    List<Object[]> findStateIdAndValueByMachineDateRangeCoalesce(
+            @Param("machineId") Integer machineId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("propertyCode") String propertyCode);
+
+    @Query(
+            value = "SELECT s.id, p.value FROM welding_machine_state s " +
+                    "INNER JOIN welding_machine_parameter_value p ON p.welding_machine_stateid = s.id " +
+                    "WHERE s.welding_machineid = :machineId " +
+                    "AND s.date_created >= :start AND s.date_created <= :end " +
+                    "AND p.property_code IN (:propertyCodes)",
+            nativeQuery = true)
+    List<Object[]> findStateIdAndValueByMachineDateRangeAndCodes(
+            @Param("machineId") Integer machineId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("propertyCodes") List<String> propertyCodes);
+
+    /** [state_id, property_code, value] — один проход по БД для тока/напряжения за период. */
+    @Query(
+            value = "SELECT s.id, p.property_code, COALESCE(p.value, p.raw_value) FROM welding_machine_state s " +
+                    "INNER JOIN welding_machine_parameter_value p ON p.welding_machine_stateid = s.id " +
+                    "WHERE s.welding_machineid = :machineId " +
+                    "AND s.date_created >= :start AND s.date_created <= :end " +
+                    "AND p.property_code IN (:propertyCodes)",
+            nativeQuery = true)
+    List<Object[]> findStateIdCodeAndValueByMachineDateRange(
+            @Param("machineId") Integer machineId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("propertyCodes") List<String> propertyCodes);
+
+    /** [state_id, property_code, value] — один батч IN вместо отдельного запроса на каждый property_code. */
+    @Query(
+            value = "SELECT welding_machine_stateid, property_code, COALESCE(value, raw_value) FROM welding_machine_parameter_value " +
+                    "WHERE welding_machine_stateid IN (:stateIds) AND property_code IN (:propertyCodes)",
+            nativeQuery = true)
+    List<Object[]> findStateIdCodeAndValueNativeByStateIds(
+            @Param("stateIds") List<Long> stateIds,
+            @Param("propertyCodes") List<String> propertyCodes);
 }

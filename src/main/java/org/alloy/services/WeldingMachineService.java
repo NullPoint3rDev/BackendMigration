@@ -4,7 +4,11 @@ import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineType;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.GeneralStatus;
+import org.alloy.models.entities.WeldingMachineParameterValue;
+import org.alloy.models.entities.WeldingMachineState;
+import org.alloy.repositories.WeldingMachineParameterValueRepository;
 import org.alloy.repositories.WeldingMachineRepository;
+import org.alloy.repositories.WeldingMachineStateRepository;
 import org.alloy.repositories.WeldingMachineTypeRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,14 +28,20 @@ public class WeldingMachineService {
     private final WeldingMachineRepository weldingMachineRepository;
     private final WeldingMachineTypeRepository weldingMachineTypeRepository;
     private final OrganizationUnitRepository organizationUnitRepository;
+    private final WeldingMachineStateRepository weldingMachineStateRepository;
+    private final WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
 
     @Autowired
     public WeldingMachineService(WeldingMachineRepository weldingMachineRepository,
                                  WeldingMachineTypeRepository weldingMachineTypeRepository,
-                                 OrganizationUnitRepository organizationUnitRepository) {
+                                 OrganizationUnitRepository organizationUnitRepository,
+                                 WeldingMachineStateRepository weldingMachineStateRepository,
+                                 WeldingMachineParameterValueRepository weldingMachineParameterValueRepository) {
         this.weldingMachineRepository = weldingMachineRepository;
         this.weldingMachineTypeRepository = weldingMachineTypeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
+        this.weldingMachineStateRepository = weldingMachineStateRepository;
+        this.weldingMachineParameterValueRepository = weldingMachineParameterValueRepository;
     }
 
     public List<WeldingMachine> getAllWeldingMachines() {
@@ -190,6 +200,25 @@ public class WeldingMachineService {
         if (!weldingMachineRepository.existsById(id)) {
             throw new IllegalArgumentException("Welding machine not found");
         }
+
+        weldingMachineRepository.deleteWelderMachineLinks(id);
+
+        List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineId(id);
+        for (WeldingMachineState state : states) {
+            List<WeldingMachineParameterValue> values =
+                    weldingMachineParameterValueRepository.findByWeldingMachineStateId(state.getId());
+            if (!values.isEmpty()) {
+                weldingMachineParameterValueRepository.deleteAll(values);
+            }
+        }
+        if (!states.isEmpty()) {
+            weldingMachineStateRepository.deleteAll(states);
+        }
+
+        weldingMachineRepository.deleteDailyStatsByMachineId(id);
+        weldingMachineRepository.deleteMaintenancesByMachineId(id);
+        weldingMachineRepository.deleteLimitProgramsByMachineId(id);
+
         weldingMachineRepository.deleteById(id);
     }
 }

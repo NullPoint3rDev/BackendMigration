@@ -73,10 +73,11 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES') or hasAnyRole('ADMIN_ALLOY','ADMIN_ENTERPRISE','USER_ENTERPRISE')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<List<OrganizationShortDTO>> getAllOrganizations() {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanReadOrganizations(principal);
         List<OrganizationShortDTO> organizations = wt2AccessService
                 .filterOrganizations(organizationService.getAllOrganizations(), principal).stream()
                 .map(OrganizationMapper::toShortDTO)
@@ -115,13 +116,14 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES') or hasAnyRole('ADMIN_ALLOY','ADMIN_ENTERPRISE','USER_ENTERPRISE')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> getOrganizationById(
             @Parameter(description = "ID организации", required = true, example = "1")
             @PathVariable Integer id
     ) {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanReadOrganizations(principal);
         wt2AccessService.assertCanViewOrganization(id, principal);
         return organizationService.getOrganizationById(id)
                 .map(OrganizationMapper::toShortDTO)
@@ -161,13 +163,14 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES') or hasAnyRole('ADMIN_ALLOY','ADMIN_ENTERPRISE','USER_ENTERPRISE')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/search")
     public ResponseEntity<List<OrganizationShortDTO>> searchOrganizations(
             @Parameter(description = "Поисковый запрос", required = true, example = "ООО ТехноСварка")
             @RequestParam String searchTerm
     ) {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanReadOrganizations(principal);
         List<OrganizationShortDTO> organizations = wt2AccessService
                 .filterOrganizations(organizationService.searchOrganizations(searchTerm), principal).stream()
                 .map(OrganizationMapper::toShortDTO)
@@ -207,13 +210,15 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasRole('ADMIN_ALLOY') or @userAccountService.hasAllowedUserAction(authentication.name, 'create_delete_enterprises')")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping
     public ResponseEntity<OrganizationShortDTO> createOrganization(
             @Parameter(description = "Данные организации", required = true)
             @RequestBody Organization organization
     ) {
         try {
+            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanWriteOrganizations(principal);
             Organization createdOrganization = organizationService.createOrganization(organization);
             return new ResponseEntity<>(OrganizationMapper.toShortDTO(createdOrganization), HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
@@ -259,7 +264,7 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_DELETE_DEALERS','PERMISSION_CREATE_DELETE_ENTERPRISES','PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/{id}")
     public ResponseEntity<OrganizationShortDTO> updateOrganization(
             @Parameter(description = "ID организации", required = true, example = "1")
@@ -268,6 +273,8 @@ public class OrganizationController {
             @Parameter(description = "Обновленные данные организации", required = true)
             @RequestBody Organization organization
     ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanWriteOrganizations(principal);
         organization.setId(id);
         Organization updated = organizationService.updateOrganization(organization);
         return ResponseEntity.ok(OrganizationMapper.toShortDTO(updated));
@@ -303,13 +310,15 @@ public class OrganizationController {
                             schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @PreAuthorize("hasAnyAuthority('PERMISSION_CREATE_DELETE_DEALERS','PERMISSION_CREATE_DELETE_ENTERPRISES','PERMISSION_VISIBILITY_EDIT_ALLOY','PERMISSION_VISIBILITY_EDIT_DEALERS','PERMISSION_VISIBILITY_EDIT_ENTERPRISES')")
+    @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOrganization(
             @Parameter(description = "ID организации", required = true, example = "1")
             @PathVariable Integer id
     ) {
         try {
+            String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+            wt2AccessService.assertCanWriteOrganizations(principal);
             organizationService.deleteOrganization(id);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {

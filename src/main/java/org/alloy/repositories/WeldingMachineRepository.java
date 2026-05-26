@@ -2,6 +2,7 @@ package org.alloy.repositories;
 
 import org.alloy.models.entities.WeldingMachine;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -34,4 +35,20 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
 
     @Query("SELECT wm FROM WeldingMachine wm WHERE wm.name IN :names")
     List<WeldingMachine> findByNames(@Param("names") List<String> names);
+
+    @Modifying(clearAutomatically = true)
+    @Query(value = "DELETE FROM welder_welding_machine WHERE welding_machine_id = :machineId", nativeQuery = true)
+    void deleteWelderMachineLinks(@Param("machineId") Integer machineId);
+
+    @Modifying(clearAutomatically = true)
+    @Query(value = "DELETE FROM welding_machine_daily_stats WHERE welding_machine_id = :machineId", nativeQuery = true)
+    void deleteDailyStatsByMachineId(@Param("machineId") Integer machineId);
+
+    @Modifying(clearAutomatically = true)
+    @Query(value = "DELETE FROM maintenance WHERE welding_machineid = :machineId", nativeQuery = true)
+    void deleteMaintenancesByMachineId(@Param("machineId") Integer machineId);
+
+    @Modifying(clearAutomatically = true)
+    @Query(value = "DELETE FROM welding_limit_program WHERE welding_machineid = :machineId", nativeQuery = true)
+    void deleteLimitProgramsByMachineId(@Param("machineId") Integer machineId);
 }
