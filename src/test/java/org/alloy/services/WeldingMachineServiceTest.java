@@ -5,6 +5,8 @@ import org.alloy.models.entities.WeldingMachineType;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.GeneralStatus;
 import org.alloy.repositories.WeldingMachineRepository;
+import org.alloy.repositories.WeldingMachineStateRepository;
+import org.alloy.repositories.WeldingMachineParameterValueRepository;
 import org.alloy.repositories.WeldingMachineTypeRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +17,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,6 +43,12 @@ public class WeldingMachineServiceTest {
     @MockBean
     private OrganizationUnitRepository organizationUnitRepository;
 
+    @MockBean
+    private WeldingMachineStateRepository weldingMachineStateRepository;
+
+    @MockBean
+    private WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
+
     private WeldingMachineService weldingMachineService;
     private WeldingMachine testWeldingMachine;
     private WeldingMachineType testType;
@@ -50,7 +59,9 @@ public class WeldingMachineServiceTest {
         weldingMachineService = new WeldingMachineService(
                 weldingMachineRepository,
                 weldingMachineTypeRepository,
-                organizationUnitRepository
+                organizationUnitRepository,
+                weldingMachineStateRepository,
+                weldingMachineParameterValueRepository
         );
 
         // Создаем тестовый тип сварочной машины
@@ -354,6 +365,7 @@ public class WeldingMachineServiceTest {
     void hardDeleteWeldingMachine_WhenExists_ShouldDeleteMachine() {
         // Подготавливаем тестовые данные
         when(weldingMachineRepository.existsById(1)).thenReturn(true);
+        when(weldingMachineStateRepository.findByWeldingMachineId(1)).thenReturn(Collections.emptyList());
 
         // Вызываем тестируемый метод
         weldingMachineService.hardDeleteWeldingMachine(1);
