@@ -15,6 +15,7 @@ import org.alloy.models.entities.UserRole;
 import org.alloy.models.entities.UserRolePermission;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Component
+@Profile("!staging")
 public class DataInitializer implements CommandLineRunner {
 
     @Autowired

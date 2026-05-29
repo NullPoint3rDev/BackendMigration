@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.alloy.logging.UnknownMacLog;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -277,7 +278,8 @@ public class ArchiveStyleTcpListener {
                         sendConnectionEvent(clientIp, macAddress, "data_received", data);
 
                     } else {
-                        log.warn("[ARCHIVE-TCP-LISTENER] Неизвестный MAC: {} (не найден в базе данных)", macAddress);
+                        UnknownMacLog.unknownMac("ArchiveStyleTcpListener", macAddress,
+                                "clientIp=" + clientIp + ", packet rejected");
                         sendConnectionEvent(clientIp, macAddress, "unauthorized", data);
                     }
                 } else {

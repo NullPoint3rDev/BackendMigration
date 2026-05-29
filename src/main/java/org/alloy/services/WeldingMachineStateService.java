@@ -9,7 +9,9 @@ import org.alloy.repositories.WeldingMachineStateRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.repositories.WeldingMachineTypeRepository;
 import org.alloy.repositories.OrganizationRepository;
+import org.alloy.logging.UnknownMacLog;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +49,9 @@ public class WeldingMachineStateService {
     @Autowired
     private WeldingMachineLastPoweredOnService weldingMachineLastPoweredOnService;
 
+    @Value("${welding.machine.auto-create-on-unknown-mac:true}")
+    private boolean autoCreateOnUnknownMac;
+
     // Черный список MAC-адресов, для которых запрещено автоматическое создание аппаратов
     private static final java.util.Set<String> BLOCKED_MAC_ADDRESSES = java.util.Set.of(
             "ECFABCCA42E8"  // Тестовый MAC, не должен автоматически создаваться
@@ -67,6 +72,12 @@ public class WeldingMachineStateService {
                 if (mac != null && BLOCKED_MAC_ADDRESSES.contains(mac.toUpperCase())) {
                     System.out.println("[STATE-SERVICE] ⚠️ Попытка создать аппарат с заблокированным MAC: " + mac + " - пропускаем");
                     return; // Не создаем аппарат для заблокированных MAC-адресов
+                }
+
+                if (!autoCreateOnUnknownMac) {
+                    UnknownMacLog.unknownMac("WeldingMachineStateService", mac,
+                            "state update ignored — machine not registered in database");
+                    return;
                 }
 
                 // Создаем новый сварочный аппарат если не найден
