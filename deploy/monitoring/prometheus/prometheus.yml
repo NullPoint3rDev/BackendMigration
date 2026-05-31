@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alert.rules.yml
+
+scrape_configs:
+  # Сам Prometheus
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Backend (Spring Boot Actuator на отдельном management-порту 9100, внутри docker-сети)
+  - job_name: wt2-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["backend:9100"]
+
+  # PostgreSQL exporter (БД на Windows-хосте через host.docker.internal)
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  # windows_exporter — служба на Windows-хосте (устанавливается вручную, .msi)
+  # По умолчанию слушает порт 9182. Prometheus достукивается через host-gateway.
+  - job_name: windows
+    static_configs:
+      - targets: ["host.docker.internal:9182"]

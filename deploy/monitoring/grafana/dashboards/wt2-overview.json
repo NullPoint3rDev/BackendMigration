@@ -1,0 +1,174 @@
+{
+  "uid": "wt2-staging-overview",
+  "title": "WT2 Staging — Обзор",
+  "tags": ["wt2", "staging"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    { "type": "row", "title": "Здоровье", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 1, "collapsed": false },
+    {
+      "type": "stat", "title": "Backend", "id": 2,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ], "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "up{job=\"wt2-backend\"}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "stat", "title": "PostgreSQL", "id": 3,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ], "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "pg_up", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "stat", "title": "Пользователей онлайн", "id": 4,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "wt2_online_sessions", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "stat", "title": "Активные TCP-соединения аппаратов", "id": 5,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "wt2_tcp_active_connections", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+
+    { "type": "row", "title": "API (backend)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "id": 10, "collapsed": false },
+    {
+      "type": "timeseries", "title": "HTTP запросы по статусу (req/s)", "id": 11,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by (status) (rate(http_server_requests_seconds_count[5m]))", "legendFormat": "{{status}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Латентность API p95 (с)", "id": 12,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))", "legendFormat": "p95", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Топ API-эндпоинтов (req/s) — активность по разделам", "id": 13,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "topk(10, sum by (uri) (rate(http_server_requests_seconds_count[5m])))", "legendFormat": "{{uri}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+
+    { "type": "row", "title": "JVM / БД", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }, "id": 20, "collapsed": false },
+    {
+      "type": "timeseries", "title": "JVM Heap (байт)", "id": 21,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})", "legendFormat": "used", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "CPU процесса", "id": 22,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "process_cpu_usage", "legendFormat": "process", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "HikariCP соединения", "id": 23,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "hikaricp_connections_active", "legendFormat": "active", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "refId": "B", "expr": "hikaricp_connections_idle", "legendFormat": "idle", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "refId": "C", "expr": "hikaricp_connections_pending", "legendFormat": "pending", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+
+    { "type": "row", "title": "Сварочные аппараты", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 }, "id": 30, "collapsed": false },
+    {
+      "type": "timeseries", "title": "Активные TCP-соединения", "id": 31,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "wt2_tcp_active_connections", "legendFormat": "connections", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Неизвестные MAC (в минуту)", "id": 32,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "rate(wt2_unknown_mac_total[5m]) * 60", "legendFormat": "unknown MAC/min", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+
+    { "type": "row", "title": "Отчёты", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 }, "id": 40, "collapsed": false },
+    {
+      "type": "timeseries", "title": "Генерация отчётов (в минуту) по типу/источнику", "id": 41,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by (type, source) (rate(wt2_report_generation_total{status=\"success\"}[5m])) * 60", "legendFormat": "{{type}} / {{source}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Ошибки генерации (за 15 мин)", "id": 42,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 41 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 40 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by (type) (increase(wt2_report_generation_total{status=\"failure\"}[15m]))", "legendFormat": "{{type}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Средняя длительность генерации (с)", "id": 43,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 41 },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by (type) (rate(wt2_report_generation_duration_seconds_sum[15m])) / clamp_min(sum by (type) (rate(wt2_report_generation_duration_seconds_count[15m])), 0.0001)", "legendFormat": "{{type}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+
+    { "type": "row", "title": "Ошибки backend", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 49 }, "id": 50, "collapsed": false },
+    {
+      "type": "timeseries", "title": "Необработанные исключения / 5xx (в минуту)", "id": 51,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 50 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "rate(wt2_backend_errors_total[5m]) * 60", "legendFormat": "unhandled", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "refId": "B", "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[5m])) * 60", "legendFormat": "http 5xx", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "logs", "title": "Лог ошибок (errors.log → Loki)", "id": 52,
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 50 },
+      "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true, "sortOrder": "Descending" },
+      "targets": [ { "refId": "A", "expr": "{logtype=\"errors\"}", "datasource": { "type": "loki", "uid": "loki" } } ]
+    },
+
+    { "type": "row", "title": "Windows-хост", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 }, "id": 60, "collapsed": false },
+    {
+      "type": "timeseries", "title": "CPU хоста (%)", "id": 61,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 59 },
+      "fieldConfig": { "defaults": { "unit": "percent", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "100 - (avg by (instance) (rate(windows_cpu_time_total{mode=\"idle\"}[5m])) * 100)", "legendFormat": "cpu", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Свободно на дисках (%)", "id": 62,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 59 },
+      "fieldConfig": { "defaults": { "unit": "percent", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "windows_logical_disk_free_bytes / windows_logical_disk_size_bytes * 100", "legendFormat": "{{volume}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Память хоста (использовано, байт)", "id": 63,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 59 },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "windows_cs_physical_memory_bytes - windows_memory_available_bytes", "legendFormat": "used", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    }
+  ]
+}

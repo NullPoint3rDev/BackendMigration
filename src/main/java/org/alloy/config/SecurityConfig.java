@@ -88,6 +88,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests()
                 // Public endpoint are available for all type of users (login page, swagger docs, websocket for welding machines, health-check)
                 .antMatchers("/auth/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**", "/health").permitAll()
+                // Actuator на отдельном management-порту (9100), не публикуется наружу — доступен только Prometheus внутри docker-сети
+                .antMatchers("/actuator/**").permitAll()
 
                 // User accounts — детализация в контроллерах по PERMISSION_*
                 .antMatchers(HttpMethod.GET, "/user-accounts/current").authenticated()

@@ -1,7 +1,10 @@
 package org.alloy.exception;
 
+import org.alloy.metrics.BackendErrorMetrics;
 import org.alloy.security.AccountLockedException;
 import org.alloy.security.PasswordValidationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -18,6 +21,15 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** Отдельный логгер для 5xx/необработанных исключений → errors.log + Loki. */
+    private static final Logger errorLog = LoggerFactory.getLogger("org.alloy.errors");
+
+    private final BackendErrorMetrics backendErrorMetrics;
+
+    public GlobalExceptionHandler(BackendErrorMetrics backendErrorMetrics) {
+        this.backendErrorMetrics = backendErrorMetrics;
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
@@ -127,6 +139,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
+        backendErrorMetrics.recordUnhandledException();
+        errorLog.error("Unhandled exception (HTTP 500): {}", ex.getMessage(), ex);
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "An unexpected error occurred",

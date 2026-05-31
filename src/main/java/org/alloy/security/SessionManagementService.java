@@ -79,6 +79,34 @@ public class SessionManagementService {
         return Collections.unmodifiableSet(activeSessions.keySet());
     }
 
+    /**
+     * Обновляет время последней активности сессии пользователя (heartbeat).
+     * @return true, если активная сессия найдена и обновлена.
+     */
+    public boolean touchByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+        UserSession session = activeSessions.get(username);
+        if (session == null) {
+            return false;
+        }
+        session.updateLastActivity();
+        return true;
+    }
+
+    /**
+     * Количество сессий, у которых последняя активность (heartbeat) была в пределах окна.
+     * Используется как метрика «реально онлайн».
+     */
+    public long countOnlineSessions(java.time.Duration window) {
+        purgeExpiredSessions();
+        LocalDateTime threshold = LocalDateTime.now().minus(window);
+        return activeSessions.values().stream()
+                .filter(s -> s.getLastActivity().isAfter(threshold))
+                .count();
+    }
+
     public boolean isUserOnline(String username) {
         if (username == null || username.isBlank()) {
             return false;

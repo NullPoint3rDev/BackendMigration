@@ -1,0 +1,86 @@
+{
+  "uid": "wt2-postgres",
+  "title": "WT2 — PostgreSQL",
+  "tags": ["wt2", "postgres"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "type": "stat", "title": "PostgreSQL", "id": 1,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ], "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "pg_up", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "stat", "title": "Активные соединения (weldtelecom)", "id": 2,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "pg_stat_database_numbackends{datname=\"weldtelecom\"}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "stat", "title": "Размер БД (weldtelecom)", "id": 3,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "bytes", "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "pg_database_size_bytes{datname=\"weldtelecom\"}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "stat", "title": "Deadlocks (всего)", "id": 4,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "pg_stat_database_deadlocks{datname=\"weldtelecom\"}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Соединения по БД", "id": 10,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "pg_stat_database_numbackends{datname!=\"\"}", "legendFormat": "{{datname}}", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Транзакции (commit / rollback, в сек)", "id": 11,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "rate(pg_stat_database_xact_commit{datname=\"weldtelecom\"}[5m])", "legendFormat": "commit", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "refId": "B", "expr": "rate(pg_stat_database_xact_rollback{datname=\"weldtelecom\"}[5m])", "legendFormat": "rollback", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Строки: fetched / returned / inserted / updated / deleted (в сек)", "id": 12,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "rate(pg_stat_database_tup_fetched{datname=\"weldtelecom\"}[5m])", "legendFormat": "fetched", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "refId": "B", "expr": "rate(pg_stat_database_tup_returned{datname=\"weldtelecom\"}[5m])", "legendFormat": "returned", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "refId": "C", "expr": "rate(pg_stat_database_tup_inserted{datname=\"weldtelecom\"}[5m])", "legendFormat": "inserted", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "refId": "D", "expr": "rate(pg_stat_database_tup_updated{datname=\"weldtelecom\"}[5m])", "legendFormat": "updated", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "refId": "E", "expr": "rate(pg_stat_database_tup_deleted{datname=\"weldtelecom\"}[5m])", "legendFormat": "deleted", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Cache hit ratio (weldtelecom)", "id": 13,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "rate(pg_stat_database_blks_hit{datname=\"weldtelecom\"}[5m]) / clamp_min(rate(pg_stat_database_blks_hit{datname=\"weldtelecom\"}[5m]) + rate(pg_stat_database_blks_read{datname=\"weldtelecom\"}[5m]), 1)", "legendFormat": "hit ratio", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    },
+    {
+      "type": "timeseries", "title": "Deadlocks (в минуту)", "id": 14,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 40 } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "rate(pg_stat_database_deadlocks{datname=\"weldtelecom\"}[5m]) * 60", "legendFormat": "deadlocks/min", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+    }
+  ]
+}

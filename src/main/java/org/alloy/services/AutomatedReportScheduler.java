@@ -22,6 +22,7 @@ import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.Welder;
 import org.alloy.models.entities.Employee;
+import org.alloy.metrics.ReportMetrics;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.alloy.repositories.WelderRepository;
 import org.alloy.repositories.EmployeeRepository;
@@ -66,6 +67,9 @@ public class AutomatedReportScheduler {
 
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private ReportMetrics reportMetrics;
 
     @Autowired
     private ReportTemplateService reportTemplateService;
@@ -206,6 +210,8 @@ public class AutomatedReportScheduler {
      * Выполняет автоматический отчет
      */
     private void executeAutomatedReport(AutomatedReport automatedReport) {
+        long start = System.nanoTime();
+        boolean success = false;
         try {
             // СНАЧАЛА обновляем время следующего запуска, чтобы предотвратить повторное выполнение
             updateNextRunTime(automatedReport);
@@ -276,6 +282,7 @@ public class AutomatedReportScheduler {
             // Отправляем отчет по email
             sendReportByEmail(automatedReport, reportHistory, reportBytes);
 
+            success = true;
             System.out.println("DEBUG AutomatedReportScheduler: Successfully executed automated report: " + automatedReport.getName());
 
         } catch (Exception e) {
@@ -285,6 +292,14 @@ public class AutomatedReportScheduler {
             // Уведомления об ошибках отключены, чтобы не спамить пользователей
             // Особенно когда шаблоны были удалены, но AutomatedReport еще существует
             // Ошибки логируются в консоль для отладки
+        } finally {
+            String type;
+            try {
+                type = resolveTemplateTypeForFileFormat(automatedReport);
+            } catch (Exception ignore) {
+                type = automatedReport.getTemplateType();
+            }
+            reportMetrics.record(type, "auto", success, System.nanoTime() - start);
         }
     }
 

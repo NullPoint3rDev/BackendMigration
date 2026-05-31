@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.logging.UnknownMacLog;
+import org.alloy.metrics.WeldingMetrics;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,6 +75,9 @@ public class ArchiveStyleTcpListener {
 
     @Autowired
     private WeldingDeviceManagerService deviceManager;
+
+    @Autowired
+    private WeldingMetrics weldingMetrics;
 
     private final WeldingMachineRepository weldingMachineRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -162,6 +166,7 @@ public class ArchiveStyleTcpListener {
         }
 
         log.info("[ARCHIVE-TCP-LISTENER] CONNECTED: IP: {}; Thread: {}", clientIp, threadId);
+        weldingMetrics.tcpConnectionOpened();
 
         try (InputStream in = clientSocket.getInputStream();
              OutputStream out = clientSocket.getOutputStream()) {
@@ -278,6 +283,7 @@ public class ArchiveStyleTcpListener {
                         sendConnectionEvent(clientIp, macAddress, "data_received", data);
 
                     } else {
+                        weldingMetrics.recordUnknownMac();
                         UnknownMacLog.unknownMac("ArchiveStyleTcpListener", macAddress,
                                 "clientIp=" + clientIp + ", packet rejected");
                         sendConnectionEvent(clientIp, macAddress, "unauthorized", data);
@@ -295,6 +301,7 @@ public class ArchiveStyleTcpListener {
         } catch (IOException e) {
             log.error("[ARCHIVE-TCP-LISTENER] Ошибка обработки клиента {}", clientIp, e);
         } finally {
+            weldingMetrics.tcpConnectionClosed();
             // Закрываем соединение
             try {
                 if (!clientSocket.isClosed()) {

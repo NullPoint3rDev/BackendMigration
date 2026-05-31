@@ -1,0 +1,53 @@
+groups:
+  - name: wt2-staging
+    rules:
+      # Backend недоступен (Actuator не отвечает)
+      - alert: BackendDown
+        expr: up{job="wt2-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend WT2 недоступен"
+          description: "Prometheus не может собрать метрики с backend:9100 более 1 минуты."
+
+      # Всплеск ошибок 5xx на API
+      - alert: ApiHttp5xxSpike
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Всплеск ошибок 5xx на backend API"
+          description: "Частота ответов 5xx превышает 0.2 req/s в течение 5 минут."
+
+      # PostgreSQL недоступен
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL недоступен"
+          description: "postgres_exporter сообщает pg_up=0 более 1 минуты."
+
+      # Мало места на диске Windows-хоста (< 10%)
+      - alert: WindowsDiskSpaceLow
+        expr: |
+          (windows_logical_disk_free_bytes / windows_logical_disk_size_bytes) < 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Мало места на диске Windows ({{ $labels.volume }})"
+          description: "Свободно менее 10% на томе {{ $labels.volume }} хоста Staging."
+
+      # Ошибки генерации отчётов
+      - alert: ReportGenerationErrors
+        expr: increase(wt2_report_generation_total{status="failure"}[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ошибки генерации отчётов"
+          description: "За последние 15 минут зафиксированы неуспешные генерации отчётов (type={{ $labels.type }}, source={{ $labels.source }})."

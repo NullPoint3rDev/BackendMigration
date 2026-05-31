@@ -1,0 +1,43 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # stdout/stderr контейнеров backend и frontend (через Docker API)
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+    relabel_configs:
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(wt2-staging-backend|wt2-staging-frontend)"
+        action: keep
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: container
+      - target_label: job
+        replacement: docker
+
+  # Файл welding-devices.log из тома backend-logs
+  - job_name: backend-welding
+    static_configs:
+      - targets: ["localhost"]
+        labels:
+          job: backend-files
+          logtype: welding-devices
+          __path__: /backend-logs/welding-devices.log
+
+  # Файл errors.log (5xx / необработанные исключения)
+  - job_name: backend-errors
+    static_configs:
+      - targets: ["localhost"]
+        labels:
+          job: backend-files
+          logtype: errors
+          __path__: /backend-logs/errors.log

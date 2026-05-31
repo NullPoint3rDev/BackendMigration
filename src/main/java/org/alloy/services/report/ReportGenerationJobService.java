@@ -1,6 +1,7 @@
 package org.alloy.services.report;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.alloy.metrics.ReportMetrics;
 import org.alloy.models.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,9 @@ public class ReportGenerationJobService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ReportMetrics reportMetrics;
 
     public ReportGenerationJobStatusDTO startJob(ReportGenerationJobStartDTO request, Integer userId) {
         if (request == null || request.getReportType() == null || request.getReportType().isBlank()) {
@@ -58,6 +62,18 @@ public class ReportGenerationJobService {
     }
 
     private ReportFileResult dispatch(String reportType, Map<String, Object> payload) {
+        long start = System.nanoTime();
+        boolean success = false;
+        try {
+            ReportFileResult result = dispatchInternal(reportType, payload);
+            success = true;
+            return result;
+        } finally {
+            reportMetrics.record(reportType, "manual", success, System.nanoTime() - start);
+        }
+    }
+
+    private ReportFileResult dispatchInternal(String reportType, Map<String, Object> payload) {
         String type = reportType.toUpperCase();
         switch (type) {
             case "WIRE_CONSUMPTION":

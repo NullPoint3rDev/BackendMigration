@@ -38,3 +38,25 @@ welding:
 logging:
   file:
     path: ${LOG_PATH:logs}
+
+# Monitoring (Prometheus). Actuator вынесен на отдельный management-порт,
+# который НЕ публикуется в docker-compose → доступен только Prometheus внутри docker-сети.
+management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:9100}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: wt2-backend
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
