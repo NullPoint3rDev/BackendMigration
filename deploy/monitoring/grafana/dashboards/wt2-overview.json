@@ -168,7 +168,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 59 },
       "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
-      "targets": [ { "refId": "A", "expr": "windows_cs_physical_memory_bytes - windows_memory_available_bytes", "legendFormat": "used", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
+      "targets": [ { "refId": "A", "expr": "windows_os_visible_memory_bytes - windows_memory_available_bytes", "legendFormat": "used", "datasource": { "type": "prometheus", "uid": "prometheus" } } ]
     }
   ]
 }
