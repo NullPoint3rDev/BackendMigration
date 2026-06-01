@@ -1,12 +1,11 @@
 package org.alloy;
 
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.test.context.TestPropertySource;
 
 /**
- * Подключать в {@code @SpringBootTest}: {@code @Import(ServiceTestConfig.class)}.
+ * Маркер-конфигурация для {@link AlloyServiceTest} (при необходимости — общие {@code @MockBean}).
+ * JPA отключается через {@code service-test.properties} на {@link AlloyServiceTest}.
  */
 @TestConfiguration
-@TestPropertySource("classpath:service-test.properties")
 public class ServiceTestConfig {
 }
