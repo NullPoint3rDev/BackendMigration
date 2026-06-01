@@ -5,6 +5,7 @@ import org.alloy.TestConfig;
 import org.alloy.models.entities.WeldingMachineState;
 import org.alloy.models.WeldingMachineStatus;
 import org.alloy.services.WeldingMachineStateService;
+import org.alloy.services.Wt2AccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -35,6 +37,9 @@ public class WeldingMachineStateControllerTest {
 
     @MockBean
     private WeldingMachineStateService weldingMachineStateService;
+
+    @MockBean
+    private Wt2AccessService wt2AccessService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -67,6 +72,9 @@ public class WeldingMachineStateControllerTest {
         testState.setOrganizationUnitId(1);
         testState.setMd5("TEST_MD5");
         testState.setNormGasFlow(1.0);
+
+        when(wt2AccessService.filterWeldingMachineStates(any(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     /**

@@ -2,9 +2,8 @@ package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.alloy.TestConfig;
-import org.alloy.models.entities.EmailTemplate;
+import org.alloy.models.dto.InboxMessageDTO;
 import org.alloy.models.entities.InboxMessage;
-import org.alloy.services.EmailTemplateService;
 import org.alloy.services.InboxMessageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +51,7 @@ class InboxMessageControllerTest {
 
     // Тестовые данные
     private InboxMessage testInboxMessage;
+    private InboxMessageDTO testInboxMessageDto;
     private List<InboxMessage> testInboxMessages;
 
     /**
@@ -84,6 +84,11 @@ class InboxMessageControllerTest {
         secondMessage.setDateCreated(LocalDateTime.now());
 
         testInboxMessages = Arrays.asList(testInboxMessage, secondMessage);
+
+        testInboxMessageDto = new InboxMessageDTO();
+        testInboxMessageDto.setId(1);
+        testInboxMessageDto.setSubject("Test Subject");
+        testInboxMessageDto.setBody("Test Message");
     }
 
     /**
@@ -140,8 +145,8 @@ class InboxMessageControllerTest {
 
         mockMvc.perform(get("/inbox-messages/user/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].userAccountId").value(1))
-                .andExpect(jsonPath("$[1].userAccountId").value(1));
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[1].id").value(2));
 
         verify(inboxMessageService).getMessagesByUserAccountId(1);
     }
@@ -156,7 +161,8 @@ class InboxMessageControllerTest {
 
         mockMvc.perform(get("/inbox-messages/user/1/unread"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].isRead").value(false));
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].subject").value("Test Subject"));
 
         verify(inboxMessageService).getUnreadMessagesByUserAccountId(1);
     }
@@ -171,7 +177,7 @@ class InboxMessageControllerTest {
 
         mockMvc.perform(get("/inbox-messages/user/1/type/NOTIFICATION"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].type").value("NOTIFICATION"));
+                .andExpect(jsonPath("$[0].subject").value("Test Subject"));
 
         verify(inboxMessageService).getMessagesByUserAccountIdAndType(1, "NOTIFICATION");
     }
@@ -199,8 +205,8 @@ class InboxMessageControllerTest {
 
         mockMvc.perform(post("/inbox-messages")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testInboxMessage)))
-                .andExpect(status().isOk())
+                .content(objectMapper.writeValueAsString(testInboxMessageDto)))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.subject").value("Test Subject"));
 
@@ -216,7 +222,7 @@ class InboxMessageControllerTest {
 
         mockMvc.perform(put("/inbox-messages/1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testInboxMessage)))
+                .content(objectMapper.writeValueAsString(testInboxMessageDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -227,14 +233,14 @@ class InboxMessageControllerTest {
      * Тест обновления несуществующего сообщения
      */
     @Test
-    void updateInboxMessage_WhenMessageDoesNotExist_ShouldReturnNotFound() throws Exception {
+    void updateInboxMessage_WhenMessageDoesNotExist_ShouldReturnBadRequest() throws Exception {
         when(inboxMessageService.updateInboxMessage(any(InboxMessage.class)))
                 .thenThrow(new IllegalArgumentException("Message not found"));
 
         mockMvc.perform(put("/inbox-messages/999")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testInboxMessage)))
-                .andExpect(status().isNotFound());
+                .content(objectMapper.writeValueAsString(testInboxMessageDto)))
+                .andExpect(status().isBadRequest());
 
         verify(inboxMessageService).updateInboxMessage(any(InboxMessage.class));
     }

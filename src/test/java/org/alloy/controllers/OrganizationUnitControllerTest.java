@@ -6,6 +6,7 @@ import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.Organization;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.services.OrganizationUnitService;
+import org.alloy.services.Wt2AccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -45,6 +47,9 @@ public class OrganizationUnitControllerTest {
 
     @MockBean
     private OrganizationUnitService organizationUnitService;
+
+    @MockBean
+    private Wt2AccessService wt2AccessService;
 
     private OrganizationUnit testOrganizationUnit;
     private List<OrganizationUnit> testOrganizationUnits;
@@ -86,6 +91,9 @@ public class OrganizationUnitControllerTest {
         secondUnit.setParentId(1);
 
         testOrganizationUnits = Arrays.asList(testOrganizationUnit, secondUnit);
+
+        when(wt2AccessService.filterOrganizationUnits(any(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     /**

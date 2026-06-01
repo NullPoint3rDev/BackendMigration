@@ -6,7 +6,9 @@ import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineType;
+import org.alloy.services.DeviceModelService;
 import org.alloy.services.WeldingMachineService;
+import org.alloy.services.Wt2AccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +50,12 @@ public class WeldingMachineControllerTest {
 
     @MockBean
     private WeldingMachineService weldingMachineService;
+
+    @MockBean
+    private DeviceModelService deviceModelService;
+
+    @MockBean
+    private Wt2AccessService wt2AccessService;
 
     private WeldingMachine testWeldingMachine;
     private List<WeldingMachine> testWeldingMachines;
@@ -102,6 +110,9 @@ public class WeldingMachineControllerTest {
 
         // Создаем список тестовых сварочных машин
         testWeldingMachines = Arrays.asList(testWeldingMachine, secondMachine);
+
+        when(wt2AccessService.filterWeldingMachines(any(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     /**

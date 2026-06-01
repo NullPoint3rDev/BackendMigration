@@ -4,6 +4,7 @@ import org.alloy.TestConfig;
 import org.alloy.models.dto.ReportTemplateDTO;
 import org.alloy.services.ReportTemplateService;
 import org.alloy.services.UserAccountService;
+import org.alloy.services.Wt2AccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -37,6 +38,8 @@ class Wt2ReportTemplatePermissionMatrixMvcTest {
     private ReportTemplateService templateService;
     @MockBean
     private UserAccountService userAccountService;
+    @MockBean
+    private Wt2AccessService wt2AccessService;
 
     @BeforeEach
     void setup() {

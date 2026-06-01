@@ -4,7 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.alloy.TestConfig;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.UserAccount;
+import org.alloy.repositories.UserRepository;
+import org.alloy.repositories.UserRoleRepository;
+import org.alloy.security.SessionManagementService;
+import org.alloy.services.EmailVerificationService;
 import org.alloy.services.UserAccountService;
+import org.alloy.services.Wt2AccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +53,21 @@ public class UserAccountControllerTest {
 
     @MockBean
     private UserAccountService userAccountService;
+
+    @MockBean
+    private UserRoleRepository userRoleRepository;
+
+    @MockBean
+    private UserRepository userRepository;
+
+    @MockBean
+    private Wt2AccessService wt2AccessService;
+
+    @MockBean
+    private EmailVerificationService emailVerificationService;
+
+    @MockBean
+    private SessionManagementService sessionManagementService;
 
     private UserAccount testUserAccount;
     private List<UserAccount> testUserAccounts;
