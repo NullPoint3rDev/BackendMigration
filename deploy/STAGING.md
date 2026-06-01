@@ -218,6 +218,14 @@ Workflow-файлы:
 
 **FrontendStaging** не клонирует `BackendStaging` (у `GITHUB_TOKEN` нет доступа к другому private-репо — в логе `Repository not found`). `docker-compose.yml` и monitoring лежат в `C:\WTStaging\BackendStaging\deploy` и **обновляются при каждом backend deploy**. Перед первым frontend deploy выполните хотя бы один успешный backend deploy (или скопируйте папку `deploy` вручную).
 
+### Ошибки Docker build на сервере
+
+**`TLS handshake timeout` к `auth.docker.io`** — нет стабильного доступа к Docker Hub при сборке. В Dockerfile **нет** строки `# syntax=docker/dockerfile:1` (она тянет лишний образ). Если таймаут остаётся на `maven:` / `node:` / `nginx:`:
+
+- один раз вручную: `docker pull maven:3.9-eclipse-temurin-11` (и остальные базовые образы) при рабочем интернете;
+- проверить прокси/VPN/firewall на staging-сервере;
+- в Docker Desktop → Settings → Docker Engine при необходимости настроить registry mirror.
+
 ### Ручной деплой (без GitHub)
 
 ```powershell
