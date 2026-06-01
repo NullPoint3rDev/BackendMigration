@@ -1,6 +1,5 @@
 package org.alloy.repositories;
 
-import org.alloy.TestConfig;
 import org.alloy.models.entities.UserToken;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.models.entities.UserRole;
@@ -26,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import(TestConfig.class)
 public class UserTokenRepositoryTest {
 
     @Autowired

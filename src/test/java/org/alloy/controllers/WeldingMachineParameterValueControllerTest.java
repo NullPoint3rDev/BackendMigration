@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import lombok.With;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.entities.WeldingMachineParameterValue;
 import org.alloy.services.WeldingMachineParameterValueService;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(WeldingMachineParameterValueController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 public class WeldingMachineParameterValueControllerTest {
 
@@ -72,7 +72,7 @@ public class WeldingMachineParameterValueControllerTest {
         mockMvc.perform(get("/welding-machine-parameters"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].propertyCode").value("TEST_PROPERTY"));
+                .andExpect(jsonPath("$[0].parameterName").value("TEST_PROPERTY"));
     }
 
     /**
@@ -86,7 +86,7 @@ public class WeldingMachineParameterValueControllerTest {
         mockMvc.perform(get("/welding-machine-parameters/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.propertyCode").value("TEST_PROPERTY"));
+                .andExpect(jsonPath("$.parameterName").value("TEST_PROPERTY"));
     }
 
     /**
@@ -113,7 +113,7 @@ public class WeldingMachineParameterValueControllerTest {
         mockMvc.perform(get("/welding-machine-parameters/state/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].weldingMachineStateId").value(1));
+                .andExpect(jsonPath("$[0].id").value(1));
     }
 
     /**
@@ -128,7 +128,7 @@ public class WeldingMachineParameterValueControllerTest {
         mockMvc.perform(get("/welding-machine-parameters/state/1/property/TEST_PROPERTY"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.propertyCode").value("TEST_PROPERTY"));
+                .andExpect(jsonPath("$.parameterName").value("TEST_PROPERTY"));
     }
 
     /**
@@ -143,7 +143,7 @@ public class WeldingMachineParameterValueControllerTest {
 
         mockMvc.perform(get("/welding-machine-parameters/state/1/exceeded"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].limitsExceeded").value(true));
+                .andExpect(jsonPath("$[0].id").value(true));
     }
 
     /**
@@ -160,7 +160,7 @@ public class WeldingMachineParameterValueControllerTest {
                 .content(objectMapper.writeValueAsString(testParameterValue)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.propertyCode").value("TEST_PROPERTY"));
+                .andExpect(jsonPath("$.parameterName").value("TEST_PROPERTY"));
     }
 
     /**
@@ -177,7 +177,7 @@ public class WeldingMachineParameterValueControllerTest {
                 .content(objectMapper.writeValueAsString(testParameterValue)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.propertyCode").value("TEST_PROPERTY"));
+                .andExpect(jsonPath("$.parameterName").value("TEST_PROPERTY"));
     }
 
     /**

@@ -21,6 +21,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@ActiveProfiles("test")
 @ContextConfiguration(classes = TestConfig.class)
 public class WeldingMachineStateRepositoryTest {
 

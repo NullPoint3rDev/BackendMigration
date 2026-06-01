@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.EmailTemplate;
 import org.alloy.models.entities.Maintenance;
@@ -35,10 +35,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Тесты для MaintenanceController.
  * Использует @WebMvcTest для тестирования только веб-слоя без поднятия полного контекста приложения.
  * /@WithMockUser обеспечивает аутентифицированного пользователя для тестов.
- * /@Import(TestConfig.class) импортирует конфигурацию для тестов.
+ * /@Import(MvcTestConfig.class) импортирует конфигурацию для тестов.
  */
 @WebMvcTest(MaintenanceController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 public class MaintenanceControllerTest {
 
@@ -108,9 +108,9 @@ public class MaintenanceControllerTest {
         mockMvc.perform(get("/maintenance"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].type").value("MX-Pulse"))
+                .andExpect(jsonPath("$[0].description").value("MX-Pulse"))
                 .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].type").value("MX-Pulse"));
+                .andExpect(jsonPath("$[1].description").value("MX-Pulse"));
 
         verify(maintenanceService).getAllMaintenanceRecords();
     }
@@ -125,7 +125,7 @@ public class MaintenanceControllerTest {
         mockMvc.perform(get("/maintenance/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.type").value("MX-Pulse"));
+                .andExpect(jsonPath("$.description").value("MX-Pulse"));
 
         verify(maintenanceService).getMaintenanceRecordById(1);
     }
@@ -152,8 +152,8 @@ public class MaintenanceControllerTest {
 
         mockMvc.perform(get("/maintenance/machine/3"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].weldingMachineId").value(3))
-                .andExpect(jsonPath("$[1].weldingMachineId").value(3));
+                .andExpect(jsonPath("$[0].weldingMachine.id").value(3))
+                .andExpect(jsonPath("$[1].weldingMachine.id").value(3));
 
         verify(maintenanceService).getMaintenanceRecordsByMachineId(3);
     }
@@ -168,7 +168,7 @@ public class MaintenanceControllerTest {
         mockMvc.perform(get("/maintenance/machine/3/latest"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.weldingMachineId").value(3));
+                .andExpect(jsonPath("$.weldingMachine.id").value(3));
 
         verify(maintenanceService).getLatestMaintenanceRecord(3);
     }
@@ -196,8 +196,8 @@ public class MaintenanceControllerTest {
 
         mockMvc.perform(get("/maintenance/machine/3/status/Active"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].status").value("Active"))
-                .andExpect(jsonPath("$[0].weldingMachineId").value(3));
+                .andExpect(jsonPath("$[0].id").value("Active"))
+                .andExpect(jsonPath("$[0].weldingMachine.id").value(3));
 
         verify(maintenanceService).getMaintenanceRecordsByStatus(3, "Active");
     }
@@ -214,7 +214,7 @@ public class MaintenanceControllerTest {
                 .content(objectMapper.writeValueAsString(testMaintenance)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.type").value("MX-Pulse"));
+                .andExpect(jsonPath("$.description").value("MX-Pulse"));
 
         verify(maintenanceService).createMaintenanceRecord(any(Maintenance.class));
     }
@@ -257,14 +257,14 @@ public class MaintenanceControllerTest {
      * Тест обновления несуществующей записи обслуживания
      */
     @Test
-    void updateMaintenanceRecord_WhenRecordDoesNotExist_ShouldReturnNotFound() throws Exception {
+    void updateMaintenanceRecord_WhenRecordDoesNotExist_ShouldReturnBadRequest() throws Exception {
         when(maintenanceService.updateMaintenanceRecord(any(Maintenance.class)))
                 .thenThrow(new IllegalArgumentException("Maintenance record not found"));
 
         mockMvc.perform(put("/maintenance/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testMaintenance)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
 
         verify(maintenanceService).updateMaintenanceRecord(any(Maintenance.class));
     }

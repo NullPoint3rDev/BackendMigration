@@ -1,6 +1,6 @@
 package org.alloy.controllers;
 
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.services.WelderService;
 import org.alloy.services.Wt2AccessService;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,15 +20,20 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.Collections;
 import java.util.stream.Stream;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(WelderController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 class Wt2WelderPermissionMatrixMvcTest {
 
     @Autowired
@@ -43,6 +48,8 @@ class Wt2WelderPermissionMatrixMvcTest {
     void setup() {
         when(welderService.getAllWelders()).thenReturn(Collections.emptyList());
         when(wt2AccessService.filterWelders(any(), anyString())).thenReturn(Collections.emptyList());
+        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "denied"))
+                .when(wt2AccessService).assertCanReadWelders(eq("u"));
     }
 
     static Stream<Arguments> listWeldersAccess() {

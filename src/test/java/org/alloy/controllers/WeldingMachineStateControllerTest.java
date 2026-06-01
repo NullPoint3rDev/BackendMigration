@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.entities.WeldingMachineState;
 import org.alloy.models.WeldingMachineStatus;
 import org.alloy.services.WeldingMachineStateService;
@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(WeldingMachineStateController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 public class WeldingMachineStateControllerTest {
 

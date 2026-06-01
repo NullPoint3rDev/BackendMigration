@@ -1,6 +1,5 @@
 package org.alloy.repositories;
 
-import org.alloy.TestConfig;
 import org.alloy.models.entities.UserRole;
 import org.alloy.models.entities.UserPermission;
 import org.alloy.models.entities.UserRolePermission;
@@ -24,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import(TestConfig.class)
 public class UserRolePermissionRepositoryTest {
 
     @Autowired

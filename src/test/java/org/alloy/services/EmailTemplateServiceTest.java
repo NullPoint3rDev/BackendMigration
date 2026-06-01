@@ -21,14 +21,8 @@ import static org.mockito.Mockito.*;
  * Тестовый класс для EmailTemplateService
  * Проверяет корректность работы сервиса шаблонов электронной почты
  */
-@SpringBootTest
-@TestPropertySource(properties = {
-        "spring.jpa.hibernate.ddl-auto=none",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-        "spring.datasource.username=sa",
-        "spring.datasource.password="
-})
+@SpringBootTest(classes = EmailTemplateService.class)
+@ActiveProfiles("test")
 public class EmailTemplateServiceTest {
 
     @MockBean

@@ -36,10 +36,10 @@ public class AlertRepositoryTest {
      */
     @BeforeEach
     void setUp() {
-        // Создаем тестовый объект Alert
         testAlert = new Alert();
-        
-        // Сохраняем объект в тестовой базе данных
+        testAlert.setType("INFO");
+        testAlert.setMessage("Test message");
+        testAlert.setSeverity("LOW");
         entityManager.persist(testAlert);
         entityManager.flush();
     }

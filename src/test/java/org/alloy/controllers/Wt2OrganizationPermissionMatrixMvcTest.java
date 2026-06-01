@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.Organization;
 import org.alloy.services.OrganizationService;
@@ -26,8 +26,12 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.Collections;
 import java.util.stream.Stream;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -40,7 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code create_delete_enterprises} ({@link UserAccountService#hasAllowedUserAction}).
  */
 @WebMvcTest(OrganizationController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 class Wt2OrganizationPermissionMatrixMvcTest {
 
     @Autowired
@@ -62,6 +66,10 @@ class Wt2OrganizationPermissionMatrixMvcTest {
     void setup() {
         when(organizationService.getAllOrganizations()).thenReturn(Collections.emptyList());
         when(wt2AccessService.filterOrganizations(any(), any())).thenReturn(Collections.emptyList());
+        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "denied"))
+                .when(wt2AccessService).assertCanReadOrganizations(eq("roleUser"));
+        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "denied"))
+                .when(wt2AccessService).assertCanWriteOrganizations(eq("plain"));
     }
 
     static Stream<Arguments> getAllOrganizationsAccess() {

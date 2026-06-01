@@ -1,6 +1,6 @@
 package org.alloy.controllers;
 
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.dto.ReportTemplateDTO;
 import org.alloy.services.ReportTemplateService;
 import org.alloy.services.UserAccountService;
@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ReportTemplateController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 class Wt2ReportTemplatePermissionMatrixMvcTest {
 
     @Autowired

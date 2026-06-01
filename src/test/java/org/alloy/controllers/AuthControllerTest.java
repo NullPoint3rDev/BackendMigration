@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.security.AccountLockedException;
 import org.alloy.security.AuthenticationService;
 import org.alloy.security.PasswordValidationException;
@@ -21,6 +21,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -31,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * /@WithMockUser обеспечивает аутентифицированного пользователя для тестов.
  */
 @WebMvcTest(AuthController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 class AuthControllerTest {
 
@@ -90,7 +91,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.userId").value(1));
 
         // Проверяем, что сервис был вызван с правильными параметрами
-        verify(authenticationService).authenticate(loginRequest.getUsername(), loginRequest.getPassword(), any(HttpServletRequest.class));
+        verify(authenticationService).authenticate(eq(loginRequest.getUsername()), eq(loginRequest.getPassword()), any(HttpServletRequest.class));
     }
 
     /**
@@ -108,7 +109,7 @@ class AuthControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("Account Locked"));
 
-        verify(authenticationService).authenticate(loginRequest.getUsername(), loginRequest.getPassword(), any(HttpServletRequest.class));
+        verify(authenticationService).authenticate(eq(loginRequest.getUsername()), eq(loginRequest.getPassword()), any(HttpServletRequest.class));
     }
 
     /**
@@ -126,7 +127,7 @@ class AuthControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("Authentication Failed"));
 
-        verify(authenticationService).authenticate(loginRequest.getUsername(), loginRequest.getPassword(), any(HttpServletRequest.class));
+        verify(authenticationService).authenticate(eq(loginRequest.getUsername()), eq(loginRequest.getPassword()), any(HttpServletRequest.class));
     }
 
     /**

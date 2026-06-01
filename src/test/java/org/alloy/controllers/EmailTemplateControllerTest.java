@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.entities.EmailTemplate;
 import org.alloy.services.EmailTemplateService;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,10 +28,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Тесты для EmailTemplateController.
  * Использует @WebMvcTest для тестирования только веб-слоя без поднятия полного контекста приложения.
  * /@WithMockUser обеспечивает аутентифицированного пользователя для тестов.
- * /@Import(TestConfig.class) импортирует конфигурацию для тестов.
+ * /@Import(MvcTestConfig.class) импортирует конфигурацию для тестов.
  */
 @WebMvcTest(EmailTemplateController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 class EmailTemplateControllerTest {
 

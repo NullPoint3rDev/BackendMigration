@@ -1,6 +1,6 @@
 package org.alloy.controllers;
 
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.repositories.UserRoleRepository;
 import org.alloy.services.UserAccountService;
@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserAccountController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 class Wt2UserAccountListPermissionMatrixMvcTest {
 
     @Autowired

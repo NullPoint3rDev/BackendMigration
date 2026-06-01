@@ -1,7 +1,8 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
+import org.alloy.models.dto.AlertDTO;
 import org.alloy.models.entities.Alert;
 import org.alloy.services.AlertService;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AlertController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser(roles = "USER")
 public class AlertControllerTest {
 
@@ -37,11 +38,20 @@ public class AlertControllerTest {
     private AlertService alertService;
 
     private Alert testAlert;
+    private AlertDTO testAlertDto;
 
     @BeforeEach
     void setUp() {
         testAlert = new Alert();
         testAlert.setId(1);
+        testAlert.setType("INFO");
+        testAlert.setMessage("Test alert");
+        testAlert.setSeverity("LOW");
+
+        testAlertDto = new AlertDTO();
+        testAlertDto.setId(1);
+        testAlertDto.setType("INFO");
+        testAlertDto.setMessage("Test alert");
     }
 
     @Test
@@ -52,7 +62,7 @@ public class AlertControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1));
 
-        verify(alertService, times(1)).findAll();
+        verify(alertService).findAll();
     }
 
     @Test
@@ -63,7 +73,7 @@ public class AlertControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(alertService, times(1)).findById(1);
+        verify(alertService).findById(1);
     }
 
     @Test
@@ -73,48 +83,46 @@ public class AlertControllerTest {
         mockMvc.perform(get("/alerts/999"))
                 .andExpect(status().isNotFound());
 
-        verify(alertService, times(1)).findById(999);
+        verify(alertService).findById(999);
     }
 
     @Test
     void createAlert_ShouldReturnCreatedAlert() throws Exception {
-        when(alertService.save(any(Alert.class))).thenReturn(testAlert);
+        when(alertService.createAlert(any(Alert.class))).thenReturn(testAlert);
 
         mockMvc.perform(post("/alerts")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testAlert)))
-                .andExpect(status().isOk())
+                        .content(objectMapper.writeValueAsString(testAlertDto)))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(alertService, times(1)).save(any(Alert.class));
+        verify(alertService).createAlert(any(Alert.class));
     }
 
     @Test
     void updateAlert_WhenAlertExists_ShouldReturnUpdatedAlert() throws Exception {
-        when(alertService.findById(1)).thenReturn(Optional.of(testAlert));
-        when(alertService.save(any(Alert.class))).thenReturn(testAlert);
+        when(alertService.updateAlert(any(Alert.class))).thenReturn(testAlert);
 
         mockMvc.perform(put("/alerts/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testAlert)))
+                        .content(objectMapper.writeValueAsString(testAlertDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(alertService, times(1)).findById(1);
-        verify(alertService, times(1)).save(any(Alert.class));
+        verify(alertService).updateAlert(any(Alert.class));
     }
 
     @Test
-    void updateAlert_WhenAlertDoesNotExist_ShouldReturnNotFound() throws Exception {
-        when(alertService.findById(999)).thenReturn(Optional.empty());
+    void updateAlert_WhenAlertDoesNotExist_ShouldStillUpdate() throws Exception {
+        when(alertService.updateAlert(any(Alert.class))).thenReturn(testAlert);
 
         mockMvc.perform(put("/alerts/999")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testAlert)))
-                .andExpect(status().isNotFound());
+                        .content(objectMapper.writeValueAsString(testAlertDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
 
-        verify(alertService, times(1)).findById(999);
-        verify(alertService, never()).save(any(Alert.class));
+        verify(alertService).updateAlert(any(Alert.class));
     }
 
     @Test
@@ -125,8 +133,8 @@ public class AlertControllerTest {
         mockMvc.perform(delete("/alerts/1"))
                 .andExpect(status().isNoContent());
 
-        verify(alertService, times(1)).findById(1);
-        verify(alertService, times(1)).deleteById(1);
+        verify(alertService).findById(1);
+        verify(alertService).deleteById(1);
     }
 
     @Test
@@ -136,7 +144,7 @@ public class AlertControllerTest {
         mockMvc.perform(delete("/alerts/999"))
                 .andExpect(status().isNotFound());
 
-        verify(alertService, times(1)).findById(999);
+        verify(alertService).findById(999);
         verify(alertService, never()).deleteById(anyInt());
     }
 }

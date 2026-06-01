@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.dto.QueueTaskDTO;
 import org.alloy.models.entities.QueueTask;
 import org.alloy.services.QueueTaskService;
@@ -29,10 +29,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Тесты для QueueTaskController.
  * Использует @WebMvcTest для тестирования только веб-слоя без поднятия полного контекста приложения.
  * /@WithMockUser обеспечивает аутентифицированного пользователя для тестов.
- * /@Import(TestConfig.class) импортирует конфигурацию для тестов.
+ * /@Import(MvcTestConfig.class) импортирует конфигурацию для тестов.
  */
 @WebMvcTest(QueueTaskController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 public class QueueTaskControllerTest {
 

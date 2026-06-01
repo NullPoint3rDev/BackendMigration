@@ -1,6 +1,5 @@
 package org.alloy.repositories;
 
-import org.alloy.TestConfig;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DataJpaTest
 @ActiveProfiles("test")
-@Import(TestConfig.class)
 public class UserAccountRepositoryTest {
 
     @Autowired

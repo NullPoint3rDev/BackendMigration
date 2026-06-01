@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.Organization;
 import org.alloy.models.entities.OrganizationUnit;
@@ -32,10 +32,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Тесты для OrganizationUnitController.
  * Использует @WebMvcTest для тестирования только веб-слоя без поднятия полного контекста приложения.
  * /@WithMockUser обеспечивает аутентифицированного пользователя для тестов.
- * /@Import(TestConfig.class) импортирует конфигурацию для тестов.
+ * /@Import(MvcTestConfig.class) импортирует конфигурацию для тестов.
  */
 @WebMvcTest(OrganizationUnitController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 public class OrganizationUnitControllerTest {
 
@@ -150,8 +150,8 @@ public class OrganizationUnitControllerTest {
 
         mockMvc.perform(get("/organization-units/organization/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].organizationId").value(1))
-                .andExpect(jsonPath("$[1].organizationId").value(1));
+                .andExpect(jsonPath("$[0].organization.id").value(1))
+                .andExpect(jsonPath("$[1].organization.id").value(1));
 
         verify(organizationUnitService).getOrganizationUnitsByOrganizationId(1);
     }
@@ -165,7 +165,7 @@ public class OrganizationUnitControllerTest {
 
         mockMvc.perform(get("/organization-units/parent/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].parentId").value(1));
+                .andExpect(jsonPath("$[0].parentDepartment.id").value(1));
 
         verify(organizationUnitService).getOrganizationUnitsByParentId(1);
     }
@@ -242,14 +242,14 @@ public class OrganizationUnitControllerTest {
      * Тест обновления несуществующего подразделения
      */
     @Test
-    void updateOrganizationUnit_WhenUnitDoesNotExist_ShouldReturnNotFound() throws Exception {
+    void updateOrganizationUnit_WhenUnitDoesNotExist_ShouldReturnBadRequest() throws Exception {
         when(organizationUnitService.updateOrganizationUnit(any(OrganizationUnit.class)))
                 .thenThrow(new IllegalArgumentException("Organization unit not found"));
 
         mockMvc.perform(put("/organization-units/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganizationUnit)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
 
         verify(organizationUnitService).updateOrganizationUnit(any(OrganizationUnit.class));
     }

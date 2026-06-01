@@ -1,8 +1,10 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
+import org.alloy.models.DeviceModel;
 import org.alloy.models.GeneralStatus;
+import org.alloy.models.dto.WeldingMachineDTO;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineType;
@@ -35,10 +37,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Тесты для WeldingMachineController.
  * Использует @WebMvcTest для тестирования только веб-слоя без поднятия полного контекста приложения.
  * /@WithMockUser обеспечивает аутентифицированного пользователя для тестов.
- * /@Import(TestConfig.class) импортирует конфигурацию для тестов.
+ * /@Import(MvcTestConfig.class) импортирует конфигурацию для тестов.
  */
 @WebMvcTest(WeldingMachineController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 public class WeldingMachineControllerTest {
 
@@ -58,6 +60,7 @@ public class WeldingMachineControllerTest {
     private Wt2AccessService wt2AccessService;
 
     private WeldingMachine testWeldingMachine;
+    private WeldingMachineDTO testWeldingMachineDto;
     private List<WeldingMachine> testWeldingMachines;
 
     /**
@@ -107,12 +110,22 @@ public class WeldingMachineControllerTest {
         secondMachine.setName("Second Machine");
         secondMachine.setStatus(GeneralStatus.Inactive);
         secondMachine.setSerialNumber("SN789012");
+        secondMachine.setOrganizationUnit(organizationUnit);
 
         // Создаем список тестовых сварочных машин
         testWeldingMachines = Arrays.asList(testWeldingMachine, secondMachine);
 
         when(wt2AccessService.filterWeldingMachines(any(), anyString()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+
+        testWeldingMachineDto = new WeldingMachineDTO();
+        testWeldingMachineDto.setId(1);
+        testWeldingMachineDto.setName("Test Machine");
+        testWeldingMachineDto.setMac("001122334455");
+        testWeldingMachineDto.setDeviceModel(DeviceModel.CORE);
+
+        when(deviceModelService.isValidMacFormat(anyString())).thenReturn(true);
+        when(weldingMachineService.getWeldingMachineByMac(anyString())).thenReturn(Optional.empty());
     }
 
     /**
@@ -251,7 +264,7 @@ public class WeldingMachineControllerTest {
 
         mockMvc.perform(post("/welding-machines")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testWeldingMachine)))
+                .content(objectMapper.writeValueAsString(testWeldingMachineDto)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Test Machine"));
@@ -264,15 +277,17 @@ public class WeldingMachineControllerTest {
      */
     @Test
     void createWeldingMachine_WithInvalidData_ShouldReturnBadRequest() throws Exception {
-        when(weldingMachineService.createWeldingMachine(any(WeldingMachine.class)))
-                .thenThrow(new IllegalArgumentException("Invalid machine data"));
+        WeldingMachineDTO invalid = new WeldingMachineDTO();
+        invalid.setName("Test Machine");
+        invalid.setMac("");
+        invalid.setDeviceModel(DeviceModel.CORE);
 
         mockMvc.perform(post("/welding-machines")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testWeldingMachine)))
+                .content(objectMapper.writeValueAsString(invalid)))
                 .andExpect(status().isBadRequest());
 
-        verify(weldingMachineService).createWeldingMachine(any(WeldingMachine.class));
+        verify(weldingMachineService, never()).createWeldingMachine(any(WeldingMachine.class));
     }
 
     /**
@@ -280,12 +295,13 @@ public class WeldingMachineControllerTest {
      */
     @Test
     void updateWeldingMachine_WhenMachineExists_ShouldUpdateMachine() throws Exception {
+        when(weldingMachineService.getWeldingMachineById(1)).thenReturn(Optional.of(testWeldingMachine));
         when(weldingMachineService.updateWeldingMachine(any(WeldingMachine.class)))
                 .thenReturn(testWeldingMachine);
 
         mockMvc.perform(put("/welding-machines/1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testWeldingMachine)))
+                .content(objectMapper.writeValueAsString(testWeldingMachineDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Test Machine"));
@@ -298,15 +314,15 @@ public class WeldingMachineControllerTest {
      */
     @Test
     void updateWeldingMachine_WhenMachineDoesNotExist_ShouldReturnNotFound() throws Exception {
-        when(weldingMachineService.updateWeldingMachine(any(WeldingMachine.class)))
-                .thenThrow(new IllegalArgumentException("Machine not found"));
+        when(weldingMachineService.getWeldingMachineById(999)).thenReturn(Optional.empty());
 
         mockMvc.perform(put("/welding-machines/999")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testWeldingMachine)))
+                .content(objectMapper.writeValueAsString(testWeldingMachineDto)))
                 .andExpect(status().isNotFound());
 
-        verify(weldingMachineService).updateWeldingMachine(any(WeldingMachine.class));
+        verify(weldingMachineService).getWeldingMachineById(999);
+        verify(weldingMachineService, never()).updateWeldingMachine(any(WeldingMachine.class));
     }
 
     /**

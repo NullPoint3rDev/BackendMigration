@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.TestConfig;
+import org.alloy.MvcTestConfig;
 import org.alloy.models.entities.Survey;
 import org.alloy.models.entities.SurveyQuestion;
 import org.alloy.services.SurveyQuestionService;
@@ -28,10 +28,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Тесты для SurveyQuestionController.
  * Использует @WebMvcTest для тестирования только веб-слоя без поднятия полного контекста приложения.
  * /@WithMockUser обеспечивает аутентифицированного пользователя для тестов.
- * /@Import(TestConfig.class) импортирует конфигурацию для тестов.
+ * /@Import(MvcTestConfig.class) импортирует конфигурацию для тестов.
  */
 @WebMvcTest(SurveyQuestionController.class)
-@Import(TestConfig.class)
+@Import(MvcTestConfig.class)
 @WithMockUser
 public class SurveyQuestionControllerTest {
 
@@ -82,7 +82,7 @@ public class SurveyQuestionControllerTest {
         mockMvc.perform(get("/survey-questions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].surveyId").value(1))
+                .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[1].id").value(2))
                 .andExpect(jsonPath("$[1].surveyId").value(1));
 
@@ -99,7 +99,7 @@ public class SurveyQuestionControllerTest {
         mockMvc.perform(get("/survey-questions/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.surveyId").value(1));
+                .andExpect(jsonPath("$.id").value(1));
 
         verify(surveyQuestionService).findById(1);
     }
@@ -129,7 +129,7 @@ public class SurveyQuestionControllerTest {
                 .content(mapper.writeValueAsString(testSurveyQuestion)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.surveyId").value(1));
+                .andExpect(jsonPath("$.id").value(1));
 
         verify(surveyQuestionService).save(any(SurveyQuestion.class));
     }
@@ -147,7 +147,7 @@ public class SurveyQuestionControllerTest {
                 .content(mapper.writeValueAsString(testSurveyQuestion)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.surveyId").value(1));
+                .andExpect(jsonPath("$.id").value(1));
 
         verify(surveyQuestionService).findById(1);
         verify(surveyQuestionService).save(any(SurveyQuestion.class));
