@@ -1,15 +1,17 @@
 package org.alloy.services;
 
-import org.alloy.ServiceTestConfig;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.alloy.AlloyServiceTest;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.repositories.UserAccountRepository;
+import org.alloy.repositories.UserRepository;
+import org.alloy.services.Wt2AccessService;
+import org.alloy.services.FileStorageService;
+import org.alloy.services.EmailVerificationService;
+import org.alloy.security.SessionManagementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
@@ -23,9 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest(classes = UserAccountService.class)
-@ActiveProfiles("test")
-@Import(ServiceTestConfig.class)
+@AlloyServiceTest(UserAccountService.class)
 public class UserAccountServiceTest {
 
     @MockBean
@@ -33,6 +33,21 @@ public class UserAccountServiceTest {
 
     @MockBean
     private PasswordEncoder passwordEncoder;
+
+    @MockBean
+    private UserRepository userRepository;
+
+    @MockBean
+    private Wt2AccessService wt2AccessService;
+
+    @MockBean
+    private FileStorageService fileStorageService;
+
+    @MockBean
+    private EmailVerificationService emailVerificationService;
+
+    @MockBean
+    private SessionManagementService sessionManagementService;
 
     @Autowired
     private UserAccountService userAccountService;

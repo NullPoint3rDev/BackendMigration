@@ -1,14 +1,11 @@
 package org.alloy.services;
 
-import org.alloy.ServiceTestConfig;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.alloy.AlloyServiceTest;
 import org.alloy.models.entities.UserRolePermission;
 import org.alloy.repositories.UserRolePermissionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
@@ -19,9 +16,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest(classes = UserRolePermissionService.class)
-@ActiveProfiles("test")
-@Import(ServiceTestConfig.class)
+@AlloyServiceTest(UserRolePermissionService.class)
 public class UserRolePermissionServiceTest {
 
     @MockBean

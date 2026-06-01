@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.MvcTestConfig;
+import org.alloy.AlloyWebMvcTest;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.Organization;
 import org.alloy.models.entities.OrganizationUnit;
@@ -10,7 +10,6 @@ import org.alloy.services.Wt2AccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -30,12 +29,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Тесты для OrganizationUnitController.
- * Использует @WebMvcTest для тестирования только веб-слоя без поднятия полного контекста приложения.
+ * Использует @AlloyWebMvcTest для тестирования только веб-слоя без поднятия полного контекста приложения.
  * /@WithMockUser обеспечивает аутентифицированного пользователя для тестов.
  * /@Import(MvcTestConfig.class) импортирует конфигурацию для тестов.
  */
-@WebMvcTest(OrganizationUnitController.class)
-@Import(MvcTestConfig.class)
+@AlloyWebMvcTest(OrganizationUnitController.class)
 @WithMockUser
 public class OrganizationUnitControllerTest {
 

@@ -1,7 +1,7 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.MvcTestConfig;
+import org.alloy.AlloyWebMvcTest;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.Organization;
 import org.alloy.services.OrganizationService;
@@ -13,7 +13,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -43,8 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Параметризованные проверки {@link PreAuthorize} для организаций + сценарий гранта
  * {@code create_delete_enterprises} ({@link UserAccountService#hasAllowedUserAction}).
  */
-@WebMvcTest(OrganizationController.class)
-@Import(MvcTestConfig.class)
+@AlloyWebMvcTest(OrganizationController.class)
 class Wt2OrganizationPermissionMatrixMvcTest {
 
     @Autowired

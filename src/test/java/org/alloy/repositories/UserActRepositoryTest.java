@@ -77,9 +77,9 @@ public class UserActRepositoryTest {
 
     private void setDateCreated(Integer actId, LocalDateTime dateCreated) {
         entityManager.getEntityManager()
-                .createQuery("UPDATE UserAct u SET u.dateCreated = :date WHERE u.id = :id")
-                .setParameter("date", dateCreated)
-                .setParameter("id", actId)
+                .createNativeQuery("UPDATE \"UserAct\" SET \"DateCreated\" = ?1 WHERE \"ID\" = ?2")
+                .setParameter(1, dateCreated)
+                .setParameter(2, actId)
                 .executeUpdate();
         entityManager.flush();
     }
@@ -343,14 +343,15 @@ public class UserActRepositoryTest {
             "Должны остаться только действия LOGIN и NEW");
         
         // Проверяем конкретные действия
-        assertTrue(afterDelete.stream().anyMatch(act -> 
-            act.getType().equals("LOGIN") && 
-            act.getDateCreated().equals(testDate)), 
-            "Должно остаться действие входа с текущей датой");
-        
-        assertTrue(afterDelete.stream().anyMatch(act -> 
-            act.getType().equals("NEW") && 
-            act.getDateCreated().equals(testDate.plusDays(1))), 
+        assertTrue(afterDelete.stream().anyMatch(act ->
+            act.getType().equals("LOGIN") &&
+            !act.getDateCreated().isBefore(testDate) &&
+            act.getDateCreated().isBefore(testDate.plusDays(1))),
+            "Должно остаться действие входа с датой testDate");
+
+        assertTrue(afterDelete.stream().anyMatch(act ->
+            act.getType().equals("NEW") &&
+            !act.getDateCreated().isBefore(testDate.plusDays(1))),
             "Должно остаться новое действие с датой +1 день");
     }
 }

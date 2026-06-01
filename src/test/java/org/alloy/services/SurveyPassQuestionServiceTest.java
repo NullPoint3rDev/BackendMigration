@@ -1,8 +1,6 @@
 package org.alloy.services;
 
-import org.alloy.ServiceTestConfig;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.alloy.AlloyServiceTest;
 import org.alloy.models.entities.SurveyPass;
 import org.alloy.models.entities.SurveyPassQuestion;
 import org.alloy.models.entities.SurveyQuestion;
@@ -10,7 +8,6 @@ import org.alloy.repositories.SurveyPassQuestionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
@@ -26,9 +23,7 @@ import static org.mockito.Mockito.*;
  * Тестовый класс для SurveyPassQuestionService
  * Проверяет корректность работы сервиса вопросов прохождения опроса
  */
-@SpringBootTest(classes = SurveyPassQuestionService.class)
-@ActiveProfiles("test")
-@Import(ServiceTestConfig.class)
+@AlloyServiceTest(SurveyPassQuestionService.class)
 public class SurveyPassQuestionServiceTest {
 
     @MockBean

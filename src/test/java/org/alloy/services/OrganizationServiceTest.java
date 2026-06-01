@@ -1,15 +1,12 @@
 package org.alloy.services;
 
-import org.alloy.ServiceTestConfig;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.alloy.AlloyServiceTest;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.Organization;
 import org.alloy.repositories.OrganizationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
@@ -25,9 +22,7 @@ import static org.mockito.Mockito.*;
  * Тестовый класс для OrganizationService
  * Проверяет корректность работы сервиса организаций
  */
-@SpringBootTest(classes = OrganizationService.class)
-@ActiveProfiles("test")
-@Import(ServiceTestConfig.class)
+@AlloyServiceTest(OrganizationService.class)
 public class OrganizationServiceTest {
 
     @MockBean
@@ -192,7 +187,7 @@ public class OrganizationServiceTest {
     void createOrganization_WithNullStatus_ShouldSetDefaultStatus() {
         // Подготовка данных
         testOrganization.setStatus(null);
-        when(organizationRepository.save(any(Organization.class))).thenReturn(testOrganization);
+        when(organizationRepository.save(any(Organization.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // Выполнение теста
         Organization createdOrganization = organizationService.createOrganization(testOrganization);

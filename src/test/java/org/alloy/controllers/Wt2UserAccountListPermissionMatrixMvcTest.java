@@ -1,6 +1,6 @@
 package org.alloy.controllers;
 
-import org.alloy.MvcTestConfig;
+import org.alloy.AlloyWebMvcTest;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.repositories.UserRoleRepository;
 import org.alloy.services.UserAccountService;
@@ -10,7 +10,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.userdetails.User;
@@ -29,8 +28,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(UserAccountController.class)
-@Import(MvcTestConfig.class)
+@AlloyWebMvcTest(UserAccountController.class)
 class Wt2UserAccountListPermissionMatrixMvcTest {
 
     @Autowired

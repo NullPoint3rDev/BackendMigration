@@ -1,14 +1,11 @@
 package org.alloy.services;
 
-import org.alloy.ServiceTestConfig;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.alloy.AlloyServiceTest;
 import org.alloy.models.entities.EmailTemplate;
 import org.alloy.repositories.EmailTemplateRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
@@ -24,9 +21,7 @@ import static org.mockito.Mockito.*;
  * Тестовый класс для EmailTemplateService
  * Проверяет корректность работы сервиса шаблонов электронной почты
  */
-@SpringBootTest(classes = EmailTemplateService.class)
-@ActiveProfiles("test")
-@Import(ServiceTestConfig.class)
+@AlloyServiceTest(EmailTemplateService.class)
 public class EmailTemplateServiceTest {
 
     @MockBean

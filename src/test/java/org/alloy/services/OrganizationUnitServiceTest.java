@@ -1,15 +1,13 @@
 package org.alloy.services;
 
-import org.alloy.ServiceTestConfig;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.alloy.AlloyServiceTest;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.repositories.OrganizationUnitRepository;
+import org.alloy.repositories.WelderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
@@ -25,13 +23,14 @@ import static org.mockito.Mockito.*;
  * Тестовый класс для OrganizationUnitService
  * Проверяет корректность работы сервиса подразделений организаций
  */
-@SpringBootTest(classes = OrganizationUnitService.class)
-@ActiveProfiles("test")
-@Import(ServiceTestConfig.class)
+@AlloyServiceTest(OrganizationUnitService.class)
 public class OrganizationUnitServiceTest {
 
     @MockBean
     private OrganizationUnitRepository organizationUnitRepository;
+
+    @MockBean
+    private WelderRepository welderRepository;
 
     @Autowired
     private OrganizationUnitService organizationUnitService;

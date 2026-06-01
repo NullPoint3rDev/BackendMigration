@@ -1,13 +1,12 @@
 package org.alloy.controllers;
 
-import org.alloy.MvcTestConfig;
+import org.alloy.AlloyWebMvcTest;
 import org.alloy.repositories.UserPermissionGrantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.userdetails.User;
@@ -27,8 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * API грантов настраиваемых прав («наст N») — доступ к списку грантов пользователя.
  */
-@WebMvcTest(UserPermissionGrantController.class)
-@Import(MvcTestConfig.class)
+@AlloyWebMvcTest(UserPermissionGrantController.class)
 class UserPermissionGrantMatrixMvcTest {
 
     @Autowired

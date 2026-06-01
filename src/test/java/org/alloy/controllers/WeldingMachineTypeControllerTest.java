@@ -1,14 +1,13 @@
 package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.alloy.MvcTestConfig;
+import org.alloy.AlloyWebMvcTest;
 import org.alloy.models.entities.WeldingMachineType;
 import org.alloy.models.GeneralStatus;
 import org.alloy.services.WeldingMachineTypeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -25,8 +24,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(WeldingMachineTypeController.class)
-@Import(MvcTestConfig.class)
+@AlloyWebMvcTest(WeldingMachineTypeController.class)
 @WithMockUser
 public class WeldingMachineTypeControllerTest {
 

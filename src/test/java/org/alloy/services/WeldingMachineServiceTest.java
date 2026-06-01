@@ -1,8 +1,6 @@
 package org.alloy.services;
 
-import org.alloy.ServiceTestConfig;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.alloy.AlloyServiceTest;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineType;
 import org.alloy.models.entities.OrganizationUnit;
@@ -14,7 +12,6 @@ import org.alloy.repositories.WeldingMachineTypeRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
@@ -27,9 +24,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest(classes = WeldingMachineService.class)
-@ActiveProfiles("test")
-@Import(ServiceTestConfig.class)
+@AlloyServiceTest(WeldingMachineService.class)
 public class WeldingMachineServiceTest {
 
     @MockBean
@@ -286,12 +281,12 @@ public class WeldingMachineServiceTest {
     @Test
     void createWeldingMachine_WithoutRequiredFields_ShouldThrowException() {
         // Подготавливаем тестовые данные
-        testWeldingMachine.setSerialNumber(null);
+        testWeldingMachine.setMac(null);
 
         // Проверяем, что вызов метода вызывает исключение
         assertThrows(IllegalArgumentException.class, () -> {
             weldingMachineService.createWeldingMachine(testWeldingMachine);
-        }, "Должно быть выброшено исключение при попытке создать сварочную машину без серийного номера");
+        }, "Должно быть выброшено исключение при попытке создать сварочную машину без MAC");
     }
 
     /**
@@ -302,7 +297,6 @@ public class WeldingMachineServiceTest {
     void updateWeldingMachine_WithValidData_ShouldUpdateMachine() {
         // Подготавливаем тестовые данные
         when(weldingMachineRepository.findById(1)).thenReturn(Optional.of(testWeldingMachine));
-        when(weldingMachineRepository.findBySerialNumber("TEST123")).thenReturn(Optional.of(testWeldingMachine));
         when(weldingMachineTypeRepository.findById(1)).thenReturn(Optional.of(testType));
         when(organizationUnitRepository.findById(1)).thenReturn(Optional.of(testOrgUnit));
         when(weldingMachineRepository.save(any(WeldingMachine.class))).thenReturn(testWeldingMachine);
@@ -317,7 +311,6 @@ public class WeldingMachineServiceTest {
         
         // Проверяем, что методы репозитория были вызваны
         verify(weldingMachineRepository, times(1)).findById(1);
-        verify(weldingMachineRepository, times(1)).findBySerialNumber("TEST123");
         verify(weldingMachineRepository, times(1)).save(testWeldingMachine);
     }
 

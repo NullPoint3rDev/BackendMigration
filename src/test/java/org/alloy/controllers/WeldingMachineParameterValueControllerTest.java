@@ -1,13 +1,12 @@
 package org.alloy.controllers;
 
 import lombok.With;
-import org.alloy.MvcTestConfig;
+import org.alloy.AlloyWebMvcTest;
 import org.alloy.models.entities.WeldingMachineParameterValue;
 import org.alloy.services.WeldingMachineParameterValueService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -24,8 +23,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(WeldingMachineParameterValueController.class)
-@Import(MvcTestConfig.class)
+@AlloyWebMvcTest(WeldingMachineParameterValueController.class)
 @WithMockUser
 public class WeldingMachineParameterValueControllerTest {
 
