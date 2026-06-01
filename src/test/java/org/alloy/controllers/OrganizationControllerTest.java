@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -80,6 +81,9 @@ public class OrganizationControllerTest {
         secondOrganization.setDateCreated(LocalDateTime.now());
 
         testOrganizations = Arrays.asList(testOrganization, secondOrganization);
+
+        when(wt2AccessService.filterOrganizations(any(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     /**
@@ -198,14 +202,14 @@ public class OrganizationControllerTest {
      * Тест обновления несуществующей организации
      */
     @Test
-    void updateOrganization_WhenOrganizationDoesNotExist_ShouldReturnNotFound() throws Exception {
+    void updateOrganization_WhenOrganizationDoesNotExist_ShouldReturnBadRequest() throws Exception {
         when(organizationService.updateOrganization(any(Organization.class)))
                 .thenThrow(new IllegalArgumentException("Organization not found"));
 
         mockMvc.perform(put("/organizations/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganization)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
 
         verify(organizationService).updateOrganization(any(Organization.class));
     }
@@ -241,6 +245,7 @@ public class OrganizationControllerTest {
      * Тест жесткого удаления существующей организации
      */
     @Test
+    @WithMockUser(authorities = "PERMISSION_VISIBILITY_EDIT_ALLOY")
     void hardDeleteOrganization_WhenOrganizationExists_ShouldDeleteOrganization() throws Exception {
         doNothing().when(organizationService).hardDeleteOrganization(1);
 
@@ -254,6 +259,7 @@ public class OrganizationControllerTest {
      * Тест жесткого удаления несуществующей организации
      */
     @Test
+    @WithMockUser(authorities = "PERMISSION_VISIBILITY_EDIT_ALLOY")
     void hardDeleteOrganization_WhenOrganizationDoesNotExist_ShouldReturnNotFound() throws Exception {
         doThrow(new IllegalArgumentException("Organization not found"))
                 .when(organizationService).hardDeleteOrganization(999);
