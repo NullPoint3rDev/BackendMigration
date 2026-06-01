@@ -11,12 +11,24 @@ import lombok.NoArgsConstructor;
 public class Translation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "ID")
     private Integer id;
 
+    @Column(name = "Lang")
     private String lang;
+
+    @Column(name = "TableName")
     private String tableName;
+
+    @Column(name = "ColumnName")
     private String columnName;
+
+    @Column(name = "IdName")
     private String idName;
+
+    @Column(name = "IdValue")
     private String idValue;
+
+    @Column(name = "Value")
     private String value;
-} 
+}

@@ -60,7 +60,7 @@ public class OrganizationUnitServiceTest {
     void getAllOrganizationUnits_ShouldReturnAllUnits() {
         // Подготовка данных
         List<OrganizationUnit> expectedUnits = Arrays.asList(testOrganizationUnit);
-        when(organizationUnitRepository.findAll()).thenReturn(expectedUnits);
+        when(organizationUnitRepository.findByStatus(GeneralStatus.Active)).thenReturn(expectedUnits);
 
         // Выполнение теста
         List<OrganizationUnit> actualUnits = organizationUnitService.getAllOrganizationUnits();
@@ -71,7 +71,7 @@ public class OrganizationUnitServiceTest {
         assertEquals(expectedUnits.get(0).getId(), actualUnits.get(0).getId());
 
         // Проверка вызова метода репозитория
-        verify(organizationUnitRepository, times(1)).findAll();
+        verify(organizationUnitRepository, times(1)).findByStatus(GeneralStatus.Active);
     }
 
     /**
@@ -103,7 +103,7 @@ public class OrganizationUnitServiceTest {
     void getOrganizationUnitsByOrganizationId_ShouldReturnOrganizationUnits() {
         // Подготовка данных
         List<OrganizationUnit> expectedUnits = Arrays.asList(testOrganizationUnit);
-        when(organizationUnitRepository.findByOrganizationId(1)).thenReturn(expectedUnits);
+        when(organizationUnitRepository.findByOrganizationIdAndStatus(1, GeneralStatus.Active)).thenReturn(expectedUnits);
 
         // Выполнение теста
         List<OrganizationUnit> actualUnits = organizationUnitService.getOrganizationUnitsByOrganizationId(1);
@@ -114,7 +114,7 @@ public class OrganizationUnitServiceTest {
         assertEquals(expectedUnits.get(0).getOrganizationId(), actualUnits.get(0).getOrganizationId());
 
         // Проверка вызова метода репозитория
-        verify(organizationUnitRepository, times(1)).findByOrganizationId(1);
+        verify(organizationUnitRepository, times(1)).findByOrganizationIdAndStatus(1, GeneralStatus.Active);
     }
 
     /**
@@ -191,7 +191,7 @@ public class OrganizationUnitServiceTest {
     @Test
     void createOrganizationUnit_WithValidData_ShouldCreateUnit() {
         // Подготовка данных
-        when(organizationUnitRepository.findByNameAndOrganizationId("Test Unit", 1))
+        when(organizationUnitRepository.findByNameAndOrganizationIdAndStatus("Test Unit", 1, GeneralStatus.Active))
                 .thenReturn(Optional.empty());
         when(organizationUnitRepository.save(any(OrganizationUnit.class))).thenReturn(testOrganizationUnit);
 
@@ -205,7 +205,8 @@ public class OrganizationUnitServiceTest {
         assertEquals(GeneralStatus.Active, createdUnit.getStatus());
 
         // Проверка вызовов методов репозитория
-        verify(organizationUnitRepository, times(1)).findByNameAndOrganizationId("Test Unit", 1);
+        verify(organizationUnitRepository, times(1))
+                .findByNameAndOrganizationIdAndStatus("Test Unit", 1, GeneralStatus.Active);
         verify(organizationUnitRepository, times(1)).save(any(OrganizationUnit.class));
     }
 
@@ -216,7 +217,7 @@ public class OrganizationUnitServiceTest {
     @Test
     void createOrganizationUnit_WithExistingName_ShouldThrowException() {
         // Подготовка данных
-        when(organizationUnitRepository.findByNameAndOrganizationId("Test Unit", 1))
+        when(organizationUnitRepository.findByNameAndOrganizationIdAndStatus("Test Unit", 1, GeneralStatus.Active))
                 .thenReturn(Optional.of(testOrganizationUnit));
 
         // Проверка результатов
@@ -233,7 +234,7 @@ public class OrganizationUnitServiceTest {
     void updateOrganizationUnit_ShouldUpdateUnit() {
         // Подготовка данных
         when(organizationUnitRepository.existsById(1)).thenReturn(true);
-        when(organizationUnitRepository.findByNameAndOrganizationId("Test Unit", 1))
+        when(organizationUnitRepository.findByNameAndOrganizationIdAndStatus("Test Unit", 1, GeneralStatus.Active))
                 .thenReturn(Optional.empty());
         when(organizationUnitRepository.save(any(OrganizationUnit.class))).thenReturn(testOrganizationUnit);
 
@@ -246,7 +247,8 @@ public class OrganizationUnitServiceTest {
 
         // Проверка вызовов методов репозитория
         verify(organizationUnitRepository, times(1)).existsById(1);
-        verify(organizationUnitRepository, times(1)).findByNameAndOrganizationId("Test Unit", 1);
+        verify(organizationUnitRepository, times(1))
+                .findByNameAndOrganizationIdAndStatus("Test Unit", 1, GeneralStatus.Active);
         verify(organizationUnitRepository, times(1)).save(any(OrganizationUnit.class));
     }
 

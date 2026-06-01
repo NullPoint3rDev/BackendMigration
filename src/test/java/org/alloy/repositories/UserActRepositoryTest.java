@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
@@ -73,13 +72,21 @@ public class UserActRepositoryTest {
         // Сохраняем тестовое действие
         testUserAct = entityManager.persist(testUserAct);
         entityManager.flush();
+        setDateCreated(testUserAct.getId(), testDate);
+    }
+
+    private UserAct persistAct(UserAct act, LocalDateTime dateCreated) {
+        act = entityManager.persist(act);
+        entityManager.flush();
+        setDateCreated(act.getId(), dateCreated);
+        return act;
     }
 
     private void setDateCreated(Integer actId, LocalDateTime dateCreated) {
         entityManager.getEntityManager()
-                .createNativeQuery("UPDATE UserAct SET DateCreated = ?1 WHERE ID = ?2")
-                .setParameter(1, dateCreated)
-                .setParameter(2, actId)
+                .createQuery("UPDATE UserAct u SET u.dateCreated = :date WHERE u.id = :id")
+                .setParameter("date", dateCreated)
+                .setParameter("id", actId)
                 .executeUpdate();
         entityManager.flush();
     }
@@ -153,17 +160,19 @@ public class UserActRepositoryTest {
         act1.setUserAccountId(testUserAccount.getId());
         act1.setType("ACTION1");
         act1.setDescription("Action 1");
-        act1.setDateCreated(testDate.minusHours(1));
-        entityManager.persist(act1);
+        act1.setIpAddress("127.0.0.1");
+        act1.setUserAgent("Test Browser");
+        persistAct(act1, testDate.minusHours(1));
 
         UserAct act2 = new UserAct();
         act2.setUserAccountId(testUserAccount.getId());
         act2.setType("ACTION2");
         act2.setDescription("Action 2");
-        act2.setDateCreated(testDate.plusHours(1));
-        entityManager.persist(act2);
+        act2.setIpAddress("127.0.0.1");
+        act2.setUserAgent("Test Browser");
+        persistAct(act2, testDate.plusHours(1));
 
-        entityManager.flush();
+        entityManager.clear();
 
         // Ищем действия в диапазоне дат
         LocalDateTime startDate = testDate.minusHours(2);
@@ -195,17 +204,19 @@ public class UserActRepositoryTest {
         act1.setUserAccountId(testUserAccount.getId());
         act1.setType("LOGIN");
         act1.setDescription("Login 1");
-        act1.setDateCreated(testDate.minusHours(1));
-        entityManager.persist(act1);
+        act1.setIpAddress("127.0.0.1");
+        act1.setUserAgent("Test Browser");
+        persistAct(act1, testDate.minusHours(1));
 
         UserAct act2 = new UserAct();
         act2.setUserAccountId(testUserAccount.getId());
         act2.setType("LOGIN");
         act2.setDescription("Login 2");
-        act2.setDateCreated(testDate.plusHours(1));
-        entityManager.persist(act2);
+        act2.setIpAddress("127.0.0.1");
+        act2.setUserAgent("Test Browser");
+        persistAct(act2, testDate.plusHours(1));
 
-        entityManager.flush();
+        entityManager.clear();
 
         // Ищем действия по типу в диапазоне дат
         LocalDateTime startDate = testDate.minusHours(2);
@@ -233,17 +244,19 @@ public class UserActRepositoryTest {
         act1.setUserAccountId(testUserAccount.getId());
         act1.setType("LOGIN");
         act1.setDescription("Login 1");
-        act1.setDateCreated(testDate.minusHours(1));
-        entityManager.persist(act1);
+        act1.setIpAddress("127.0.0.1");
+        act1.setUserAgent("Test Browser");
+        persistAct(act1, testDate.minusHours(1));
 
         UserAct act2 = new UserAct();
         act2.setUserAccountId(testUserAccount.getId());
         act2.setType("LOGOUT");
         act2.setDescription("Logout 1");
-        act2.setDateCreated(testDate.plusHours(1));
-        entityManager.persist(act2);
+        act2.setIpAddress("127.0.0.1");
+        act2.setUserAgent("Test Browser");
+        persistAct(act2, testDate.plusHours(1));
 
-        entityManager.flush();
+        entityManager.clear();
 
         // Подсчитываем действия по типу в диапазоне дат
         LocalDateTime startDate = testDate.minusHours(2);
@@ -298,8 +311,9 @@ public class UserActRepositoryTest {
         oldAct.setUserAgent("Test Browser");
         oldAct.setEntityType("TEST");
         oldAct.setEntityId(1);
-        oldAct = entityManager.persist(oldAct);
-        setDateCreated(oldAct.getId(), testDate.minusDays(1));
+        oldAct.setIpAddress("127.0.0.1");
+        oldAct.setUserAgent("Test Browser");
+        persistAct(oldAct, testDate.minusDays(1));
 
         UserAct newAct = new UserAct();
         newAct.setUserAccountId(testUserAccount.getId());
@@ -309,9 +323,9 @@ public class UserActRepositoryTest {
         newAct.setUserAgent("Test Browser");
         newAct.setEntityType("TEST");
         newAct.setEntityId(2);
-        newAct = entityManager.persist(newAct);
-        setDateCreated(newAct.getId(), testDate.plusDays(1));
-        setDateCreated(testUserAct.getId(), testDate);
+        newAct.setIpAddress("127.0.0.1");
+        newAct.setUserAgent("Test Browser");
+        persistAct(newAct, testDate.plusDays(1));
 
         // Убедимся, что все действия сохранены
         entityManager.flush();

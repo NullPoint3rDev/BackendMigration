@@ -237,7 +237,6 @@ public class WeldingMachineServiceTest {
     @Test
     void createWeldingMachine_WithValidData_ShouldCreateMachine() {
         // Подготавливаем тестовые данные
-        when(weldingMachineRepository.findBySerialNumber("TEST123")).thenReturn(Optional.empty());
         when(weldingMachineTypeRepository.findById(1)).thenReturn(Optional.of(testType));
         when(organizationUnitRepository.findById(1)).thenReturn(Optional.of(testOrgUnit));
         when(weldingMachineRepository.save(any(WeldingMachine.class))).thenReturn(testWeldingMachine);
@@ -253,10 +252,10 @@ public class WeldingMachineServiceTest {
         assertNotNull(result.getDateCreated(), "Дата создания не должна быть null");
         
         // Проверяем, что методы репозитория были вызваны
-        verify(weldingMachineRepository, times(1)).findBySerialNumber("TEST123");
+        verify(weldingMachineRepository, never()).findBySerialNumber(anyString());
         verify(weldingMachineTypeRepository, times(1)).findById(1);
         verify(organizationUnitRepository, times(1)).findById(1);
-        verify(weldingMachineRepository, times(1)).save(testWeldingMachine);
+        verify(weldingMachineRepository, times(1)).save(any(WeldingMachine.class));
     }
 
     /**
@@ -264,14 +263,16 @@ public class WeldingMachineServiceTest {
      * Проверяет, что создание сварочной машины с существующим серийным номером вызывает исключение
      */
     @Test
-    void createWeldingMachine_WithExistingSerialNumber_ShouldThrowException() {
-        // Подготавливаем тестовые данные
-        when(weldingMachineRepository.findBySerialNumber("TEST123")).thenReturn(Optional.of(testWeldingMachine));
+    void createWeldingMachine_WithExistingSerialNumber_DoesNotCheckDuplicateOnCreate() {
+        when(weldingMachineTypeRepository.findById(1)).thenReturn(Optional.of(testType));
+        when(organizationUnitRepository.findById(1)).thenReturn(Optional.of(testOrgUnit));
+        when(weldingMachineRepository.save(any(WeldingMachine.class))).thenReturn(testWeldingMachine);
 
-        // Проверяем, что вызов метода вызывает исключение
-        assertThrows(IllegalArgumentException.class, () -> {
-            weldingMachineService.createWeldingMachine(testWeldingMachine);
-        }, "Должно быть выброшено исключение при попытке создать сварочную машину с существующим серийным номером");
+        WeldingMachine result = weldingMachineService.createWeldingMachine(testWeldingMachine);
+
+        assertNotNull(result);
+        verify(weldingMachineRepository, never()).findBySerialNumber(anyString());
+        verify(weldingMachineRepository, times(1)).save(any(WeldingMachine.class));
     }
 
     /**

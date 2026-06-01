@@ -75,13 +75,13 @@ public class UserAccountServiceTest {
     @Test
     void getAllUserAccounts_ShouldReturnAllUsers() {
         List<UserAccount> users = Arrays.asList(testUserAccount);
-        when(userAccountRepository.findAll()).thenReturn(users);
+        when(userAccountRepository.findAllActiveWithOrganization(org.alloy.models.GeneralStatus.Deleted)).thenReturn(users);
 
         List<UserAccount> result = userAccountService.getAllUserAccounts();
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserAccount.getUserName(), result.get(0).getUserName());
-        verify(userAccountRepository, times(1)).findAll();
+        verify(userAccountRepository, times(1)).findAllActiveWithOrganization(org.alloy.models.GeneralStatus.Deleted);
     }
 
     /**

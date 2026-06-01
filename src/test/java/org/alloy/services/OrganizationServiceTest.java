@@ -143,7 +143,7 @@ public class OrganizationServiceTest {
     void searchOrganizations_ShouldReturnMatchingOrganizations() {
         // Подготовка данных
         List<Organization> expectedOrganizations = Arrays.asList(testOrganization);
-        when(organizationRepository.searchOrganizationsNotDeleted(anyString(), org.alloy.models.GeneralStatus.Deleted)).thenReturn(expectedOrganizations);
+        when(organizationRepository.searchOrganizationsNotDeleted("Test", GeneralStatus.Deleted)).thenReturn(expectedOrganizations);
 
         // Выполнение теста
         List<Organization> actualOrganizations = organizationService.searchOrganizations("Test");
