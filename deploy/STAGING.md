@@ -190,7 +190,24 @@ Workflow-файлы:
 3. При регистрации добавьте **дополнительную метку** (label): `wt2-staging`  
    Итоговые метки runner: `self-hosted`, `windows`, `wt2-staging` — они указаны в workflow.
 4. Запустите runner как службу (команда из инструкции GitHub: `.\run.cmd` для теста или установка службы).  
-   **CD не делает `git pull` в `C:\WTStaging`** (служба часто работает как `NETWORK SERVICE` без прав записи в чужой `.git`). Код для сборки берётся через `actions/checkout` в каталог runner `_work`.
+   **CD не делает `git pull` в `C:\WTStaging`**. Код для сборки берётся через `actions/checkout` в каталог runner `_work`.
+
+   **Docker (обязательно):** deploy вызывает `docker compose`. Ошибка  
+   `permission denied ... npipe:////./pipe/docker_engine`  
+   значит учётная запись **службы runner** не имеет доступа к Docker Desktop.
+
+   - Запустите **Docker Desktop** на сервере (или Docker Engine).
+   - `services.msc` → служба **GitHub Actions Runner** → **Вход в систему** → укажите **того же пользователя Windows**, под которым вы обычно работаете с Docker (не `NETWORK SERVICE` / не `Local System`).
+   - **Управление компьютером** → **Группы** → **docker-users** → добавьте этого пользователя → перезагрузка или выход/вход.
+   - Перезапустите службу runner. Для Docker Desktop часто нужна хотя бы одна интерактивная сессия этого пользователя (автовход или RDP).
+
+   Проверка под этим пользователем (PowerShell):
+
+   ```powershell
+   docker version
+   docker compose -f C:\WTStaging\BackendStaging\deploy\docker-compose.yml ps
+   ```
+
 5. Обязательно на сервере: `C:\WTStaging\BackendStaging\deploy\.env` (секреты staging, **не** в git).  
    Клоны в `C:\WTStaging\...` нужны для **ручного** деплоя (`deploy-staging-*.ps1`), не для GitHub Actions.
 6. (Опционально) Клоны для ручной работы:
