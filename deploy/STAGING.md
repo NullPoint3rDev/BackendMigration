@@ -167,10 +167,50 @@ docker compose down
 
 Данные PostgreSQL остаются на хосте.
 
-## Обновление
+## CI/CD (автодеплой с GitHub)
+
+При **push в ветку `main`**:
+
+| Репозиторий | CI (облако GitHub) | CD (сервер `C:\WTStaging`) |
+|-------------|-------------------|---------------------------|
+| **BackendStaging** | `mvn test`, gitleaks, проверка `docker-compose` | `git pull` + `docker compose up -d --build backend` |
+| **FrontendStaging** | `npm ci` + `build --mode staging`, gitleaks | `git pull` + `docker compose up -d --build frontend` |
+
+На **pull request** в `main` выполняется только CI (деплой не запускается).
+
+Workflow-файлы:
+
+- `BackendStaging/.github/workflows/staging.yml`
+- `FrontendStaging/.github/workflows/staging.yml`
+
+### Однократная настройка: GitHub Actions runner на Staging
+
+1. На сервере откройте репозиторий **BackendStaging** на GitHub → **Settings → Actions → Runners → New self-hosted runner → Windows**.
+2. Скачайте и установите runner по инструкции GitHub (папка, например `C:\actions-runner`).
+3. При регистрации добавьте **дополнительную метку** (label): `wt2-staging`  
+   Итоговые метки runner: `self-hosted`, `windows`, `wt2-staging` — они указаны в workflow.
+4. Запустите runner как службу (команда из инструкции GitHub: `.\run.cmd` для теста или установка службы).
+5. Убедитесь, что клоны лежат по путям:
+   - `C:\WTStaging\BackendStaging` (remote → `BackendStaging`)
+   - `C:\WTStaging\FrontendStaging` (remote → `FrontendStaging`)
+6. Файл `C:\WTStaging\BackendStaging\deploy\.env` создан и **не** коммитится в git.
+
+Проверка: в GitHub → **Actions** после push в `main` должны быть зелёные jobs **test/build**, **secrets**, **deploy**.
+
+### Ручной деплой (без GitHub)
 
 ```powershell
-cd C:\WT2\BackendStaging
+# только backend
+C:\WTStaging\BackendStaging\deploy\deploy-staging-backend.ps1
+
+# только frontend
+C:\WTStaging\BackendStaging\deploy\deploy-staging-frontend.ps1
+```
+
+### Обновление вручную (как раньше)
+
+```powershell
+cd C:\WTStaging\BackendStaging
 git pull
 cd ..\FrontendStaging
 git pull
