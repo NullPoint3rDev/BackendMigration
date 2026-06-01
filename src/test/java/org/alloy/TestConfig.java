@@ -92,6 +92,7 @@ public class TestConfig {
         properties.setProperty("hibernate.show_sql", "true");
         properties.setProperty("hibernate.format_sql", "true");
         properties.setProperty("hibernate.physical_naming_strategy", "org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl");
+        properties.setProperty("hibernate.globally_quoted_identifiers", "true");
         em.setJpaProperties(properties);
 
         return em;
