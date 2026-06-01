@@ -3,6 +3,7 @@ package org.alloy;
 import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AliasFor;
@@ -16,20 +17,19 @@ import java.lang.annotation.Target;
 
 /**
  * {@code @WebMvcTest} без JPA auto-config + общая MVC/security конфигурация.
+ * Использование: {@code @AlloyWebMvcTest(SurveyController.class)}.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @WebMvcTest
+@AutoConfigureMockMvc(addFilters = false)
 @Import(MvcTestConfig.class)
 @TestPropertySource("classpath:mvc-test.properties")
 public @interface AlloyWebMvcTest {
 
     @AliasFor(annotation = WebMvcTest.class, attribute = "controllers")
-    Class<?>[] controllers() default {};
-
-    @AliasFor(annotation = WebMvcTest.class, attribute = "value")
-    Class<?>[] value() default {};
+    Class<?>[] value();
 
     @AliasFor(annotation = WebMvcTest.class, attribute = "excludeAutoConfiguration")
     Class<?>[] excludeAutoConfiguration() default {

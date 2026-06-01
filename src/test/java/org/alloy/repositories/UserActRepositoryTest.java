@@ -77,7 +77,7 @@ public class UserActRepositoryTest {
 
     private void setDateCreated(Integer actId, LocalDateTime dateCreated) {
         entityManager.getEntityManager()
-                .createNativeQuery("UPDATE \"UserAct\" SET \"DateCreated\" = ?1 WHERE \"ID\" = ?2")
+                .createNativeQuery("UPDATE UserAct SET DateCreated = ?1 WHERE ID = ?2")
                 .setParameter(1, dateCreated)
                 .setParameter(2, actId)
                 .executeUpdate();

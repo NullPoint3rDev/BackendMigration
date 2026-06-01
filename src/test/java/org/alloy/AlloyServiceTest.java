@@ -17,6 +17,7 @@ import java.lang.annotation.Target;
 
 /**
  * {@code @SpringBootTest} только с одним сервисом, без JPA auto-config.
+ * Использование: {@code @AlloyServiceTest(OrganizationService.class)}.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -28,10 +29,7 @@ import java.lang.annotation.Target;
 public @interface AlloyServiceTest {
 
     @AliasFor(annotation = SpringBootTest.class, attribute = "classes")
-    Class<?>[] classes() default {};
-
-    @AliasFor(annotation = SpringBootTest.class, attribute = "value")
-    Class<?>[] value() default {};
+    Class<?>[] value();
 
     @AliasFor(annotation = SpringBootTest.class, attribute = "excludeAutoConfiguration")
     Class<?>[] excludeAutoConfiguration() default {
