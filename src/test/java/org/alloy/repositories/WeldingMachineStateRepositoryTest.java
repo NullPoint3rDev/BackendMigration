@@ -43,13 +43,6 @@ public class WeldingMachineStateRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        // Очищаем базу данных перед каждым тестом
-        weldingMachineStateRepository.deleteAll();
-        weldingMachineRepository.deleteAll();
-        organizationUnitRepository.deleteAll();
-        organizationRepository.deleteAll();
-        weldingMachineTypeRepository.deleteAll();
-
         // Создаем тестовую организацию
         Organization organization = new Organization();
         organization.setName("Test Organization");
