@@ -1,6 +1,7 @@
 package org.alloy.models.entities;
 
 import javax.persistence.*;
+import org.alloy.models.converters.UuidAttributeConverter;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -29,7 +30,8 @@ public class UserToken {
     @Column(name = "DateExpired")
     private LocalDateTime dateExpired;
 
-    @Column(name = "Token", nullable = false)
+    @Convert(converter = UuidAttributeConverter.class)
+    @Column(name = "Token", nullable = false, length = 36)
     private UUID token;
 
     @Column(name = "Type", nullable = false)

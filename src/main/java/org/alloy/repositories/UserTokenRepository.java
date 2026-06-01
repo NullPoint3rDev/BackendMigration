@@ -16,15 +16,7 @@ public interface UserTokenRepository extends JpaRepository<UserToken, Integer> {
 
     List<UserToken> findByUserAccountId(Integer userAccountId);
 
-    @Query("SELECT t FROM UserToken t WHERE str(t.token) = :tokenStr")
-    Optional<UserToken> findByTokenString(@Param("tokenStr") String tokenStr);
-
-    default Optional<UserToken> findByToken(UUID token) {
-        if (token == null) {
-            return Optional.empty();
-        }
-        return findByTokenString(token.toString());
-    }
+    Optional<UserToken> findByToken(UUID token);
 
     void deleteByUserAccountId(Integer userAccountId);
 
