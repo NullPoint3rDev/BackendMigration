@@ -1,5 +1,6 @@
 # CI на каждый push/PR в main; CD (деплой на Staging) — только после успешного CI при push в main.
-# Требуется self-hosted runner на сервере с метками: self-hosted, windows, wt2-staging
+# Требуется self-hosted runner на Windows (метки: self-hosted, windows, wt2-staging).
+# Шаги CD используют shell: powershell (Windows PowerShell 5.1), не pwsh — PowerShell 7 на сервере не обязателен.
 
 name: Backend Staging CI/CD
 
@@ -61,7 +62,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Pull BackendStaging (main)
-        shell: pwsh
+        shell: powershell
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
@@ -71,7 +72,7 @@ jobs:
           git pull origin main
 
       - name: Rebuild and restart backend
-        shell: pwsh
+        shell: powershell
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
@@ -79,7 +80,7 @@ jobs:
           docker compose up -d --build backend
 
       - name: Refresh monitoring stack (config-only, no image rebuild)
-        shell: pwsh
+        shell: powershell
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
@@ -87,7 +88,7 @@ jobs:
           docker compose up -d prometheus grafana loki promtail postgres-exporter
 
       - name: Wait for backend healthy
-        shell: pwsh
+        shell: powershell
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
