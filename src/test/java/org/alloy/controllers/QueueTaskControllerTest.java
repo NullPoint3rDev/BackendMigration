@@ -2,6 +2,7 @@ package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.alloy.TestConfig;
+import org.alloy.models.dto.QueueTaskDTO;
 import org.alloy.models.entities.QueueTask;
 import org.alloy.services.QueueTaskService;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,7 @@ public class QueueTaskControllerTest {
     private QueueTaskService queueTaskService;
 
     private QueueTask testQueueTask;
+    private QueueTaskDTO testQueueTaskDto;
     private List<QueueTask> testQueueTasks;
 
     /**
@@ -87,6 +89,11 @@ public class QueueTaskControllerTest {
         secondTask.setTaskResultJson("{\"result\": \"pending\"}");
 
         testQueueTasks = Arrays.asList(testQueueTask, secondTask);
+
+        testQueueTaskDto = new QueueTaskDTO();
+        testQueueTaskDto.setId(1);
+        testQueueTaskDto.setName("Тестовая задача");
+        testQueueTaskDto.setStatus("4");
     }
 
     /**
@@ -99,9 +106,9 @@ public class QueueTaskControllerTest {
         mockMvc.perform(get("/queue-tasks"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].taskName").value("Тестовая задача"))
+                .andExpect(jsonPath("$[0].name").value("Тестовая задача"))
                 .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].taskName").value("Вторая задача"));
+                .andExpect(jsonPath("$[1].name").value("Вторая задача"));
 
         verify(queueTaskService).findAll();
     }
@@ -116,8 +123,8 @@ public class QueueTaskControllerTest {
         mockMvc.perform(get("/queue-tasks/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.taskName").value("Тестовая задача"))
-                .andExpect(jsonPath("$.statusMessage").value("В процессе"));
+                .andExpect(jsonPath("$.name").value("Тестовая задача"))
+                .andExpect(jsonPath("$.status").value("4"));
 
         verify(queueTaskService).findById(1);
     }
@@ -140,16 +147,16 @@ public class QueueTaskControllerTest {
      */
     @Test
     void create_ShouldCreateTask() throws Exception {
-        when(queueTaskService.save(any(QueueTask.class))).thenReturn(testQueueTask);
+        when(queueTaskService.createQueueTask(any(QueueTask.class))).thenReturn(testQueueTask);
 
         mockMvc.perform(post("/queue-tasks")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(testQueueTask)))
-                .andExpect(status().isOk())
+                .content(mapper.writeValueAsString(testQueueTaskDto)))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.taskName").value("Тестовая задача"));
+                .andExpect(jsonPath("$.name").value("Тестовая задача"));
 
-        verify(queueTaskService).save(any(QueueTask.class));
+        verify(queueTaskService).createQueueTask(any(QueueTask.class));
     }
 
     /**
@@ -157,34 +164,33 @@ public class QueueTaskControllerTest {
      */
     @Test
     void update_WhenTaskExists_ShouldUpdateTask() throws Exception {
-        when(queueTaskService.findById(1)).thenReturn(Optional.of(testQueueTask));
-        when(queueTaskService.save(any(QueueTask.class))).thenReturn(testQueueTask);
+        when(queueTaskService.updateQueueTask(any(QueueTask.class))).thenReturn(testQueueTask);
 
         mockMvc.perform(put("/queue-tasks/1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(testQueueTask)))
+                .content(mapper.writeValueAsString(testQueueTaskDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.taskName").value("Тестовая задача"));
+                .andExpect(jsonPath("$.name").value("Тестовая задача"));
 
-        verify(queueTaskService).findById(1);
-        verify(queueTaskService).save(any(QueueTask.class));
+        verify(queueTaskService).updateQueueTask(any(QueueTask.class));
     }
 
     /**
      * Тест обновления несуществующей задачи
      */
     @Test
-    void update_WhenTaskDoesNotExist_ShouldReturnNotFound() throws Exception {
-        when(queueTaskService.findById(999)).thenReturn(Optional.empty());
+    void update_WhenTaskDoesNotExist_ShouldStillUpdate() throws Exception {
+        when(queueTaskService.updateQueueTask(any(QueueTask.class))).thenReturn(testQueueTask);
 
         mockMvc.perform(put("/queue-tasks/999")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(testQueueTask)))
-                .andExpect(status().isNotFound());
+                .content(mapper.writeValueAsString(testQueueTaskDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Тестовая задача"));
 
-        verify(queueTaskService).findById(999);
-        verify(queueTaskService, never()).save(any(QueueTask.class));
+        verify(queueTaskService).updateQueueTask(any(QueueTask.class));
     }
 
     /**

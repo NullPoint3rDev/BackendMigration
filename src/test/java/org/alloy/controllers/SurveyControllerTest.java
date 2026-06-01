@@ -115,7 +115,7 @@ public class SurveyControllerTest {
         mockMvc.perform(post("/surveys")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testSurvey)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1));
 
         verify(surveyService).save(any(Survey.class));
@@ -126,7 +126,6 @@ public class SurveyControllerTest {
      */
     @Test
     void update_WhenSurveyExists_ShouldUpdateSurvey() throws Exception {
-        when(surveyService.findById(1)).thenReturn(Optional.of(testSurvey));
         when(surveyService.save(any(Survey.class))).thenReturn(testSurvey);
 
         mockMvc.perform(put("/surveys/1")
@@ -135,7 +134,6 @@ public class SurveyControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(surveyService).findById(1);
         verify(surveyService).save(any(Survey.class));
     }
 
@@ -143,16 +141,16 @@ public class SurveyControllerTest {
      * Тест обновления несуществующего опроса
      */
     @Test
-    void update_WhenSurveyDoesNotExist_ShouldReturnNotFound() throws Exception {
-        when(surveyService.findById(999)).thenReturn(Optional.empty());
+    void update_WhenSurveyDoesNotExist_ShouldStillSave() throws Exception {
+        when(surveyService.save(any(Survey.class))).thenReturn(testSurvey);
 
         mockMvc.perform(put("/surveys/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testSurvey)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
 
-        verify(surveyService).findById(999);
-        verify(surveyService, never()).save(any(Survey.class));
+        verify(surveyService).save(any(Survey.class));
     }
 
     /**

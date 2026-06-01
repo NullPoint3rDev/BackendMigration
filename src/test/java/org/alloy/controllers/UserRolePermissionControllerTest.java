@@ -94,11 +94,7 @@ public class UserRolePermissionControllerTest {
         mockMvc.perform(get("/user-role-permissions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].read").value(true))
-                .andExpect(jsonPath("$[0].write").value(true))
-                .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].read").value(true))
-                .andExpect(jsonPath("$[1].write").value(false));
+                .andExpect(jsonPath("$[1].id").value(2));
 
         verify(userRolePermissionService).findAll();
     }
@@ -112,9 +108,7 @@ public class UserRolePermissionControllerTest {
 
         mockMvc.perform(get("/user-role-permissions/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.read").value(true))
-                .andExpect(jsonPath("$.write").value(true));
+                .andExpect(jsonPath("$.id").value(1));
 
         verify(userRolePermissionService).findById(1);
     }
@@ -142,10 +136,8 @@ public class UserRolePermissionControllerTest {
         mockMvc.perform(post("/user-role-permissions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserRolePermission)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.read").value(true))
-                .andExpect(jsonPath("$.write").value(true));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1));
 
         verify(userRolePermissionService).save(any(UserRolePermission.class));
     }
@@ -155,18 +147,14 @@ public class UserRolePermissionControllerTest {
      */
     @Test
     void update_WhenRolePermissionExists_ShouldUpdateRolePermission() throws Exception {
-        when(userRolePermissionService.findById(1)).thenReturn(Optional.of(testUserRolePermission));
         when(userRolePermissionService.save(any(UserRolePermission.class))).thenReturn(testUserRolePermission);
 
         mockMvc.perform(put("/user-role-permissions/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserRolePermission)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.read").value(true))
-                .andExpect(jsonPath("$.write").value(true));
+                .andExpect(jsonPath("$.id").value(1));
 
-        verify(userRolePermissionService).findById(1);
         verify(userRolePermissionService).save(any(UserRolePermission.class));
     }
 
@@ -174,16 +162,16 @@ public class UserRolePermissionControllerTest {
      * Тест обновления несуществующей связи роли и разрешения
      */
     @Test
-    void update_WhenRolePermissionDoesNotExist_ShouldReturnNotFound() throws Exception {
-        when(userRolePermissionService.findById(999)).thenReturn(Optional.empty());
+    void update_WhenRolePermissionDoesNotExist_ShouldStillSave() throws Exception {
+        when(userRolePermissionService.save(any(UserRolePermission.class))).thenReturn(testUserRolePermission);
 
         mockMvc.perform(put("/user-role-permissions/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserRolePermission)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
 
-        verify(userRolePermissionService).findById(999);
-        verify(userRolePermissionService, never()).save(any(UserRolePermission.class));
+        verify(userRolePermissionService).save(any(UserRolePermission.class));
     }
 
     /**

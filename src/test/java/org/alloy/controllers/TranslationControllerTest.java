@@ -2,6 +2,7 @@ package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.alloy.TestConfig;
+import org.alloy.models.dto.TranslationDTO;
 import org.alloy.models.entities.Translation;
 import org.alloy.services.TranslationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,7 @@ public class TranslationControllerTest {
     private TranslationService translationService;
 
     private Translation testTranslation;
+    private TranslationDTO testTranslationDto;
     private List<Translation> testTranslations;
 
     /**
@@ -77,6 +79,11 @@ public class TranslationControllerTest {
 
         // Создаем список тестовых переводов
         testTranslations = Arrays.asList(testTranslation, secondTranslation);
+
+        testTranslationDto = new TranslationDTO();
+        testTranslationDto.setId(1);
+        testTranslationDto.setKey("UserAccount.name.1.ru");
+        testTranslationDto.setValue("Тестовый перевод");
     }
 
     /**
@@ -139,10 +146,10 @@ public class TranslationControllerTest {
 
         mockMvc.perform(post("/translations")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testTranslation)))
+                .content(objectMapper.writeValueAsString(testTranslationDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.lang").value("ru"))
+                .andExpect(jsonPath("$.key").value("UserAccount.name.1.ru"))
                 .andExpect(jsonPath("$.value").value("Тестовый перевод"));
 
         verify(translationService).save(any(Translation.class));
@@ -158,10 +165,10 @@ public class TranslationControllerTest {
 
         mockMvc.perform(put("/translations/1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testTranslation)))
+                .content(objectMapper.writeValueAsString(testTranslationDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.lang").value("ru"))
+                .andExpect(jsonPath("$.key").value("UserAccount.name.1.ru"))
                 .andExpect(jsonPath("$.value").value("Тестовый перевод"));
 
         verify(translationService).findById(1);
