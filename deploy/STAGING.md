@@ -189,7 +189,13 @@ Workflow-файлы:
 2. Скачайте и установите runner по инструкции GitHub (папка, например `C:\actions-runner`).
 3. При регистрации добавьте **дополнительную метку** (label): `wt2-staging`  
    Итоговые метки runner: `self-hosted`, `windows`, `wt2-staging` — они указаны в workflow.
-4. Запустите runner как службу (команда из инструкции GitHub: `.\run.cmd` для теста или установка службы).
+4. Запустите runner как службу (команда из инструкции GitHub: `.\run.cmd` для теста или установка службы).  
+   Если служба работает от **NETWORK SERVICE**, а клоны созданы под вашим пользователем, Git 2.35+ выдаст `dubious ownership` — workflow добавляет `safe.directory` автоматически; при ручном `git pull` под службой выполните один раз:
+   ```powershell
+   git config --global --add safe.directory C:/WTStaging/BackendStaging
+   git config --global --add safe.directory C:/WTStaging/FrontendStaging
+   ```
+   (от имени учётной записи, под которой запущен runner.)
 5. Убедитесь, что клоны лежат по путям:
    - `C:\WTStaging\BackendStaging` (remote → `BackendStaging`)
    - `C:\WTStaging\FrontendStaging` (remote → `FrontendStaging`)

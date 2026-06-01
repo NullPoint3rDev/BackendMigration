@@ -61,6 +61,15 @@ jobs:
       group: staging-backend-deploy
       cancel-in-progress: false
     steps:
+      - name: Configure git safe.directory (runner service account)
+        shell: powershell
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          # Runner often runs as NETWORK SERVICE; repo clone is owned by another user (Git 2.35+).
+          git config --global --add safe.directory 'C:/WTStaging/BackendStaging'
+          git config --global --add safe.directory 'C:/WTStaging/FrontendStaging'
+
       - name: Pull BackendStaging (main)
         shell: powershell
         run: |
