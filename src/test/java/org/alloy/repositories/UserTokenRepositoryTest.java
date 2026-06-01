@@ -164,14 +164,12 @@ public class UserTokenRepositoryTest {
      */
     @Test
     void findByToken_ShouldReturnUserToken() {
-        // Перечитываем token из БД: на H2 UUID в derived query иногда не матчится с in-memory полем после persist.
-        UUID persistedToken = entityManager.find(UserToken.class, testUserToken.getId()).getToken();
-        Optional<UserToken> foundUserToken = userTokenRepository.findByToken(persistedToken);
+        Optional<UserToken> foundUserToken = userTokenRepository.findByToken(testUserToken.getToken());
         
         // Проверяем результаты
         assertTrue(foundUserToken.isPresent(), "Токен должен быть найден");
         assertEquals(testUserToken.getId(), foundUserToken.get().getId(), "ID должен совпадать");
-        assertEquals(persistedToken, foundUserToken.get().getToken(), "Значение токена должно совпадать");
+        assertEquals(testUserToken.getToken(), foundUserToken.get().getToken(), "Значение токена должно совпадать");
 
         // Проверяем поиск несуществующего токена
         Optional<UserToken> notFoundUserToken = userTokenRepository.findByToken(UUID.randomUUID());
