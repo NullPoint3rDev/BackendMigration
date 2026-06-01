@@ -17,7 +17,7 @@ import java.util.Collections;
  */
 @RestController
 @RequestMapping("/session")
-public class SessionController {
+public class SessionController {  
 
     @Autowired
     private SessionManagementService sessionManagementService;
