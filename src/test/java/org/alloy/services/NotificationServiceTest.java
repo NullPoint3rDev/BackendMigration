@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.Notification;
 import org.alloy.repositories.NotificationRepository;
@@ -25,6 +27,7 @@ import static org.mockito.Mockito.*;
  */
 @SpringBootTest(classes = NotificationService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class NotificationServiceTest {
 
     @MockBean

@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.Translation;
 import org.alloy.repositories.TranslationRepository;
@@ -28,6 +30,7 @@ import static org.mockito.Mockito.*;
  */
 @SpringBootTest(classes = TranslationService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class TranslationServiceTest {
 
     @MockBean

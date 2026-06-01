@@ -62,18 +62,25 @@ public class UserActRepositoryTest {
         testUserAccount = entityManager.persist(testUserAccount);
         entityManager.flush();
 
-        // Создаем тестовое действие пользователя
-        testDate = LocalDateTime.now();
+        // Фиксированная дата — стабильное сравнение в deleteByDateCreatedBefore
+        testDate = LocalDateTime.of(2024, 6, 15, 12, 0);
         testUserAct = new UserAct();
         testUserAct.setUserAccountId(testUserAccount.getId());
         testUserAct.setType("LOGIN");
         testUserAct.setDescription("User logged in");
         testUserAct.setIpAddress("127.0.0.1");
         testUserAct.setUserAgent("Test Browser");
-        testUserAct.setDateCreated(testDate);
-        
         // Сохраняем тестовое действие
         testUserAct = entityManager.persist(testUserAct);
+        entityManager.flush();
+    }
+
+    private void setDateCreated(Integer actId, LocalDateTime dateCreated) {
+        entityManager.getEntityManager()
+                .createQuery("UPDATE UserAct u SET u.dateCreated = :date WHERE u.id = :id")
+                .setParameter("date", dateCreated)
+                .setParameter("id", actId)
+                .executeUpdate();
         entityManager.flush();
     }
 
@@ -287,23 +294,24 @@ public class UserActRepositoryTest {
         oldAct.setUserAccountId(testUserAccount.getId());
         oldAct.setType("OLD");
         oldAct.setDescription("Old action");
-        oldAct.setDateCreated(testDate.minusDays(1));
         oldAct.setIpAddress("127.0.0.1");
         oldAct.setUserAgent("Test Browser");
         oldAct.setEntityType("TEST");
         oldAct.setEntityId(1);
-        entityManager.persist(oldAct);
+        oldAct = entityManager.persist(oldAct);
+        setDateCreated(oldAct.getId(), testDate.minusDays(1));
 
         UserAct newAct = new UserAct();
         newAct.setUserAccountId(testUserAccount.getId());
         newAct.setType("NEW");
         newAct.setDescription("New action");
-        newAct.setDateCreated(testDate.plusDays(1));
         newAct.setIpAddress("127.0.0.1");
         newAct.setUserAgent("Test Browser");
         newAct.setEntityType("TEST");
         newAct.setEntityId(2);
-        entityManager.persist(newAct);
+        newAct = entityManager.persist(newAct);
+        setDateCreated(newAct.getId(), testDate.plusDays(1));
+        setDateCreated(testUserAct.getId(), testDate);
 
         // Убедимся, что все действия сохранены
         entityManager.flush();

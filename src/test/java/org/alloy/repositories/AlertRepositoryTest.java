@@ -52,7 +52,10 @@ public class AlertRepositoryTest {
     void save_ShouldSaveAlert() {
         // Создаем новое оповещение
         Alert newAlert = new Alert();
-        
+        newAlert.setType("WARNING");
+        newAlert.setMessage("Second test message");
+        newAlert.setSeverity("MEDIUM");
+
         // Сохраняем оповещение через репозиторий
         Alert savedAlert = alertRepository.save(newAlert);
         
@@ -100,6 +103,9 @@ public class AlertRepositoryTest {
     void findAll_ShouldReturnAllAlerts() {
         // Создаем и сохраняем второе оповещение
         Alert secondAlert = new Alert();
+        secondAlert.setType("ERROR");
+        secondAlert.setMessage("Another alert");
+        secondAlert.setSeverity("HIGH");
         entityManager.persist(secondAlert);
         entityManager.flush();
         

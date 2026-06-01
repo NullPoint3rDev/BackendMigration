@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.UserToken;
 import org.alloy.repositories.UserTokenRepository;
@@ -20,6 +22,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = UserTokenService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class UserTokenServiceTest {
 
     @MockBean

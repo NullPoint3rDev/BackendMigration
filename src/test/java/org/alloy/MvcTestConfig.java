@@ -1,9 +1,12 @@
 package org.alloy;
 
+import org.alloy.config.MethodSecurityTestConfig;
 import org.alloy.security.JwtTokenProvider;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,6 +21,8 @@ import java.util.Collections;
  * Не подменяет JPA-репозитории (в отличие от устаревшего {@link TestConfig}).
  */
 @TestConfiguration
+@Import(MethodSecurityTestConfig.class)
+@TestPropertySource("classpath:mvc-test.properties")
 public class MvcTestConfig {
 
     @MockBean

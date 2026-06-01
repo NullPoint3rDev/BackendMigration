@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.Dump;
 import org.alloy.repositories.DumpRepository;
@@ -25,6 +27,7 @@ import static org.mockito.Mockito.*;
  */
 @SpringBootTest(classes = DumpService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class DumpServiceTest {
 
     @MockBean

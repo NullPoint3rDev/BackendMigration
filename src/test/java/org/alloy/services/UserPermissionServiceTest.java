@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.UserPermission;
 import org.alloy.repositories.UserPermissionRepository;
@@ -21,6 +23,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = UserPermissionService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class UserPermissionServiceTest {
 
     @MockBean

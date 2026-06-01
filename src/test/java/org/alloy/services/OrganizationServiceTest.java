@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.Organization;
@@ -25,6 +27,7 @@ import static org.mockito.Mockito.*;
  */
 @SpringBootTest(classes = OrganizationService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class OrganizationServiceTest {
 
     @MockBean
@@ -59,7 +62,7 @@ public class OrganizationServiceTest {
     void getAllOrganizations_ShouldReturnAllOrganizations() {
         // Подготовка данных
         List<Organization> expectedOrganizations = Arrays.asList(testOrganization);
-        when(organizationRepository.findAll()).thenReturn(expectedOrganizations);
+        when(organizationRepository.findByStatusNot(org.alloy.models.GeneralStatus.Deleted)).thenReturn(expectedOrganizations);
 
         // Выполнение теста
         List<Organization> actualOrganizations = organizationService.getAllOrganizations();
@@ -70,7 +73,7 @@ public class OrganizationServiceTest {
         assertEquals(expectedOrganizations.get(0).getId(), actualOrganizations.get(0).getId());
 
         // Проверка вызова метода репозитория
-        verify(organizationRepository, times(1)).findAll();
+        verify(organizationRepository, times(1)).findByStatusNot(org.alloy.models.GeneralStatus.Deleted);
     }
 
     /**
@@ -145,7 +148,7 @@ public class OrganizationServiceTest {
     void searchOrganizations_ShouldReturnMatchingOrganizations() {
         // Подготовка данных
         List<Organization> expectedOrganizations = Arrays.asList(testOrganization);
-        when(organizationRepository.searchOrganizations("Test")).thenReturn(expectedOrganizations);
+        when(organizationRepository.searchOrganizationsNotDeleted(anyString(), org.alloy.models.GeneralStatus.Deleted)).thenReturn(expectedOrganizations);
 
         // Выполнение теста
         List<Organization> actualOrganizations = organizationService.searchOrganizations("Test");
@@ -156,7 +159,7 @@ public class OrganizationServiceTest {
         assertTrue(actualOrganizations.get(0).getName().contains("Test"));
 
         // Проверка вызова метода репозитория
-        verify(organizationRepository, times(1)).searchOrganizations("Test");
+        verify(organizationRepository, times(1)).searchOrganizationsNotDeleted("Test", GeneralStatus.Deleted);
     }
 
     /**

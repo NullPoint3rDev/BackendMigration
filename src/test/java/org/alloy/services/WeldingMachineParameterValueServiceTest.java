@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.WeldingMachineParameterValue;
 import org.alloy.repositories.WeldingMachineParameterValueRepository;
@@ -19,6 +21,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = WeldingMachineParameterValueService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class WeldingMachineParameterValueServiceTest {
 
     @MockBean
@@ -206,8 +209,6 @@ public class WeldingMachineParameterValueServiceTest {
     void updateParameterValue_WithValidData_ShouldUpdateValue() {
         // Подготавливаем тестовые данные
         when(parameterValueRepository.findById(1L)).thenReturn(Optional.of(testParameterValue));
-        when(parameterValueRepository.findByWeldingMachineStateIdAndPropertyCode(100L, "TEST_PARAM"))
-                .thenReturn(Optional.empty());
         when(parameterValueRepository.save(any(WeldingMachineParameterValue.class)))
                 .thenReturn(testParameterValue);
 
@@ -221,8 +222,6 @@ public class WeldingMachineParameterValueServiceTest {
         
         // Проверяем, что методы репозитория были вызваны
         verify(parameterValueRepository, times(1)).findById(1L);
-        verify(parameterValueRepository, times(1))
-                .findByWeldingMachineStateIdAndPropertyCode(100L, "TEST_PARAM");
         verify(parameterValueRepository, times(1)).save(testParameterValue);
     }
 

@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.Alert;
 import org.alloy.repositories.AlertRepository;
@@ -24,6 +26,7 @@ import static org.mockito.Mockito.*;
  */
 @SpringBootTest(classes = AlertService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class AlertServiceTest {
 
     @MockBean

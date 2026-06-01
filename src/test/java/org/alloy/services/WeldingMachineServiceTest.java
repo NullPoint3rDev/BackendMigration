@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineType;
@@ -27,6 +29,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = WeldingMachineService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class WeldingMachineServiceTest {
 
     @MockBean
@@ -73,6 +76,7 @@ public class WeldingMachineServiceTest {
         testWeldingMachine = new WeldingMachine();
         testWeldingMachine.setId(1);
         testWeldingMachine.setName("Test Machine");
+        testWeldingMachine.setMac("AA:BB:CC:DD:EE:FF");
         testWeldingMachine.setSerialNumber("TEST123");
         testWeldingMachine.setOrganizationUnitId(1);
         testWeldingMachine.setWeldingMachineTypeId(1);

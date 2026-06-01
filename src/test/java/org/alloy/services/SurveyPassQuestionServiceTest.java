@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.SurveyPass;
 import org.alloy.models.entities.SurveyPassQuestion;
@@ -26,6 +28,7 @@ import static org.mockito.Mockito.*;
  */
 @SpringBootTest(classes = SurveyPassQuestionService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class SurveyPassQuestionServiceTest {
 
     @MockBean

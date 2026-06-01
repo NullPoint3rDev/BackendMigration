@@ -1,5 +1,7 @@
 package org.alloy.services;
 
+import org.alloy.ServiceTestConfig;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.UserAct;
 import org.alloy.repositories.UserActRepository;
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = UserActService.class)
 @ActiveProfiles("test")
+@Import(ServiceTestConfig.class)
 public class UserActServiceTest {
 
     @MockBean
