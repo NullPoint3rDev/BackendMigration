@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.UserToken;
 import org.alloy.repositories.UserTokenRepository;
 import org.junit.jupiter.api.BeforeEach;

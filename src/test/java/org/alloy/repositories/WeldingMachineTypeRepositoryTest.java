@@ -1,5 +1,6 @@
 package org.alloy.repositories;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.WeldingMachineType;
 import org.alloy.models.GeneralStatus;
 import org.junit.jupiter.api.BeforeEach;

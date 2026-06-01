@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.QueuePushEvent;
 import org.alloy.repositories.QueuePushEventRepository;
 import org.junit.jupiter.api.BeforeEach;

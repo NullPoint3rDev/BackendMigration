@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.InboxMessage;
 import org.alloy.repositories.InboxMessageRepository;
 import org.junit.jupiter.api.BeforeEach;

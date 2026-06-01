@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.EmailTemplate;
 import org.alloy.repositories.EmailTemplateRepository;
 import org.junit.jupiter.api.BeforeEach;

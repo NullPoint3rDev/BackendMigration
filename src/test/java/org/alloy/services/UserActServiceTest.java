@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.UserAct;
 import org.alloy.repositories.UserActRepository;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.Notification;
 import org.alloy.repositories.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;

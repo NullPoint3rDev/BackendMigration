@@ -1,5 +1,6 @@
 package org.alloy.services;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.UserRolePermission;
 import org.alloy.repositories.UserRolePermissionRepository;
 import org.junit.jupiter.api.BeforeEach;

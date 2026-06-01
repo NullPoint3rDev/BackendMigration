@@ -1,5 +1,6 @@
 package org.alloy.repositories;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.alloy.models.entities.Organization;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.WeldingMachine;
