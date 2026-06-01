@@ -7,6 +7,7 @@ import org.alloy.models.entities.Organization;
 import org.alloy.services.OrganizationService;
 import org.alloy.services.UserAccountService;
 import org.alloy.services.Wt2AccessService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,9 +32,9 @@ import org.springframework.web.server.ResponseStatusException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.alloy.controllers.MethodSecurityRequestPostProcessors.authn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -68,6 +69,11 @@ class Wt2OrganizationPermissionMatrixMvcTest {
                 .when(wt2AccessService).assertCanReadOrganizations(eq("roleUser"));
         doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "denied"))
                 .when(wt2AccessService).assertCanWriteOrganizations(eq("plain"));
+    }
+
+    @AfterEach
+    void clearCtx() {
+        MethodSecurityRequestPostProcessors.clear();
     }
 
     static Stream<Arguments> getAllOrganizationsAccess() {
@@ -107,7 +113,7 @@ class Wt2OrganizationPermissionMatrixMvcTest {
                 .thenReturn(true);
 
         mockMvc.perform(post("/organizations")
-                        .with(user(User.builder().username("grantUser").password("p").roles("USER_DEALER").build()))
+                        .with(authn(User.builder().username("grantUser").password("p").roles("USER_DEALER").build()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(minimalOrg(null))))
                 .andExpect(status().isCreated());
@@ -119,7 +125,7 @@ class Wt2OrganizationPermissionMatrixMvcTest {
                 .thenReturn(false);
 
         mockMvc.perform(post("/organizations")
-                        .with(user(User.builder().username("plain").password("p").roles("USER_DEALER").build()))
+                        .with(authn(User.builder().username("plain").password("p").roles("USER_DEALER").build()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(minimalOrg(null))))
                 .andExpect(status().isForbidden());
@@ -131,7 +137,7 @@ class Wt2OrganizationPermissionMatrixMvcTest {
                 .password("p")
                 .authorities(authorities)
                 .build();
-        return user(ud);
+        return authn(ud);
     }
 
     private static RequestPostProcessor userWithRoles(String role) {
@@ -140,7 +146,7 @@ class Wt2OrganizationPermissionMatrixMvcTest {
                 .password("p")
                 .roles(role)
                 .build();
-        return user(ud);
+        return authn(ud);
     }
 
     private static Organization minimalOrg(Integer id) {

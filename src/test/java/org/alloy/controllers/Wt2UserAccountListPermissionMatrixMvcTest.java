@@ -2,9 +2,13 @@ package org.alloy.controllers;
 
 import org.alloy.AlloyWebMvcTest;
 import org.alloy.models.entities.UserAccount;
+import org.alloy.repositories.UserRepository;
 import org.alloy.repositories.UserRoleRepository;
+import org.alloy.security.SessionManagementService;
+import org.alloy.services.EmailVerificationService;
 import org.alloy.services.UserAccountService;
 import org.alloy.services.Wt2AccessService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -22,9 +26,9 @@ import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.alloy.controllers.MethodSecurityRequestPostProcessors.authn;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,6 +44,13 @@ class Wt2UserAccountListPermissionMatrixMvcTest {
     private UserRoleRepository userRoleRepository;
     @MockBean
     private Wt2AccessService wt2AccessService;
+    // UserAccountController инжектит ещё эти бины напрямую — в @WebMvcTest их нет, мокаем.
+    @MockBean
+    private UserRepository userRepository;
+    @MockBean
+    private EmailVerificationService emailVerificationService;
+    @MockBean
+    private SessionManagementService sessionManagementService;
 
     @BeforeEach
     void setup() {
@@ -51,8 +62,13 @@ class Wt2UserAccountListPermissionMatrixMvcTest {
         return Stream.of(
                 Arguments.of(userWithAuthority("PERMISSION_CREATE_EDIT_USER_DEALER"), status().isOk()),
                 Arguments.of(userWithRoles("ADMIN_ALLOY"), status().isOk()),
-                Arguments.of(user(User.builder().username("u").password("p").roles("USER").build()), status().isForbidden())
+                Arguments.of(authn(User.builder().username("u").password("p").roles("USER").build()), status().isForbidden())
         );
+    }
+
+    @AfterEach
+    void clearCtx() {
+        MethodSecurityRequestPostProcessors.clear();
     }
 
     @ParameterizedTest
@@ -69,7 +85,7 @@ class Wt2UserAccountListPermissionMatrixMvcTest {
                 .password("p")
                 .authorities(authority)
                 .build();
-        return user(ud);
+        return authn(ud);
     }
 
     private static RequestPostProcessor userWithRoles(String role) {
@@ -78,6 +94,6 @@ class Wt2UserAccountListPermissionMatrixMvcTest {
                 .password("p")
                 .roles(role)
                 .build();
-        return user(ud);
+        return authn(ud);
     }
 }

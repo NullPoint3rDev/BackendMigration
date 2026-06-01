@@ -80,9 +80,9 @@ public class SurveyQuestionControllerTest {
         mockMvc.perform(get("/survey-questions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].surveyId").value(1));
+                // SurveyQuestionDTO не содержит surveyId — проверяем размер списка вместо отсутствующего поля.
+                .andExpect(jsonPath("$.length()").value(2));
 
         verify(surveyQuestionService).findAll();
     }

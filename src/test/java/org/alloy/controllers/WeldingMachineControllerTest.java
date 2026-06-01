@@ -122,6 +122,9 @@ public class WeldingMachineControllerTest {
         testWeldingMachineDto.setMac("001122334455");
         testWeldingMachineDto.setDeviceModel(DeviceModel.CORE);
 
+        // Контроллер сначала нормализует MAC, затем валидирует. Без стаба normalizeMac вернёт null,
+        // и isValidMacFormat(null) не матчится anyString() → false → 400. Возвращаем MAC как есть.
+        when(deviceModelService.normalizeMac(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
         when(deviceModelService.isValidMacFormat(anyString())).thenReturn(true);
         when(weldingMachineService.getWeldingMachineByMac(anyString())).thenReturn(Optional.empty());
     }

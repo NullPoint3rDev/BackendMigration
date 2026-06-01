@@ -106,9 +106,9 @@ public class MaintenanceControllerTest {
         mockMvc.perform(get("/maintenance"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].description").value("MX-Pulse"))
+                .andExpect(jsonPath("$[0].description").value("Варит хорошо!"))
                 .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].description").value("MX-Pulse"));
+                .andExpect(jsonPath("$[1].description").value("Плановое обслуживание"));
 
         verify(maintenanceService).getAllMaintenanceRecords();
     }
@@ -123,7 +123,7 @@ public class MaintenanceControllerTest {
         mockMvc.perform(get("/maintenance/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.description").value("MX-Pulse"));
+                .andExpect(jsonPath("$.description").value("Варит хорошо!"));
 
         verify(maintenanceService).getMaintenanceRecordById(1);
     }
@@ -150,8 +150,8 @@ public class MaintenanceControllerTest {
 
         mockMvc.perform(get("/maintenance/machine/3"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].weldingMachine.id").value(3))
-                .andExpect(jsonPath("$[1].weldingMachine.id").value(3));
+                .andExpect(jsonPath("$[0].weldingMachineId").value(3))
+                .andExpect(jsonPath("$[1].weldingMachineId").value(3));
 
         verify(maintenanceService).getMaintenanceRecordsByMachineId(3);
     }
@@ -166,7 +166,7 @@ public class MaintenanceControllerTest {
         mockMvc.perform(get("/maintenance/machine/3/latest"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.weldingMachine.id").value(3));
+                .andExpect(jsonPath("$.weldingMachineId").value(3));
 
         verify(maintenanceService).getLatestMaintenanceRecord(3);
     }
@@ -194,8 +194,8 @@ public class MaintenanceControllerTest {
 
         mockMvc.perform(get("/maintenance/machine/3/status/Active"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("Active"))
-                .andExpect(jsonPath("$[0].weldingMachine.id").value(3));
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].weldingMachineId").value(3));
 
         verify(maintenanceService).getMaintenanceRecordsByStatus(3, "Active");
     }
@@ -212,7 +212,7 @@ public class MaintenanceControllerTest {
                 .content(objectMapper.writeValueAsString(testMaintenance)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.description").value("MX-Pulse"));
+                .andExpect(jsonPath("$.description").value("Варит хорошо!"));
 
         verify(maintenanceService).createMaintenanceRecord(any(Maintenance.class));
     }

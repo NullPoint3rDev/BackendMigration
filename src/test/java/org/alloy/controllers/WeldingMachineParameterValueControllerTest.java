@@ -141,7 +141,7 @@ public class WeldingMachineParameterValueControllerTest {
 
         mockMvc.perform(get("/welding-machine-parameters/state/1/exceeded"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(true));
+                .andExpect(jsonPath("$[0].limitsExceeded").value(true));
     }
 
     /**

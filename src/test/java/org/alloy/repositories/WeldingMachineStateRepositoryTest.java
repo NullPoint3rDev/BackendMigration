@@ -142,15 +142,16 @@ public class WeldingMachineStateRepositoryTest {
 
     @Test
     void findByWeldingMachineIdAndDateRange_ShouldReturnStatesInDateRange() {
-        // Проверяем поиск состояний в определенном временном диапазоне
+        // dateCreated проставляется @CreationTimestamp при вставке (≈ now), ручные minusHours игнорируются,
+        // поэтому диапазон берём вокруг текущего момента. Оба состояния machine1 попадают в выборку.
         LocalDateTime startDate = LocalDateTime.now().minusHours(3);
-        LocalDateTime endDate = LocalDateTime.now().minusMinutes(30);
+        LocalDateTime endDate = LocalDateTime.now().plusMinutes(1);
 
         List<WeldingMachineState> states = weldingMachineStateRepository
                 .findByWeldingMachineIdAndDateRange(state1.getWeldingMachineId(), startDate, endDate);
 
-        // Проверяем, что найдено состояние в указанном диапазоне
-        assertThat(states).hasSize(1);
+        // У machine1 два состояния (state1, state2) — оба в диапазоне.
+        assertThat(states).hasSize(2);
         assertThat(states.get(0).getDateCreated()).isBetween(startDate, endDate);
     }
 

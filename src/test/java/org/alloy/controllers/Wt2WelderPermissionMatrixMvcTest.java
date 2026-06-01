@@ -3,6 +3,7 @@ package org.alloy.controllers;
 import org.alloy.AlloyWebMvcTest;
 import org.alloy.services.WelderService;
 import org.alloy.services.Wt2AccessService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -26,8 +27,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.alloy.controllers.MethodSecurityRequestPostProcessors.authn;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -55,8 +56,13 @@ class Wt2WelderPermissionMatrixMvcTest {
                 Arguments.of(userWithAuthority("PERMISSION_ADD_DELETE_EDIT_WELDERS"), status().isOk()),
                 Arguments.of(userWithAuthority("PERMISSION_VIEW_EQUIPMENT_HISTORY_GRAPHS"), status().isOk()),
                 Arguments.of(userWithAuthority("PERMISSION_BIND_WELDERS_TO_EQUIPMENT"), status().isOk()),
-                Arguments.of(user(User.builder().username("u").password("p").roles("USER").build()), status().isForbidden())
+                Arguments.of(authn(User.builder().username("u").password("p").roles("USER").build()), status().isForbidden())
         );
+    }
+
+    @AfterEach
+    void clearCtx() {
+        MethodSecurityRequestPostProcessors.clear();
     }
 
     @ParameterizedTest
@@ -72,6 +78,6 @@ class Wt2WelderPermissionMatrixMvcTest {
                 .password("p")
                 .authorities(authority)
                 .build();
-        return user(ud);
+        return authn(ud);
     }
 }

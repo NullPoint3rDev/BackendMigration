@@ -40,7 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * /@Import(MvcTestConfig.class) импортирует конфигурацию для тестов.
  */
 @AlloyWebMvcTest(UserAccountController.class)
-@WithMockUser
+// Эндпоинты защищены @PreAuthorize: нужен пользователь с правом из списка hasAnyAuthority(...).
+// PERMISSION_CREATE_EDIT_USER_ALLOY входит во все @PreAuthorize контроллера → покрывает все методы.
+@WithMockUser(authorities = "PERMISSION_CREATE_EDIT_USER_ALLOY")
 public class UserAccountControllerTest {
 
     @Autowired
@@ -101,6 +103,10 @@ public class UserAccountControllerTest {
 
         // Создаем список тестовых пользователей
         testUserAccounts = Arrays.asList(testUserAccount, secondUser);
+
+        // Контроллер прогоняет результат через Wt2AccessService.filterUserAccounts(...) — без стаба mock вернёт
+        // null и .stream() упадёт с NPE. Возвращаем переданный список как есть.
+        when(wt2AccessService.filterUserAccounts(any(), anyString())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     /**
@@ -113,9 +119,9 @@ public class UserAccountControllerTest {
         mockMvc.perform(get("/user-accounts"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].userName").value("testuser"))
+                .andExpect(jsonPath("$[0].username").value("testuser"))
                 .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].userName").value("seconduser"));
+                .andExpect(jsonPath("$[1].username").value("seconduser"));
 
         verify(userAccountService).getAllUserAccounts();
     }
@@ -130,7 +136,7 @@ public class UserAccountControllerTest {
         mockMvc.perform(get("/user-accounts/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.userName").value("testuser"))
+                .andExpect(jsonPath("$.username").value("testuser"))
                 .andExpect(jsonPath("$.email").value("test@example.com"));
 
         verify(userAccountService).getUserAccountById(1);
@@ -159,7 +165,7 @@ public class UserAccountControllerTest {
         mockMvc.perform(get("/user-accounts/username/testuser"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.userName").value("testuser"));
+                .andExpect(jsonPath("$.username").value("testuser"));
 
         verify(userAccountService).getUserAccountByUserName("testuser");
     }
@@ -188,8 +194,8 @@ public class UserAccountControllerTest {
 
         mockMvc.perform(get("/user-accounts/organization-unit/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].organizationUnitId").value(1))
-                .andExpect(jsonPath("$[1].organizationUnitId").value(1));
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[1].id").value(2));
 
         verify(userAccountService).getUserAccountsByOrganizationUnitId(1);
     }
@@ -219,7 +225,7 @@ public class UserAccountControllerTest {
                 .param("organizationUnitId", "1")
                 .param("searchTerm", "test"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].userName").value("testuser"));
+                .andExpect(jsonPath("$[0].username").value("testuser"));
 
         verify(userAccountService).searchUserAccounts(1, "test");
     }
@@ -236,7 +242,7 @@ public class UserAccountControllerTest {
                 .content(objectMapper.writeValueAsString(testUserAccount)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.userName").value("testuser"));
+                .andExpect(jsonPath("$.username").value("testuser"));
 
         verify(userAccountService).createUserAccount(any(UserAccount.class));
     }
@@ -253,7 +259,7 @@ public class UserAccountControllerTest {
                 .content(objectMapper.writeValueAsString(testUserAccount)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.userName").value("testuser"));
+                .andExpect(jsonPath("$.username").value("testuser"));
 
         verify(userAccountService).updateUserAccount(any(UserAccount.class));
     }
@@ -301,7 +307,7 @@ public class UserAccountControllerTest {
                 .content(objectMapper.writeValueAsString(credentials)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.userName").value("testuser"));
+                .andExpect(jsonPath("$.username").value("testuser"));
 
         verify(userAccountService).authenticateUser("testuser", "password");
     }

@@ -241,7 +241,7 @@ public class MaintenanceRepositoryTest {
         
         // Получаем активные обслуживания
         List<Maintenance> activeMaintenances = maintenanceRepository
-            .findByWeldingMachineIdAndStatus(testMachine.getId(), GeneralStatus.Active.name());
+            .findByWeldingMachineIdAndStatus(testMachine.getId(), GeneralStatus.Active);
         
         // Проверяем результаты
         assertNotNull(activeMaintenances, "Список обслуживаний не должен быть null");

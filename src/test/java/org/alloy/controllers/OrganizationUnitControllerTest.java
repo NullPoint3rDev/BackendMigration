@@ -87,6 +87,8 @@ public class OrganizationUnitControllerTest {
         secondUnit.setStatus(GeneralStatus.Active);
         secondUnit.setDateCreated(LocalDateTime.now());
         secondUnit.setParentId(1);
+        // Mapper строит parentDepartment из связи getParent(), а не из parentId — задаём объект-родителя.
+        secondUnit.setParent(testOrganizationUnit);
 
         testOrganizationUnits = Arrays.asList(testOrganizationUnit, secondUnit);
 

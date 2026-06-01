@@ -39,7 +39,8 @@ public class MaintenanceService {
     }
 
     public List<Maintenance> getMaintenanceRecordsByStatus(Integer machineId, String status) {
-        return maintenanceRepository.findByWeldingMachineIdAndStatus(machineId, status);
+        // status приходит строкой из API — конвертируем в enum (поле сущности типа GeneralStatus).
+        return maintenanceRepository.findByWeldingMachineIdAndStatus(machineId, GeneralStatus.valueOf(status));
     }
 
     public Maintenance createMaintenanceRecord(Maintenance maintenance) {

@@ -40,6 +40,11 @@ public class WeldingMachineParameterValueRepositoryTest {
      */
     @BeforeEach
     void setUp() {
+        // Параметры ссылаются на welding_machine_state(id=1,2), которые тут не создаются (тест проверяет только
+        // запросы по сырой колонке WeldingMachineStateID). Отключаем проверку FK в H2-сессии теста, чтобы
+        // не упираться в referential integrity (схему/сущности не трогаем — только тестовая БД).
+        entityManager.createNativeQuery("SET REFERENTIAL_INTEGRITY FALSE").executeUpdate();
+
         // Создаем первый тестовый параметр
         testParameterValue1 = new WeldingMachineParameterValue();
         testParameterValue1.setWeldingMachineStateId(1L);

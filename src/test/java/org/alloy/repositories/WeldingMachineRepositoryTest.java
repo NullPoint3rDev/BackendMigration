@@ -110,8 +110,9 @@ public class WeldingMachineRepositoryTest {
 
     @Test
     void findByOrganizationUnitId_ShouldReturnCorrectMachines() {
-        // Проверяем поиск сварочных аппаратов по ID подразделения
-        List<WeldingMachine> machines = weldingMachineRepository.findByOrganizationUnitId(1);
+        // ID подразделения берём из реально сохранённого аппарата (IDENTITY в H2 не сбрасывается между тестами,
+        // поэтому хардкод "1" нестабилен и ломается в зависимости от порядка выполнения).
+        List<WeldingMachine> machines = weldingMachineRepository.findByOrganizationUnitId(weldingMachine1.getOrganizationUnitId());
 
         // Проверяем, что найдено 2 аппарата для подразделения с ID=1
         assertThat(machines).hasSize(2);
@@ -121,8 +122,8 @@ public class WeldingMachineRepositoryTest {
 
     @Test
     void findByWeldingMachineTypeId_ShouldReturnCorrectMachines() {
-        // Проверяем поиск сварочных аппаратов по ID типа
-        List<WeldingMachine> machines = weldingMachineRepository.findByWeldingMachineTypeId(1);
+        // ID типа берём из сохранённого аппарата (см. findByOrganizationUnitId — хардкод нестабилен).
+        List<WeldingMachine> machines = weldingMachineRepository.findByWeldingMachineTypeId(weldingMachine1.getWeldingMachineTypeId());
 
         // Проверяем, что найдено 2 аппарата типа с ID=1
         assertThat(machines).hasSize(2);
@@ -152,8 +153,8 @@ public class WeldingMachineRepositoryTest {
 
     @Test
     void searchWeldingMachines_ShouldReturnMatchingMachines() {
-        // Проверяем поиск сварочных аппаратов по поисковому запросу
-        List<WeldingMachine> machines = weldingMachineRepository.searchWeldingMachines(1, "аппарат 1");
+        // ID подразделения берём из сохранённого аппарата (хардкод нестабилен из-за IDENTITY).
+        List<WeldingMachine> machines = weldingMachineRepository.searchWeldingMachines(weldingMachine1.getOrganizationUnitId(), "аппарат 1");
 
         // Проверяем, что найден правильный аппарат
         assertThat(machines).hasSize(1);

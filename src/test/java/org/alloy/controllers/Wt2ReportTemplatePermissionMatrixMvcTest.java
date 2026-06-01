@@ -5,6 +5,7 @@ import org.alloy.models.dto.ReportTemplateDTO;
 import org.alloy.services.ReportTemplateService;
 import org.alloy.services.UserAccountService;
 import org.alloy.services.Wt2AccessService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -21,8 +22,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.Collections;
 import java.util.stream.Stream;
 
+import static org.alloy.controllers.MethodSecurityRequestPostProcessors.authn;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -47,8 +48,13 @@ class Wt2ReportTemplatePermissionMatrixMvcTest {
     static Stream<Arguments> reportTemplatesAccess() {
         return Stream.of(
                 Arguments.of(userWithAuthority("PERMISSION_WORK_WITH_REPORTS"), status().isOk()),
-                Arguments.of(user(User.builder().username("u").password("p").roles("USER").build()), status().isForbidden())
+                Arguments.of(authn(User.builder().username("u").password("p").roles("USER").build()), status().isForbidden())
         );
+    }
+
+    @AfterEach
+    void clearCtx() {
+        MethodSecurityRequestPostProcessors.clear();
     }
 
     @ParameterizedTest
@@ -64,6 +70,6 @@ class Wt2ReportTemplatePermissionMatrixMvcTest {
                 .password("p")
                 .authorities(authority)
                 .build();
-        return user(ud);
+        return authn(ud);
     }
 }
