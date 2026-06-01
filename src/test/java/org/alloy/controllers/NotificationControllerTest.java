@@ -88,7 +88,7 @@ public class NotificationControllerTest {
     void getAllNotifications_ShouldReturnAllNotifications() throws Exception {
         when(notificationService.getAllNotifications()).thenReturn(testNotifications);
 
-        mvc.perform(get("/api/notifications"))
+        mvc.perform(get("/notifications"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].title").value("Отчет"))
@@ -105,7 +105,7 @@ public class NotificationControllerTest {
     void getNotificationById_WhenNotificationExists_ShouldReturnNotification() throws Exception {
         when(notificationService.getNotificationById(1)).thenReturn(Optional.of(testNotification));
 
-        mvc.perform(get("/api/notifications/1"))
+        mvc.perform(get("/notifications/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.title").value("Отчет"));
@@ -120,7 +120,7 @@ public class NotificationControllerTest {
     void getNotificationById_WhenNotificationDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(notificationService.getNotificationById(999)).thenReturn(Optional.empty());
 
-        mvc.perform(get("/api/notifications/999"))
+        mvc.perform(get("/notifications/999"))
                 .andExpect(status().isNotFound());
 
         verify(notificationService).getNotificationById(999);
@@ -133,7 +133,7 @@ public class NotificationControllerTest {
     void getNotificationsByUserAccountId_ShouldReturnUserNotifications() throws Exception {
         when(notificationService.getNotificationsByUserAccountId(1)).thenReturn(testNotifications);
 
-        mvc.perform(get("/api/notifications/user/1"))
+        mvc.perform(get("/notifications/user/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].userAccountId").value(1))
                 .andExpect(jsonPath("$[1].userAccountId").value(2));
@@ -149,7 +149,7 @@ public class NotificationControllerTest {
         when(notificationService.getUnreadNotificationsByUserAccountId(1))
                 .thenReturn(List.of(testNotification));
 
-        mvc.perform(get("/api/notifications/user/1/unread"))
+        mvc.perform(get("/notifications/user/1/unread"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].isRead").value(false));
 
@@ -164,7 +164,7 @@ public class NotificationControllerTest {
         when(notificationService.getNotificationsByUserAccountIdAndType(1, "Info"))
                 .thenReturn(List.of(testNotification));
 
-        mvc.perform(get("/api/notifications/user/1/type/Info"))
+        mvc.perform(get("/notifications/user/1/type/Info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].type").value("Info"));
 
@@ -178,7 +178,7 @@ public class NotificationControllerTest {
     void countUnreadNotificationsByUserAccountId_ShouldReturnCount() throws Exception {
         when(notificationService.countUnreadNotificationsByUserAccountId(1)).thenReturn(1L);
 
-        mvc.perform(get("/api/notifications/user/1/unread/count"))
+        mvc.perform(get("/notifications/user/1/unread/count"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").value(1));
 
@@ -192,7 +192,7 @@ public class NotificationControllerTest {
     void createNotification_ShouldCreateNotification() throws Exception {
         when(notificationService.createNotification(any(Notification.class))).thenReturn(testNotification);
 
-        mvc.perform(post("/api/notifications")
+        mvc.perform(post("/notifications")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testNotification)))
                 .andExpect(status().isCreated())
@@ -212,7 +212,7 @@ public class NotificationControllerTest {
         when(notificationService.createNotification(any(Notification.class)))
                 .thenThrow(new IllegalArgumentException("User Account ID is required"));
 
-        mvc.perform(post("/api/notifications")
+        mvc.perform(post("/notifications")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testNotification)))
                 .andExpect(status().isBadRequest());
@@ -227,7 +227,7 @@ public class NotificationControllerTest {
     void updateNotification_WhenNotificationExists_ShouldUpdateNotification() throws Exception {
         when(notificationService.updateNotification(any(Notification.class))).thenReturn(testNotification);
 
-        mvc.perform(put("/api/notifications/1")
+        mvc.perform(put("/notifications/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testNotification)))
                 .andExpect(status().isOk())
@@ -244,7 +244,7 @@ public class NotificationControllerTest {
         when(notificationService.updateNotification(any(Notification.class)))
                 .thenThrow(new IllegalArgumentException("Notification not found"));
 
-        mvc.perform(put("/api/notifications/999")
+        mvc.perform(put("/notifications/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testNotification)))
                 .andExpect(status().isNotFound());
@@ -259,7 +259,7 @@ public class NotificationControllerTest {
     void markNotificationAsRead_WhenNotificationExists_ShouldMarkAsRead() throws Exception {
         when(notificationService.markNotificationAsRead(1)).thenReturn(testNotification);
 
-        mvc.perform(put("/api/notifications/1/read"))
+        mvc.perform(put("/notifications/1/read"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -274,7 +274,7 @@ public class NotificationControllerTest {
         when(notificationService.markNotificationAsRead(999))
                 .thenThrow(new IllegalArgumentException("Notification not found"));
 
-        mvc.perform(put("/api/notifications/999/read"))
+        mvc.perform(put("/notifications/999/read"))
                 .andExpect(status().isNotFound());
 
         verify(notificationService).markNotificationAsRead(999);
@@ -287,7 +287,7 @@ public class NotificationControllerTest {
     void markAllNotificationsAsRead_ShouldMarkAllAsRead() throws Exception {
         doNothing().when(notificationService).markAllNotificationsAsRead(1);
 
-        mvc.perform(put("/api/notifications/user/1/read-all"))
+        mvc.perform(put("/notifications/user/1/read-all"))
                 .andExpect(status().isOk());
 
         verify(notificationService).markAllNotificationsAsRead(1);
@@ -300,7 +300,7 @@ public class NotificationControllerTest {
     void deleteNotification_WhenNotificationExists_ShouldDeleteNotification() throws Exception {
         doNothing().when(notificationService).deleteNotification(1);
 
-        mvc.perform(delete("/api/notifications/1"))
+        mvc.perform(delete("/notifications/1"))
                 .andExpect(status().isNoContent());
 
         verify(notificationService).deleteNotification(1);
@@ -314,7 +314,7 @@ public class NotificationControllerTest {
         doThrow(new IllegalArgumentException("Notification not found"))
                 .when(notificationService).deleteNotification(999);
 
-        mvc.perform(delete("/api/notifications/999"))
+        mvc.perform(delete("/notifications/999"))
                 .andExpect(status().isNotFound());
 
         verify(notificationService).deleteNotification(999);
@@ -327,7 +327,7 @@ public class NotificationControllerTest {
     void deleteNotificationsByUserAccountId_ShouldDeleteAllUserNotifications() throws Exception {
         doNothing().when(notificationService).deleteNotificationsByUserAccountId(1);
 
-        mvc.perform(delete("/api/notifications/user/1"))
+        mvc.perform(delete("/notifications/user/1"))
                 .andExpect(status().isOk());
 
         verify(notificationService).deleteNotificationsByUserAccountId(1);

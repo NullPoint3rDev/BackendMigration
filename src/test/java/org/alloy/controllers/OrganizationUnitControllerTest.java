@@ -95,7 +95,7 @@ public class OrganizationUnitControllerTest {
     void getAllOrganizationUnits_ShouldReturnAllUnits() throws Exception {
         when(organizationUnitService.getAllOrganizationUnits()).thenReturn(testOrganizationUnits);
 
-        mockMvc.perform(get("/api/organization-units"))
+        mockMvc.perform(get("/organization-units"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].name").value("Тестовое подразделение"))
@@ -112,7 +112,7 @@ public class OrganizationUnitControllerTest {
     void getOrganizationUnitById_WhenUnitExists_ShouldReturnUnit() throws Exception {
         when(organizationUnitService.getOrganizationUnitById(1)).thenReturn(Optional.of(testOrganizationUnit));
 
-        mockMvc.perform(get("/api/organization-units/1"))
+        mockMvc.perform(get("/organization-units/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Тестовое подразделение"));
@@ -127,7 +127,7 @@ public class OrganizationUnitControllerTest {
     void getOrganizationUnitById_WhenUnitDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(organizationUnitService.getOrganizationUnitById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/organization-units/999"))
+        mockMvc.perform(get("/organization-units/999"))
                 .andExpect(status().isNotFound());
 
         verify(organizationUnitService).getOrganizationUnitById(999);
@@ -140,7 +140,7 @@ public class OrganizationUnitControllerTest {
     void getOrganizationUnitsByOrganizationId_ShouldReturnOrganizationUnits() throws Exception {
         when(organizationUnitService.getOrganizationUnitsByOrganizationId(1)).thenReturn(testOrganizationUnits);
 
-        mockMvc.perform(get("/api/organization-units/organization/1"))
+        mockMvc.perform(get("/organization-units/organization/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].organizationId").value(1))
                 .andExpect(jsonPath("$[1].organizationId").value(1));
@@ -155,7 +155,7 @@ public class OrganizationUnitControllerTest {
     void getOrganizationUnitsByParentId_ShouldReturnChildUnits() throws Exception {
         when(organizationUnitService.getOrganizationUnitsByParentId(1)).thenReturn(List.of(testOrganizationUnits.get(1)));
 
-        mockMvc.perform(get("/api/organization-units/parent/1"))
+        mockMvc.perform(get("/organization-units/parent/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].parentId").value(1));
 
@@ -169,7 +169,7 @@ public class OrganizationUnitControllerTest {
     void searchOrganizationUnits_ShouldReturnMatchingUnits() throws Exception {
         when(organizationUnitService.searchOrganizationUnits(1, "тест")).thenReturn(List.of(testOrganizationUnit));
 
-        mockMvc.perform(get("/api/organization-units/search")
+        mockMvc.perform(get("/organization-units/search")
                 .param("organizationId", "1")
                 .param("searchTerm", "тест"))
                 .andExpect(status().isOk())
@@ -186,7 +186,7 @@ public class OrganizationUnitControllerTest {
     void createOrganizationUnit_ShouldCreateUnit() throws Exception {
         when(organizationUnitService.createOrganizationUnit(any(OrganizationUnit.class))).thenReturn(testOrganizationUnit);
 
-        mockMvc.perform(post("/api/organization-units")
+        mockMvc.perform(post("/organization-units")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganizationUnit)))
                 .andExpect(status().isCreated())
@@ -206,7 +206,7 @@ public class OrganizationUnitControllerTest {
         when(organizationUnitService.createOrganizationUnit(any(OrganizationUnit.class)))
                 .thenThrow(new IllegalArgumentException("Name is required"));
 
-        mockMvc.perform(post("/api/organization-units")
+        mockMvc.perform(post("/organization-units")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganizationUnit)))
                 .andExpect(status().isBadRequest());
@@ -221,7 +221,7 @@ public class OrganizationUnitControllerTest {
     void updateOrganizationUnit_WhenUnitExists_ShouldUpdateUnit() throws Exception {
         when(organizationUnitService.updateOrganizationUnit(any(OrganizationUnit.class))).thenReturn(testOrganizationUnit);
 
-        mockMvc.perform(put("/api/organization-units/1")
+        mockMvc.perform(put("/organization-units/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganizationUnit)))
                 .andExpect(status().isOk())
@@ -238,7 +238,7 @@ public class OrganizationUnitControllerTest {
         when(organizationUnitService.updateOrganizationUnit(any(OrganizationUnit.class)))
                 .thenThrow(new IllegalArgumentException("Organization unit not found"));
 
-        mockMvc.perform(put("/api/organization-units/999")
+        mockMvc.perform(put("/organization-units/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganizationUnit)))
                 .andExpect(status().isNotFound());
@@ -253,7 +253,7 @@ public class OrganizationUnitControllerTest {
     void deleteOrganizationUnit_WhenUnitExists_ShouldDeleteUnit() throws Exception {
         doNothing().when(organizationUnitService).deleteOrganizationUnit(1);
 
-        mockMvc.perform(delete("/api/organization-units/1"))
+        mockMvc.perform(delete("/organization-units/1"))
                 .andExpect(status().isNoContent());
 
         verify(organizationUnitService).deleteOrganizationUnit(1);
@@ -267,7 +267,7 @@ public class OrganizationUnitControllerTest {
         doThrow(new IllegalArgumentException("Organization unit not found"))
                 .when(organizationUnitService).deleteOrganizationUnit(999);
 
-        mockMvc.perform(delete("/api/organization-units/999"))
+        mockMvc.perform(delete("/organization-units/999"))
                 .andExpect(status().isNotFound());
 
         verify(organizationUnitService).deleteOrganizationUnit(999);
@@ -280,7 +280,7 @@ public class OrganizationUnitControllerTest {
     void hardDeleteOrganizationUnit_WhenUnitExists_ShouldDeleteUnit() throws Exception {
         doNothing().when(organizationUnitService).hardDeleteOrganizationUnit(1);
 
-        mockMvc.perform(delete("/api/organization-units/1/hard"))
+        mockMvc.perform(delete("/organization-units/1/hard"))
                 .andExpect(status().isNoContent());
 
         verify(organizationUnitService).hardDeleteOrganizationUnit(1);
@@ -294,7 +294,7 @@ public class OrganizationUnitControllerTest {
         doThrow(new IllegalArgumentException("Organization unit not found"))
                 .when(organizationUnitService).hardDeleteOrganizationUnit(999);
 
-        mockMvc.perform(delete("/api/organization-units/999/hard"))
+        mockMvc.perform(delete("/organization-units/999/hard"))
                 .andExpect(status().isNotFound());
 
         verify(organizationUnitService).hardDeleteOrganizationUnit(999);

@@ -93,7 +93,7 @@ class InboxMessageControllerTest {
     void getAllInboxMessages_ShouldReturnAllMessages() throws Exception {
         when(inboxMessageService.getAllInboxMessages()).thenReturn(testInboxMessages);
 
-        mockMvc.perform(get("/api/inbox-messages"))
+        mockMvc.perform(get("/inbox-messages"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].subject").value("Test Subject"))
@@ -110,7 +110,7 @@ class InboxMessageControllerTest {
     void getInboxMessageById_WhenMessageExists_ShouldReturnMessage() throws Exception {
         when(inboxMessageService.getInboxMessageById(1)).thenReturn(Optional.of(testInboxMessage));
 
-        mockMvc.perform(get("/api/inbox-messages/1"))
+        mockMvc.perform(get("/inbox-messages/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.subject").value("Test Subject"));
@@ -125,7 +125,7 @@ class InboxMessageControllerTest {
     void getInboxMessageById_WhenMessageDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(inboxMessageService.getInboxMessageById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/inbox-messages/999"))
+        mockMvc.perform(get("/inbox-messages/999"))
                 .andExpect(status().isNotFound());
 
         verify(inboxMessageService).getInboxMessageById(999);
@@ -138,7 +138,7 @@ class InboxMessageControllerTest {
     void getMessagesByUserAccountId_ShouldReturnUserMessages() throws Exception {
         when(inboxMessageService.getMessagesByUserAccountId(1)).thenReturn(testInboxMessages);
 
-        mockMvc.perform(get("/api/inbox-messages/user/1"))
+        mockMvc.perform(get("/inbox-messages/user/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].userAccountId").value(1))
                 .andExpect(jsonPath("$[1].userAccountId").value(1));
@@ -154,7 +154,7 @@ class InboxMessageControllerTest {
         when(inboxMessageService.getUnreadMessagesByUserAccountId(1))
                 .thenReturn(List.of(testInboxMessage));
 
-        mockMvc.perform(get("/api/inbox-messages/user/1/unread"))
+        mockMvc.perform(get("/inbox-messages/user/1/unread"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].isRead").value(false));
 
@@ -169,7 +169,7 @@ class InboxMessageControllerTest {
         when(inboxMessageService.getMessagesByUserAccountIdAndType(1, "NOTIFICATION"))
                 .thenReturn(List.of(testInboxMessage));
 
-        mockMvc.perform(get("/api/inbox-messages/user/1/type/NOTIFICATION"))
+        mockMvc.perform(get("/inbox-messages/user/1/type/NOTIFICATION"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].type").value("NOTIFICATION"));
 
@@ -183,7 +183,7 @@ class InboxMessageControllerTest {
     void countUnreadMessagesByUserAccountId_ShouldReturnCount() throws Exception {
         when(inboxMessageService.countUnreadMessagesByUserAccountId(1)).thenReturn(1L);
 
-        mockMvc.perform(get("/api/inbox-messages/user/1/unread/count"))
+        mockMvc.perform(get("/inbox-messages/user/1/unread/count"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").value(1));
 
@@ -197,7 +197,7 @@ class InboxMessageControllerTest {
     void createInboxMessage_ShouldCreateMessage() throws Exception {
         when(inboxMessageService.createInboxMessage(any(InboxMessage.class))).thenReturn(testInboxMessage);
 
-        mockMvc.perform(post("/api/inbox-messages")
+        mockMvc.perform(post("/inbox-messages")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testInboxMessage)))
                 .andExpect(status().isOk())
@@ -214,7 +214,7 @@ class InboxMessageControllerTest {
     void updateInboxMessage_WhenMessageExists_ShouldUpdateMessage() throws Exception {
         when(inboxMessageService.updateInboxMessage(any(InboxMessage.class))).thenReturn(testInboxMessage);
 
-        mockMvc.perform(put("/api/inbox-messages/1")
+        mockMvc.perform(put("/inbox-messages/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testInboxMessage)))
                 .andExpect(status().isOk())
@@ -231,7 +231,7 @@ class InboxMessageControllerTest {
         when(inboxMessageService.updateInboxMessage(any(InboxMessage.class)))
                 .thenThrow(new IllegalArgumentException("Message not found"));
 
-        mockMvc.perform(put("/api/inbox-messages/999")
+        mockMvc.perform(put("/inbox-messages/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testInboxMessage)))
                 .andExpect(status().isNotFound());
@@ -246,7 +246,7 @@ class InboxMessageControllerTest {
     void markInboxMessageAsRead_WhenMessageExists_ShouldMarkAsRead() throws Exception {
         when(inboxMessageService.markInboxMessageAsRead(1)).thenReturn(testInboxMessage);
 
-        mockMvc.perform(put("/api/inbox-messages/1/read"))
+        mockMvc.perform(put("/inbox-messages/1/read"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -260,7 +260,7 @@ class InboxMessageControllerTest {
     void markAllInboxMessagesAsRead_ShouldMarkAllAsRead() throws Exception {
         doNothing().when(inboxMessageService).markAllInboxMessagesAsRead(1);
 
-        mockMvc.perform(put("/api/inbox-messages/user/1/read-all"))
+        mockMvc.perform(put("/inbox-messages/user/1/read-all"))
                 .andExpect(status().isOk());
 
         verify(inboxMessageService).markAllInboxMessagesAsRead(1);
@@ -273,7 +273,7 @@ class InboxMessageControllerTest {
     void deleteInboxMessage_WhenMessageExists_ShouldDeleteMessage() throws Exception {
         doNothing().when(inboxMessageService).deleteInboxMessage(1);
 
-        mockMvc.perform(delete("/api/inbox-messages/1"))
+        mockMvc.perform(delete("/inbox-messages/1"))
                 .andExpect(status().isOk());
 
         verify(inboxMessageService).deleteInboxMessage(1);
@@ -286,7 +286,7 @@ class InboxMessageControllerTest {
     void deleteInboxMessage_WhenMessageDoesNotExist_ShouldReturnNotFound() throws Exception {
         doThrow(new IllegalArgumentException("Message not found")).when(inboxMessageService).deleteInboxMessage(999);
 
-        mockMvc.perform(delete("/api/inbox-messages/999"))
+        mockMvc.perform(delete("/inbox-messages/999"))
                 .andExpect(status().isNotFound());
 
         verify(inboxMessageService).deleteInboxMessage(999);
@@ -299,7 +299,7 @@ class InboxMessageControllerTest {
     void deleteMessagesByUserAccountId_ShouldDeleteAllUserMessages() throws Exception {
         doNothing().when(inboxMessageService).deleteMessagesByUserAccountId(1);
 
-        mockMvc.perform(delete("/api/inbox-messages/user/1"))
+        mockMvc.perform(delete("/inbox-messages/user/1"))
                 .andExpect(status().isOk());
 
         verify(inboxMessageService).deleteMessagesByUserAccountId(1);

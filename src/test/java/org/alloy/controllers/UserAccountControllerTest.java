@@ -92,7 +92,7 @@ public class UserAccountControllerTest {
     void getAllUserAccounts_ShouldReturnListOfAllUsers() throws Exception {
         when(userAccountService.getAllUserAccounts()).thenReturn(testUserAccounts);
 
-        mockMvc.perform(get("/api/user-accounts"))
+        mockMvc.perform(get("/user-accounts"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].userName").value("testuser"))
@@ -109,7 +109,7 @@ public class UserAccountControllerTest {
     void getUserAccountById_WhenUserExists_ShouldReturnUser() throws Exception {
         when(userAccountService.getUserAccountById(1)).thenReturn(Optional.of(testUserAccount));
 
-        mockMvc.perform(get("/api/user-accounts/1"))
+        mockMvc.perform(get("/user-accounts/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.userName").value("testuser"))
@@ -125,7 +125,7 @@ public class UserAccountControllerTest {
     void getUserAccountById_WhenUserDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userAccountService.getUserAccountById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/user-accounts/999"))
+        mockMvc.perform(get("/user-accounts/999"))
                 .andExpect(status().isNotFound());
 
         verify(userAccountService).getUserAccountById(999);
@@ -138,7 +138,7 @@ public class UserAccountControllerTest {
     void getUserAccountByUserName_WhenUserExists_ShouldReturnUser() throws Exception {
         when(userAccountService.getUserAccountByUserName("testuser")).thenReturn(Optional.of(testUserAccount));
 
-        mockMvc.perform(get("/api/user-accounts/username/testuser"))
+        mockMvc.perform(get("/user-accounts/username/testuser"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.userName").value("testuser"));
@@ -153,7 +153,7 @@ public class UserAccountControllerTest {
     void getUserAccountByEmail_WhenUserExists_ShouldReturnUser() throws Exception {
         when(userAccountService.getUserAccountByEmail("test@example.com")).thenReturn(Optional.of(testUserAccount));
 
-        mockMvc.perform(get("/api/user-accounts/email/test@example.com"))
+        mockMvc.perform(get("/user-accounts/email/test@example.com"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.email").value("test@example.com"));
@@ -168,7 +168,7 @@ public class UserAccountControllerTest {
     void getUserAccountsByOrganizationUnitId_ShouldReturnUsers() throws Exception {
         when(userAccountService.getUserAccountsByOrganizationUnitId(1)).thenReturn(testUserAccounts);
 
-        mockMvc.perform(get("/api/user-accounts/organization-unit/1"))
+        mockMvc.perform(get("/user-accounts/organization-unit/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].organizationUnitId").value(1))
                 .andExpect(jsonPath("$[1].organizationUnitId").value(1));
@@ -183,7 +183,7 @@ public class UserAccountControllerTest {
     void getUserAccountsByUserRoleId_ShouldReturnUsers() throws Exception {
         when(userAccountService.getUserAccountsByUserRoleId(1)).thenReturn(List.of(testUserAccount));
 
-        mockMvc.perform(get("/api/user-accounts/user-role/1"))
+        mockMvc.perform(get("/user-accounts/user-role/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].userRoleId").value(1));
 
@@ -197,7 +197,7 @@ public class UserAccountControllerTest {
     void searchUserAccounts_ShouldReturnMatchingUsers() throws Exception {
         when(userAccountService.searchUserAccounts(1, "test")).thenReturn(List.of(testUserAccount));
 
-        mockMvc.perform(get("/api/user-accounts/search")
+        mockMvc.perform(get("/user-accounts/search")
                 .param("organizationUnitId", "1")
                 .param("searchTerm", "test"))
                 .andExpect(status().isOk())
@@ -213,7 +213,7 @@ public class UserAccountControllerTest {
     void createUserAccount_ShouldCreateUser() throws Exception {
         when(userAccountService.createUserAccount(any(UserAccount.class))).thenReturn(testUserAccount);
 
-        mockMvc.perform(post("/api/user-accounts")
+        mockMvc.perform(post("/user-accounts")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserAccount)))
                 .andExpect(status().isCreated())
@@ -230,7 +230,7 @@ public class UserAccountControllerTest {
     void updateUserAccount_WhenUserExists_ShouldUpdateUser() throws Exception {
         when(userAccountService.updateUserAccount(any(UserAccount.class))).thenReturn(testUserAccount);
 
-        mockMvc.perform(put("/api/user-accounts/1")
+        mockMvc.perform(put("/user-accounts/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserAccount)))
                 .andExpect(status().isOk())
@@ -247,7 +247,7 @@ public class UserAccountControllerTest {
     void deleteUserAccount_WhenUserExists_ShouldDeleteUser() throws Exception {
         doNothing().when(userAccountService).deleteUserAccount(1);
 
-        mockMvc.perform(delete("/api/user-accounts/1"))
+        mockMvc.perform(delete("/user-accounts/1"))
                 .andExpect(status().isNoContent());
 
         verify(userAccountService).deleteUserAccount(1);
@@ -260,7 +260,7 @@ public class UserAccountControllerTest {
     void hardDeleteUserAccount_WhenUserExists_ShouldHardDeleteUser() throws Exception {
         doNothing().when(userAccountService).hardDeleteUserAccount(1);
 
-        mockMvc.perform(delete("/api/user-accounts/1/hard"))
+        mockMvc.perform(delete("/user-accounts/1/hard"))
                 .andExpect(status().isNoContent());
 
         verify(userAccountService).hardDeleteUserAccount(1);
@@ -278,7 +278,7 @@ public class UserAccountControllerTest {
         when(userAccountService.authenticateUser("testuser", "password"))
                 .thenReturn(Optional.of(testUserAccount));
 
-        mockMvc.perform(post("/api/user-accounts/authenticate")
+        mockMvc.perform(post("/user-accounts/authenticate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(credentials)))
                 .andExpect(status().isOk())
@@ -300,7 +300,7 @@ public class UserAccountControllerTest {
         when(userAccountService.authenticateUser("testuser", "wrongpassword"))
                 .thenReturn(Optional.empty());
 
-        mockMvc.perform(post("/api/user-accounts/authenticate")
+        mockMvc.perform(post("/user-accounts/authenticate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(credentials)))
                 .andExpect(status().isUnauthorized());

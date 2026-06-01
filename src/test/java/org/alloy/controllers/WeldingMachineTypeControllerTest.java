@@ -73,7 +73,7 @@ public class WeldingMachineTypeControllerTest {
         when(weldingMachineTypeService.getAllWeldingMachineTypes()).thenReturn(types);
 
         // Выполнение запроса и проверка результата
-        mockMvc.perform(get("/api/welding-machine-types"))
+        mockMvc.perform(get("/welding-machine-types"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].name").value("Test Type"))
@@ -88,7 +88,7 @@ public class WeldingMachineTypeControllerTest {
     void getWeldingMachineTypeById_WhenExists_ShouldReturnType() throws Exception {
         when(weldingMachineTypeService.getWeldingMachineTypeById(1)).thenReturn(Optional.of(testType));
 
-        mockMvc.perform(get("/api/welding-machine-types/1"))
+        mockMvc.perform(get("/welding-machine-types/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Test Type"));
@@ -102,7 +102,7 @@ public class WeldingMachineTypeControllerTest {
     void getWeldingMachineTypeById_WhenNotExists_ShouldReturnNotFound() throws Exception {
         when(weldingMachineTypeService.getWeldingMachineTypeById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/welding-machine-types/999"))
+        mockMvc.perform(get("/welding-machine-types/999"))
                 .andExpect(status().isNotFound());
     }
 
@@ -114,7 +114,7 @@ public class WeldingMachineTypeControllerTest {
     void getWeldingMachineTypeByName_WhenExists_ShouldReturnType() throws Exception {
         when(weldingMachineTypeService.getWeldingMachineTypeByName("Test Type")).thenReturn(Optional.of(testType));
 
-        mockMvc.perform(get("/api/welding-machine-types/name/Test Type"))
+        mockMvc.perform(get("/welding-machine-types/name/Test Type"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Test Type"));
@@ -129,7 +129,7 @@ public class WeldingMachineTypeControllerTest {
         List<WeldingMachineType> types = Arrays.asList(testType);
         when(weldingMachineTypeService.getWeldingMachineTypesByStatus(GeneralStatus.Active)).thenReturn(types);
 
-        mockMvc.perform(get("/api/welding-machine-types/status/Active"))
+        mockMvc.perform(get("/welding-machine-types/status/Active"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].status").value("Active"));
@@ -141,7 +141,7 @@ public class WeldingMachineTypeControllerTest {
      */
     @Test
     void getWeldingMachineTypesByStatus_WithInvalidStatus_ShouldReturnBadRequest() throws Exception {
-        mockMvc.perform(get("/api/welding-machine-types/status/InvalidStatus"))
+        mockMvc.perform(get("/welding-machine-types/status/InvalidStatus"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -154,7 +154,7 @@ public class WeldingMachineTypeControllerTest {
         List<WeldingMachineType> types = Arrays.asList(testType);
         when(weldingMachineTypeService.searchWeldingMachineTypes("Test")).thenReturn(types);
 
-        mockMvc.perform(get("/api/welding-machine-types/search")
+        mockMvc.perform(get("/welding-machine-types/search")
                 .param("searchTerm", "Test"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
@@ -170,7 +170,7 @@ public class WeldingMachineTypeControllerTest {
         when(weldingMachineTypeService.createWeldingMachineType(any(WeldingMachineType.class)))
                 .thenReturn(testType);
 
-        mockMvc.perform(post("/api/welding-machine-types")
+        mockMvc.perform(post("/welding-machine-types")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testType)))
                 .andExpect(status().isCreated())
@@ -187,7 +187,7 @@ public class WeldingMachineTypeControllerTest {
         when(weldingMachineTypeService.updateWeldingMachineType(any(WeldingMachineType.class)))
                 .thenReturn(testType);
 
-        mockMvc.perform(put("/api/welding-machine-types/1")
+        mockMvc.perform(put("/welding-machine-types/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testType)))
                 .andExpect(status().isOk())
@@ -203,7 +203,7 @@ public class WeldingMachineTypeControllerTest {
     void deleteWeldingMachineType_WhenExists_ShouldReturnNoContent() throws Exception {
         doNothing().when(weldingMachineTypeService).deleteWeldingMachineType(1);
 
-        mockMvc.perform(delete("/api/welding-machine-types/1"))
+        mockMvc.perform(delete("/welding-machine-types/1"))
                 .andExpect(status().isNoContent());
 
         verify(weldingMachineTypeService, times(1)).deleteWeldingMachineType(1);
@@ -217,7 +217,7 @@ public class WeldingMachineTypeControllerTest {
     void hardDeleteWeldingMachineType_WhenExists_ShouldReturnNoContent() throws Exception {
         doNothing().when(weldingMachineTypeService).hardDeleteWeldingMachineType(1);
 
-        mockMvc.perform(delete("/api/welding-machine-types/1/hard"))
+        mockMvc.perform(delete("/welding-machine-types/1/hard"))
                 .andExpect(status().isNoContent());
 
         verify(weldingMachineTypeService, times(1)).hardDeleteWeldingMachineType(1);

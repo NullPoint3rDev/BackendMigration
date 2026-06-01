@@ -77,7 +77,7 @@ class EmailTemplateControllerTest {
         when(emailTemplateService.findAll()).thenReturn(testEmailTemplates);
 
         // Выполняем GET запрос на /api/email-templates
-        mockMvc.perform(get("/api/email-templates"))
+        mockMvc.perform(get("/email-templates"))
                 // Проверяем статус ответа и содержимое JSON
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
@@ -96,7 +96,7 @@ class EmailTemplateControllerTest {
         when(emailTemplateService.findById(1)).thenReturn(Optional.of(testEmailTemplate));
 
         // Выполняем GET запрос на /api/email-templates/1
-        mockMvc.perform(get("/api/email-templates/1"))
+        mockMvc.perform(get("/email-templates/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -112,7 +112,7 @@ class EmailTemplateControllerTest {
         when(emailTemplateService.findById(999)).thenReturn(Optional.empty());
 
         // Выполняем GET запрос на /api/email-templates/999
-        mockMvc.perform(get("/api/email-templates/999"))
+        mockMvc.perform(get("/email-templates/999"))
                 .andExpect(status().isNotFound());
 
         verify(emailTemplateService).findById(999);
@@ -127,7 +127,7 @@ class EmailTemplateControllerTest {
         when(emailTemplateService.save(any(EmailTemplate.class))).thenReturn(testEmailTemplate);
 
         // Выполняем POST запрос на /api/email-templates
-        mockMvc.perform(post("/api/email-templates")
+        mockMvc.perform(post("/email-templates")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testEmailTemplate)))
                 .andExpect(status().isOk())
@@ -146,7 +146,7 @@ class EmailTemplateControllerTest {
         when(emailTemplateService.save(any(EmailTemplate.class))).thenReturn(testEmailTemplate);
 
         // Выполняем PUT запрос на /api/email-templates/1
-        mockMvc.perform(put("/api/email-templates/1")
+        mockMvc.perform(put("/email-templates/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testEmailTemplate)))
                 .andExpect(status().isOk())
@@ -165,7 +165,7 @@ class EmailTemplateControllerTest {
         when(emailTemplateService.findById(999)).thenReturn(Optional.empty());
 
         // Выполняем PUT запрос на /api/email-templates/999
-        mockMvc.perform(put("/api/email-templates/999")
+        mockMvc.perform(put("/email-templates/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testEmailTemplate)))
                 .andExpect(status().isNotFound());
@@ -184,7 +184,7 @@ class EmailTemplateControllerTest {
         doNothing().when(emailTemplateService).deleteById(anyInt());
 
         // Выполняем DELETE запрос на /api/email-templates/1
-        mockMvc.perform(delete("/api/email-templates/1"))
+        mockMvc.perform(delete("/email-templates/1"))
                 .andExpect(status().isNoContent());
 
         verify(emailTemplateService).findById(1);
@@ -200,7 +200,7 @@ class EmailTemplateControllerTest {
         when(emailTemplateService.findById(999)).thenReturn(Optional.empty());
 
         // Выполняем DELETE запрос на /api/email-templates/999
-        mockMvc.perform(delete("/api/email-templates/999"))
+        mockMvc.perform(delete("/email-templates/999"))
                 .andExpect(status().isNotFound());
 
         verify(emailTemplateService).findById(999);

@@ -79,7 +79,7 @@ public class SurveyQuestionControllerTest {
     void getAll_ShouldReturnListOfAllSurveyQuestions() throws Exception {
         when(surveyQuestionService.findAll()).thenReturn(testSurveyQuestions);
 
-        mockMvc.perform(get("/api/survey-questions"))
+        mockMvc.perform(get("/survey-questions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].surveyId").value(1))
@@ -96,7 +96,7 @@ public class SurveyQuestionControllerTest {
     void getById_WhenSurveyQuestionExists_ShouldReturnSurveyQuestion() throws Exception {
         when(surveyQuestionService.findById(1)).thenReturn(Optional.of(testSurveyQuestion));
 
-        mockMvc.perform(get("/api/survey-questions/1"))
+        mockMvc.perform(get("/survey-questions/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.surveyId").value(1));
@@ -111,7 +111,7 @@ public class SurveyQuestionControllerTest {
     void getById_WhenSurveyQuestionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(surveyQuestionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/survey-questions/999"))
+        mockMvc.perform(get("/survey-questions/999"))
                 .andExpect(status().isNotFound());
 
         verify(surveyQuestionService).findById(999);
@@ -124,7 +124,7 @@ public class SurveyQuestionControllerTest {
     void create_ShouldCreateSurveyQuestion() throws Exception {
         when(surveyQuestionService.save(any(SurveyQuestion.class))).thenReturn(testSurveyQuestion);
 
-        mockMvc.perform(post("/api/survey-questions")
+        mockMvc.perform(post("/survey-questions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testSurveyQuestion)))
                 .andExpect(status().isOk())
@@ -142,7 +142,7 @@ public class SurveyQuestionControllerTest {
         when(surveyQuestionService.findById(1)).thenReturn(Optional.of(testSurveyQuestion));
         when(surveyQuestionService.save(any(SurveyQuestion.class))).thenReturn(testSurveyQuestion);
 
-        mockMvc.perform(put("/api/survey-questions/1")
+        mockMvc.perform(put("/survey-questions/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testSurveyQuestion)))
                 .andExpect(status().isOk())
@@ -160,7 +160,7 @@ public class SurveyQuestionControllerTest {
     void update_WhenSurveyQuestionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(surveyQuestionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/survey-questions/999")
+        mockMvc.perform(put("/survey-questions/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testSurveyQuestion)))
                 .andExpect(status().isNotFound());
@@ -177,7 +177,7 @@ public class SurveyQuestionControllerTest {
         when(surveyQuestionService.findById(1)).thenReturn(Optional.of(testSurveyQuestion));
         doNothing().when(surveyQuestionService).deleteById(1);
 
-        mockMvc.perform(delete("/api/survey-questions/1"))
+        mockMvc.perform(delete("/survey-questions/1"))
                 .andExpect(status().isNoContent());
 
         verify(surveyQuestionService).findById(1);
@@ -191,7 +191,7 @@ public class SurveyQuestionControllerTest {
     void delete_WhenSurveyQuestionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(surveyQuestionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/survey-questions/999"))
+        mockMvc.perform(delete("/survey-questions/999"))
                 .andExpect(status().isNotFound());
 
         verify(surveyQuestionService).findById(999);

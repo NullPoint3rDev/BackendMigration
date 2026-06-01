@@ -48,7 +48,7 @@ public class AlertControllerTest {
     void getAllAlerts_ShouldReturnListOfAlerts() throws Exception {
         when(alertService.findAll()).thenReturn(Arrays.asList(testAlert));
 
-        mockMvc.perform(get("/api/alerts"))
+        mockMvc.perform(get("/alerts"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1));
 
@@ -59,7 +59,7 @@ public class AlertControllerTest {
     void getAlertById_WhenAlertExists_ShouldReturnAlert() throws Exception {
         when(alertService.findById(1)).thenReturn(Optional.of(testAlert));
 
-        mockMvc.perform(get("/api/alerts/1"))
+        mockMvc.perform(get("/alerts/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -70,7 +70,7 @@ public class AlertControllerTest {
     void getAlertById_WhenAlertDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(alertService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/alerts/999"))
+        mockMvc.perform(get("/alerts/999"))
                 .andExpect(status().isNotFound());
 
         verify(alertService, times(1)).findById(999);
@@ -80,7 +80,7 @@ public class AlertControllerTest {
     void createAlert_ShouldReturnCreatedAlert() throws Exception {
         when(alertService.save(any(Alert.class))).thenReturn(testAlert);
 
-        mockMvc.perform(post("/api/alerts")
+        mockMvc.perform(post("/alerts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(testAlert)))
                 .andExpect(status().isOk())
@@ -94,7 +94,7 @@ public class AlertControllerTest {
         when(alertService.findById(1)).thenReturn(Optional.of(testAlert));
         when(alertService.save(any(Alert.class))).thenReturn(testAlert);
 
-        mockMvc.perform(put("/api/alerts/1")
+        mockMvc.perform(put("/alerts/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(testAlert)))
                 .andExpect(status().isOk())
@@ -108,7 +108,7 @@ public class AlertControllerTest {
     void updateAlert_WhenAlertDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(alertService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/alerts/999")
+        mockMvc.perform(put("/alerts/999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(testAlert)))
                 .andExpect(status().isNotFound());
@@ -122,7 +122,7 @@ public class AlertControllerTest {
         when(alertService.findById(1)).thenReturn(Optional.of(testAlert));
         doNothing().when(alertService).deleteById(1);
 
-        mockMvc.perform(delete("/api/alerts/1"))
+        mockMvc.perform(delete("/alerts/1"))
                 .andExpect(status().isNoContent());
 
         verify(alertService, times(1)).findById(1);
@@ -133,7 +133,7 @@ public class AlertControllerTest {
     void deleteAlert_WhenAlertDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(alertService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/alerts/999"))
+        mockMvc.perform(delete("/alerts/999"))
                 .andExpect(status().isNotFound());
 
         verify(alertService, times(1)).findById(999);

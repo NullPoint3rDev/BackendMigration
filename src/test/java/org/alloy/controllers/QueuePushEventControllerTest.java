@@ -69,7 +69,7 @@ public class QueuePushEventControllerTest {
     void getAll_ShouldReturnListOfAllEvents() throws Exception {
         when(queuePushEventService.findAll()).thenReturn(testQueuePushEvents);
 
-        mockMvc.perform(get("/api/queue-push-events"))
+        mockMvc.perform(get("/queue-push-events"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[1].id").value(2));
@@ -84,7 +84,7 @@ public class QueuePushEventControllerTest {
     void getById_WhenEventExists_ShouldReturnEvent() throws Exception {
         when(queuePushEventService.findById(1)).thenReturn(Optional.of(testQueuePushEvent));
 
-        mockMvc.perform(get("/api/queue-push-events/1"))
+        mockMvc.perform(get("/queue-push-events/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -98,7 +98,7 @@ public class QueuePushEventControllerTest {
     void getById_WhenEventDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(queuePushEventService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/queue-push-events/999"))
+        mockMvc.perform(get("/queue-push-events/999"))
                 .andExpect(status().isNotFound());
 
         verify(queuePushEventService).findById(999);
@@ -111,7 +111,7 @@ public class QueuePushEventControllerTest {
     void create_ShouldCreateEvent() throws Exception {
         when(queuePushEventService.save(any(QueuePushEvent.class))).thenReturn(testQueuePushEvent);
 
-        mockMvc.perform(post("/api/queue-push-events")
+        mockMvc.perform(post("/queue-push-events")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testQueuePushEvent)))
                 .andExpect(status().isOk())
@@ -128,7 +128,7 @@ public class QueuePushEventControllerTest {
         when(queuePushEventService.findById(1)).thenReturn(Optional.of(testQueuePushEvent));
         when(queuePushEventService.save(any(QueuePushEvent.class))).thenReturn(testQueuePushEvent);
 
-        mockMvc.perform(put("/api/queue-push-events/1")
+        mockMvc.perform(put("/queue-push-events/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testQueuePushEvent)))
                 .andExpect(status().isOk())
@@ -145,7 +145,7 @@ public class QueuePushEventControllerTest {
     void update_WhenEventDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(queuePushEventService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/queue-push-events/999")
+        mockMvc.perform(put("/queue-push-events/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testQueuePushEvent)))
                 .andExpect(status().isNotFound());
@@ -162,7 +162,7 @@ public class QueuePushEventControllerTest {
         when(queuePushEventService.findById(1)).thenReturn(Optional.of(testQueuePushEvent));
         doNothing().when(queuePushEventService).deleteById(1);
 
-        mockMvc.perform(delete("/api/queue-push-events/1"))
+        mockMvc.perform(delete("/queue-push-events/1"))
                 .andExpect(status().isNoContent());
 
         verify(queuePushEventService).findById(1);
@@ -176,7 +176,7 @@ public class QueuePushEventControllerTest {
     void delete_WhenEventDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(queuePushEventService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/queue-push-events/999"))
+        mockMvc.perform(delete("/queue-push-events/999"))
                 .andExpect(status().isNotFound());
 
         verify(queuePushEventService).findById(999);

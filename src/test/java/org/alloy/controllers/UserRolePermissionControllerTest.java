@@ -91,7 +91,7 @@ public class UserRolePermissionControllerTest {
     void getAll_ShouldReturnListOfAllRolePermissions() throws Exception {
         when(userRolePermissionService.findAll()).thenReturn(testUserRolePermissions);
 
-        mockMvc.perform(get("/api/user-role-permissions"))
+        mockMvc.perform(get("/user-role-permissions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].read").value(true))
@@ -110,7 +110,7 @@ public class UserRolePermissionControllerTest {
     void getById_WhenRolePermissionExists_ShouldReturnRolePermission() throws Exception {
         when(userRolePermissionService.findById(1)).thenReturn(Optional.of(testUserRolePermission));
 
-        mockMvc.perform(get("/api/user-role-permissions/1"))
+        mockMvc.perform(get("/user-role-permissions/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.read").value(true))
@@ -126,7 +126,7 @@ public class UserRolePermissionControllerTest {
     void getById_WhenRolePermissionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userRolePermissionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/user-role-permissions/999"))
+        mockMvc.perform(get("/user-role-permissions/999"))
                 .andExpect(status().isNotFound());
 
         verify(userRolePermissionService).findById(999);
@@ -139,7 +139,7 @@ public class UserRolePermissionControllerTest {
     void create_ShouldCreateRolePermission() throws Exception {
         when(userRolePermissionService.save(any(UserRolePermission.class))).thenReturn(testUserRolePermission);
 
-        mockMvc.perform(post("/api/user-role-permissions")
+        mockMvc.perform(post("/user-role-permissions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserRolePermission)))
                 .andExpect(status().isOk())
@@ -158,7 +158,7 @@ public class UserRolePermissionControllerTest {
         when(userRolePermissionService.findById(1)).thenReturn(Optional.of(testUserRolePermission));
         when(userRolePermissionService.save(any(UserRolePermission.class))).thenReturn(testUserRolePermission);
 
-        mockMvc.perform(put("/api/user-role-permissions/1")
+        mockMvc.perform(put("/user-role-permissions/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserRolePermission)))
                 .andExpect(status().isOk())
@@ -177,7 +177,7 @@ public class UserRolePermissionControllerTest {
     void update_WhenRolePermissionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userRolePermissionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/user-role-permissions/999")
+        mockMvc.perform(put("/user-role-permissions/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserRolePermission)))
                 .andExpect(status().isNotFound());
@@ -194,7 +194,7 @@ public class UserRolePermissionControllerTest {
         when(userRolePermissionService.findById(1)).thenReturn(Optional.of(testUserRolePermission));
         doNothing().when(userRolePermissionService).deleteById(1);
 
-        mockMvc.perform(delete("/api/user-role-permissions/1"))
+        mockMvc.perform(delete("/user-role-permissions/1"))
                 .andExpect(status().isNoContent());
 
         verify(userRolePermissionService).findById(1);
@@ -208,7 +208,7 @@ public class UserRolePermissionControllerTest {
     void delete_WhenRolePermissionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userRolePermissionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/user-role-permissions/999"))
+        mockMvc.perform(delete("/user-role-permissions/999"))
                 .andExpect(status().isNotFound());
 
         verify(userRolePermissionService).findById(999);

@@ -111,7 +111,7 @@ public class WeldingMachineControllerTest {
     void getAllWeldingMachines_ShouldReturnListOfAllMachines() throws Exception {
         when(weldingMachineService.getAllWeldingMachines()).thenReturn(testWeldingMachines);
 
-        mockMvc.perform(get("/api/welding-machines"))
+        mockMvc.perform(get("/welding-machines"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].name").value("Test Machine"))
@@ -128,7 +128,7 @@ public class WeldingMachineControllerTest {
     void getWeldingMachineById_WhenMachineExists_ShouldReturnMachine() throws Exception {
         when(weldingMachineService.getWeldingMachineById(1)).thenReturn(Optional.of(testWeldingMachine));
 
-        mockMvc.perform(get("/api/welding-machines/1"))
+        mockMvc.perform(get("/welding-machines/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Test Machine"))
@@ -144,7 +144,7 @@ public class WeldingMachineControllerTest {
     void getWeldingMachineById_WhenMachineDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(weldingMachineService.getWeldingMachineById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/welding-machines/999"))
+        mockMvc.perform(get("/welding-machines/999"))
                 .andExpect(status().isNotFound());
 
         verify(weldingMachineService).getWeldingMachineById(999);
@@ -158,7 +158,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.getWeldingMachineBySerialNumber("SN123456"))
                 .thenReturn(Optional.of(testWeldingMachine));
 
-        mockMvc.perform(get("/api/welding-machines/serial-number/SN123456"))
+        mockMvc.perform(get("/welding-machines/serial-number/SN123456"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.serialNumber").value("SN123456"));
@@ -174,7 +174,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.getWeldingMachineBySerialNumber("NONEXISTENT"))
                 .thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/welding-machines/serial-number/NONEXISTENT"))
+        mockMvc.perform(get("/welding-machines/serial-number/NONEXISTENT"))
                 .andExpect(status().isNotFound());
 
         verify(weldingMachineService).getWeldingMachineBySerialNumber("NONEXISTENT");
@@ -188,7 +188,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.getWeldingMachinesByOrganizationId(1))
                 .thenReturn(testWeldingMachines);
 
-        mockMvc.perform(get("/api/welding-machines/organization/1"))
+        mockMvc.perform(get("/welding-machines/organization/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].organizationUnit.id").value(1))
                 .andExpect(jsonPath("$[1].organizationUnit.id").value(1));
@@ -204,7 +204,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.getWeldingMachinesByTypeId(1))
                 .thenReturn(testWeldingMachines);
 
-        mockMvc.perform(get("/api/welding-machines/type/1"))
+        mockMvc.perform(get("/welding-machines/type/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].weldingMachineType.id").value(1))
                 .andExpect(jsonPath("$[1].weldingMachineType.id").value(1));
@@ -220,7 +220,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.searchWeldingMachines(anyInt(), anyString()))
                 .thenReturn(testWeldingMachines);
 
-        mockMvc.perform(get("/api/welding-machines/search")
+        mockMvc.perform(get("/welding-machines/search")
                 .param("organizationUnitId", "1")
                 .param("searchTerm", "Test"))
                 .andExpect(status().isOk())
@@ -238,7 +238,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.createWeldingMachine(any(WeldingMachine.class)))
                 .thenReturn(testWeldingMachine);
 
-        mockMvc.perform(post("/api/welding-machines")
+        mockMvc.perform(post("/welding-machines")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testWeldingMachine)))
                 .andExpect(status().isCreated())
@@ -256,7 +256,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.createWeldingMachine(any(WeldingMachine.class)))
                 .thenThrow(new IllegalArgumentException("Invalid machine data"));
 
-        mockMvc.perform(post("/api/welding-machines")
+        mockMvc.perform(post("/welding-machines")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testWeldingMachine)))
                 .andExpect(status().isBadRequest());
@@ -272,7 +272,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.updateWeldingMachine(any(WeldingMachine.class)))
                 .thenReturn(testWeldingMachine);
 
-        mockMvc.perform(put("/api/welding-machines/1")
+        mockMvc.perform(put("/welding-machines/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testWeldingMachine)))
                 .andExpect(status().isOk())
@@ -290,7 +290,7 @@ public class WeldingMachineControllerTest {
         when(weldingMachineService.updateWeldingMachine(any(WeldingMachine.class)))
                 .thenThrow(new IllegalArgumentException("Machine not found"));
 
-        mockMvc.perform(put("/api/welding-machines/999")
+        mockMvc.perform(put("/welding-machines/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testWeldingMachine)))
                 .andExpect(status().isNotFound());
@@ -305,7 +305,7 @@ public class WeldingMachineControllerTest {
     void deleteWeldingMachine_WhenMachineExists_ShouldDeleteMachine() throws Exception {
         doNothing().when(weldingMachineService).deleteWeldingMachine(1);
 
-        mockMvc.perform(delete("/api/welding-machines/1"))
+        mockMvc.perform(delete("/welding-machines/1"))
                 .andExpect(status().isNoContent());
 
         verify(weldingMachineService).deleteWeldingMachine(1);
@@ -319,7 +319,7 @@ public class WeldingMachineControllerTest {
         doThrow(new IllegalArgumentException("Machine not found"))
                 .when(weldingMachineService).deleteWeldingMachine(999);
 
-        mockMvc.perform(delete("/api/welding-machines/999"))
+        mockMvc.perform(delete("/welding-machines/999"))
                 .andExpect(status().isNotFound());
 
         verify(weldingMachineService).deleteWeldingMachine(999);
@@ -332,7 +332,7 @@ public class WeldingMachineControllerTest {
     void hardDeleteWeldingMachine_WhenMachineExists_ShouldDeleteMachine() throws Exception {
         doNothing().when(weldingMachineService).hardDeleteWeldingMachine(1);
 
-        mockMvc.perform(delete("/api/welding-machines/1/hard"))
+        mockMvc.perform(delete("/welding-machines/1/hard"))
                 .andExpect(status().isNoContent());
 
         verify(weldingMachineService).hardDeleteWeldingMachine(1);
@@ -346,7 +346,7 @@ public class WeldingMachineControllerTest {
         doThrow(new IllegalArgumentException("Machine not found"))
                 .when(weldingMachineService).hardDeleteWeldingMachine(999);
 
-        mockMvc.perform(delete("/api/welding-machines/999/hard"))
+        mockMvc.perform(delete("/welding-machines/999/hard"))
                 .andExpect(status().isNotFound());
 
         verify(weldingMachineService).hardDeleteWeldingMachine(999);

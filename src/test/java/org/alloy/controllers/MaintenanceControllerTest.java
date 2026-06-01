@@ -105,7 +105,7 @@ public class MaintenanceControllerTest {
     void getAllMaintenanceRecords_ShouldReturnAllRecords() throws Exception {
         when(maintenanceService.getAllMaintenanceRecords()).thenReturn(testMaintenances);
 
-        mockMvc.perform(get("/api/maintenance"))
+        mockMvc.perform(get("/maintenance"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].type").value("MX-Pulse"))
@@ -122,7 +122,7 @@ public class MaintenanceControllerTest {
     void getMaintenanceRecordById_WhenRecordExists_ShouldReturnRecord() throws Exception {
         when(maintenanceService.getMaintenanceRecordById(1)).thenReturn(Optional.of(testMaintenance));
 
-        mockMvc.perform(get("/api/maintenance/1"))
+        mockMvc.perform(get("/maintenance/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.type").value("MX-Pulse"));
@@ -137,7 +137,7 @@ public class MaintenanceControllerTest {
     void getMaintenanceRecordById_WhenRecordDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(maintenanceService.getMaintenanceRecordById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/maintenance/999"))
+        mockMvc.perform(get("/maintenance/999"))
                 .andExpect(status().isNotFound());
 
         verify(maintenanceService).getMaintenanceRecordById(999);
@@ -150,7 +150,7 @@ public class MaintenanceControllerTest {
     void getMaintenanceRecordsByMachineId_ShouldReturnMachineRecords() throws Exception {
         when(maintenanceService.getMaintenanceRecordsByMachineId(3)).thenReturn(testMaintenances);
 
-        mockMvc.perform(get("/api/maintenance/machine/3"))
+        mockMvc.perform(get("/maintenance/machine/3"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].weldingMachineId").value(3))
                 .andExpect(jsonPath("$[1].weldingMachineId").value(3));
@@ -165,7 +165,7 @@ public class MaintenanceControllerTest {
     void getLatestMaintenanceRecord_WhenRecordExists_ShouldReturnLatestRecord() throws Exception {
         when(maintenanceService.getLatestMaintenanceRecord(3)).thenReturn(Optional.of(testMaintenance));
 
-        mockMvc.perform(get("/api/maintenance/machine/3/latest"))
+        mockMvc.perform(get("/maintenance/machine/3/latest"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.weldingMachineId").value(3));
@@ -180,7 +180,7 @@ public class MaintenanceControllerTest {
     void getLatestMaintenanceRecord_WhenNoRecords_ShouldReturnNotFound() throws Exception {
         when(maintenanceService.getLatestMaintenanceRecord(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/maintenance/machine/999/latest"))
+        mockMvc.perform(get("/maintenance/machine/999/latest"))
                 .andExpect(status().isNotFound());
 
         verify(maintenanceService).getLatestMaintenanceRecord(999);
@@ -194,7 +194,7 @@ public class MaintenanceControllerTest {
         when(maintenanceService.getMaintenanceRecordsByStatus(3, "Active"))
                 .thenReturn(List.of(testMaintenance));
 
-        mockMvc.perform(get("/api/maintenance/machine/3/status/Active"))
+        mockMvc.perform(get("/maintenance/machine/3/status/Active"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("Active"))
                 .andExpect(jsonPath("$[0].weldingMachineId").value(3));
@@ -209,7 +209,7 @@ public class MaintenanceControllerTest {
     void createMaintenanceRecord_ShouldCreateRecord() throws Exception {
         when(maintenanceService.createMaintenanceRecord(any(Maintenance.class))).thenReturn(testMaintenance);
 
-        mockMvc.perform(post("/api/maintenance")
+        mockMvc.perform(post("/maintenance")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testMaintenance)))
                 .andExpect(status().isCreated())
@@ -229,7 +229,7 @@ public class MaintenanceControllerTest {
         when(maintenanceService.createMaintenanceRecord(any(Maintenance.class)))
                 .thenThrow(new IllegalArgumentException("Welding machine ID is required"));
 
-        mockMvc.perform(post("/api/maintenance")
+        mockMvc.perform(post("/maintenance")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testMaintenance)))
                 .andExpect(status().isBadRequest());
@@ -244,7 +244,7 @@ public class MaintenanceControllerTest {
     void updateMaintenanceRecord_WhenRecordExists_ShouldUpdateRecord() throws Exception {
         when(maintenanceService.updateMaintenanceRecord(any(Maintenance.class))).thenReturn(testMaintenance);
 
-        mockMvc.perform(put("/api/maintenance/1")
+        mockMvc.perform(put("/maintenance/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testMaintenance)))
                 .andExpect(status().isOk())
@@ -261,7 +261,7 @@ public class MaintenanceControllerTest {
         when(maintenanceService.updateMaintenanceRecord(any(Maintenance.class)))
                 .thenThrow(new IllegalArgumentException("Maintenance record not found"));
 
-        mockMvc.perform(put("/api/maintenance/999")
+        mockMvc.perform(put("/maintenance/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testMaintenance)))
                 .andExpect(status().isNotFound());
@@ -276,7 +276,7 @@ public class MaintenanceControllerTest {
     void deleteMaintenanceRecord_WhenRecordExists_ShouldDeleteRecord() throws Exception {
         doNothing().when(maintenanceService).deleteMaintenanceRecord(1);
 
-        mockMvc.perform(delete("/api/maintenance/1"))
+        mockMvc.perform(delete("/maintenance/1"))
                 .andExpect(status().isNoContent());
 
         verify(maintenanceService).deleteMaintenanceRecord(1);
@@ -290,7 +290,7 @@ public class MaintenanceControllerTest {
         doThrow(new IllegalArgumentException("Maintenance record not found"))
                 .when(maintenanceService).deleteMaintenanceRecord(999);
 
-        mockMvc.perform(delete("/api/maintenance/999"))
+        mockMvc.perform(delete("/maintenance/999"))
                 .andExpect(status().isNotFound());
 
         verify(maintenanceService).deleteMaintenanceRecord(999);
@@ -303,7 +303,7 @@ public class MaintenanceControllerTest {
     void deleteAllMaintenanceRecords_ShouldDeleteAllMachineRecords() throws Exception {
         doNothing().when(maintenanceService).deleteAllMaintenanceRecords(3);
 
-        mockMvc.perform(delete("/api/maintenance/machine/3"))
+        mockMvc.perform(delete("/maintenance/machine/3"))
                 .andExpect(status().isNoContent());
 
         verify(maintenanceService).deleteAllMaintenanceRecords(3);
@@ -317,7 +317,7 @@ public class MaintenanceControllerTest {
         doThrow(new IllegalArgumentException("Machine not found"))
                 .when(maintenanceService).deleteAllMaintenanceRecords(999);
 
-        mockMvc.perform(delete("/api/maintenance/machine/999"))
+        mockMvc.perform(delete("/maintenance/machine/999"))
                 .andExpect(status().isNotFound());
 
         verify(maintenanceService).deleteAllMaintenanceRecords(999);

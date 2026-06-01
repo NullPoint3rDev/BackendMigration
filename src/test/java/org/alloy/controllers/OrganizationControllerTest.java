@@ -85,7 +85,7 @@ public class OrganizationControllerTest {
     void getAllOrganizations_ShouldReturnAllOrganizations() throws Exception {
         when(organizationService.getAllOrganizations()).thenReturn(testOrganizations);
 
-        mockMvc.perform(get("/api/organizations"))
+        mockMvc.perform(get("/organizations"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].name").value("Тестовая организация"))
@@ -102,7 +102,7 @@ public class OrganizationControllerTest {
     void getOrganizationById_WhenOrganizationExists_ShouldReturnOrganization() throws Exception {
         when(organizationService.getOrganizationById(1)).thenReturn(Optional.of(testOrganization));
 
-        mockMvc.perform(get("/api/organizations/1"))
+        mockMvc.perform(get("/organizations/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Тестовая организация"));
@@ -117,7 +117,7 @@ public class OrganizationControllerTest {
     void getOrganizationById_WhenOrganizationDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(organizationService.getOrganizationById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/organizations/999"))
+        mockMvc.perform(get("/organizations/999"))
                 .andExpect(status().isNotFound());
 
         verify(organizationService).getOrganizationById(999);
@@ -130,7 +130,7 @@ public class OrganizationControllerTest {
     void searchOrganizations_ShouldReturnMatchingOrganizations() throws Exception {
         when(organizationService.searchOrganizations("тест")).thenReturn(List.of(testOrganization));
 
-        mockMvc.perform(get("/api/organizations/search")
+        mockMvc.perform(get("/organizations/search")
                 .param("searchTerm", "тест"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
@@ -146,7 +146,7 @@ public class OrganizationControllerTest {
     void createOrganization_ShouldCreateOrganization() throws Exception {
         when(organizationService.createOrganization(any(Organization.class))).thenReturn(testOrganization);
 
-        mockMvc.perform(post("/api/organizations")
+        mockMvc.perform(post("/organizations")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganization)))
                 .andExpect(status().isCreated())
@@ -166,7 +166,7 @@ public class OrganizationControllerTest {
         when(organizationService.createOrganization(any(Organization.class)))
                 .thenThrow(new IllegalArgumentException("Name is required"));
 
-        mockMvc.perform(post("/api/organizations")
+        mockMvc.perform(post("/organizations")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganization)))
                 .andExpect(status().isBadRequest());
@@ -181,7 +181,7 @@ public class OrganizationControllerTest {
     void updateOrganization_WhenOrganizationExists_ShouldUpdateOrganization() throws Exception {
         when(organizationService.updateOrganization(any(Organization.class))).thenReturn(testOrganization);
 
-        mockMvc.perform(put("/api/organizations/1")
+        mockMvc.perform(put("/organizations/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganization)))
                 .andExpect(status().isOk())
@@ -198,7 +198,7 @@ public class OrganizationControllerTest {
         when(organizationService.updateOrganization(any(Organization.class)))
                 .thenThrow(new IllegalArgumentException("Organization not found"));
 
-        mockMvc.perform(put("/api/organizations/999")
+        mockMvc.perform(put("/organizations/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testOrganization)))
                 .andExpect(status().isNotFound());
@@ -213,7 +213,7 @@ public class OrganizationControllerTest {
     void deleteOrganization_WhenOrganizationExists_ShouldDeleteOrganization() throws Exception {
         doNothing().when(organizationService).deleteOrganization(1);
 
-        mockMvc.perform(delete("/api/organizations/1"))
+        mockMvc.perform(delete("/organizations/1"))
                 .andExpect(status().isNoContent());
 
         verify(organizationService).deleteOrganization(1);
@@ -227,7 +227,7 @@ public class OrganizationControllerTest {
         doThrow(new IllegalArgumentException("Organization not found"))
                 .when(organizationService).deleteOrganization(999);
 
-        mockMvc.perform(delete("/api/organizations/999"))
+        mockMvc.perform(delete("/organizations/999"))
                 .andExpect(status().isNotFound());
 
         verify(organizationService).deleteOrganization(999);
@@ -240,7 +240,7 @@ public class OrganizationControllerTest {
     void hardDeleteOrganization_WhenOrganizationExists_ShouldDeleteOrganization() throws Exception {
         doNothing().when(organizationService).hardDeleteOrganization(1);
 
-        mockMvc.perform(delete("/api/organizations/1/hard"))
+        mockMvc.perform(delete("/organizations/1/hard"))
                 .andExpect(status().isNoContent());
 
         verify(organizationService).hardDeleteOrganization(1);
@@ -254,7 +254,7 @@ public class OrganizationControllerTest {
         doThrow(new IllegalArgumentException("Organization not found"))
                 .when(organizationService).hardDeleteOrganization(999);
 
-        mockMvc.perform(delete("/api/organizations/999/hard"))
+        mockMvc.perform(delete("/organizations/999/hard"))
                 .andExpect(status().isNotFound());
 
         verify(organizationService).hardDeleteOrganization(999);

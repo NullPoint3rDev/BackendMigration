@@ -13,7 +13,8 @@ public class Message {
 
     private String subject;
 
-    @Column(columnDefinition = "TEXT")
+    @Lob
+    @Column
     private String body;
 
     @ManyToOne(fetch = FetchType.LAZY)

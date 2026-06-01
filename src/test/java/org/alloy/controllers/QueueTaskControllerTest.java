@@ -96,7 +96,7 @@ public class QueueTaskControllerTest {
     void getAll_ShouldReturnListOfAllTasks() throws Exception {
         when(queueTaskService.findAll()).thenReturn(testQueueTasks);
 
-        mockMvc.perform(get("/api/queue-tasks"))
+        mockMvc.perform(get("/queue-tasks"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].taskName").value("Тестовая задача"))
@@ -113,7 +113,7 @@ public class QueueTaskControllerTest {
     void getById_WhenTaskExists_ShouldReturnTask() throws Exception {
         when(queueTaskService.findById(1)).thenReturn(Optional.of(testQueueTask));
 
-        mockMvc.perform(get("/api/queue-tasks/1"))
+        mockMvc.perform(get("/queue-tasks/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.taskName").value("Тестовая задача"))
@@ -129,7 +129,7 @@ public class QueueTaskControllerTest {
     void getById_WhenTaskDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(queueTaskService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/queue-tasks/999"))
+        mockMvc.perform(get("/queue-tasks/999"))
                 .andExpect(status().isNotFound());
 
         verify(queueTaskService).findById(999);
@@ -142,7 +142,7 @@ public class QueueTaskControllerTest {
     void create_ShouldCreateTask() throws Exception {
         when(queueTaskService.save(any(QueueTask.class))).thenReturn(testQueueTask);
 
-        mockMvc.perform(post("/api/queue-tasks")
+        mockMvc.perform(post("/queue-tasks")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testQueueTask)))
                 .andExpect(status().isOk())
@@ -160,7 +160,7 @@ public class QueueTaskControllerTest {
         when(queueTaskService.findById(1)).thenReturn(Optional.of(testQueueTask));
         when(queueTaskService.save(any(QueueTask.class))).thenReturn(testQueueTask);
 
-        mockMvc.perform(put("/api/queue-tasks/1")
+        mockMvc.perform(put("/queue-tasks/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testQueueTask)))
                 .andExpect(status().isOk())
@@ -178,7 +178,7 @@ public class QueueTaskControllerTest {
     void update_WhenTaskDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(queueTaskService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/queue-tasks/999")
+        mockMvc.perform(put("/queue-tasks/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(testQueueTask)))
                 .andExpect(status().isNotFound());
@@ -195,7 +195,7 @@ public class QueueTaskControllerTest {
         when(queueTaskService.findById(1)).thenReturn(Optional.of(testQueueTask));
         doNothing().when(queueTaskService).deleteById(1);
 
-        mockMvc.perform(delete("/api/queue-tasks/1"))
+        mockMvc.perform(delete("/queue-tasks/1"))
                 .andExpect(status().isNoContent());
 
         verify(queueTaskService).findById(1);
@@ -209,7 +209,7 @@ public class QueueTaskControllerTest {
     void delete_WhenTaskDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(queueTaskService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/queue-tasks/999"))
+        mockMvc.perform(delete("/queue-tasks/999"))
                 .andExpect(status().isNotFound());
 
         verify(queueTaskService).findById(999);

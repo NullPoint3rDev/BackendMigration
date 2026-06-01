@@ -90,7 +90,7 @@ public class SurveyPassQuestionControllerTest {
     void getAll_ShouldReturnListOfAllSurveyPassQuestions() throws Exception {
         when(surveyPassQuestionService.findAll()).thenReturn(testSurveyPassQuestions);
 
-        mockMvc.perform(get("/api/survey-pass-questions"))
+        mockMvc.perform(get("/survey-pass-questions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].surveyPassId").value(1))
@@ -109,7 +109,7 @@ public class SurveyPassQuestionControllerTest {
     void getById_WhenSurveyPassQuestionExists_ShouldReturnSurveyPassQuestion() throws Exception {
         when(surveyPassQuestionService.findById(1)).thenReturn(Optional.of(testSurveyPassQuestion));
 
-        mockMvc.perform(get("/api/survey-pass-questions/1"))
+        mockMvc.perform(get("/survey-pass-questions/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.surveyPassId").value(1))
@@ -125,7 +125,7 @@ public class SurveyPassQuestionControllerTest {
     void getById_WhenSurveyPassQuestionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(surveyPassQuestionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/survey-pass-questions/999"))
+        mockMvc.perform(get("/survey-pass-questions/999"))
                 .andExpect(status().isNotFound());
 
         verify(surveyPassQuestionService).findById(999);
@@ -138,7 +138,7 @@ public class SurveyPassQuestionControllerTest {
     void create_ShouldCreateSurveyPassQuestion() throws Exception {
         when(surveyPassQuestionService.save(any(SurveyPassQuestion.class))).thenReturn(testSurveyPassQuestion);
 
-        mockMvc.perform(post("/api/survey-pass-questions")
+        mockMvc.perform(post("/survey-pass-questions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testSurveyPassQuestion)))
                 .andExpect(status().isOk())
@@ -157,7 +157,7 @@ public class SurveyPassQuestionControllerTest {
         when(surveyPassQuestionService.findById(1)).thenReturn(Optional.of(testSurveyPassQuestion));
         when(surveyPassQuestionService.save(any(SurveyPassQuestion.class))).thenReturn(testSurveyPassQuestion);
 
-        mockMvc.perform(put("/api/survey-pass-questions/1")
+        mockMvc.perform(put("/survey-pass-questions/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testSurveyPassQuestion)))
                 .andExpect(status().isOk())
@@ -176,7 +176,7 @@ public class SurveyPassQuestionControllerTest {
     void update_WhenSurveyPassQuestionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(surveyPassQuestionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/survey-pass-questions/999")
+        mockMvc.perform(put("/survey-pass-questions/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testSurveyPassQuestion)))
                 .andExpect(status().isNotFound());
@@ -193,7 +193,7 @@ public class SurveyPassQuestionControllerTest {
         when(surveyPassQuestionService.findById(1)).thenReturn(Optional.of(testSurveyPassQuestion));
         doNothing().when(surveyPassQuestionService).deleteById(1);
 
-        mockMvc.perform(delete("/api/survey-pass-questions/1"))
+        mockMvc.perform(delete("/survey-pass-questions/1"))
                 .andExpect(status().isNoContent());
 
         verify(surveyPassQuestionService).findById(1);
@@ -207,7 +207,7 @@ public class SurveyPassQuestionControllerTest {
     void delete_WhenSurveyPassQuestionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(surveyPassQuestionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/survey-pass-questions/999"))
+        mockMvc.perform(delete("/survey-pass-questions/999"))
                 .andExpect(status().isNotFound());
 
         verify(surveyPassQuestionService).findById(999);

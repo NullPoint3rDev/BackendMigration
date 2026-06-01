@@ -33,13 +33,15 @@ public class WireConsumptionReportTemplate {
     /**
      * JSON с выбранными ID подразделений
      */
-    @Column(name = "selected_organization_unit_ids", columnDefinition = "TEXT")
+    @Lob
+    @Column(name = "selected_organization_unit_ids")
     private String selectedOrganizationUnitIds;
 
     /**
      * JSON с выбранными ID сварщиков
      */
-    @Column(name = "selected_welder_ids", columnDefinition = "TEXT")
+    @Lob
+    @Column(name = "selected_welder_ids")
     private String selectedWelderIds;
 
     /**
@@ -69,7 +71,8 @@ public class WireConsumptionReportTemplate {
     /**
      * JSON с выбранными колонками
      */
-    @Column(name = "selected_columns", columnDefinition = "TEXT")
+    @Lob
+    @Column(name = "selected_columns")
     private String selectedColumns;
 
     /**

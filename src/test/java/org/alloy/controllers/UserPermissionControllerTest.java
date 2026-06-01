@@ -72,7 +72,7 @@ public class UserPermissionControllerTest {
     void getAll_ShouldReturnListOfAllPermissions() throws Exception {
         when(userPermissionService.findAll()).thenReturn(testUserPermissions);
 
-        mockMvc.perform(get("/api/user-permissions"))
+        mockMvc.perform(get("/user-permissions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].name").value("READ_USERS"))
@@ -89,7 +89,7 @@ public class UserPermissionControllerTest {
     void getById_WhenPermissionExists_ShouldReturnPermission() throws Exception {
         when(userPermissionService.findById(1)).thenReturn(Optional.of(testUserPermission));
 
-        mockMvc.perform(get("/api/user-permissions/1"))
+        mockMvc.perform(get("/user-permissions/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("READ_USERS"));
@@ -104,7 +104,7 @@ public class UserPermissionControllerTest {
     void getById_WhenPermissionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userPermissionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/user-permissions/999"))
+        mockMvc.perform(get("/user-permissions/999"))
                 .andExpect(status().isNotFound());
 
         verify(userPermissionService).findById(999);
@@ -117,7 +117,7 @@ public class UserPermissionControllerTest {
     void create_ShouldCreatePermission() throws Exception {
         when(userPermissionService.save(any(UserPermission.class))).thenReturn(testUserPermission);
 
-        mockMvc.perform(post("/api/user-permissions")
+        mockMvc.perform(post("/user-permissions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserPermission)))
                 .andExpect(status().isOk())
@@ -135,7 +135,7 @@ public class UserPermissionControllerTest {
         when(userPermissionService.findById(1)).thenReturn(Optional.of(testUserPermission));
         when(userPermissionService.save(any(UserPermission.class))).thenReturn(testUserPermission);
 
-        mockMvc.perform(put("/api/user-permissions/1")
+        mockMvc.perform(put("/user-permissions/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserPermission)))
                 .andExpect(status().isOk())
@@ -153,7 +153,7 @@ public class UserPermissionControllerTest {
     void update_WhenPermissionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userPermissionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/user-permissions/999")
+        mockMvc.perform(put("/user-permissions/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserPermission)))
                 .andExpect(status().isNotFound());
@@ -170,7 +170,7 @@ public class UserPermissionControllerTest {
         when(userPermissionService.findById(1)).thenReturn(Optional.of(testUserPermission));
         doNothing().when(userPermissionService).deleteById(1);
 
-        mockMvc.perform(delete("/api/user-permissions/1"))
+        mockMvc.perform(delete("/user-permissions/1"))
                 .andExpect(status().isNoContent());
 
         verify(userPermissionService).findById(1);
@@ -184,7 +184,7 @@ public class UserPermissionControllerTest {
     void delete_WhenPermissionDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userPermissionService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/user-permissions/999"))
+        mockMvc.perform(delete("/user-permissions/999"))
                 .andExpect(status().isNotFound());
 
         verify(userPermissionService).findById(999);

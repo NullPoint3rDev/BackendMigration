@@ -86,7 +86,7 @@ public class UserTokenControllerTest {
     void getAllTokens_ShouldReturnListOfAllTokens() throws Exception {
         when(userTokenService.getAllUserTokens()).thenReturn(testUserTokens);
 
-        mockMvc.perform(get("/api/tokens"))
+        mockMvc.perform(get("/tokens"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].type").value("AUTH"))
@@ -103,7 +103,7 @@ public class UserTokenControllerTest {
     void getTokenById_WhenTokenExists_ShouldReturnToken() throws Exception {
         when(userTokenService.getUserTokenById(1)).thenReturn(Optional.of(testUserToken));
 
-        mockMvc.perform(get("/api/tokens/1"))
+        mockMvc.perform(get("/tokens/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.type").value("AUTH"));
@@ -118,7 +118,7 @@ public class UserTokenControllerTest {
     void getTokenById_WhenTokenDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userTokenService.getUserTokenById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/tokens/999"))
+        mockMvc.perform(get("/tokens/999"))
                 .andExpect(status().isNotFound());
 
         verify(userTokenService).getUserTokenById(999);
@@ -131,7 +131,7 @@ public class UserTokenControllerTest {
     void getTokensByUserId_ShouldReturnListOfUserTokens() throws Exception {
         when(userTokenService.getUserTokensByUserId(1)).thenReturn(testUserTokens);
 
-        mockMvc.perform(get("/api/tokens/user/1"))
+        mockMvc.perform(get("/tokens/user/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].userAccountId").value(1))
                 .andExpect(jsonPath("$[1].userAccountId").value(1));
@@ -147,7 +147,7 @@ public class UserTokenControllerTest {
         UUID token = testUserToken.getToken();
         when(userTokenService.getUserTokenByToken(token)).thenReturn(Optional.of(testUserToken));
 
-        mockMvc.perform(get("/api/tokens/token/" + token))
+        mockMvc.perform(get("/tokens/token/" + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value(token.toString()));
 
@@ -162,7 +162,7 @@ public class UserTokenControllerTest {
         UUID nonExistentToken = UUID.randomUUID();
         when(userTokenService.getUserTokenByToken(nonExistentToken)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/tokens/token/" + nonExistentToken))
+        mockMvc.perform(get("/tokens/token/" + nonExistentToken))
                 .andExpect(status().isNotFound());
 
         verify(userTokenService).getUserTokenByToken(nonExistentToken);
@@ -175,7 +175,7 @@ public class UserTokenControllerTest {
     void createToken_ShouldCreateToken() throws Exception {
         when(userTokenService.createUserToken(any(UserToken.class))).thenReturn(testUserToken);
 
-        mockMvc.perform(post("/api/tokens")
+        mockMvc.perform(post("/tokens")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserToken)))
                 .andExpect(status().isOk())
@@ -193,7 +193,7 @@ public class UserTokenControllerTest {
         when(userTokenService.createUserToken(any(UserToken.class)))
                 .thenThrow(new IllegalArgumentException("Invalid token data"));
 
-        mockMvc.perform(post("/api/tokens")
+        mockMvc.perform(post("/tokens")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserToken)))
                 .andExpect(status().isBadRequest());
@@ -208,7 +208,7 @@ public class UserTokenControllerTest {
     void updateToken_WhenTokenExists_ShouldUpdateToken() throws Exception {
         when(userTokenService.updateUserToken(any(UserToken.class))).thenReturn(testUserToken);
 
-        mockMvc.perform(put("/api/tokens/1")
+        mockMvc.perform(put("/tokens/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserToken)))
                 .andExpect(status().isOk())
@@ -226,7 +226,7 @@ public class UserTokenControllerTest {
         when(userTokenService.updateUserToken(any(UserToken.class)))
                 .thenThrow(new IllegalArgumentException("Invalid token data"));
 
-        mockMvc.perform(put("/api/tokens/1")
+        mockMvc.perform(put("/tokens/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserToken)))
                 .andExpect(status().isBadRequest());
@@ -241,7 +241,7 @@ public class UserTokenControllerTest {
     void deleteToken_WhenTokenExists_ShouldDeleteToken() throws Exception {
         doNothing().when(userTokenService).deleteUserToken(1);
 
-        mockMvc.perform(delete("/api/tokens/1"))
+        mockMvc.perform(delete("/tokens/1"))
                 .andExpect(status().isOk());
 
         verify(userTokenService).deleteUserToken(1);
@@ -255,7 +255,7 @@ public class UserTokenControllerTest {
         doThrow(new IllegalArgumentException("Token not found"))
                 .when(userTokenService).deleteUserToken(999);
 
-        mockMvc.perform(delete("/api/tokens/999"))
+        mockMvc.perform(delete("/tokens/999"))
                 .andExpect(status().isNotFound());
 
         verify(userTokenService).deleteUserToken(999);
@@ -268,7 +268,7 @@ public class UserTokenControllerTest {
     void deleteAllUserTokens_ShouldDeleteAllUserTokens() throws Exception {
         doNothing().when(userTokenService).deleteAllUserTokens(1);
 
-        mockMvc.perform(delete("/api/tokens/user/1"))
+        mockMvc.perform(delete("/tokens/user/1"))
                 .andExpect(status().isOk());
 
         verify(userTokenService).deleteAllUserTokens(1);
@@ -281,7 +281,7 @@ public class UserTokenControllerTest {
     void cleanupExpiredTokens_ShouldDeleteExpiredTokens() throws Exception {
         doNothing().when(userTokenService).deleteExpiredTokens();
 
-        mockMvc.perform(delete("/api/tokens/cleanup/expired"))
+        mockMvc.perform(delete("/tokens/cleanup/expired"))
                 .andExpect(status().isOk());
 
         verify(userTokenService).deleteExpiredTokens();

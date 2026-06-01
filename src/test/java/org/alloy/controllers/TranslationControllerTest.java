@@ -89,7 +89,7 @@ public class TranslationControllerTest {
         
         when(translationService.findAll(any(Pageable.class))).thenReturn(translationPage);
 
-        mockMvc.perform(get("/api/translations")
+        mockMvc.perform(get("/translations")
                 .param("page", "0")
                 .param("size", "10"))
                 .andExpect(status().isOk())
@@ -108,7 +108,7 @@ public class TranslationControllerTest {
     void getById_WhenTranslationExists_ShouldReturnTranslation() throws Exception {
         when(translationService.findById(1)).thenReturn(Optional.of(testTranslation));
 
-        mockMvc.perform(get("/api/translations/1"))
+        mockMvc.perform(get("/translations/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.lang").value("ru"))
@@ -124,7 +124,7 @@ public class TranslationControllerTest {
     void getById_WhenTranslationDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(translationService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/translations/999"))
+        mockMvc.perform(get("/translations/999"))
                 .andExpect(status().isNotFound());
 
         verify(translationService).findById(999);
@@ -137,7 +137,7 @@ public class TranslationControllerTest {
     void create_ShouldCreateTranslation() throws Exception {
         when(translationService.save(any(Translation.class))).thenReturn(testTranslation);
 
-        mockMvc.perform(post("/api/translations")
+        mockMvc.perform(post("/translations")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testTranslation)))
                 .andExpect(status().isOk())
@@ -156,7 +156,7 @@ public class TranslationControllerTest {
         when(translationService.findById(1)).thenReturn(Optional.of(testTranslation));
         when(translationService.save(any(Translation.class))).thenReturn(testTranslation);
 
-        mockMvc.perform(put("/api/translations/1")
+        mockMvc.perform(put("/translations/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testTranslation)))
                 .andExpect(status().isOk())
@@ -175,7 +175,7 @@ public class TranslationControllerTest {
     void update_WhenTranslationDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(translationService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(put("/api/translations/999")
+        mockMvc.perform(put("/translations/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testTranslation)))
                 .andExpect(status().isNotFound());
@@ -192,7 +192,7 @@ public class TranslationControllerTest {
         when(translationService.findById(1)).thenReturn(Optional.of(testTranslation));
         doNothing().when(translationService).deleteById(1);
 
-        mockMvc.perform(delete("/api/translations/1"))
+        mockMvc.perform(delete("/translations/1"))
                 .andExpect(status().isOk());
 
         verify(translationService).findById(1);
@@ -206,7 +206,7 @@ public class TranslationControllerTest {
     void delete_WhenTranslationDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(translationService.findById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(delete("/api/translations/999"))
+        mockMvc.perform(delete("/translations/999"))
                 .andExpect(status().isNotFound());
 
         verify(translationService).findById(999);

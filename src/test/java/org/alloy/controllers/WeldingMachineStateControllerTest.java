@@ -80,7 +80,7 @@ public class WeldingMachineStateControllerTest {
         when(weldingMachineStateService.getAllWeldingMachineStates()).thenReturn(states);
 
         // Выполнение запроса и проверка результата
-        mockMvc.perform(get("/api/welding-machine-states"))
+        mockMvc.perform(get("/welding-machine-states"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].weldingMachineId").value(1))
@@ -95,7 +95,7 @@ public class WeldingMachineStateControllerTest {
     void getWeldingMachineStateById_WhenExists_ShouldReturnState() throws Exception {
         when(weldingMachineStateService.getWeldingMachineStateById(1L)).thenReturn(Optional.of(testState));
 
-        mockMvc.perform(get("/api/welding-machine-states/1"))
+        mockMvc.perform(get("/welding-machine-states/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.weldingMachineId").value(1));
@@ -109,7 +109,7 @@ public class WeldingMachineStateControllerTest {
     void getWeldingMachineStateById_WhenNotExists_ShouldReturnNotFound() throws Exception {
         when(weldingMachineStateService.getWeldingMachineStateById(999L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/welding-machine-states/999"))
+        mockMvc.perform(get("/welding-machine-states/999"))
                 .andExpect(status().isNotFound());
     }
 
@@ -122,7 +122,7 @@ public class WeldingMachineStateControllerTest {
         List<WeldingMachineState> states = Arrays.asList(testState);
         when(weldingMachineStateService.getWeldingMachineStatesByMachineId(1)).thenReturn(states);
 
-        mockMvc.perform(get("/api/welding-machine-states/machine/1"))
+        mockMvc.perform(get("/welding-machine-states/machine/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].weldingMachineId").value(1));
@@ -136,7 +136,7 @@ public class WeldingMachineStateControllerTest {
     void getLatestWeldingMachineState_WhenExists_ShouldReturnState() throws Exception {
         when(weldingMachineStateService.getLatestWeldingMachineState(1)).thenReturn(Optional.of(testState));
 
-        mockMvc.perform(get("/api/welding-machine-states/machine/1/latest"))
+        mockMvc.perform(get("/welding-machine-states/machine/1/latest"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.weldingMachineId").value(1));
@@ -152,7 +152,7 @@ public class WeldingMachineStateControllerTest {
         when(weldingMachineStateService.getWeldingMachineStatesByStatus(1, WeldingMachineStatus.Online))
                 .thenReturn(states);
 
-        mockMvc.perform(get("/api/welding-machine-states/machine/1/status/Online"))
+        mockMvc.perform(get("/welding-machine-states/machine/1/status/Online"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].weldingMachineStatus").value("Online"));
@@ -167,7 +167,7 @@ public class WeldingMachineStateControllerTest {
         when(weldingMachineStateService.createWeldingMachineState(any(WeldingMachineState.class)))
                 .thenReturn(testState);
 
-        mockMvc.perform(post("/api/welding-machine-states")
+        mockMvc.perform(post("/welding-machine-states")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testState)))
                 .andExpect(status().isCreated())
@@ -184,7 +184,7 @@ public class WeldingMachineStateControllerTest {
         when(weldingMachineStateService.updateWeldingMachineState(any(WeldingMachineState.class)))
                 .thenReturn(testState);
 
-        mockMvc.perform(put("/api/welding-machine-states/1")
+        mockMvc.perform(put("/welding-machine-states/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testState)))
                 .andExpect(status().isOk())
@@ -200,7 +200,7 @@ public class WeldingMachineStateControllerTest {
     void deleteWeldingMachineState_WhenExists_ShouldReturnNoContent() throws Exception {
         doNothing().when(weldingMachineStateService).deleteWeldingMachineState(1L);
 
-        mockMvc.perform(delete("/api/welding-machine-states/1"))
+        mockMvc.perform(delete("/welding-machine-states/1"))
                 .andExpect(status().isNoContent());
 
         verify(weldingMachineStateService, times(1)).deleteWeldingMachineState(1L);
@@ -214,7 +214,7 @@ public class WeldingMachineStateControllerTest {
     void deleteAllWeldingMachineStates_ShouldReturnNoContent() throws Exception {
         doNothing().when(weldingMachineStateService).deleteAllWeldingMachineStates(1);
 
-        mockMvc.perform(delete("/api/welding-machine-states/machine/1"))
+        mockMvc.perform(delete("/welding-machine-states/machine/1"))
                 .andExpect(status().isNoContent());
 
         verify(weldingMachineStateService, times(1)).deleteAllWeldingMachineStates(1);

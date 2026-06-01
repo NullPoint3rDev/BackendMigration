@@ -85,7 +85,7 @@ class DumpControllerTest {
         when(dumpService.findAll()).thenReturn(testDumps);
 
         // Выполняем GET запрос на /api/dumps
-        mockMvc.perform(get("/api/dumps"))
+        mockMvc.perform(get("/dumps"))
                 // Проверяем статус ответа и содержимое JSON
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
@@ -106,7 +106,7 @@ class DumpControllerTest {
         when(dumpService.findById(1)).thenReturn(Optional.of(testDump));
 
         // Выполняем GET запрос на /api/dumps/1
-        mockMvc.perform(get("/api/dumps/1"))
+        mockMvc.perform(get("/dumps/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.mac").value("00:11:22:33:44:55"));
@@ -123,7 +123,7 @@ class DumpControllerTest {
         when(dumpService.findById(999)).thenReturn(Optional.empty());
 
         // Выполняем GET запрос на /api/dumps/999
-        mockMvc.perform(get("/api/dumps/999"))
+        mockMvc.perform(get("/dumps/999"))
                 .andExpect(status().isNotFound());
 
         verify(dumpService).findById(999);
@@ -138,7 +138,7 @@ class DumpControllerTest {
         when(dumpService.save(any(Dump.class))).thenReturn(testDump);
 
         // Выполняем POST запрос на /api/dumps
-        mockMvc.perform(post("/api/dumps")
+        mockMvc.perform(post("/dumps")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testDump)))
                 .andExpect(status().isOk())
@@ -158,7 +158,7 @@ class DumpControllerTest {
         when(dumpService.save(any(Dump.class))).thenReturn(testDump);
 
         // Выполняем PUT запрос на /api/dumps/1
-        mockMvc.perform(put("/api/dumps/1")
+        mockMvc.perform(put("/dumps/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testDump)))
                 .andExpect(status().isOk())
@@ -178,7 +178,7 @@ class DumpControllerTest {
         when(dumpService.findById(999)).thenReturn(Optional.empty());
 
         // Выполняем PUT запрос на /api/dumps/999
-        mockMvc.perform(put("/api/dumps/999")
+        mockMvc.perform(put("/dumps/999")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testDump)))
                 .andExpect(status().isNotFound());
@@ -197,7 +197,7 @@ class DumpControllerTest {
         doNothing().when(dumpService).deleteById(anyInt());
 
         // Выполняем DELETE запрос на /api/dumps/1
-        mockMvc.perform(delete("/api/dumps/1"))
+        mockMvc.perform(delete("/dumps/1"))
                 .andExpect(status().isNoContent());
 
         verify(dumpService).findById(1);
@@ -213,7 +213,7 @@ class DumpControllerTest {
         when(dumpService.findById(999)).thenReturn(Optional.empty());
 
         // Выполняем DELETE запрос на /api/dumps/999
-        mockMvc.perform(delete("/api/dumps/999"))
+        mockMvc.perform(delete("/dumps/999"))
                 .andExpect(status().isNotFound());
 
         verify(dumpService).findById(999);

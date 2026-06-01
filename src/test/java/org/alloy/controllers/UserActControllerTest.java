@@ -85,7 +85,7 @@ public class UserActControllerTest {
     void getAllUserActs_ShouldReturnListOfAllActs() throws Exception {
         when(userActService.getAllUserActs()).thenReturn(testUserActs);
 
-        mockMvc.perform(get("/api/user-acts"))
+        mockMvc.perform(get("/user-acts"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].type").value("LOGIN"))
@@ -102,7 +102,7 @@ public class UserActControllerTest {
     void getUserActById_WhenActExists_ShouldReturnAct() throws Exception {
         when(userActService.getUserActById(1)).thenReturn(Optional.of(testUserAct));
 
-        mockMvc.perform(get("/api/user-acts/1"))
+        mockMvc.perform(get("/user-acts/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.type").value("LOGIN"));
@@ -117,7 +117,7 @@ public class UserActControllerTest {
     void getUserActById_WhenActDoesNotExist_ShouldReturnNotFound() throws Exception {
         when(userActService.getUserActById(999)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/user-acts/999"))
+        mockMvc.perform(get("/user-acts/999"))
                 .andExpect(status().isNotFound());
 
         verify(userActService).getUserActById(999);
@@ -130,7 +130,7 @@ public class UserActControllerTest {
     void getUserActsByUserId_ShouldReturnUserActs() throws Exception {
         when(userActService.getUserActsByUserId(1)).thenReturn(testUserActs);
 
-        mockMvc.perform(get("/api/user-acts/user/1"))
+        mockMvc.perform(get("/user-acts/user/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].userAccountId").value(1))
                 .andExpect(jsonPath("$[1].userAccountId").value(1));
@@ -145,7 +145,7 @@ public class UserActControllerTest {
     void getUserActsByUserIdAndType_ShouldReturnFilteredActs() throws Exception {
         when(userActService.getUserActsByUserIdAndType(1, "LOGIN")).thenReturn(List.of(testUserAct));
 
-        mockMvc.perform(get("/api/user-acts/user/1/type/LOGIN"))
+        mockMvc.perform(get("/user-acts/user/1/type/LOGIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].type").value("LOGIN"));
 
@@ -163,7 +163,7 @@ public class UserActControllerTest {
         when(userActService.getUserActsByUserIdAndDateRange(1, startDate, endDate))
                 .thenReturn(testUserActs);
 
-        mockMvc.perform(get("/api/user-acts/user/1/date-range")
+        mockMvc.perform(get("/user-acts/user/1/date-range")
                 .param("startDate", startDate.toString())
                 .param("endDate", endDate.toString()))
                 .andExpect(status().isOk())
@@ -183,7 +183,7 @@ public class UserActControllerTest {
         when(userActService.getUserActsByUserIdAndTypeAndDateRange(1, "LOGIN", startDate, endDate))
                 .thenReturn(List.of(testUserAct));
 
-        mockMvc.perform(get("/api/user-acts/user/1/type/LOGIN/date-range")
+        mockMvc.perform(get("/user-acts/user/1/type/LOGIN/date-range")
                 .param("startDate", startDate.toString())
                 .param("endDate", endDate.toString()))
                 .andExpect(status().isOk())
@@ -203,7 +203,7 @@ public class UserActControllerTest {
         when(userActService.countUserActsByUserIdAndTypeAndDateRange(1, "LOGIN", startDate, endDate))
                 .thenReturn(1L);
 
-        mockMvc.perform(get("/api/user-acts/user/1/type/LOGIN/count")
+        mockMvc.perform(get("/user-acts/user/1/type/LOGIN/count")
                 .param("startDate", startDate.toString())
                 .param("endDate", endDate.toString()))
                 .andExpect(status().isOk())
@@ -219,7 +219,7 @@ public class UserActControllerTest {
     void createUserAct_ShouldCreateAct() throws Exception {
         when(userActService.createUserAct(any(UserAct.class))).thenReturn(testUserAct);
 
-        mockMvc.perform(post("/api/user-acts")
+        mockMvc.perform(post("/user-acts")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserAct)))
                 .andExpect(status().isOk())
@@ -236,7 +236,7 @@ public class UserActControllerTest {
     void updateUserAct_WhenActExists_ShouldUpdateAct() throws Exception {
         when(userActService.updateUserAct(any(UserAct.class))).thenReturn(testUserAct);
 
-        mockMvc.perform(put("/api/user-acts/1")
+        mockMvc.perform(put("/user-acts/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testUserAct)))
                 .andExpect(status().isOk())
@@ -253,7 +253,7 @@ public class UserActControllerTest {
     void deleteUserAct_WhenActExists_ShouldDeleteAct() throws Exception {
         doNothing().when(userActService).deleteUserAct(1);
 
-        mockMvc.perform(delete("/api/user-acts/1"))
+        mockMvc.perform(delete("/user-acts/1"))
                 .andExpect(status().isOk());
 
         verify(userActService).deleteUserAct(1);
@@ -266,7 +266,7 @@ public class UserActControllerTest {
     void deleteAllUserActs_ShouldDeleteAllUserActs() throws Exception {
         doNothing().when(userActService).deleteAllUserActs(1);
 
-        mockMvc.perform(delete("/api/user-acts/user/1"))
+        mockMvc.perform(delete("/user-acts/user/1"))
                 .andExpect(status().isOk());
 
         verify(userActService).deleteAllUserActs(1);
@@ -280,7 +280,7 @@ public class UserActControllerTest {
         LocalDateTime date = LocalDateTime.now().minusDays(30);
         doNothing().when(userActService).cleanupOldUserActs(date);
 
-        mockMvc.perform(delete("/api/user-acts/cleanup")
+        mockMvc.perform(delete("/user-acts/cleanup")
                 .param("date", date.toString()))
                 .andExpect(status().isOk());
 

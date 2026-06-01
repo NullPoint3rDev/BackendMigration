@@ -49,7 +49,8 @@ public class Organization {
     @Column(name = "Website")
     private String website;
 
-    @Column(name = "Logo", columnDefinition = "TEXT")
+    @Lob
+    @Column(name = "Logo")
     private String logo;
 
     @Column(name = "Settings")

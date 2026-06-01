@@ -69,7 +69,7 @@ public class WeldingMachineParameterValueControllerTest {
         when(parameterValueService.getAllParameterValues()).thenReturn(parameterValues);
 
         // Выполнение запроса и проверка результата
-        mockMvc.perform(get("/api/welding-machine-parameters"))
+        mockMvc.perform(get("/welding-machine-parameters"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].propertyCode").value("TEST_PROPERTY"));
@@ -83,7 +83,7 @@ public class WeldingMachineParameterValueControllerTest {
     void getParameterValueById_WhenExists_ShouldReturnParameterValue() throws Exception {
         when(parameterValueService.getParameterValueById(1L)).thenReturn(Optional.of(testParameterValue));
 
-        mockMvc.perform(get("/api/welding-machine-parameters/1"))
+        mockMvc.perform(get("/welding-machine-parameters/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.propertyCode").value("TEST_PROPERTY"));
@@ -97,7 +97,7 @@ public class WeldingMachineParameterValueControllerTest {
     void getParameterValueById_WhenNotExists_ShouldReturnNotFound() throws Exception {
         when(parameterValueService.getParameterValueById(999L)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/welding-machine-parameters/999"))
+        mockMvc.perform(get("/welding-machine-parameters/999"))
                 .andExpect(status().isNotFound());
     }
 
@@ -110,7 +110,7 @@ public class WeldingMachineParameterValueControllerTest {
         List<WeldingMachineParameterValue> parameterValues = Arrays.asList(testParameterValue);
         when(parameterValueService.getParameterValuesByStateId(1L)).thenReturn(parameterValues);
 
-        mockMvc.perform(get("/api/welding-machine-parameters/state/1"))
+        mockMvc.perform(get("/welding-machine-parameters/state/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].weldingMachineStateId").value(1));
@@ -125,7 +125,7 @@ public class WeldingMachineParameterValueControllerTest {
         when(parameterValueService.getParameterValueByStateIdAndPropertyCode(1L, "TEST_PROPERTY"))
                 .thenReturn(Optional.of(testParameterValue));
 
-        mockMvc.perform(get("/api/welding-machine-parameters/state/1/property/TEST_PROPERTY"))
+        mockMvc.perform(get("/welding-machine-parameters/state/1/property/TEST_PROPERTY"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.propertyCode").value("TEST_PROPERTY"));
@@ -141,7 +141,7 @@ public class WeldingMachineParameterValueControllerTest {
         List<WeldingMachineParameterValue> exceededValues = Arrays.asList(testParameterValue);
         when(parameterValueService.getExceededParameterValues(1L)).thenReturn(exceededValues);
 
-        mockMvc.perform(get("/api/welding-machine-parameters/state/1/exceeded"))
+        mockMvc.perform(get("/welding-machine-parameters/state/1/exceeded"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].limitsExceeded").value(true));
     }
@@ -155,7 +155,7 @@ public class WeldingMachineParameterValueControllerTest {
         when(parameterValueService.createParameterValue(any(WeldingMachineParameterValue.class)))
                 .thenReturn(testParameterValue);
 
-        mockMvc.perform(post("/api/welding-machine-parameters")
+        mockMvc.perform(post("/welding-machine-parameters")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testParameterValue)))
                 .andExpect(status().isCreated())
@@ -172,7 +172,7 @@ public class WeldingMachineParameterValueControllerTest {
         when(parameterValueService.updateParameterValue(any(WeldingMachineParameterValue.class)))
                 .thenReturn(testParameterValue);
 
-        mockMvc.perform(put("/api/welding-machine-parameters/1")
+        mockMvc.perform(put("/welding-machine-parameters/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(testParameterValue)))
                 .andExpect(status().isOk())
@@ -188,7 +188,7 @@ public class WeldingMachineParameterValueControllerTest {
     void deleteParameterValue_WhenExists_ShouldReturnNoContent() throws Exception {
         doNothing().when(parameterValueService).deleteParameterValue(1L);
 
-        mockMvc.perform(delete("/api/welding-machine-parameters/1"))
+        mockMvc.perform(delete("/welding-machine-parameters/1"))
                 .andExpect(status().isNoContent());
 
         verify(parameterValueService, times(1)).deleteParameterValue(1L);
@@ -202,7 +202,7 @@ public class WeldingMachineParameterValueControllerTest {
     void deleteAllParameterValues_ShouldReturnNoContent() throws Exception {
         doNothing().when(parameterValueService).deleteAllParameterValues(1L);
 
-        mockMvc.perform(delete("/api/welding-machine-parameters/state/1"))
+        mockMvc.perform(delete("/welding-machine-parameters/state/1"))
                 .andExpect(status().isNoContent());
 
         verify(parameterValueService, times(1)).deleteAllParameterValues(1L);

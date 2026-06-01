@@ -72,6 +72,7 @@ public class TestConfig {
     public DataSource dataSource() {
         return new EmbeddedDatabaseBuilder()
                 .setType(EmbeddedDatabaseType.H2)
+                .setName("testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=VALUE,USER,KEY,YEAR,MONTH,ORDER,GROUP")
                 .build();
     }
 
@@ -92,7 +93,6 @@ public class TestConfig {
         properties.setProperty("hibernate.show_sql", "true");
         properties.setProperty("hibernate.format_sql", "true");
         properties.setProperty("hibernate.physical_naming_strategy", "org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl");
-        properties.setProperty("hibernate.globally_quoted_identifiers", "true");
         em.setJpaProperties(properties);
 
         return em;
