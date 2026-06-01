@@ -20,8 +20,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.Collections;
 import java.util.stream.Stream;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.access.AccessDeniedException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -47,7 +46,7 @@ class Wt2WelderPermissionMatrixMvcTest {
     void setup() {
         when(welderService.getAllWelders()).thenReturn(Collections.emptyList());
         when(wt2AccessService.filterWelders(any(), anyString())).thenReturn(Collections.emptyList());
-        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "denied"))
+        doThrow(new AccessDeniedException("denied"))
                 .when(wt2AccessService).assertCanReadWelders(eq("u"));
     }
 

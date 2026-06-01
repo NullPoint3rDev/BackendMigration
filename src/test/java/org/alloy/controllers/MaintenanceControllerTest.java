@@ -74,7 +74,10 @@ public class MaintenanceControllerTest {
         testMaintenance.setDatePlanned(LocalDateTime.now());
         testMaintenance.setUserAccount(new UserAccount());
         testMaintenance.setUserAccountId(2);
-        testMaintenance.setWeldingMachine(new WeldingMachine());
+        WeldingMachine weldingMachine = new WeldingMachine();
+        weldingMachine.setId(3);
+        weldingMachine.setName("Test Machine");
+        testMaintenance.setWeldingMachine(weldingMachine);
         testMaintenance.setWeldingMachineId(3);
 
         // Создаем второе тестовое обслуживание
@@ -90,7 +93,10 @@ public class MaintenanceControllerTest {
         secondMaintenance.setDatePlanned(LocalDateTime.now());
         secondMaintenance.setUserAccount(new UserAccount());
         secondMaintenance.setUserAccountId(2);
-        secondMaintenance.setWeldingMachine(new WeldingMachine());
+        WeldingMachine secondMachine = new WeldingMachine();
+        secondMachine.setId(3);
+        secondMachine.setName("Second Machine");
+        secondMaintenance.setWeldingMachine(secondMachine);
         secondMaintenance.setWeldingMachineId(3);
 
         testMaintenances = Arrays.asList(testMaintenance, secondMaintenance);
@@ -150,8 +156,8 @@ public class MaintenanceControllerTest {
 
         mockMvc.perform(get("/maintenance/machine/3"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].weldingMachineId").value(3))
-                .andExpect(jsonPath("$[1].weldingMachineId").value(3));
+                .andExpect(jsonPath("$[0].weldingMachine.id").value(3))
+                .andExpect(jsonPath("$[1].weldingMachine.id").value(3));
 
         verify(maintenanceService).getMaintenanceRecordsByMachineId(3);
     }
@@ -166,7 +172,7 @@ public class MaintenanceControllerTest {
         mockMvc.perform(get("/maintenance/machine/3/latest"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.weldingMachineId").value(3));
+                .andExpect(jsonPath("$.weldingMachine.id").value(3));
 
         verify(maintenanceService).getLatestMaintenanceRecord(3);
     }
@@ -195,7 +201,7 @@ public class MaintenanceControllerTest {
         mockMvc.perform(get("/maintenance/machine/3/status/Active"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].weldingMachineId").value(3));
+                .andExpect(jsonPath("$[0].weldingMachine.id").value(3));
 
         verify(maintenanceService).getMaintenanceRecordsByStatus(3, "Active");
     }

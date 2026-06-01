@@ -26,8 +26,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.Collections;
 import java.util.stream.Stream;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.access.AccessDeniedException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -65,9 +64,10 @@ class Wt2OrganizationPermissionMatrixMvcTest {
     void setup() {
         when(organizationService.getAllOrganizations()).thenReturn(Collections.emptyList());
         when(wt2AccessService.filterOrganizations(any(), any())).thenReturn(Collections.emptyList());
-        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "denied"))
-                .when(wt2AccessService).assertCanReadOrganizations(eq("roleUser"));
-        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "denied"))
+        // AccessDeniedException → 403 через GlobalExceptionHandler; ResponseStatusException даёт 500 в slice-тестах.
+        doThrow(new AccessDeniedException("denied"))
+                .when(wt2AccessService).assertCanReadOrganizations(eq("deniedOrgReader"));
+        doThrow(new AccessDeniedException("denied"))
                 .when(wt2AccessService).assertCanWriteOrganizations(eq("plain"));
     }
 
@@ -141,8 +141,10 @@ class Wt2OrganizationPermissionMatrixMvcTest {
     }
 
     private static RequestPostProcessor userWithRoles(String role) {
+        // USER — отдельный principal, для которого в setUp застаблен deny на чтение организаций.
+        String username = "USER".equals(role) ? "deniedOrgReader" : "roleUser";
         UserDetails ud = User.builder()
-                .username("roleUser")
+                .username(username)
                 .password("p")
                 .roles(role)
                 .build();
