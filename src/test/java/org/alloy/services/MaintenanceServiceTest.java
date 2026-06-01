@@ -151,7 +151,7 @@ public class MaintenanceServiceTest {
     void getMaintenanceRecordsByStatus_ShouldReturnFilteredRecords() {
         // Подготовка данных
         List<Maintenance> expectedRecords = Arrays.asList(testMaintenance);
-        when(maintenanceRepository.findByWeldingMachineIdAndStatus(1, GeneralStatus.Active.toString()))
+        when(maintenanceRepository.findByWeldingMachineIdAndStatus(1, GeneralStatus.Active))
                 .thenReturn(expectedRecords);
 
         // Выполнение теста
@@ -164,7 +164,7 @@ public class MaintenanceServiceTest {
 
         // Проверка вызова метода репозитория
         verify(maintenanceRepository, times(1))
-                .findByWeldingMachineIdAndStatus(1, GeneralStatus.Active.toString());
+                .findByWeldingMachineIdAndStatus(1, GeneralStatus.Active);
     }
 
     /**
