@@ -5,6 +5,7 @@ import org.alloy.TestConfig;
 import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.Organization;
 import org.alloy.services.OrganizationService;
+import org.alloy.services.Wt2AccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,9 @@ public class OrganizationControllerTest {
 
     @MockBean
     private OrganizationService organizationService;
+
+    @MockBean
+    private Wt2AccessService wt2AccessService;
 
     private Organization testOrganization;
     private List<Organization> testOrganizations;

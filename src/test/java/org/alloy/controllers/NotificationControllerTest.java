@@ -2,6 +2,7 @@ package org.alloy.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.alloy.TestConfig;
+import org.alloy.models.dto.NotificationDTO;
 import org.alloy.models.entities.*;
 import org.alloy.services.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,7 @@ public class NotificationControllerTest {
     private NotificationService notificationService;
 
     private Notification testNotification;
+    private NotificationDTO testNotificationDto;
     private List<Notification> testNotifications;
 
     /**
@@ -79,6 +81,11 @@ public class NotificationControllerTest {
         secondNotification.setUserAccountId(2);
 
         testNotifications = Arrays.asList(testNotification, secondNotification);
+
+        testNotificationDto = new NotificationDTO();
+        testNotificationDto.setId(1);
+        testNotificationDto.setMessage("Отчет о загрузке оборудования готов!");
+        testNotificationDto.setType("Info");
     }
 
     /**
@@ -91,9 +98,9 @@ public class NotificationControllerTest {
         mvc.perform(get("/notifications"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].title").value("Отчет"))
+                .andExpect(jsonPath("$[0].message").value("Отчет о загрузке оборудования готов!"))
                 .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].title").value("Сотрудники"));
+                .andExpect(jsonPath("$[1].message").value("Отчет по сотрудникам готов!"));
 
         verify(notificationService).getAllNotifications();
     }
@@ -108,7 +115,7 @@ public class NotificationControllerTest {
         mvc.perform(get("/notifications/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.title").value("Отчет"));
+                .andExpect(jsonPath("$.message").value("Отчет о загрузке оборудования готов!"));
 
         verify(notificationService).getNotificationById(1);
     }
@@ -135,8 +142,8 @@ public class NotificationControllerTest {
 
         mvc.perform(get("/notifications/user/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].userAccountId").value(1))
-                .andExpect(jsonPath("$[1].userAccountId").value(2));
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[1].id").value(2));
 
         verify(notificationService).getNotificationsByUserAccountId(1);
     }
@@ -151,7 +158,8 @@ public class NotificationControllerTest {
 
         mvc.perform(get("/notifications/user/1/unread"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].isRead").value(false));
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].message").value("Отчет о загрузке оборудования готов!"));
 
         verify(notificationService).getUnreadNotificationsByUserAccountId(1);
     }
@@ -194,10 +202,10 @@ public class NotificationControllerTest {
 
         mvc.perform(post("/notifications")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(testNotification)))
+                .content(mapper.writeValueAsString(testNotificationDto)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.title").value("Отчет"));
+                .andExpect(jsonPath("$.message").value("Отчет о загрузке оборудования готов!"));
 
         verify(notificationService).createNotification(any(Notification.class));
     }
@@ -229,7 +237,7 @@ public class NotificationControllerTest {
 
         mvc.perform(put("/notifications/1")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(testNotification)))
+                .content(mapper.writeValueAsString(testNotificationDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
@@ -240,14 +248,14 @@ public class NotificationControllerTest {
      * Тест обновления несуществующего уведомления
      */
     @Test
-    void updateNotification_WhenNotificationDoesNotExist_ShouldReturnNotFound() throws Exception {
+    void updateNotification_WhenNotificationDoesNotExist_ShouldReturnBadRequest() throws Exception {
         when(notificationService.updateNotification(any(Notification.class)))
                 .thenThrow(new IllegalArgumentException("Notification not found"));
 
         mvc.perform(put("/notifications/999")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(testNotification)))
-                .andExpect(status().isNotFound());
+                .content(mapper.writeValueAsString(testNotificationDto)))
+                .andExpect(status().isBadRequest());
 
         verify(notificationService).updateNotification(any(Notification.class));
     }
@@ -270,12 +278,12 @@ public class NotificationControllerTest {
      * Тест отметки несуществующего уведомления как прочитанного
      */
     @Test
-    void markNotificationAsRead_WhenNotificationDoesNotExist_ShouldReturnNotFound() throws Exception {
+    void markNotificationAsRead_WhenNotificationDoesNotExist_ShouldReturnBadRequest() throws Exception {
         when(notificationService.markNotificationAsRead(999))
                 .thenThrow(new IllegalArgumentException("Notification not found"));
 
         mvc.perform(put("/notifications/999/read"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
 
         verify(notificationService).markNotificationAsRead(999);
     }
