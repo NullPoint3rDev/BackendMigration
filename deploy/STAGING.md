@@ -174,7 +174,7 @@ docker compose down
 | Репозиторий | CI (облако GitHub) | CD (сервер `C:\WTStaging`) |
 |-------------|-------------------|---------------------------|
 | **BackendStaging** | `mvn test`, gitleaks, проверка `docker-compose` | `actions/checkout` на runner + `docker compose` (код из GitHub; `.env` только с `C:\WTStaging\...\deploy\.env`) |
-| **FrontendStaging** | `npm ci` + `build --mode staging`, gitleaks | checkout обоих репо в `_work` + `docker compose` с `FRONTEND_BUILD_CONTEXT` на свежий frontend |
+| **FrontendStaging** | `npm ci` + `build --mode staging`, gitleaks | checkout frontend в `_work` + `docker compose` из `C:\WTStaging\...\deploy` (compose обновляет backend deploy) |
 
 На **pull request** в `main` выполняется только CI (деплой не запускается).
 
@@ -216,7 +216,7 @@ Workflow-файлы:
 
 Проверка: в GitHub → **Actions** после push в `main` должны быть зелёные jobs **test/build**, **secrets**, **deploy**.
 
-Для **FrontendStaging** deploy job читает `BackendStaging` (docker-compose). Если репозитории private: **Settings → Actions → General → Workflow permissions** → *Read and write* или включите доступ `GITHUB_TOKEN` к репозиториям организации.
+**FrontendStaging** не клонирует `BackendStaging` (у `GITHUB_TOKEN` нет доступа к другому private-репо — в логе `Repository not found`). `docker-compose.yml` и monitoring лежат в `C:\WTStaging\BackendStaging\deploy` и **обновляются при каждом backend deploy**. Перед первым frontend deploy выполните хотя бы один успешный backend deploy (или скопируйте папку `deploy` вручную).
 
 ### Ручной деплой (без GitHub)
 

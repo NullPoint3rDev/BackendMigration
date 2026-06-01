@@ -87,6 +87,12 @@ jobs:
           if (-not (Test-Path $stagingEnv)) {
             throw "Missing $stagingEnv - copy deploy/.env.example and configure staging secrets."
           }
+          $src = Join-Path $env:GITHUB_WORKSPACE 'deploy'
+          $dest = 'C:\WTStaging\BackendStaging\deploy'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Get-ChildItem -Path $src | Where-Object { $_.Name -ne '.env' } | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
+          }
           Set-Location (Join-Path $env:GITHUB_WORKSPACE 'deploy')
           docker compose --env-file $stagingEnv up -d --build backend
 
