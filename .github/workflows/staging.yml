@@ -1,6 +1,7 @@
 # CI на каждый push/PR в main; CD (деплой на Staging) — только после успешного CI при push в main.
 # Требуется self-hosted runner на Windows (метки: self-hosted, windows, wt2-staging).
-# Шаги CD используют shell: powershell (Windows PowerShell 5.1), не pwsh — PowerShell 7 на сервере не обязателен.
+# CD: checkout в _work (права у runner), docker compose + deploy/.env с C:\WTStaging (секреты, не в git).
+# Шаги CD: shell powershell (5.1), не pwsh.
 
 name: Backend Staging CI/CD
 
@@ -61,46 +62,39 @@ jobs:
       group: staging-backend-deploy
       cancel-in-progress: false
     steps:
-      - name: Configure git safe.directory (runner service account)
-        shell: powershell
-        run: |
-          Set-StrictMode -Version Latest
-          $ErrorActionPreference = 'Stop'
-          # Runner often runs as NETWORK SERVICE; repo clone is owned by another user (Git 2.35+).
-          git config --global --add safe.directory 'C:/WTStaging/BackendStaging'
-          git config --global --add safe.directory 'C:/WTStaging/FrontendStaging'
-
-      - name: Pull BackendStaging (main)
-        shell: powershell
-        run: |
-          Set-StrictMode -Version Latest
-          $ErrorActionPreference = 'Stop'
-          Set-Location 'C:\WTStaging\BackendStaging'
-          git fetch origin main
-          git checkout main
-          git pull origin main
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          clean: true
 
       - name: Rebuild and restart backend
         shell: powershell
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          Set-Location 'C:\WTStaging\BackendStaging\deploy'
-          docker compose up -d --build backend
+          $stagingEnv = 'C:\WTStaging\BackendStaging\deploy\.env'
+          if (-not (Test-Path $stagingEnv)) {
+            throw "Missing $stagingEnv — copy deploy/.env.example and configure staging secrets."
+          }
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE 'deploy')
+          docker compose --env-file $stagingEnv up -d --build backend
 
       - name: Refresh monitoring stack (config-only, no image rebuild)
         shell: powershell
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          Set-Location 'C:\WTStaging\BackendStaging\deploy'
-          docker compose up -d prometheus grafana loki promtail postgres-exporter
+          $stagingEnv = 'C:\WTStaging\BackendStaging\deploy\.env'
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE 'deploy')
+          docker compose --env-file $stagingEnv up -d prometheus grafana loki promtail postgres-exporter
 
       - name: Wait for backend healthy
         shell: powershell
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
+          $stagingEnv = 'C:\WTStaging\BackendStaging\deploy\.env'
+          $compose = Join-Path $env:GITHUB_WORKSPACE 'deploy\docker-compose.yml'
           $deadline = (Get-Date).AddMinutes(3)
           do {
             $status = docker inspect --format='{{.State.Health.Status}}' wt2-staging-backend 2>$null
@@ -111,5 +105,5 @@ jobs:
             Start-Sleep -Seconds 5
           } while ((Get-Date) -lt $deadline)
           Write-Error "Backend did not become healthy within 3 minutes (last status: $status)"
-          docker compose -f C:\WTStaging\BackendStaging\deploy\docker-compose.yml logs --tail 80 backend
+          docker compose -f $compose --env-file $stagingEnv logs --tail 80 backend
           exit 1

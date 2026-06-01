@@ -173,8 +173,8 @@ docker compose down
 
 | Репозиторий | CI (облако GitHub) | CD (сервер `C:\WTStaging`) |
 |-------------|-------------------|---------------------------|
-| **BackendStaging** | `mvn test`, gitleaks, проверка `docker-compose` | `git pull` + `docker compose up -d --build backend` |
-| **FrontendStaging** | `npm ci` + `build --mode staging`, gitleaks | `git pull` + `docker compose up -d --build frontend` |
+| **BackendStaging** | `mvn test`, gitleaks, проверка `docker-compose` | `actions/checkout` на runner + `docker compose` (код из GitHub; `.env` только с `C:\WTStaging\...\deploy\.env`) |
+| **FrontendStaging** | `npm ci` + `build --mode staging`, gitleaks | checkout обоих репо в `_work` + `docker compose` с `FRONTEND_BUILD_CONTEXT` на свежий frontend |
 
 На **pull request** в `main` выполняется только CI (деплой не запускается).
 
@@ -190,18 +190,16 @@ Workflow-файлы:
 3. При регистрации добавьте **дополнительную метку** (label): `wt2-staging`  
    Итоговые метки runner: `self-hosted`, `windows`, `wt2-staging` — они указаны в workflow.
 4. Запустите runner как службу (команда из инструкции GitHub: `.\run.cmd` для теста или установка службы).  
-   Если служба работает от **NETWORK SERVICE**, а клоны созданы под вашим пользователем, Git 2.35+ выдаст `dubious ownership` — workflow добавляет `safe.directory` автоматически; при ручном `git pull` под службой выполните один раз:
-   ```powershell
-   git config --global --add safe.directory C:/WTStaging/BackendStaging
-   git config --global --add safe.directory C:/WTStaging/FrontendStaging
-   ```
-   (от имени учётной записи, под которой запущен runner.)
-5. Убедитесь, что клоны лежат по путям:
-   - `C:\WTStaging\BackendStaging` (remote → `BackendStaging`)
-   - `C:\WTStaging\FrontendStaging` (remote → `FrontendStaging`)
-6. Файл `C:\WTStaging\BackendStaging\deploy\.env` создан и **не** коммитится в git.
+   **CD не делает `git pull` в `C:\WTStaging`** (служба часто работает как `NETWORK SERVICE` без прав записи в чужой `.git`). Код для сборки берётся через `actions/checkout` в каталог runner `_work`.
+5. Обязательно на сервере: `C:\WTStaging\BackendStaging\deploy\.env` (секреты staging, **не** в git).  
+   Клоны в `C:\WTStaging\...` нужны для **ручного** деплоя (`deploy-staging-*.ps1`), не для GitHub Actions.
+6. (Опционально) Клоны для ручной работы:
+   - `C:\WTStaging\BackendStaging`
+   - `C:\WTStaging\FrontendStaging`
 
 Проверка: в GitHub → **Actions** после push в `main` должны быть зелёные jobs **test/build**, **secrets**, **deploy**.
+
+Для **FrontendStaging** deploy job читает `BackendStaging` (docker-compose). Если репозитории private: **Settings → Actions → General → Workflow permissions** → *Read and write* или включите доступ `GITHUB_TOKEN` к репозиториям организации.
 
 ### Ручной деплой (без GitHub)
 
