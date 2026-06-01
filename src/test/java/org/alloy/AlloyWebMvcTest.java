@@ -1,10 +1,13 @@
 package org.alloy;
 
+import org.alloy.config.SecurityConfig;
 import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.test.context.TestPropertySource;
@@ -17,12 +20,15 @@ import java.lang.annotation.Target;
 
 /**
  * {@code @WebMvcTest} без JPA + {@link MvcTestConfig}.
+ * Реальный {@link SecurityConfig} исключён ({@code WebSecurityConfigurerAdapter} тянет JWT/UserDetailsService);
+ * method security даёт {@link org.alloy.config.MethodSecurityTestConfig} из {@link MvcTestConfig}.
  * Использование: {@code @AlloyWebMvcTest(SurveyController.class)}.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@WebMvcTest
+@WebMvcTest(excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE, classes = SecurityConfig.class))
 @AutoConfigureMockMvc(addFilters = false)
 @Import(MvcTestConfig.class)
 @TestPropertySource("classpath:mvc-test.properties")
