@@ -3,8 +3,14 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://host.docker.internal:5432/weldtelecom}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Уже развёрнутая БД без flyway_schema_history: baseline, затем только новые версии.
+    baseline-on-migrate: true
   jpa:
     hibernate:
+      # Flyway — явные DDL/индексы; Hibernate дополняет схему по @Entity (новые таблицы).
       ddl-auto: update
     show-sql: false
   mail:

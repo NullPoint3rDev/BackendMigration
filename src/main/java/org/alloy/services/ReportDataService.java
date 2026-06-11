@@ -431,7 +431,6 @@ public class ReportDataService {
         if (welderIds.isEmpty()) return result;
 
         try {
-            System.out.println("[REPORT-DATA] getWelderWorkDataNew: welderIds=" + welderIds + " period=" + startDateTime + ".." + endDateTime);
             Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
             List<WeldRow> rawRows = new ArrayList<>();
             for (Integer welderId : welderIds) {
@@ -445,7 +444,6 @@ public class ReportDataService {
                         }
                     }
                 }
-                System.out.println("[REPORT-DATA] welderId=" + welderId + " rfidCodes=" + rfidCodes.size() + " machineIds=" + machineIds);
                 if (machineIds.isEmpty()) continue;
 
                 for (Integer machineId : machineIds) {
@@ -460,7 +458,6 @@ public class ReportDataService {
                     });
                     List<org.alloy.models.dto.WeldSegmentDTO> segments =
                             resolveWeldSegmentsForReport(machineId, startDateTime, endDateTime, machineStates);
-                    System.out.println("[REPORT-DATA] machineId=" + machineId + " segments=" + segments.size() + (segments.isEmpty() ? "" : " first: avgI=" + segments.get(0).getAverageCurrent() + " avgU=" + segments.get(0).getAverageVoltage() + " durSec=" + segments.get(0).getDurationSeconds()));
                     for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
                         if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
                         long durSec = seg.getDurationSeconds().longValue();
@@ -480,7 +477,6 @@ public class ReportDataService {
             }
 
             rawRows.sort(Comparator.comparing(r -> r.startTime));
-            System.out.println("[REPORT-DATA] rawRows=" + rawRows.size());
 
             List<WeldRow> merged = new ArrayList<>();
             for (WeldRow row : rawRows) {
@@ -506,8 +502,6 @@ public class ReportDataService {
                     merged.add(copyWeldRow(row));
                 }
             }
-            System.out.println("[REPORT-DATA] merged rows=" + merged.size());
-
             Set<Integer> machineIdsInReport = merged.stream().map(r -> r.machineId).collect(Collectors.toSet());
             List<Long> allStateIds = collectStateIdsForWelderMerged(statesByMachineId, merged);
             Map<Long, String> workModeByStateId = new HashMap<>();
@@ -547,9 +541,6 @@ public class ReportDataService {
                 BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
                 BigDecimal gasL = calculateGasConsumptionLForWeldSegment(segmentStates, r.startTime, segmentEnd, gasFlowByStateId);
                 BigDecimal energyKwh = calculateEnergyPerWeld(r.avgVoltage, r.avgCurrent, r.durationSec);
-                if (result.size() < 2) {
-                    System.out.println("[REPORT-DATA] row: avgCurrent=" + r.avgCurrent + " avgVoltage=" + r.avgVoltage + " durationSec=" + r.durationSec + " -> energyKwh=" + energyKwh);
-                }
 
                 WelderWorkReportDTO dto = new WelderWorkReportDTO();
                 dto.setDate(displayDateTime.toLocalDate());
@@ -605,7 +596,6 @@ public class ReportDataService {
         if (machineIds.isEmpty()) return result;
 
         try {
-            long reportStartMs = System.currentTimeMillis();
             Map<Integer, List<WeldingMachineState>> statesByMachineId = new HashMap<>();
             Map<String, Optional<RfidPass>> rfidPassCache = new HashMap<>();
             List<EquipmentWeldRow> rawRows = new ArrayList<>();
@@ -613,27 +603,17 @@ public class ReportDataService {
                 Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(machineId);
                 String machineName = machineOpt.map(WeldingMachine::getName).orElse("");
                 String equipmentModel = machineOpt.map(m -> m.getDeviceModel() != null ? m.getDeviceModel().name() : "").orElse("");
-                long segStartMs = System.currentTimeMillis();
                 Optional<List<WeldSegmentDTO>> cachedSegments = weldSegmentCacheService.findSegmentsForReportIfReady(
                         machineId, startDateTime, endDateTime);
                 List<org.alloy.models.dto.WeldSegmentDTO> segments;
                 if (cachedSegments.isPresent()) {
                     segments = cachedSegments.get();
-                    System.out.println("[REPORT-DATA] machine " + machineId + " weld segments from cache count="
-                            + segments.size() + " (states deferred to weld windows)");
                 } else {
-                    long loadStatesMs = System.currentTimeMillis();
-                    System.out.println("[REPORT-DATA] machine " + machineId + " loading states…");
                     List<WeldingMachineState> machineStates = calculationService.loadStatesForReport(
                             machineId, startDateTime, endDateTime);
                     machineStates.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
                     statesByMachineId.put(machineId, machineStates);
-                    System.out.println("[REPORT-DATA] machine " + machineId + " states=" + machineStates.size()
-                            + " loadMs=" + (System.currentTimeMillis() - loadStatesMs) + " calculating welds…");
                     segments = calculationService.calculateWeldSegmentsFromStates(machineStates);
-                    System.out.println("[REPORT-DATA] machine " + machineId + " states=" + machineStates.size()
-                            + " segments=" + segments.size() + " loadMs=" + (System.currentTimeMillis() - loadStatesMs)
-                            + " calcMs=" + (System.currentTimeMillis() - segStartMs));
                 }
                 for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
                     if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
@@ -697,7 +677,6 @@ public class ReportDataService {
             Integer singleMachineId = enrichByMachinePeriod ? machineIds.get(0) : null;
 
             ReportGenerationProgressContext.update(82, "Обогащение данных швов…");
-            long enrichStartMs = System.currentTimeMillis();
             Map<Long, String> workModeByStateId = new HashMap<>();
             Map<Long, LocalDateTime> deviceDateTimeByStateId = new HashMap<>();
             Map<Long, BigDecimal> wireFeedByStateId = new HashMap<>();
@@ -709,7 +688,6 @@ public class ReportDataService {
              */
             boolean enrichByStateIds = enrichByMachinePeriod && singleMachineId != null && !enrichStateIdSet.isEmpty();
             boolean enrichByFilteredMachinePeriod = false;
-            long enrichParamsMs = enrichStartMs;
             if (enrichByStateIds) {
                 loadEquipmentEnrichmentByStateIds(allStateIds, workModeByStateId, wireFeedByStateId, deviceDateTimeByStateId);
             } else if (enrichByMachinePeriod && singleMachineId != null && !enrichStateIdSet.isEmpty()
@@ -738,9 +716,7 @@ public class ReportDataService {
             }
             Map<Long, BigDecimal> gasFlowByStateId = new HashMap<>();
             loadGasFlowLpmByStateId(allStateIds, gasFlowByStateId);
-            enrichParamsMs = System.currentTimeMillis() - enrichStartMs;
             boolean needWelderColumns = templateNeedsWelderColumns(template);
-            long rfidStartMs = System.currentTimeMillis();
             Map<Long, String> rfidByStateId = needWelderColumns
                     ? (!allStateIds.isEmpty()
                     ? loadRfidByStateIdFromParamsNative(allStateIds)
@@ -748,15 +724,6 @@ public class ReportDataService {
                     ? loadRfidByMachinePeriodNative(singleMachineId, startDateTime, endDateTime)
                     : Collections.emptyMap()))
                     : Collections.emptyMap();
-            long rfidMs = System.currentTimeMillis() - rfidStartMs;
-            System.out.println("[REPORT-DATA] equipment enrichMs=" + (System.currentTimeMillis() - enrichStartMs)
-                    + " enrichParamsMs=" + enrichParamsMs + " rfidMs=" + rfidMs
-                    + " enrichFilteredPeriod=" + enrichByFilteredMachinePeriod
-                    + " enrichByStateIds=" + enrichByStateIds + " allStateIds=" + allStateIds.size()
-                    + " workMode=" + workModeByStateId.size() + " wireFeed=" + wireFeedByStateId.size());
-            String sampleRfid = rfidByStateId.isEmpty() ? " (нет RFID в параметрах)" : rfidByStateId.entrySet().stream().limit(2).map(e -> e.getKey() + "->" + e.getValue()).collect(Collectors.joining("; "));
-            System.out.println("[REPORT-DATA] equipment report: allStateIds=" + allStateIds.size() + " rfidByStateId=" + rfidByStateId.size() + " " + sampleRfid);
-
             // Предвычисление: по машине — только состояния с RFID в параметрах (для быстрого fallback без перебора всех состояний)
             Map<Integer, List<WeldingMachineState>> statesWithRfidInParamsByMachineId = new HashMap<>();
             if (!rfidByStateId.isEmpty()) {
@@ -838,14 +805,8 @@ public class ReportDataService {
                             rfidCode = closestWithStateRfid.getRfid().trim();
                     }
                 }
-                if (result.size() < 3) {
-                    System.out.println("[REPORT-DATA] equipment row: segmentStart=" + r.startTime + " stateInSegmentId=" + (stateInSegment != null ? stateInSegment.getId() : null) + " rfidCode=" + rfidCode);
-                }
                 if (rfidCode != null) {
                     Optional<RfidPass> passOpt = findRfidPassByCode(rfidCode, rfidPassCache);
-                    if (result.size() < 3) {
-                        System.out.println("[REPORT-DATA] equipment rfid lookup: code=" + rfidCode + " passFound=" + passOpt.isPresent() + (passOpt.isPresent() && passOpt.get().getWelder() != null ? " welder=" + passOpt.get().getWelder().getName() : ""));
-                    }
                     if (passOpt.isPresent() && passOpt.get().getWelder() != null) {
                         Welder w = passOpt.get().getWelder();
                         welderId = w.getId();
@@ -883,8 +844,6 @@ public class ReportDataService {
             for (int i = 0; i < result.size(); i++) {
                 result.get(i).setIndex(i + 1);
             }
-            System.out.println("[REPORT-DATA] equipment report done: merged=" + merged.size() + " rows=" + result.size()
-                    + " enrichByMachinePeriod=" + enrichByMachinePeriod + " totalMs=" + (System.currentTimeMillis() - reportStartMs));
         } catch (Exception e) {
             System.err.println("[REPORT-DATA] Ошибка getEquipmentWorkDataNew: " + e.getMessage());
             e.printStackTrace();
@@ -911,7 +870,6 @@ public class ReportDataService {
             Map<Long, BigDecimal> wireFeedByStateId,
             Map<Long, LocalDateTime> deviceDateTimeByStateId) {
         if (stateIds == null || stateIds.isEmpty()) return;
-        long enrichLoadStartMs = System.currentTimeMillis();
         final int batchSize = 1_000;
         Map<String, Map<Long, Integer>> dateParts = new HashMap<>();
         for (String c : new String[] { "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds" }) {
@@ -941,8 +899,6 @@ public class ReportDataService {
                 deviceDateTimeByStateId.put(stateId, LocalDateTime.of(year, month, day, hour, min, sec));
             } catch (Exception ignored) { }
         }
-        System.out.println("[REPORT-DATA] equipment enrichByStateIds ms="
-                + (System.currentTimeMillis() - enrichLoadStartMs) + " stateIds=" + stateIds.size());
     }
 
     private void mergeEquipmentEnrichmentParamRows(
@@ -1213,11 +1169,8 @@ public class ReportDataService {
         Optional<List<WeldSegmentDTO>> cached = weldSegmentCacheService.findSegmentsForReportIfReady(
                 machineId, periodStart, periodEnd);
         if (cached.isPresent()) {
-            System.out.println("[REPORT-DATA] machine " + machineId + " weld segments from cache count="
-                    + cached.get().size());
             return cached.get();
         }
-        System.out.println("[REPORT-DATA] machine " + machineId + " weld segments cache miss, live calc…");
         return calculationService.calculateWeldSegmentsFromStates(machineStates);
     }
 

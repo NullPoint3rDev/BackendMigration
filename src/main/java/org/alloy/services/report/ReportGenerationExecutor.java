@@ -45,15 +45,6 @@ public class ReportGenerationExecutor {
         wireTemplate.setSelectedWelderIds(reportTemplate.getSelectedWelderIds());
         wireTemplate.setSelectedEquipmentModels(reportTemplate.getSelectedEquipmentModels());
 
-        System.out.println("[REPORT-CONTROLLER] 📋 Преобразование шаблона: ID=" + reportTemplate.getId() +
-                ", название='" + reportTemplate.getName() + "'");
-        System.out.println("[REPORT-CONTROLLER] 📋 Выбранные модели оборудования: " +
-                (reportTemplate.getSelectedEquipmentModels() != null ? reportTemplate.getSelectedEquipmentModels() : "null"));
-        System.out.println("[REPORT-CONTROLLER] 📋 Выбранные ID сварщиков: " +
-                (reportTemplate.getSelectedWelderIds() != null ? reportTemplate.getSelectedWelderIds() : "null"));
-        System.out.println("[REPORT-CONTROLLER] 📋 Выбранные ID подразделений: " +
-                (reportTemplate.getSelectedOrganizationUnitIds() != null ? reportTemplate.getSelectedOrganizationUnitIds() : "null"));
-
         // Преобразуем диапазоны токов
         if (reportTemplate.getCurrentRanges() != null) {
             Map<String, Object> currentRanges = reportTemplate.getCurrentRanges();
@@ -114,12 +105,7 @@ public class ReportGenerationExecutor {
                 @SuppressWarnings("unchecked")
                 List<String> selectedDays = (List<String>) periodSettings.get("selectedDays");
                 wireTemplate.setSelectedDays(selectedDays);
-                System.out.println("[REPORT-CONTROLLER] 📅 Выбранные дни недели: " + selectedDays);
-            } else {
-                System.out.println("[REPORT-CONTROLLER] ⚠️ selectedDays не найдены в periodSettings");
             }
-        } else {
-            System.out.println("[REPORT-CONTROLLER] ⚠️ periodSettings = null");
         }
 
         return wireTemplate;

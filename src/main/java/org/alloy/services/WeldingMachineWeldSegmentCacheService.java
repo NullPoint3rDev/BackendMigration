@@ -135,7 +135,6 @@ public class WeldingMachineWeldSegmentCacheService {
                 || ReportGenerationProgressContext.isReportGenerationActive()) {
             return;
         }
-        long t0 = System.currentTimeMillis();
         segmentRepository.deleteByMachineAndStartTimeRange(weldingMachineId, periodStart, periodEnd);
 
         List<org.alloy.models.dto.WeldSegmentDTO> segments =
@@ -178,10 +177,6 @@ public class WeldingMachineWeldSegmentCacheService {
             upsertDayMark(weldingMachineId, markDay, (int) count, computedAt);
         }
 
-        System.out.println("[WELD-CACHE] recompute machineId=" + weldingMachineId
-                + " period=" + periodStart + ".." + periodEnd
-                + " segments=" + toSave.size()
-                + " ms=" + (System.currentTimeMillis() - t0));
     }
 
     /** Hourly: аппараты с телеметрией за последние N часов. */
@@ -195,7 +190,6 @@ public class WeldingMachineWeldSegmentCacheService {
         for (Integer machineId : machineIds) {
             asyncExecutor.recomputeRecentWindowAsync(machineId);
         }
-        System.out.println("[WELD-CACHE] hourly scheduled machines=" + machineIds.size());
     }
 
     /** Nightly: закрытые сутки без свежей отметки. */

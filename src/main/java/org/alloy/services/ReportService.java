@@ -3483,13 +3483,9 @@ public class ReportService {
 
         // Добавляем дни недели, если они выбраны
         if (template.getSelectedDays() != null && !template.getSelectedDays().isEmpty()) {
-            System.out.println("[REPORT-SERVICE] 📅 Добавляем дни недели в отчет: " + template.getSelectedDays());
             periodRow1.createCell(colIndex++).setCellValue("Дни недели");
             String daysString = String.join(", ", template.getSelectedDays());
             periodRow1.createCell(colIndex++).setCellValue(daysString);
-        } else {
-            System.out.println("[REPORT-SERVICE] ⚠️ selectedDays пуст или null: " +
-                    (template.getSelectedDays() == null ? "null" : "empty"));
         }
 
         // Период - вторая строка: "по:" дата время (если periodEndTime не задано — 23:59 или текущее время при отчёте «на сегодня»)

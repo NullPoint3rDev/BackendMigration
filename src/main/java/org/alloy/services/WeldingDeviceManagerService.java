@@ -46,7 +46,7 @@ public class WeldingDeviceManagerService {
 
     @PostConstruct
     public void init() {
-        System.out.println("[DEVICE-MANAGER] Сервис управления аппаратами инициализирован");
+        log.info("Сервис управления аппаратами инициализирован");
     }
 
     /**
@@ -97,8 +97,6 @@ public class WeldingDeviceManagerService {
                         dbError.printStackTrace();
                     }
                 }, dbExecutor);
-            } else {
-                System.out.println("[DEVICE-MANAGER] ⏭️ Пропуск сохранения для MAC=" + mac + " (троттлинг, прошло " + (now - lastSaved) + "мс)");
             }
 
         } catch (Exception e) {

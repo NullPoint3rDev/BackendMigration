@@ -105,9 +105,6 @@ public class WeldingDataParserService {
                 // Парсим битовые поля ошибок и объединяем в текстовые описания
                 StringBuilder allErrors = new StringBuilder();
 
-                // Временное логирование для отладки ошибок
-                System.out.println("[DEBUG] Errors1=" + core.errors1 + ", Errors2=" + core.errors2 + ", Errors3=" + core.errors3);
-
                 String errors1Text = parseErrorBits(core.errors1, 0);   // ошибки 1-16
                 String errors2Text = parseErrorBits(core.errors2, 16);   // ошибки 17-32 (БВО)
                 String errors3Text = parseErrorBits(core.errors3, 32);   // ошибки 33-48 (если есть)
@@ -195,11 +192,6 @@ public class WeldingDataParserService {
                 // Core: только битовые errors1/errors2 → error_code; не используем State.Ctrl / State.Error (архив)
                 String coreErrorCode = getFirstErrorCodeFromCore(core.errors1, core.errors2);
                 state.setErrorCode(coreErrorCode);
-
-                // Логируем определение статуса для Core устройств
-                System.out.println("[PARSER] 🔍 Core устройство: weldingMachineState=" + stateVal +
-                        ", machineStateText=" + machineStateText +
-                        ", determinedStatus=" + determinedStatus);
 
                 // Логируем разобранные ключевые поля в отдельный лог (для диагностики несоответствий)
 //                try {
@@ -795,7 +787,6 @@ public class WeldingDataParserService {
             if (fromCore != null) {
                 return fromCore;
             }
-            System.out.println("[PARSER] ⚠️ determineStatus: Core-свойства без распознанного текста состояния, Offline");
             return WeldingMachineStatus.Offline;
         }
 
@@ -815,7 +806,6 @@ public class WeldingDataParserService {
             }
         }
 
-        System.out.println("[PARSER] ⚠️ determineStatus: не удалось определить статус, возвращаем Offline");
         return WeldingMachineStatus.Offline;
     }
 
@@ -824,7 +814,6 @@ public class WeldingDataParserService {
         StateSummaryPropertyValue weldingStateProp = properties.get("WeldingMachineState");
         if (weldingStateProp != null) {
             String stateText = weldingStateProp.getValue();
-            System.out.println("[PARSER] 🔍 determineStatus (Core): WeldingMachineState=" + stateText);
             WeldingMachineStatus s = mapCoreStateTextToStatus(stateText);
             if (s != null) {
                 return s;
@@ -833,7 +822,6 @@ public class WeldingDataParserService {
         StateSummaryPropertyValue machineStateProp = properties.get("Состояние аппарата");
         if (machineStateProp != null) {
             String stateText = machineStateProp.getValue();
-            System.out.println("[PARSER] 🔍 determineStatus (Core): Состояние аппарата=" + stateText);
             return mapCoreStateTextToStatus(stateText);
         }
         return null;
@@ -844,19 +832,15 @@ public class WeldingDataParserService {
             return null;
         }
         if ("Сварка".equals(stateText)) {
-            System.out.println("[PARSER] ✅ Определен статус (Core): Welding");
             return WeldingMachineStatus.Welding;
         }
         if ("Аппарат включен".equals(stateText) || "Аппарат включен в дежурном режиме".equals(stateText)) {
-            System.out.println("[PARSER] ✅ Определен статус (Core): Idle");
             return WeldingMachineStatus.Idle;
         }
         if ("Авария".equals(stateText)) {
-            System.out.println("[PARSER] ✅ Определен статус (Core): Error");
             return WeldingMachineStatus.Error;
         }
         if ("Аппарат в режиме ожидания".equals(stateText)) {
-            System.out.println("[PARSER] ✅ Определен статус (Core): Idle");
             return WeldingMachineStatus.Idle;
         }
         return null;
