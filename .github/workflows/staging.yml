@@ -112,7 +112,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $stagingEnv = 'C:\WTStaging\BackendStaging\deploy\.env'
           $compose = Join-Path $env:GITHUB_WORKSPACE 'deploy\docker-compose.yml'
-          $deadline = (Get-Date).AddMinutes(3)
+          $deadline = (Get-Date).AddMinutes(5)
           do {
             $status = docker inspect --format='{{.State.Health.Status}}' wt2-staging-backend 2>$null
             if ($status -eq 'healthy') {
