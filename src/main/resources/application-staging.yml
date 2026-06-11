@@ -9,6 +9,8 @@ spring:
     # Существующая staging-БД (схема от Hibernate): baseline на 1.10, применяем только V1_11+.
     baseline-on-migrate: true
     baseline-version: 1.10
+    # Staging: не валидировать checksum уже применённых миграций (CRLF в jar с Windows-runner).
+    validate-on-migrate: false
   jpa:
     hibernate:
       # Flyway — явные DDL/индексы; Hibernate дополняет схему по @Entity (новые таблицы).

@@ -1,10 +1,13 @@
--- Some environments already had "AllowedUserActions" created as VARCHAR(255)
--- (e.g., via Hibernate auto-ddl / manual DDL). V1_7 only ADDs the column if missing,
--- so it won't fix existing VARCHAR columns. This migration normalizes the type to TEXT.
-
-ALTER TABLE "UserAccount"
-    ADD COLUMN IF NOT EXISTS "AllowedUserActions" TEXT;
-
-ALTER TABLE "UserAccount"
-    ALTER COLUMN "AllowedUserActions" TYPE TEXT;
-
+DO $migration$
+BEGIN
+    IF to_regclass('public.user_account') IS NOT NULL THEN
+        ALTER TABLE user_account ADD COLUMN IF NOT EXISTS allowed_user_actions TEXT;
+        ALTER TABLE user_account ALTER COLUMN allowed_user_actions TYPE TEXT;
+    ELSIF to_regclass('public."UserAccount"') IS NOT NULL THEN
+        ALTER TABLE "UserAccount" ADD COLUMN IF NOT EXISTS "AllowedUserActions" TEXT;
+        ALTER TABLE "UserAccount" ALTER COLUMN "AllowedUserActions" TYPE TEXT;
+    ELSIF to_regclass('public.useraccount') IS NOT NULL THEN
+        ALTER TABLE useraccount ADD COLUMN IF NOT EXISTS alloweduseractions TEXT;
+        ALTER TABLE useraccount ALTER COLUMN alloweduseractions TYPE TEXT;
+    END IF;
+END $migration$;

@@ -1,0 +1,2 @@
+# SQL-миграции Flyway — всегда LF, иначе checksum на Windows-runner не совпадёт с Linux.
+src/main/resources/db/migration/*.sql text eol=lf
