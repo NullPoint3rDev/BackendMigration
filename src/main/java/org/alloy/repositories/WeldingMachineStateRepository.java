@@ -133,4 +133,31 @@ public interface WeldingMachineStateRepository extends JpaRepository<WeldingMach
     List<Object[]> findStatesNativeWithWarningsAll(
             @Param("start") java.time.LocalDateTime start,
             @Param("end") java.time.LocalDateTime end);
+
+    /**
+     * Лёгкая выборка для отчётов: только поля, нужные расчёту швов (без JOIN parameterValues).
+     * [0]=id, [1]=welding_machineid, [2]=date_created, [3]=state_duration_ms, [4]=welding_machine_status.
+     */
+    @Query(
+            value = "SELECT s.id, s.welding_machineid, s.date_created, s.state_duration_ms, s.welding_machine_status "
+                    + "FROM welding_machine_state s "
+                    + "WHERE s.welding_machineid = :machineId "
+                    + "AND s.date_created >= :start AND s.date_created <= :end",
+            nativeQuery = true)
+    List<Object[]> findReportStateRowsByMachineAndDateRange(
+            @Param("machineId") Integer machineId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
+
+    /** [0]=id, [1]=date_created, [2]=rfid — только для fallback RFID в отчётах. */
+    @Query(
+            value = "SELECT s.id, s.date_created, s.rfid FROM welding_machine_state s "
+                    + "WHERE s.welding_machineid = :machineId "
+                    + "AND s.date_created >= :start AND s.date_created <= :end "
+                    + "AND s.rfid IS NOT NULL AND TRIM(s.rfid) <> ''",
+            nativeQuery = true)
+    List<Object[]> findRfidReportRowsByMachineAndDateRange(
+            @Param("machineId") Integer machineId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }

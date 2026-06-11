@@ -4,6 +4,7 @@ import org.alloy.models.dto.*;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.repositories.EmployeeRepository;
+import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.repositories.WelderRepository;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.alloy.services.*;
@@ -27,6 +28,7 @@ public class ReportGenerationExecutor {
     @Autowired private EquipmentWorkReportTemplateService equipmentWorkTemplateService;
     @Autowired private ReportTemplateService reportTemplateService;
     @Autowired private WeldingMachineRepository weldingMachineRepository;
+    @Autowired private OrganizationUnitRepository organizationUnitRepository;
     @Autowired private WelderRepository welderRepository;
     @Autowired private EmployeeRepository employeeRepository;
 
@@ -485,8 +487,12 @@ public class ReportGenerationExecutor {
                         WeldingMachine m = machineOpt.get();
                         name = m.getName() != null ? m.getName() : "";
                         model = m.getDeviceModel() != null ? m.getDeviceModel().name() : "";
-                        OrganizationUnit ou = m.getOrganizationUnit();
-                        department = ou != null && ou.getName() != null ? ou.getName() : "";
+                        Integer ouId = m.getOrganizationUnitId();
+                        if (ouId != null) {
+                            department = organizationUnitRepository.findById(ouId)
+                                    .map(OrganizationUnit::getName)
+                                    .orElse("");
+                        }
                     }
                 } catch (Exception e) {
                     System.err.println("Не удалось загрузить данные аппарата " + mid + ": " + e.getMessage());

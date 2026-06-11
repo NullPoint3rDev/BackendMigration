@@ -91,7 +91,13 @@ public class WeldingDataParserService {
                 addProperty(props, "Состояние аппарата", machineStateText, "text");
                 // Также добавляем под ключом WeldingMachineState для совместимости с фронтендом
                 addProperty(props, "WeldingMachineState", machineStateText, "text");
-                addProperty(props, "State.GasFlow", String.valueOf(core.gasFlow), "number");
+                addProperty(props, "State.GasFlow",
+                        String.format("%.1f", core.getDisplayInstantGasFlowLpm()), "number");
+                if (core.hasExtendedGasMetrics) {
+                    String gasSincePowerOn = String.format("%.1f", core.getDisplayGasConsumptionSincePowerOnLiters());
+                    addProperty(props, "Core.GasConsumptionSincePowerOn", gasSincePowerOn, "number");
+                    addProperty(props, "Расход газа с включения", gasSincePowerOn, "number");
+                }
 
                 addProperty(props, "Номер сварочного задания", String.valueOf(core.jobNumber), "number");
                 addProperty(props, "Inductance", String.valueOf(core.inductance), "number");

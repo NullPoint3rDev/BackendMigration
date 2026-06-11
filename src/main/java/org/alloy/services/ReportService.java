@@ -2217,6 +2217,8 @@ public class ReportService {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         } else if ("wireConsumptionKg".equals(key)) {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.00000");
+                        } else if ("gasConsumptionL".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         }
                         cell.setCellStyle(cellStyle);
                         setWelderWorkCellValue(cell, item, key);
@@ -2235,15 +2237,22 @@ public class ReportService {
                     .map(WelderWorkReportDTO::getWireConsumptionKg)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalGasLSingle = rowList.stream()
+                    .map(WelderWorkReportDTO::getGasConsumptionL)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
             int weldColSingle = -1;
             int energyColSingle = -1;
             int wireColSingle = -1;
+            int gasColSingle = -1;
             for (int i = 0; i < columnDefs.size(); i++) {
                 String k = columnDefs.get(i).key;
                 if ("weldDurationSec".equals(k)) weldColSingle = i;
                 if ("energyConsumedKwh".equals(k)) energyColSingle = i;
                 if ("wireConsumptionKg".equals(k)) wireColSingle = i;
+                if ("gasConsumptionL".equals(k)) gasColSingle = i;
             }
+            CellStyle totalWeldGrayStyleGasLFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
             Row totalRowWelderSingle = sheet.createRow(rowIdx++);
             for (int col = 0; col < columnDefs.size(); col++) {
                 Cell cell = totalRowWelderSingle.createCell(col);
@@ -2256,6 +2265,9 @@ public class ReportService {
                 } else if (col == wireColSingle && wireColSingle >= 0) {
                     cell.setCellStyle(totalWeldGrayStyleWireKgFormat);
                     cell.setCellValue(totalWireKgSingle.doubleValue());
+                } else if (col == gasColSingle && gasColSingle >= 0) {
+                    cell.setCellStyle(totalWeldGrayStyleGasLFormat);
+                    cell.setCellValue(totalGasLSingle.doubleValue());
                 } else {
                     cell.setCellStyle(totalWeldGrayStyle);
                 }
@@ -2445,6 +2457,8 @@ public class ReportService {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         } else if ("wireConsumptionKg".equals(key)) {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.00000");
+                        } else if ("gasConsumptionL".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         }
                         cell.setCellStyle(cellStyle);
                         if ("index".equals(key)) {
@@ -2467,15 +2481,22 @@ public class ReportService {
                         .map(WelderWorkReportDTO::getWireConsumptionKg)
                         .filter(Objects::nonNull)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal totalGasL = rows.stream()
+                        .map(WelderWorkReportDTO::getGasConsumptionL)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
                 int weldDurationColWelder = -1;
                 int energyColWelder = -1;
                 int wireColWelder = -1;
+                int gasColWelder = -1;
                 for (int i = 0; i < columnDefs.size(); i++) {
                     String k = columnDefs.get(i).key;
                     if ("weldDurationSec".equals(k)) weldDurationColWelder = i;
                     if ("energyConsumedKwh".equals(k)) energyColWelder = i;
                     if ("wireConsumptionKg".equals(k)) wireColWelder = i;
+                    if ("gasConsumptionL".equals(k)) gasColWelder = i;
                 }
+                CellStyle totalWeldGrayStyleGasLFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
                 Row totalRow = sheet.createRow(rowIdx++);
                 for (int col = 0; col < columnDefs.size(); col++) {
                     Cell cell = totalRow.createCell(col);
@@ -2488,6 +2509,9 @@ public class ReportService {
                     } else if (col == wireColWelder && wireColWelder >= 0) {
                         cell.setCellStyle(totalWeldGrayStyleWireKgFormat);
                         cell.setCellValue(totalWireKg.doubleValue());
+                    } else if (col == gasColWelder && gasColWelder >= 0) {
+                        cell.setCellStyle(totalWeldGrayStyleGasLFormat);
+                        cell.setCellValue(totalGasL.doubleValue());
                     } else {
                         cell.setCellStyle(totalWeldGrayStyle);
                     }
@@ -2842,6 +2866,8 @@ public class ReportService {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         } else if ("wireConsumptionKg".equals(key)) {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.00000");
+                        } else if ("gasConsumptionL".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         }
                         cell.setCellStyle(cellStyle);
                         setEquipmentWorkCellValue(cell, item, key);
@@ -2860,15 +2886,22 @@ public class ReportService {
                     .map(EquipmentWorkReportDTO::getWireConsumptionKg)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalGasLEquipSingle = equipRowList.stream()
+                    .map(EquipmentWorkReportDTO::getGasConsumptionL)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
             int weldColEq = -1;
             int energyColEq = -1;
             int wireColEq = -1;
+            int gasColEq = -1;
             for (int i = 0; i < columnDefs.size(); i++) {
                 String k = columnDefs.get(i).key;
                 if ("weldDurationSec".equals(k)) weldColEq = i;
                 if ("energyConsumedKwh".equals(k)) energyColEq = i;
                 if ("wireConsumptionKg".equals(k)) wireColEq = i;
+                if ("gasConsumptionL".equals(k)) gasColEq = i;
             }
+            CellStyle totalEquipGrayStyleGasLFormat = createCellStyleWithNumberFormat(workbook, totalEquipGrayStyle, "0.000");
             Row totalRowEquipSingle = sheet.createRow(rowIdx++);
             for (int col = 0; col < columnDefs.size(); col++) {
                 Cell cell = totalRowEquipSingle.createCell(col);
@@ -2881,6 +2914,9 @@ public class ReportService {
                 } else if (col == wireColEq && wireColEq >= 0) {
                     cell.setCellStyle(totalEquipGrayStyleWireKgFormat);
                     cell.setCellValue(totalWireKgEquipSingle.doubleValue());
+                } else if (col == gasColEq && gasColEq >= 0) {
+                    cell.setCellStyle(totalEquipGrayStyleGasLFormat);
+                    cell.setCellValue(totalGasLEquipSingle.doubleValue());
                 } else {
                     cell.setCellStyle(totalEquipGrayStyle);
                 }
@@ -3039,6 +3075,8 @@ public class ReportService {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         } else if ("wireConsumptionKg".equals(key)) {
                             cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.00000");
+                        } else if ("gasConsumptionL".equals(key)) {
+                            cellStyle = createCellStyleWithNumberFormat(workbook, rowStyle, "0.000");
                         }
                         cell.setCellStyle(cellStyle);
                         if ("index".equals(key)) {
@@ -3052,11 +3090,13 @@ public class ReportService {
                 int weldDurationColEquip = -1;
                 int energyColEquip = -1;
                 int wireColEquip = -1;
+                int gasColEquip = -1;
                 for (int i = 0; i < columnDefs.size(); i++) {
                     String key = columnDefs.get(i).key;
                     if ("weldDurationSec".equals(key)) weldDurationColEquip = i;
                     if ("energyConsumedKwh".equals(key)) energyColEquip = i;
                     if ("wireConsumptionKg".equals(key)) wireColEquip = i;
+                    if ("gasConsumptionL".equals(key)) gasColEquip = i;
                 }
                 BigDecimal totalWeldSecEquip = rows.stream()
                         .map(EquipmentWorkReportDTO::getWeldDurationSec)
@@ -3070,6 +3110,11 @@ public class ReportService {
                         .map(EquipmentWorkReportDTO::getWireConsumptionKg)
                         .filter(Objects::nonNull)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal totalGasLEquip = rows.stream()
+                        .map(EquipmentWorkReportDTO::getGasConsumptionL)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                CellStyle totalWeldGrayStyleEquipGasLFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0.000");
                 Row totalRowEquip = sheet.createRow(rowIdx++);
                 for (int col = 0; col < columnDefs.size(); col++) {
                     Cell cell = totalRowEquip.createCell(col);
@@ -3082,6 +3127,9 @@ public class ReportService {
                     } else if (col == wireColEquip && wireColEquip >= 0) {
                         cell.setCellStyle(totalWeldGrayStyleEquipWireKgFormat);
                         cell.setCellValue(totalWireKgEquip.doubleValue());
+                    } else if (col == gasColEquip && gasColEquip >= 0) {
+                        cell.setCellStyle(totalWeldGrayStyleEquipGasLFormat);
+                        cell.setCellValue(totalGasLEquip.doubleValue());
                     } else {
                         cell.setCellStyle(totalWeldGrayStyleEquip);
                     }

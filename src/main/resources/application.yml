@@ -103,6 +103,11 @@ server:
     current_position: 36 # Позиция тока в payload (найдена автоматически как оптимальная)
     debug_mode: false # Отключить детальное логирование парсера (позиция найдена)
 
+# Временный зонд для проверки посылок (MacPacketProbe). true — зонд на порту archive-сервера, листенер отключается.
+mac:
+  probe:
+    enabled: false
+
 # Конфигурация archive-style TCP сервера
 welding:
   archive:
@@ -138,3 +143,17 @@ monitor:
     stale-seconds: 60
     scheduler-delay-ms: 180000
     recompute-debounce-ms: 15000
+  weld-segments:
+    enabled: true
+    report-use-precomputed: true
+    timezone: Europe/Moscow
+    # Раз в час — «сегодня + вчера» для аппаратов с телеметрией за последние 2 ч
+    scheduler-delay-ms: 3600000
+    activity-lookback-hours: 2
+    recompute-debounce-ms: 300000
+    # «Сегодня» в отчёте считаем свежим ~65 мин после hourly job
+    today-stale-seconds: 3900
+    # Ночной догон: сутки от 8 до 2 дней назад
+    backfill-cron: "0 15 3 * * *"
+    backfill-from-days-ago: 8
+    backfill-to-days-ago: 2

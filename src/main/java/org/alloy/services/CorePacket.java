@@ -62,6 +62,13 @@ public class CorePacket {
     /** Время сварки с момента включения аппарата (uint32, Big-Endian). */
     public long weldingTimeSincePowerOn;
 
+    /** Мгновенный расход газа (uint16, Big-Endian), сырьё: десятые л/мин — в хвосте пакета. */
+    public int instantGasFlowLpm;
+    /** Накопленный расход газа с включения (uint32, Big-Endian), сырьё: десятые литра. */
+    public long gasConsumptionSincePowerOnLiters;
+    /** true, если в пакете присутствуют поля 39–40 хвоста (газ). */
+    public boolean hasExtendedGasMetrics;
+
     public double getDisplayCurrent() {
         return (weldingMachineState == 1) ? weldingCurrent : current;
     }
@@ -69,6 +76,17 @@ public class CorePacket {
     public double getDisplayVoltage() {
         int raw = (weldingMachineState == 1) ? weldingVoltage : voltage;
         return raw / 10.0;
+    }
+
+    /** Мгновенный расход газа, л/мин (сырьё / 10). */
+    public double getDisplayInstantGasFlowLpm() {
+        int raw = hasExtendedGasMetrics ? instantGasFlowLpm : gasFlow;
+        return raw / 10.0;
+    }
+
+    /** Накопленный расход газа с включения, л (сырьё / 10). */
+    public double getDisplayGasConsumptionSincePowerOnLiters() {
+        return gasConsumptionSincePowerOnLiters / 10.0;
     }
 
     @Override
@@ -103,6 +121,9 @@ public class CorePacket {
                 ", warnings=[" + warnings1 + "," + warnings2 + "," + warnings3 + "]" +
                 ", workTimeSincePowerOn=" + workTimeSincePowerOn +
                 ", weldingTimeSincePowerOn=" + weldingTimeSincePowerOn +
+                ", instantGasFlowLpm=" + instantGasFlowLpm +
+                ", gasConsumptionSincePowerOnLiters=" + gasConsumptionSincePowerOnLiters +
+                ", hasExtendedGasMetrics=" + hasExtendedGasMetrics +
                 '}';
     }
 }

@@ -37,6 +37,8 @@ public class TelemetryHistoryService {
     // поэтому для графика «сварки» отдаём значения только при статусе Welding.
     private static final List<String> CURRENT_CODES = List.of("Current");
     private static final List<String> VOLTAGE_CODES = List.of("Voltage");
+    /** Мгновенный расход газа (л/мин), не накопленный счётчик. */
+    private static final List<String> GAS_FLOW_CODES = List.of("State.GasFlow", "GasFlow", "gasFlow");
     private static final List<String> MAINS_VOLTAGE_A_CODES = List.of(
             "Напряжение фазы А", "VoltagePhaseA", "voltagePhaseA", "voltage_phase_a", "Voltage_Phase_A"
     );
@@ -60,6 +62,7 @@ public class TelemetryHistoryService {
     );
     private static final List<String> PARAMETER_CODES_FOR_HISTORY = List.of(
             "Current", "Voltage",
+            "State.GasFlow", "GasFlow", "gasFlow",
             "Напряжение фазы А", "VoltagePhaseA", "voltagePhaseA", "voltage_phase_a", "Voltage_Phase_A",
             "Напряжение фазы B", "Напряжение фазы В", "VoltagePhaseB", "voltagePhaseB", "voltage_phase_b", "Voltage_Phase_B",
             "Напряжение фазы С", "VoltagePhaseC", "voltagePhaseC", "voltage_phase_c", "Voltage_Phase_C",
@@ -94,6 +97,9 @@ public class TelemetryHistoryService {
             boolean welding = st == WeldingMachineStatus.Welding;
             Double current = welding ? parseFirstDouble(map, CURRENT_CODES) : null;
             Double voltage = welding ? parseFirstDouble(map, VOLTAGE_CODES) : null;
+            Double setCurrent = welding ? null : parseFirstDouble(map, CURRENT_CODES);
+            Double setVoltage = welding ? null : parseFirstDouble(map, VOLTAGE_CODES);
+            Double gasFlowLpm = parseFirstDouble(map, GAS_FLOW_CODES);
             Double mainsVoltageA = parseFirstDouble(map, MAINS_VOLTAGE_A_CODES);
             Double mainsVoltageB = parseFirstDouble(map, MAINS_VOLTAGE_B_CODES);
             Double mainsVoltageC = parseFirstDouble(map, MAINS_VOLTAGE_C_CODES);
@@ -107,6 +113,9 @@ public class TelemetryHistoryService {
                     ts,
                     current,
                     voltage,
+                    setCurrent,
+                    setVoltage,
+                    gasFlowLpm,
                     mainsVoltageA,
                     mainsVoltageB,
                     mainsVoltageC,

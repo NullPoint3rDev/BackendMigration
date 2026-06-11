@@ -4,6 +4,8 @@ import org.alloy.controllers.DeviceController;
 import org.alloy.models.WeldingMachineStatus;
 import org.alloy.models.weldingmachine.StateSummary;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +20,8 @@ import javax.annotation.PreDestroy;
 
 @Service
 public class WeldingDeviceManagerService {
+
+    private static final Logger log = LoggerFactory.getLogger(WeldingDeviceManagerService.class);
 
     @Autowired
     private WeldingDataParserService dataParser;
@@ -50,10 +54,23 @@ public class WeldingDeviceManagerService {
      */
     public void processDeviceData(String data, String mac) {
         try {
-            // Горячий путь: без подробных логов
+            if (mac != null && data != null) {
+                String packet = data.trim();
+                if (!packet.startsWith("PING:")) {
+                    log.info("{} {}", mac, packet);
+                }
+            }
 
             // Парсим данные
+            StateSummary previous = deviceStates.get(mac);
             StateSummary stateSummary = dataParser.parseWeldingData(data, mac);
+
+            if (stateSummary == null) {
+                System.err.println("[DEVICE-MANAGER] ⚠️ Парсер вернул null для MAC=" + mac);
+                return;
+            }
+            preserveCoreGasMetrics(previous, stateSummary);
+
 
             // Подробные логи отключены для производительности
 
@@ -77,9 +94,11 @@ public class WeldingDeviceManagerService {
                     try {
                         stateService.saveMachineState(mac, stateSummary);
                     } catch (Exception dbError) {
-                        System.err.println("[DEVICE-MANAGER] ⚠️ Ошибка сохранения в БД: " + dbError.getMessage());
+                        dbError.printStackTrace();
                     }
                 }, dbExecutor);
+            } else {
+                System.out.println("[DEVICE-MANAGER] ⏭️ Пропуск сохранения для MAC=" + mac + " (троттлинг, прошло " + (now - lastSaved) + "мс)");
             }
 
         } catch (Exception e) {
@@ -92,21 +111,52 @@ public class WeldingDeviceManagerService {
     /**
      * Получает статус подключения аппарата
      */
-    public boolean isDeviceConnected(String mac) {
+    private StateSummary resolveDeviceState(String mac) {
+        if (mac == null || mac.isBlank()) {
+            return null;
+        }
         StateSummary state = deviceStates.get(mac);
+        if (state != null) {
+            return state;
+        }
+        state = deviceStates.get(mac.toUpperCase());
+        if (state != null) {
+            return state;
+        }
+        return deviceStates.get(mac.toLowerCase());
+    }
+
+    private static void preserveCoreGasMetrics(StateSummary previous, StateSummary current) {
+        if (previous == null || current == null || previous.getProperties() == null || current.getProperties() == null) {
+            return;
+        }
+        copyPropertyIfMissing(previous, current, "Core.GasConsumptionSincePowerOn");
+        copyPropertyIfMissing(previous, current, "Расход газа с включения");
+    }
+
+    private static void copyPropertyIfMissing(StateSummary from, StateSummary to, String key) {
+        if (to.getProperties().containsKey(key)) {
+            return;
+        }
+        StateSummaryPropertyValue src = from.getProperties().get(key);
+        if (src != null) {
+            to.getProperties().put(key, src);
+        }
+    }
+
+    public boolean isDeviceConnected(String mac) {
+        StateSummary state = resolveDeviceState(mac);
         if (state == null) {
-            System.out.println("[DEVICE-MANAGER] isDeviceConnected для MAC: " + mac + " - нет данных");
             return false;
         }
-        
+
         // Проверяем, есть ли данные в последние 10 секунд (как в archive проекте)
         long now = System.currentTimeMillis();
         long lastUpdate = state.getLastDatetimeUpdate().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
         long timeDiff = now - lastUpdate;
-        
+
         boolean connected = timeDiff < 10000; // 10 секунд (как в archive)
-        System.out.println("[DEVICE-MANAGER] isDeviceConnected для MAC: " + mac + " - разница времени: " + timeDiff + "мс, подключен: " + connected);
-        
+
         return connected;
     }
 
@@ -139,7 +189,6 @@ public class WeldingDeviceManagerService {
             // WebSocket отключен в текущей архитектуре (polling)
         }
 
-        System.out.println("[DEVICE-MANAGER] Аппарат " + mac + " отмечен как отключенный");
     }
 
     @PreDestroy
@@ -170,21 +219,19 @@ public class WeldingDeviceManagerService {
 
         return stats;
     }
-    
+
     /**
      * Получает текущее состояние аппарата по MAC адресу
      */
     public StateSummary getDeviceState(String mac) {
-        StateSummary state = deviceStates.get(mac);
-        System.out.println("[DEVICE-MANAGER] getDeviceState для MAC: " + mac + ", результат: " + (state != null ? "найден" : "не найден"));
+        StateSummary state = resolveDeviceState(mac);
         if (state != null) {
             long now = System.currentTimeMillis();
             long lastUpdate = state.getLastDatetimeUpdate().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
             long timeDiff = now - lastUpdate;
-            System.out.println("[DEVICE-MANAGER] Время последнего обновления: " + lastUpdate + ", разница: " + timeDiff + "мс");
         }
         return state;
     }
-    
-    
+
+
 } 

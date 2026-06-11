@@ -13,7 +13,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import org.alloy.models.WeldingMachineStatus;
+import org.alloy.services.report.ReportGenerationProgressContext;
 
+import java.sql.Timestamp;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.List;
@@ -343,8 +346,15 @@ public class WeldingReportCalculationService {
 
     private static boolean isWeldingState(WeldingMachineState s, java.util.Map<Long, String> stateNameByStateId) {
         if (s == null) return false;
-        return (s.getWeldingMachineStatus() == WeldingMachineStatus.Welding)
-                || "Сварка".equalsIgnoreCase(stateNameByStateId.getOrDefault(s.getId(), "").trim());
+        if (s.getWeldingMachineStatus() == WeldingMachineStatus.Welding) return true;
+        String name = stateNameByStateId.get(s.getId());
+        return name != null && indicatesWeldingByText(name);
+    }
+
+    private static boolean indicatesWeldingByText(String name) {
+        if (name == null || name.isBlank()) return false;
+        String n = name.toLowerCase(java.util.Locale.ROOT);
+        return n.contains("свар") || n.contains("weld");
     }
 
     private static boolean isValidCurrentVoltagePoint(int currentAmps, int voltageVolts) {
@@ -374,13 +384,156 @@ public class WeldingReportCalculationService {
      * — Время шва: сумма длительностей всех последовательных состояний «Сварка» в этом интервале (секунды).
      */
     public List<org.alloy.models.dto.WeldSegmentDTO> calculateWeldSegments(Integer machineId, LocalDateTime startDate, LocalDateTime endDate) {
-        List<WeldingMachineState> states = weldingMachineStateRepository
-                .findByWeldingMachineIdAndDateRange(machineId, startDate, endDate);
+        List<WeldingMachineState> states = loadStatesForReport(machineId, startDate, endDate);
         if (states.isEmpty()) {
             return new ArrayList<>();
         }
         states.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
         return calculateWeldSegmentsFromStates(states);
+    }
+
+    /** Загрузка состояний для отчёта: native-поля без Hibernate-графа, при длинном периоде — по неделям. */
+    public List<WeldingMachineState> loadStatesForReport(Integer machineId, LocalDateTime start, LocalDateTime end) {
+        if (machineId == null || start == null || end == null || start.isAfter(end)) {
+            return new ArrayList<>();
+        }
+        long loadStartMs = System.currentTimeMillis();
+        long spanDays = ChronoUnit.DAYS.between(start.toLocalDate(), end.toLocalDate()) + 1;
+        List<WeldingMachineState> result = new ArrayList<>();
+        if (spanDays <= MACHINE_PERIOD_CHUNK_DAYS) {
+            result.addAll(mapReportStateRows(
+                    weldingMachineStateRepository.findReportStateRowsByMachineAndDateRange(machineId, start, end)));
+            result.sort(Comparator.comparing(WeldingMachineState::getDateCreated,
+                    Comparator.nullsLast(Comparator.naturalOrder())));
+            System.out.println("[REPORT-CALC] loadStatesForReport machineId=" + machineId
+                    + " states=" + result.size() + " ms=" + (System.currentTimeMillis() - loadStartMs));
+            return result;
+        }
+        int totalChunks = (int) Math.ceil(spanDays / (double) MACHINE_PERIOD_CHUNK_DAYS);
+        int chunkIndex = 0;
+        LocalDateTime chunkStart = start;
+        while (true) {
+            LocalDateTime chunkEnd = chunkStart.plusDays(MACHINE_PERIOD_CHUNK_DAYS);
+            if (chunkEnd.isAfter(end)) {
+                chunkEnd = end;
+            }
+            result.addAll(mapReportStateRows(
+                    weldingMachineStateRepository.findReportStateRowsByMachineAndDateRange(machineId, chunkStart, chunkEnd)));
+            chunkIndex++;
+            if (totalChunks > 1) {
+                int loadPercent = 25 + (int) (8.0 * chunkIndex / totalChunks);
+                ReportGenerationProgressContext.update(loadPercent, "Загрузка состояний (" + chunkIndex + "/" + totalChunks + ")…");
+            }
+            if (chunkEnd.equals(end)) {
+                break;
+            }
+            chunkStart = chunkEnd.plusNanos(1);
+        }
+        result.sort(Comparator.comparing(WeldingMachineState::getDateCreated,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+        System.out.println("[REPORT-CALC] loadStatesForReport machineId=" + machineId
+                + " states=" + result.size() + " chunks=" + totalChunks
+                + " ms=" + (System.currentTimeMillis() - loadStartMs));
+        return result;
+    }
+
+    /**
+     * Загрузка состояний только вокруг швов (слитые окна ±5 мин), без полного скана периода.
+     * Используется отчётом, когда сегменты швов уже в кэше.
+     */
+    public List<WeldingMachineState> loadStatesAroundWeldRows(
+            Integer machineId, List<LocalDateTime> weldStarts, List<BigDecimal> weldDurationSec) {
+        if (machineId == null || weldStarts == null || weldDurationSec == null || weldStarts.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<java.time.LocalDateTime[]> windows = coalesceWeldTimeWindows(weldStarts, weldDurationSec);
+        java.util.Map<Long, WeldingMachineState> byId = new java.util.LinkedHashMap<>();
+        long loadStartMs = System.currentTimeMillis();
+        for (java.time.LocalDateTime[] w : windows) {
+            List<Object[]> rows = weldingMachineStateRepository.findReportStateRowsByMachineAndDateRange(
+                    machineId, w[0], w[1]);
+            for (WeldingMachineState s : mapReportStateRows(rows)) {
+                if (s.getId() != null) {
+                    byId.putIfAbsent(s.getId(), s);
+                }
+            }
+        }
+        List<WeldingMachineState> result = new ArrayList<>(byId.values());
+        result.sort(Comparator.comparing(WeldingMachineState::getDateCreated,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+        System.out.println("[REPORT-CALC] loadStatesAroundWeldRows machineId=" + machineId
+                + " welds=" + weldStarts.size() + " windows=" + windows.size()
+                + " states=" + result.size() + " ms=" + (System.currentTimeMillis() - loadStartMs));
+        return result;
+    }
+
+    /** Сливает перекрывающиеся окна швов (с отступом 5 мин) в меньшее число запросов к БД. */
+    static List<java.time.LocalDateTime[]> coalesceWeldTimeWindows(
+            List<LocalDateTime> weldStarts, List<BigDecimal> weldDurationSec) {
+        List<java.time.LocalDateTime[]> raw = new ArrayList<>();
+        int n = Math.min(weldStarts.size(), weldDurationSec.size());
+        for (int i = 0; i < n; i++) {
+            LocalDateTime start = weldStarts.get(i);
+            BigDecimal dur = weldDurationSec.get(i);
+            if (start == null || dur == null) continue;
+            LocalDateTime from = start.minusMinutes(5);
+            LocalDateTime to = start.plusSeconds(dur.longValue()).plusMinutes(5);
+            raw.add(new java.time.LocalDateTime[] { from, to });
+        }
+        if (raw.isEmpty()) {
+            return raw;
+        }
+        raw.sort(Comparator.comparing(a -> a[0]));
+        List<java.time.LocalDateTime[]> merged = new ArrayList<>();
+        LocalDateTime curStart = raw.get(0)[0];
+        LocalDateTime curEnd = raw.get(0)[1];
+        for (int i = 1; i < raw.size(); i++) {
+            LocalDateTime ws = raw.get(i)[0];
+            LocalDateTime we = raw.get(i)[1];
+            if (!ws.isAfter(curEnd)) {
+                if (we.isAfter(curEnd)) {
+                    curEnd = we;
+                }
+            } else {
+                merged.add(new java.time.LocalDateTime[] { curStart, curEnd });
+                curStart = ws;
+                curEnd = we;
+            }
+        }
+        merged.add(new java.time.LocalDateTime[] { curStart, curEnd });
+        return merged;
+    }
+
+    private static List<WeldingMachineState> mapReportStateRows(List<Object[]> rows) {
+        List<WeldingMachineState> list = new ArrayList<>(rows != null ? rows.size() : 0);
+        if (rows == null) {
+            return list;
+        }
+        WeldingMachineStatus[] statusValues = WeldingMachineStatus.values();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 5 || row[0] == null) {
+                continue;
+            }
+            WeldingMachineState s = new WeldingMachineState();
+            s.setId(((Number) row[0]).longValue());
+            if (row[1] != null) {
+                s.setWeldingMachineId(((Number) row[1]).intValue());
+            }
+            if (row[2] instanceof Timestamp) {
+                s.setDateCreated(((Timestamp) row[2]).toLocalDateTime());
+            } else if (row[2] instanceof LocalDateTime) {
+                s.setDateCreated((LocalDateTime) row[2]);
+            }
+            s.setStateDurationMs(row[3] != null ? ((Number) row[3]).longValue() : 0L);
+            if (row[4] != null) {
+                int ord = ((Number) row[4]).intValue();
+                if (ord >= 0 && ord < statusValues.length) {
+                    s.setWeldingMachineStatus(statusValues[ord]);
+                }
+            }
+            list.add(s);
+        }
+        return list;
     }
 
     /**
@@ -392,8 +545,10 @@ public class WeldingReportCalculationService {
             return result;
         }
         try {
+            long calcStartMs = System.currentTimeMillis();
             List<WeldingMachineState> sorted = new ArrayList<>(states);
             sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+            System.out.println("[REPORT-CALC] calculateWeldSegmentsFromStates start states=" + sorted.size());
             List<Long> fullStateIds = sorted.stream().map(WeldingMachineState::getId).collect(java.util.stream.Collectors.toList());
             Integer machineId = sorted.stream().map(WeldingMachineState::getWeldingMachineId)
                     .filter(java.util.Objects::nonNull).findFirst().orElse(null);
@@ -408,9 +563,39 @@ public class WeldingReportCalculationService {
             boolean largePeriod = sorted.size() >= LARGE_PERIOD_STATE_COUNT;
             long phase1Ms = System.currentTimeMillis();
 
-            java.util.Map<Long, String> stateNameByStateId = useMachineDateRange
-                    ? loadStateNameByMachineDateRange(machineId, rangeStart, rangeEnd)
-                    : loadStateNameByStateIds(fullStateIds);
+            // На длинном периоде (сотни тысяч состояний) JOIN+LIKE по parameter_value недопустим по времени.
+            // Core при «Сварка» пишет welding_machine_status=Welding — достаточно колонки из loadStatesForReport.
+            java.util.Map<Long, String> stateNameByStateId;
+            if (!useMachineDateRange || machineId == null) {
+                stateNameByStateId = loadStateNameByStateIds(collectStateIdsNeedingWeldingStateName(sorted));
+            } else if (largePeriod) {
+                stateNameByStateId = new java.util.HashMap<>();
+                System.out.println("[REPORT-CALC] largePeriod: сварка только по welding_machine_status, без текстового JOIN");
+            } else {
+                // Для небольших периодов text-JOIN может быть дорогим. Попробуем сначала оценить,
+                // насколько часто колонка welding_machine_status уже маркирует сварку.
+                int enumWeldCount = 0;
+                for (WeldingMachineState s : sorted) {
+                    if (s != null && s.getWeldingMachineStatus() == WeldingMachineStatus.Welding) {
+                        enumWeldCount++;
+                    }
+                }
+                double enumRatio = sorted.isEmpty() ? 0d : (enumWeldCount / (double) sorted.size());
+                boolean shouldLoadTextJoin = enumRatio < 0.01; // эвристика: при достаточном enum coverage текст не нужен
+                if (!shouldLoadTextJoin) {
+                    stateNameByStateId = new java.util.HashMap<>();
+                    System.out.println("[REPORT-CALC] skip text JOIN by enumRatio="
+                            + String.format(java.util.Locale.ROOT, "%.4f", enumRatio)
+                            + " enumWeldCount=" + enumWeldCount + " states=" + sorted.size());
+                } else {
+                    stateNameByStateId = loadWeldingTextStateNamesByMachineDateRange(machineId, rangeStart, rangeEnd);
+                }
+            }
+            if (sorted.size() >= 10_000) {
+                ReportGenerationProgressContext.update(35, "Поиск швов…");
+            }
+            System.out.println("[REPORT-CALC] weldingTextNames=" + stateNameByStateId.size()
+                    + " phase1Ms=" + (System.currentTimeMillis() - phase1Ms));
             java.util.Map<Long, LocalDateTime> deviceTimeByStateId = new java.util.HashMap<>();
             if (useMachineDateRange && !largePeriod) {
                 deviceTimeByStateId = loadDeviceDateTimeByMachinePeriodCombined(machineId, rangeStart, rangeEnd);
@@ -423,6 +608,7 @@ public class WeldingReportCalculationService {
             LocalDateTime weldStartTime = null;
             Long weldStartStateId = null;
 
+            long scanStartMs = System.currentTimeMillis();
             for (int i = 0; i < sorted.size(); i++) {
                 WeldingMachineState s = sorted.get(i);
                 boolean isWelding = isWeldingState(s, stateNameByStateId);
@@ -456,20 +642,31 @@ public class WeldingReportCalculationService {
 
             java.util.Set<Long> iuStateIds = collectStateIdsAroundPendingSegments(sorted, pending);
             long phase2Ms = System.currentTimeMillis();
+            System.out.println("[REPORT-CALC] weldScan pending=" + pending.size()
+                    + " scanMs=" + (phase2Ms - scanStartMs));
+            if (sorted.size() >= 10_000) {
+                ReportGenerationProgressContext.update(50, "Загрузка тока и напряжения…");
+            }
             java.util.Map<Long, Integer> currentByState = new java.util.HashMap<>();
             java.util.Map<Long, Integer> voltageByState = new java.util.HashMap<>();
             loadCurrentAndVoltageForWeldSegments(
                     machineId, rangeStart, rangeEnd, fullStateIds, iuStateIds, sorted.size(),
                     useMachineDateRange, currentByState, voltageByState);
+            if (sorted.size() >= 10_000) {
+                ReportGenerationProgressContext.update(72, "Сборка данных отчёта…");
+            }
             long phase3Ms = System.currentTimeMillis();
 
             for (PendingWeldSegment p : pending) {
                 List<WeldingMachineState> windowStates = statesInTimeWindow(
                         sorted, p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5));
                 LocalDateTime serverEnd = p.serverEnd != null ? p.serverEnd : p.segmentEndTime;
-                result.add(buildSegmentDto(
+                org.alloy.models.dto.WeldSegmentDTO dto = buildSegmentDto(
                         p.weldStartTime, serverEnd, p.segmentDurationMs, 0, 0,
-                        windowStates, currentByState, voltageByState, p.segmentStartForDto, stateNameByStateId));
+                        windowStates, currentByState, voltageByState, p.segmentStartForDto, stateNameByStateId);
+                dto.setStartStateId(p.weldStartStateId);
+                dto.setEndStateId(p.weldEndStateId);
+                result.add(dto);
             }
 
             System.out.println("[REPORT-CALC] machineId=" + machineId + " states=" + sorted.size()
@@ -477,6 +674,7 @@ public class WeldingReportCalculationService {
                     + " largePeriod=" + largePeriod + " deviceTimeKeys=" + deviceTimeByStateId.size()
                     + " phase1Ms=" + (phase2Ms - phase1Ms) + " iuLoadMs=" + (phase3Ms - phase2Ms)
                     + " buildMs=" + (System.currentTimeMillis() - phase3Ms)
+                    + " totalMs=" + (System.currentTimeMillis() - calcStartMs)
                     + " I=" + currentByState.size() + " U=" + voltageByState.size());
 
         } catch (Exception e) {
@@ -592,6 +790,49 @@ public class WeldingReportCalculationService {
 
     /** Порог: за длинный период не грузим Date./Time.* на все состояния — только границы швов. */
     private static final int LARGE_PERIOD_STATE_COUNT = 80_000;
+    /** При большом iuStateIds — недельный JOIN (5 кодов) + whitelist, не сотни IN-батчей по id. */
+    private static final int IU_WEEKLY_FILTERED_MIN_IDS = 20_000;
+    /** Запросы machineId+period режем по неделям — меньше время удержания соединения и нагрузка на БД. */
+    private static final int MACHINE_PERIOD_CHUNK_DAYS = 7;
+
+    private static List<Long> collectStateIdsNeedingWeldingStateName(List<WeldingMachineState> sorted) {
+        if (sorted == null || sorted.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return sorted.stream()
+                .filter(s -> s.getId() != null && s.getWeldingMachineStatus() != WeldingMachineStatus.Welding)
+                .map(WeldingMachineState::getId)
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private interface MachineDateRangeChunkConsumer {
+        void accept(LocalDateTime chunkStart, LocalDateTime chunkEnd);
+    }
+
+    private void forEachMachineDateRangeChunk(
+            LocalDateTime start, LocalDateTime end, MachineDateRangeChunkConsumer consumer) {
+        if (start == null || end == null || consumer == null || start.isAfter(end)) {
+            return;
+        }
+        long spanDays = java.time.temporal.ChronoUnit.DAYS.between(start.toLocalDate(), end.toLocalDate()) + 1;
+        if (spanDays <= MACHINE_PERIOD_CHUNK_DAYS) {
+            consumer.accept(start, end);
+            return;
+        }
+        LocalDateTime chunkStart = start;
+        while (true) {
+            LocalDateTime chunkEnd = chunkStart.plusDays(MACHINE_PERIOD_CHUNK_DAYS);
+            if (chunkEnd.isAfter(end)) {
+                chunkEnd = end;
+            }
+            consumer.accept(chunkStart, chunkEnd);
+            if (chunkEnd.equals(end)) {
+                break;
+            }
+            chunkStart = chunkEnd.plusNanos(1);
+        }
+    }
 
     private static class PendingWeldSegment {
         LocalDateTime weldStartTime;
@@ -676,11 +917,53 @@ public class WeldingReportCalculationService {
 
     private static java.util.Set<Long> collectStateIdsAroundPendingSegments(
             List<WeldingMachineState> sorted, java.util.List<PendingWeldSegment> pending) {
-        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        if (sorted == null || sorted.isEmpty() || pending == null || pending.isEmpty()) {
+            return java.util.Collections.emptySet();
+        }
+        class Window {
+            LocalDateTime from;
+            LocalDateTime to;
+            Window(LocalDateTime from, LocalDateTime to) {
+                this.from = from;
+                this.to = to;
+            }
+        }
+        java.util.List<Window> windows = new java.util.ArrayList<>(pending.size());
         for (PendingWeldSegment p : pending) {
-            for (WeldingMachineState s : statesInTimeWindow(
-                    sorted, p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5))) {
-                if (s.getId() != null) ids.add(s.getId());
+            if (p == null || p.weldStartTime == null || p.segmentEndTime == null) continue;
+            windows.add(new Window(p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5)));
+        }
+        if (windows.isEmpty()) return java.util.Collections.emptySet();
+        windows.sort(java.util.Comparator.comparing(w -> w.from));
+
+        // Схлопываем пересекающиеся/соседние окна, чтобы избежать повторной обработки одинаковых диапазонов.
+        java.util.List<Window> merged = new java.util.ArrayList<>(windows.size());
+        for (Window w : windows) {
+            if (merged.isEmpty()) {
+                merged.add(w);
+                continue;
+            }
+            Window last = merged.get(merged.size() - 1);
+            if (!w.from.isAfter(last.to)) {
+                if (w.to.isAfter(last.to)) last.to = w.to;
+            } else {
+                merged.add(w);
+            }
+        }
+
+        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        int wIdx = 0;
+        for (WeldingMachineState s : sorted) {
+            if (wIdx >= merged.size()) break;
+            if (s == null || s.getDateCreated() == null) continue;
+            LocalDateTime t = s.getDateCreated();
+            while (wIdx < merged.size() && t.isAfter(merged.get(wIdx).to)) {
+                wIdx++;
+            }
+            if (wIdx >= merged.size()) break;
+            Window cur = merged.get(wIdx);
+            if (!t.isBefore(cur.from) && !t.isAfter(cur.to) && s.getId() != null) {
+                ids.add(s.getId());
             }
         }
         return ids;
@@ -729,56 +1012,143 @@ public class WeldingReportCalculationService {
         target.segmentDurationMs = source.segmentDurationMs;
     }
 
-    /** Ток/напряжение: по окнам швов (батчи), либо один JOIN на весь период, если окон почти весь интервал. */
+    /** Ток/напряжение: при большом числе швов или largePeriod — JOIN за весь период по неделям. */
     private void loadCurrentAndVoltageForWeldSegments(
             Integer machineId, LocalDateTime rangeStart, LocalDateTime rangeEnd, List<Long> fullStateIds,
             java.util.Set<Long> iuStateIds, int totalStates, boolean useMachineDateRange,
             java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
         int iuCount = iuStateIds != null ? iuStateIds.size() : 0;
-        boolean useFullPeriod = !useMachineDateRange || iuCount == 0
-                || iuCount >= totalStates * 0.65;
-        if (useFullPeriod && useMachineDateRange) {
+        long t0 = System.currentTimeMillis();
+        java.util.List<String> iuCodes = java.util.Arrays.asList("Current", "State.I", "I", "Ток", "Voltage");
+
+        if (useMachineDateRange && machineId != null && (iuCount == 0 || totalStates < LARGE_PERIOD_STATE_COUNT)) {
+            // Малый период: JOIN за весь период — один проход по таблице
             loadArcElectricalByMachinePeriodCombined(machineId, rangeStart, rangeEnd, currentByState, voltageByState);
+            System.out.println("[REPORT-CALC] loadIU fullPeriod ms=" + (System.currentTimeMillis() - t0)
+                    + " I=" + currentByState.size() + " U=" + voltageByState.size());
             return;
         }
+
+        // largePeriod: недельный JOIN по 5 кодам + whitelist (быстрее per-code IN-батчей ~167s).
+        if (useMachineDateRange && machineId != null && iuCount > 0) {
+            if (iuCount >= IU_WEEKLY_FILTERED_MIN_IDS) {
+                java.util.Set<Long> allowed = new java.util.HashSet<>(iuStateIds);
+                loadArcElectricalByMachinePeriodCombinedFiltered(
+                        machineId, rangeStart, rangeEnd, allowed, currentByState, voltageByState);
+                System.out.println("[REPORT-CALC] loadIU weeklyFiltered ms=" + (System.currentTimeMillis() - t0)
+                        + " iuIds=" + iuCount + " I=" + currentByState.size() + " U=" + voltageByState.size());
+                return;
+            }
+            java.util.List<Long> idList = new java.util.ArrayList<>(iuStateIds);
+            final int BATCH_SIZE = 5_000;
+            int batches = 0;
+            for (int i = 0; i < idList.size(); i += BATCH_SIZE) {
+                List<Long> batch = idList.subList(i, Math.min(i + BATCH_SIZE, idList.size()));
+                try {
+                    List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueNativeByStateIds(batch, iuCodes);
+                    mergeArcElectricalRows(rows, currentByState, voltageByState);
+                    batches++;
+                } catch (Exception e) {
+                    System.err.println("[REPORT-CALC] ⚠️ loadIU largePeriod batch: " + e.getMessage());
+                }
+            }
+            System.out.println("[REPORT-CALC] loadIU largePeriod byIds ms=" + (System.currentTimeMillis() - t0)
+                    + " batches=" + batches + " batchSize=" + BATCH_SIZE + " iuIds=" + iuCount
+                    + " I=" + currentByState.size() + " U=" + voltageByState.size());
+            return;
+        }
+
+        // Fallback: batches IN без периода
         java.util.List<Long> idList = new java.util.ArrayList<>(iuStateIds);
-        for (String code : new String[] { "Current", "State.I" }) {
-            mergeParamMap(currentByState, loadParamMapByStateIds(idList, code, true));
-        }
-        for (String code : new String[] { "I", "Ток" }) {
-            mergeParamMap(currentByState, loadParamMapByStateIds(idList, code, false));
-        }
-        java.util.Map<Long, Integer> voltageRaw = loadParamMapByStateIds(idList, "Voltage", true);
-        for (java.util.Map.Entry<Long, Integer> e : voltageRaw.entrySet()) {
-            if (e.getValue() != null && e.getValue() != 0) {
-                voltageByState.put(e.getKey(), e.getValue() / 10);
+        final int BATCH_SIZE = 10_000;
+        for (int i = 0; i < idList.size(); i += BATCH_SIZE) {
+            List<Long> batch = idList.subList(i, Math.min(i + BATCH_SIZE, idList.size()));
+            try {
+                List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueNativeByStateIds(batch, iuCodes);
+                for (Object[] row : rows) {
+                    if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                    long stateId = ((Number) row[0]).longValue();
+                    String code = row[1].toString();
+                    String valueStr = row[2].toString();
+                    if ("null".equalsIgnoreCase(valueStr.trim())) continue;
+                    if ("Voltage".equals(code)) {
+                        int v = parseValueToInt(valueStr);
+                        if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
+                    } else {
+                        currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[REPORT-CALC] ⚠️ loadIU fallback batch: " + e.getMessage());
             }
         }
+        System.out.println("[REPORT-CALC] loadIU fallback ms=" + (System.currentTimeMillis() - t0)
+                + " I=" + currentByState.size() + " U=" + voltageByState.size());
     }
 
     private void loadArcElectricalByMachinePeriodCombined(
             Integer machineId, LocalDateTime start, LocalDateTime end,
             java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
+        loadArcElectricalByMachinePeriodCombinedFiltered(machineId, start, end, null, currentByState, voltageByState);
+    }
+
+    /** JOIN I/U по неделям; при allowed != null — только stateId из окон швов. */
+    private void loadArcElectricalByMachinePeriodCombinedFiltered(
+            Integer machineId, LocalDateTime start, LocalDateTime end,
+            java.util.Set<Long> allowedStateIds,
+            java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
         if (machineId == null || start == null || end == null) return;
         try {
-            List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
-                    machineId, start, end,
-                    java.util.Arrays.asList("Current", "State.I", "I", "Ток", "Voltage"));
-            for (Object[] row : rows) {
-                if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
-                long stateId = ((Number) row[0]).longValue();
-                String code = row[1].toString();
-                String valueStr = row[2].toString();
-                if ("null".equalsIgnoreCase(valueStr.trim())) continue;
-                if ("Voltage".equals(code)) {
-                    int v = parseValueToInt(valueStr);
-                    if (v != 0) voltageByState.put(stateId, v / 10);
+            java.util.List<String> codes = java.util.Arrays.asList("Current", "State.I", "I", "Ток", "Voltage");
+            final int[] chunkCount = {0};
+            forEachMachineDateRangeChunk(start, end, (chunkStart, chunkEnd) -> {
+                chunkCount[0]++;
+                List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
+                        machineId, chunkStart, chunkEnd, codes);
+                if (allowedStateIds == null || allowedStateIds.isEmpty()) {
+                    mergeArcElectricalRows(rows, currentByState, voltageByState);
                 } else {
-                    currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
+                    for (Object[] row : rows) {
+                        if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                        long stateId = ((Number) row[0]).longValue();
+                        if (!allowedStateIds.contains(stateId)) continue;
+                        String code = row[1].toString();
+                        String valueStr = row[2].toString();
+                        if ("null".equalsIgnoreCase(valueStr.trim())) continue;
+                        if ("Voltage".equals(code)) {
+                            int v = parseValueToInt(valueStr);
+                            if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
+                        } else {
+                            currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
+                        }
+                    }
                 }
+            });
+            if (allowedStateIds != null && !allowedStateIds.isEmpty()) {
+                System.out.println("[REPORT-CALC] loadIU weeklyFiltered chunks=" + chunkCount[0]
+                        + " allowed=" + allowedStateIds.size());
             }
         } catch (Exception e) {
             System.err.println("[REPORT-CALC] ⚠️ combined I/U machine+period: " + e.getMessage());
+        }
+    }
+
+    private void mergeArcElectricalRows(
+            List<Object[]> rows,
+            java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
+        if (rows == null) return;
+        for (Object[] row : rows) {
+            if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+            long stateId = ((Number) row[0]).longValue();
+            String code = row[1].toString();
+            String valueStr = row[2].toString();
+            if ("null".equalsIgnoreCase(valueStr.trim())) continue;
+            if ("Voltage".equals(code)) {
+                int v = parseValueToInt(valueStr);
+                if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
+            } else {
+                currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
+            }
         }
     }
 
@@ -843,38 +1213,23 @@ public class WeldingReportCalculationService {
         java.util.Map<Long, Integer> map = new java.util.HashMap<>();
         if (machineId == null || start == null || end == null) return map;
         try {
-            List<Object[]> rows = useCoalesce
-                    ? parameterValueRepository.findStateIdAndValueByMachineDateRangeCoalesce(machineId, start, end, propertyCode)
-                    : parameterValueRepository.findStateIdAndValueByMachineDateRange(machineId, start, end, propertyCode);
-            for (Object[] row : rows) {
-                if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
-                    long stateId = ((Number) row[0]).longValue();
-                    String valueStr = row[1].toString();
-                    if ("null".equalsIgnoreCase(valueStr.trim())) continue;
-                    map.put(stateId, parseValueToInt(valueStr));
+            forEachMachineDateRangeChunk(start, end, (chunkStart, chunkEnd) -> {
+                List<Object[]> rows = useCoalesce
+                        ? parameterValueRepository.findStateIdAndValueByMachineDateRangeCoalesce(
+                        machineId, chunkStart, chunkEnd, propertyCode)
+                        : parameterValueRepository.findStateIdAndValueByMachineDateRange(
+                        machineId, chunkStart, chunkEnd, propertyCode);
+                for (Object[] row : rows) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                        long stateId = ((Number) row[0]).longValue();
+                        String valueStr = row[1].toString();
+                        if ("null".equalsIgnoreCase(valueStr.trim())) continue;
+                        map.putIfAbsent(stateId, parseValueToInt(valueStr));
+                    }
                 }
-            }
+            });
         } catch (Exception e) {
             System.err.println("[REPORT-CALC] ⚠️ machine+period " + propertyCode + ": " + e.getMessage());
-        }
-        return map;
-    }
-
-    private java.util.Map<Long, String> loadStateNameByMachineDateRange(
-            Integer machineId, LocalDateTime start, LocalDateTime end) {
-        java.util.Map<Long, String> map = new java.util.HashMap<>();
-        if (machineId == null || start == null || end == null) return map;
-        try {
-            List<Object[]> rows = parameterValueRepository.findStateIdAndValueByMachineDateRangeAndCodes(
-                    machineId, start, end, java.util.Arrays.asList("WeldingMachineState", "Состояние аппарата"));
-            for (Object[] row : rows) {
-                if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
-                    long stateId = ((Number) row[0]).longValue();
-                    map.putIfAbsent(stateId, row[1].toString().trim());
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("[REPORT-CALC] ⚠️ machine+period state names: " + e.getMessage());
         }
         return map;
     }
@@ -889,19 +1244,22 @@ public class WeldingReportCalculationService {
             parts.put(c, new java.util.HashMap<>());
         }
         try {
-            List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
-                    machineId, start, end, java.util.Arrays.asList(
-                            "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds"));
-            for (Object[] row : rows) {
-                if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
-                long stateId = ((Number) row[0]).longValue();
-                String code = row[1].toString();
-                java.util.Map<Long, Integer> map = parts.get(code);
-                if (map == null) continue;
-                try {
-                    map.put(stateId, Integer.parseInt(row[2].toString().trim()));
-                } catch (NumberFormatException ignored) { }
-            }
+            java.util.List<String> codes = java.util.Arrays.asList(
+                    "Date.Year", "Date.Month", "Date.Day", "Time.Hours", "Time.Minutes", "Time.Seconds");
+            forEachMachineDateRangeChunk(start, end, (chunkStart, chunkEnd) -> {
+                List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
+                        machineId, chunkStart, chunkEnd, codes);
+                for (Object[] row : rows) {
+                    if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                    long stateId = ((Number) row[0]).longValue();
+                    String code = row[1].toString();
+                    java.util.Map<Long, Integer> map = parts.get(code);
+                    if (map == null) continue;
+                    try {
+                        map.putIfAbsent(stateId, Integer.parseInt(row[2].toString().trim()));
+                    } catch (NumberFormatException ignored) { }
+                }
+            });
         } catch (Exception e) {
             System.err.println("[REPORT-CALC] ⚠️ device time machine+period: " + e.getMessage());
         }
@@ -1039,6 +1397,32 @@ public class WeldingReportCalculationService {
             } catch (Exception ignored) { }
         }
         return out;
+    }
+
+    /**
+     * Только stateId, где в параметре текст «Сварка»/weld — вместо сотен тысяч IN по Idle.
+     */
+    private java.util.Map<Long, String> loadWeldingTextStateNamesByMachineDateRange(
+            Integer machineId, LocalDateTime start, LocalDateTime end) {
+        java.util.Map<Long, String> map = new java.util.HashMap<>();
+        if (machineId == null || start == null || end == null) {
+            return map;
+        }
+        try {
+            forEachMachineDateRangeChunk(start, end, (chunkStart, chunkEnd) -> {
+                List<Object[]> rows = parameterValueRepository.findWeldingTextStateIdAndValueByMachineDateRange(
+                        machineId, chunkStart, chunkEnd);
+                for (Object[] row : rows) {
+                    if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                        long stateId = ((Number) row[0]).longValue();
+                        map.putIfAbsent(stateId, row[1].toString().trim());
+                    }
+                }
+            });
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ⚠️ welding text names machine+period: " + e.getMessage());
+        }
+        return map;
     }
 
     /**

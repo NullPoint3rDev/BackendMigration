@@ -30,6 +30,15 @@ public class WeldingMachineDailyStats {
     @Column(name = "wire_consumption_kg", nullable = false, precision = 16, scale = 5)
     private BigDecimal wireConsumptionKg = BigDecimal.ZERO;
 
+    /** DEFAULT 0 в columnDefinition — иначе ddl-auto не добавит NOT NULL на таблицу с данными. */
+    @Column(name = "gas_consumption_l", nullable = false,
+            columnDefinition = "NUMERIC(16,3) NOT NULL DEFAULT 0")
+    private BigDecimal gasConsumptionL = BigDecimal.ZERO;
+
+    /** Первое значение счётчика «расход с включения» за сутки (л) — для live-обновления на UI. */
+    @Column(name = "gas_baseline_at_day_start_l", columnDefinition = "NUMERIC(16,3)")
+    private BigDecimal gasBaselineAtDayStartL;
+
     @Column(name = "off_ms", nullable = false)
     private Long offMs = 0L;
 

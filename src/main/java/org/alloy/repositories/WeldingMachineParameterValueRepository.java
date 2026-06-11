@@ -139,6 +139,26 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
             @Param("end") LocalDateTime end,
             @Param("propertyCodes") List<String> propertyCodes);
 
+    /**
+     * Ток/напряжение за период с фильтром по stateId (whitelist швов) — избегаем полного скана parameter_value.
+     * [state_id, property_code, value].
+     */
+    @Query(
+            value = "SELECT s.id, p.property_code, COALESCE(p.value, p.raw_value) "
+                    + "FROM welding_machine_state s "
+                    + "INNER JOIN welding_machine_parameter_value p ON p.welding_machine_stateid = s.id "
+                    + "WHERE s.welding_machineid = :machineId "
+                    + "AND s.date_created >= :start AND s.date_created <= :end "
+                    + "AND s.id IN (:stateIds) "
+                    + "AND p.property_code IN (:propertyCodes)",
+            nativeQuery = true)
+    List<Object[]> findStateIdCodeAndValueByMachineDateRangeAndStateIds(
+            @Param("machineId") Integer machineId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("stateIds") List<Long> stateIds,
+            @Param("propertyCodes") List<String> propertyCodes);
+
     /** [state_id, property_code, value] — один батч IN вместо отдельного запроса на каждый property_code. */
     @Query(
             value = "SELECT welding_machine_stateid, property_code, COALESCE(value, raw_value) FROM welding_machine_parameter_value " +
@@ -147,4 +167,23 @@ public interface WeldingMachineParameterValueRepository extends JpaRepository<We
     List<Object[]> findStateIdCodeAndValueNativeByStateIds(
             @Param("stateIds") List<Long> stateIds,
             @Param("propertyCodes") List<String> propertyCodes);
+
+    /**
+     * Только состояния, где текст параметра указывает на сварку (для отчётов — не грузим все Idle).
+     * [0]=state_id, [1]=value.
+     */
+    @Query(
+            value = "SELECT p.welding_machine_stateid, COALESCE(p.value, p.raw_value) "
+                    + "FROM welding_machine_state s "
+                    + "INNER JOIN welding_machine_parameter_value p ON p.welding_machine_stateid = s.id "
+                    + "WHERE s.welding_machineid = :machineId "
+                    + "AND s.date_created >= :start AND s.date_created <= :end "
+                    + "AND p.property_code IN ('WeldingMachineState', 'Состояние аппарата') "
+                    + "AND (LOWER(COALESCE(p.value, p.raw_value)) LIKE '%свар%' "
+                    + "OR LOWER(COALESCE(p.value, p.raw_value)) LIKE '%weld%')",
+            nativeQuery = true)
+    List<Object[]> findWeldingTextStateIdAndValueByMachineDateRange(
+            @Param("machineId") Integer machineId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }

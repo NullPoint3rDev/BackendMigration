@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 public class WeldingMachineDailyStatsService {
 
     private static final String WIRE_PARAM = "Расход проволоки";
+    private static final String GAS_CUMULATIVE_PARAM = "Core.GasConsumptionSincePowerOn";
     private static final List<String> STATE_TEXT_KEYS = List.of(
             "Состояние аппарата", "WeldingMachineState", "State.WeldingMachineState");
     private static final List<String> CURRENT_KEYS = List.of("State.I", "Ток", "Current", "current");
@@ -74,14 +75,17 @@ public class WeldingMachineDailyStatsService {
     /**
      * Быстрый ответ для UI: только чтение кэша. Пересчёт — асинхронно, если кэш устарел.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public WeldingMachineDailyStatsDTO getDailyStatsByMac(String mac, LocalDate statDate) {
         WeldingMachine machine = resolveMachine(mac);
         LocalDate day = statDate != null ? statDate : today();
         WeldingMachineDailyStats row = dailyStatsRepository
                 .findByWeldingMachineIdAndStatDate(machine.getId(), day)
                 .orElseGet(() -> emptyStats(machine.getId(), day));
-        if (shouldScheduleRecompute(row, day)) {
+        // baseline нужен для live-расчёта на UI; без него фронт залипает на устаревшем gasConsumptionL из кэша
+        if (day.equals(today()) && row.getGasBaselineAtDayStartL() == null) {
+            row = recomputeDay(machine.getId(), day);
+        } else if (shouldScheduleRecompute(row, day)) {
             scheduleRecompute(machine.getId(), day);
         }
         return toDto(machine, row);
@@ -154,6 +158,9 @@ public class WeldingMachineDailyStatsService {
 
         BigDecimal wireKg = calculateWireKg(states, dayStart, effectiveEnd, wireFeedByStateId, openEndIfLast);
 
+        Map<Long, BigDecimal> gasCumulativeByStateId = loadGasCumulativeByStateId(states);
+        GasDayTotals gasTotals = calculateGasLiters(states, gasCumulativeByStateId);
+
         Long lastStateId = states.isEmpty() ? null : states.get(states.size() - 1).getId();
 
         WeldingMachineDailyStats row = dailyStatsRepository
@@ -162,6 +169,8 @@ public class WeldingMachineDailyStatsService {
         row.setWeldingMachineId(weldingMachineId);
         row.setStatDate(statDate);
         row.setWireConsumptionKg(wireKg);
+        row.setGasConsumptionL(gasTotals.consumptionL);
+        row.setGasBaselineAtDayStartL(gasTotals.baselineAtDayStartL);
         row.setOffMs(offMs);
         row.setStandbyMs(errorMs);
         row.setOnMs(onMs);
@@ -196,6 +205,7 @@ public class WeldingMachineDailyStatsService {
         row.setWeldingMachineId(weldingMachineId);
         row.setStatDate(statDate);
         row.setWireConsumptionKg(BigDecimal.ZERO);
+        row.setGasConsumptionL(BigDecimal.ZERO);
         row.setOffMs(0L);
         row.setStandbyMs(0L);
         row.setOnMs(0L);
@@ -313,6 +323,89 @@ public class WeldingMachineDailyStatsService {
         }
     }
 
+    private Map<Long, BigDecimal> loadGasCumulativeByStateId(List<WeldingMachineState> states) {
+        Map<Long, BigDecimal> out = new HashMap<>();
+        if (states == null || states.isEmpty()) {
+            return out;
+        }
+        List<Long> ids = states.stream().map(WeldingMachineState::getId).filter(id -> id != null).collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return out;
+        }
+        final int batchSize = 5000;
+        for (int i = 0; i < ids.size(); i += batchSize) {
+            List<Long> batch = ids.subList(i, Math.min(i + batchSize, ids.size()));
+            List<WeldingMachineParameterValue> rows = parameterValueRepository.findByStateIdsAndPropertyCode(batch, GAS_CUMULATIVE_PARAM);
+            for (WeldingMachineParameterValue pv : rows) {
+                putGasCumulativeValue(out, pv);
+            }
+        }
+        return out;
+    }
+
+    private void putGasCumulativeValue(Map<Long, BigDecimal> out, WeldingMachineParameterValue pv) {
+        if (pv.getWeldingMachineStateId() == null) {
+            return;
+        }
+        String s = pv.getValue();
+        if (s == null || s.isBlank()) {
+            s = pv.getRawValue();
+        }
+        if (s == null || s.isBlank()) {
+            return;
+        }
+        try {
+            out.put(pv.getWeldingMachineStateId(), new BigDecimal(s.trim().replace(',', '.')));
+        } catch (NumberFormatException ignored) {
+            /* skip */
+        }
+    }
+
+    private GasDayTotals calculateGasLiters(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> gasCumulativeByStateId) {
+        if (states == null || states.isEmpty() || gasCumulativeByStateId.isEmpty()) {
+            return GasDayTotals.zero();
+        }
+        BigDecimal baseline = null;
+        BigDecimal sumDelta = BigDecimal.ZERO;
+        BigDecimal prev = null;
+        for (WeldingMachineState s : states) {
+            if (s.getId() == null) {
+                continue;
+            }
+            BigDecimal current = gasCumulativeByStateId.get(s.getId());
+            if (current == null) {
+                continue;
+            }
+            if (baseline == null) {
+                baseline = current;
+            }
+            if (prev != null && current.compareTo(prev) >= 0) {
+                sumDelta = sumDelta.add(current.subtract(prev));
+            }
+            prev = current;
+        }
+        if (baseline == null) {
+            return GasDayTotals.zero();
+        }
+        return new GasDayTotals(sumDelta.setScale(3, RoundingMode.HALF_UP), baseline.setScale(3, RoundingMode.HALF_UP));
+    }
+
+    private static final class GasDayTotals {
+        final BigDecimal consumptionL;
+        final BigDecimal baselineAtDayStartL;
+
+        GasDayTotals(BigDecimal consumptionL, BigDecimal baselineAtDayStartL) {
+            this.consumptionL = consumptionL != null ? consumptionL : BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+            this.baselineAtDayStartL = baselineAtDayStartL;
+        }
+
+        static GasDayTotals zero() {
+            return new GasDayTotals(BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP), null);
+        }
+    }
+
     private void putWireFeedValue(Map<Long, BigDecimal> out, WeldingMachineParameterValue pv) {
         if (pv.getWeldingMachineStateId() == null) {
             return;
@@ -356,6 +449,8 @@ public class WeldingMachineDailyStatsService {
         dto.setMac(machine.getMac());
         dto.setStatDate(row.getStatDate());
         dto.setWireConsumptionKg(row.getWireConsumptionKg() != null ? row.getWireConsumptionKg() : BigDecimal.ZERO);
+        dto.setGasConsumptionL(row.getGasConsumptionL() != null ? row.getGasConsumptionL() : BigDecimal.ZERO);
+        dto.setGasBaselineAtDayStartL(row.getGasBaselineAtDayStartL());
         dto.setOffMs(row.getOffMs() != null ? row.getOffMs() : 0L);
         long errorMs = row.getStandbyMs() != null ? row.getStandbyMs() : 0L;
         dto.setErrorMs(errorMs);

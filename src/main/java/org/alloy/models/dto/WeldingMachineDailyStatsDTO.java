@@ -11,6 +11,10 @@ public class WeldingMachineDailyStatsDTO {
     private String mac;
     private LocalDate statDate;
     private BigDecimal wireConsumptionKg;
+    /** Суммарный расход газа за сутки, л. */
+    private BigDecimal gasConsumptionL;
+    /** Счётчик «с включения» на начало суток (л), для расчёта на клиенте между пересчётами. */
+    private BigDecimal gasBaselineAtDayStartL;
     private long offMs;
     /** @deprecated используйте {@link #errorMs}; в БД — колонка {@code standby_ms}. */
     private long standbyMs;

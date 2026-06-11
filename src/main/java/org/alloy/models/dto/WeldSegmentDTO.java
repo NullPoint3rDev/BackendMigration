@@ -1,5 +1,6 @@
 package org.alloy.models.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,6 +24,13 @@ public class WeldSegmentDTO {
 
     @JsonProperty("Длительность шва (с)")
     private BigDecimal durationSeconds; // сек, 1 знак после запятой
+
+    /** Для материализованного кэша швов (не отдаётся в JSON отчёта). */
+    @JsonIgnore
+    private Long startStateId;
+
+    @JsonIgnore
+    private Long endStateId;
 }
 
 

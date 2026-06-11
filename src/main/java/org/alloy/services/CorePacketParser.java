@@ -135,6 +135,15 @@ public class CorePacketParser {
             if (off + 3 < bytes.length) { p.workTimeSincePowerOn = readU32BE(bytes, off); off += 4; }
             if (off + 3 < bytes.length) { p.weldingTimeSincePowerOn = readU32BE(bytes, off); off += 4; }
 
+            // 39-40. Мгновенный расход газа (uint16) и накопленный с включения (uint32), big-endian; в UI — /10
+            if (off + 5 < bytes.length) {
+                p.instantGasFlowLpm = readU16BE(bytes, off);
+                off += 2;
+                p.gasConsumptionSincePowerOnLiters = readU32BE(bytes, off);
+                off += 4;
+                p.hasExtendedGasMetrics = true;
+            }
+
             // Убрали логирование для ускорения
         } catch (Exception ex) {
             // System.out.println("[CORE-PARSER] ❌ Ошибка парсинга: " + ex.getMessage());
