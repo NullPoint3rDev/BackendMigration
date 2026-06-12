@@ -110,11 +110,9 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
 
         userAccountRepository.findByUserName(user.getUsername()).ifPresent(account -> {
-            boolean adminAlloy = authorities.stream()
-                    .anyMatch(a -> "ROLE_ADMIN_ALLOY".equals(a.getAuthority()));
-            if (AllowedUserActionsHelper.canWorkWithReports(
-                    AllowedUserActionsHelper.parseActions(account), adminAlloy)) {
-                authorities.add(new SimpleGrantedAuthority("PERMISSION_WORK_WITH_REPORTS"));
+            Set<String> allowedActions = AllowedUserActionsHelper.parseActions(account);
+            for (String permissionAuthority : AllowedUserActionsAuthorityMapper.permissionAuthorities(allowedActions)) {
+                authorities.add(new SimpleGrantedAuthority(permissionAuthority));
             }
         });
 
