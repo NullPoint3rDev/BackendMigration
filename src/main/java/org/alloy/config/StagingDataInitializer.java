@@ -14,6 +14,7 @@ import org.alloy.repositories.UserRepository;
 import org.alloy.repositories.UserRolePermissionRepository;
 import org.alloy.repositories.UserRoleRepository;
 import org.alloy.security.Wt2Permission;
+import org.alloy.security.Wt2Role;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -64,7 +65,9 @@ public class StagingDataInitializer implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         Organization organization = ensureOrganization();
-        UserRole adminRole = ensureAdminAlloyRole();
+        ensureWt2Roles();
+        UserRole adminRole = userRoleRepository.findByName(ROLE_ADMIN_ALLOY)
+                .orElseThrow(() -> new IllegalStateException("Роль ADMIN_ALLOY не найдена после инициализации"));
         ensureWt2PermissionsForRole(adminRole);
         ensureAdministratorUser(organization, adminRole);
     }
@@ -83,15 +86,17 @@ public class StagingDataInitializer implements CommandLineRunner {
                 });
     }
 
-    private UserRole ensureAdminAlloyRole() {
-        return userRoleRepository.findByName(ROLE_ADMIN_ALLOY).orElseGet(() -> {
-            UserRole role = new UserRole();
-            role.setName(ROLE_ADMIN_ALLOY);
-            role.setDescription("Администратор Эллой");
-            role.setStatus(GeneralStatus.Active);
-            role.setRoleLevel(1);
-            return userRoleRepository.save(role);
-        });
+    private void ensureWt2Roles() {
+        for (Wt2Role wt2Role : Wt2Role.values()) {
+            userRoleRepository.findByName(wt2Role.name()).orElseGet(() -> {
+                UserRole role = new UserRole();
+                role.setName(wt2Role.name());
+                role.setDescription(wt2Role.getDisplayName());
+                role.setStatus(GeneralStatus.Active);
+                role.setRoleLevel(wt2Role.getLevel());
+                return userRoleRepository.save(role);
+            });
+        }
     }
 
     private void ensureWt2PermissionsForRole(UserRole adminRole) {
