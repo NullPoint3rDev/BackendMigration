@@ -2195,7 +2195,6 @@ public class ReportService {
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
             CellStyle totalWeldGrayStyle = createTotalWeldTimeGrayStyle(workbook);
-            CellStyle totalWeldGrayStyleWithFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0");
             CellStyle totalWeldGrayStyleWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
             CellStyle totalWeldGrayStyleWireKgFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.00000");
 
@@ -2257,8 +2256,9 @@ public class ReportService {
             for (int col = 0; col < columnDefs.size(); col++) {
                 Cell cell = totalRowWelderSingle.createCell(col);
                 if (col == weldColSingle && weldColSingle >= 0) {
-                    cell.setCellStyle(totalWeldGrayStyleWithFormat);
-                    if (!isNullOrZero(totalWeldSecSingle)) cell.setCellValue(totalWeldSecSingle.doubleValue());
+                    cell.setCellStyle(totalWeldGrayStyle);
+                    String totalWeldHms = formatTotalWeldSeconds(totalWeldSecSingle);
+                    if (totalWeldHms != null) cell.setCellValue(totalWeldHms);
                 } else if (col == energyColSingle && energyColSingle >= 0) {
                     cell.setCellStyle(totalWeldGrayStyleWithDecimalFormat);
                     if (!isNullOrZero(totalEnergyKwhSingle)) cell.setCellValue(totalEnergyKwhSingle.doubleValue());
@@ -2324,7 +2324,6 @@ public class ReportService {
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
             CellStyle totalWeldGrayStyle = createTotalWeldTimeGrayStyle(workbook);
-            CellStyle totalWeldGrayStyleWithFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0");
             CellStyle totalWeldGrayStyleWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
             CellStyle totalWeldGrayStyleWireKgFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.00000");
 
@@ -2501,8 +2500,9 @@ public class ReportService {
                 for (int col = 0; col < columnDefs.size(); col++) {
                     Cell cell = totalRow.createCell(col);
                     if (col == weldDurationColWelder && weldDurationColWelder >= 0) {
-                        cell.setCellStyle(totalWeldGrayStyleWithFormat);
-                        if (!isNullOrZero(totalWeldSec)) cell.setCellValue(totalWeldSec.doubleValue());
+                        cell.setCellStyle(totalWeldGrayStyle);
+                        String totalWeldHms = formatTotalWeldSeconds(totalWeldSec);
+                        if (totalWeldHms != null) cell.setCellValue(totalWeldHms);
                     } else if (col == energyColWelder && energyColWelder >= 0) {
                         cell.setCellStyle(totalWeldGrayStyleWithDecimalFormat);
                         if (!isNullOrZero(totalEnergyKwh)) cell.setCellValue(totalEnergyKwh.doubleValue());
@@ -2843,7 +2843,6 @@ public class ReportService {
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
             CellStyle totalEquipGrayStyle = createTotalWeldTimeGrayStyle(workbook);
-            CellStyle totalEquipGrayStyleWithFormat = createCellStyleWithNumberFormat(workbook, totalEquipGrayStyle, "0");
             CellStyle totalEquipGrayStyleWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalEquipGrayStyle, "0.000");
             CellStyle totalEquipGrayStyleWireKgFormat = createCellStyleWithNumberFormat(workbook, totalEquipGrayStyle, "0.00000");
 
@@ -2906,8 +2905,9 @@ public class ReportService {
             for (int col = 0; col < columnDefs.size(); col++) {
                 Cell cell = totalRowEquipSingle.createCell(col);
                 if (col == weldColEq && weldColEq >= 0) {
-                    cell.setCellStyle(totalEquipGrayStyleWithFormat);
-                    if (!isNullOrZero(totalWeldSecEquipSingle)) cell.setCellValue(totalWeldSecEquipSingle.doubleValue());
+                    cell.setCellStyle(totalEquipGrayStyle);
+                    String totalWeldHms = formatTotalWeldSeconds(totalWeldSecEquipSingle);
+                    if (totalWeldHms != null) cell.setCellValue(totalWeldHms);
                 } else if (col == energyColEq && energyColEq >= 0) {
                     cell.setCellStyle(totalEquipGrayStyleWithDecimalFormat);
                     if (!isNullOrZero(totalEnergyKwhEquipSingle)) cell.setCellValue(totalEnergyKwhEquipSingle.doubleValue());
@@ -2966,7 +2966,6 @@ public class ReportService {
             CellStyle outOfRangeRowStyle = createOutOfRangeRowStyle(workbook);
             CellStyle normalDataStyle = workbook.createCellStyle();
             CellStyle totalWeldGrayStyleEquip = createTotalWeldTimeGrayStyle(workbook);
-            CellStyle totalWeldGrayStyleEquipWithFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0");
             CellStyle totalWeldGrayStyleEquipWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0.000");
             CellStyle totalWeldGrayStyleEquipWireKgFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyleEquip, "0.00000");
 
@@ -3119,8 +3118,9 @@ public class ReportService {
                 for (int col = 0; col < columnDefs.size(); col++) {
                     Cell cell = totalRowEquip.createCell(col);
                     if (col == weldDurationColEquip && weldDurationColEquip >= 0) {
-                        cell.setCellStyle(totalWeldGrayStyleEquipWithFormat);
-                        if (!isNullOrZero(totalWeldSecEquip)) cell.setCellValue(totalWeldSecEquip.doubleValue());
+                        cell.setCellStyle(totalWeldGrayStyleEquip);
+                        String totalWeldHms = formatTotalWeldSeconds(totalWeldSecEquip);
+                        if (totalWeldHms != null) cell.setCellValue(totalWeldHms);
                     } else if (col == energyColEquip && energyColEquip >= 0) {
                         cell.setCellStyle(totalWeldGrayStyleEquipWithDecimalFormat);
                         if (!isNullOrZero(totalEnergyKwhEquip)) cell.setCellValue(totalEnergyKwhEquip.doubleValue());
@@ -3746,6 +3746,18 @@ public class ReportService {
         long minutes = duration.toMinutes() % 60;
         long seconds = duration.getSeconds() % 60;
         return String.format("%d:%02d:%02d:%02d", days, hours, minutes, seconds);
+    }
+
+    /** Итоговая строка «время шва»: секунды → ЧЧ:ММ:СС, дробную часть отбрасываем. */
+    private String formatTotalWeldSeconds(BigDecimal totalWeldSec) {
+        if (isNullOrZero(totalWeldSec)) {
+            return null;
+        }
+        long totalSeconds = totalWeldSec.longValue();
+        if (totalSeconds <= 0) {
+            return null;
+        }
+        return formatDurationAsTotalHms(Duration.ofSeconds(totalSeconds));
     }
 
     /**

@@ -304,7 +304,7 @@ public class ReportGenerationExecutor {
                 welderInfoMap.put(wid, new org.alloy.models.dto.WelderWorkReportSectionDTO(wid, fullName, tabNumber, department, null));
             }
 
-            // Период: из запроса; если в шаблоне (ReportTemplate) periodType «За 24 часа» — считаем на сервере
+            // Период из запроса (фронт считает «За 7 дней»/календарь/диапазон времени). «За 24 часа» — только rolling 24h.
             java.time.LocalDate periodStartDate = generationRequest.getPeriodStartDate();
             java.time.LocalDate periodEndDate = generationRequest.getPeriodEndDate();
             java.time.LocalTime periodStartTime = generationRequest.getPeriodStartTime();
@@ -315,13 +315,6 @@ public class ReportGenerationExecutor {
                 if ("За 24 часа".equals(periodType) || "LAST_24_HOURS".equalsIgnoreCase(periodType) || "24h".equalsIgnoreCase(periodType)) {
                     java.time.LocalDateTime end = java.time.LocalDateTime.now();
                     java.time.LocalDateTime start = end.minusHours(24);
-                    periodStartDate = start.toLocalDate();
-                    periodEndDate = end.toLocalDate();
-                    periodStartTime = start.toLocalTime();
-                    periodEndTime = end.toLocalTime();
-                } else if ("За 7 дней".equals(periodType) || "LAST_7_DAYS".equalsIgnoreCase(periodType) || "7DAYS".equalsIgnoreCase(periodType)) {
-                    java.time.LocalDateTime end = java.time.LocalDateTime.now();
-                    java.time.LocalDateTime start = end.minusDays(7);
                     periodStartDate = start.toLocalDate();
                     periodEndDate = end.toLocalDate();
                     periodStartTime = start.toLocalTime();
@@ -496,13 +489,6 @@ public class ReportGenerationExecutor {
                 if ("За 24 часа".equals(periodType) || "LAST_24_HOURS".equalsIgnoreCase(periodType)) {
                     java.time.LocalDateTime end = java.time.LocalDateTime.now();
                     java.time.LocalDateTime start = end.minusHours(24);
-                    periodStartDate = start.toLocalDate();
-                    periodEndDate = end.toLocalDate();
-                    periodStartTime = start.toLocalTime();
-                    periodEndTime = end.toLocalTime();
-                } else if ("За 7 дней".equals(periodType) || "LAST_7_DAYS".equalsIgnoreCase(periodType)) {
-                    java.time.LocalDateTime end = java.time.LocalDateTime.now();
-                    java.time.LocalDateTime start = end.minusDays(7);
                     periodStartDate = start.toLocalDate();
                     periodEndDate = end.toLocalDate();
                     periodStartTime = start.toLocalTime();
