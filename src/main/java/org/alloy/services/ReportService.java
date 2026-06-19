@@ -2570,13 +2570,13 @@ public class ReportService {
         list.add(new WelderWorkColumnDef("date", "Дата"));
         list.add(new WelderWorkColumnDef("weldStartTime", "Время начала шва"));
         list.add(new WelderWorkColumnDef("workMode", "Режим работы оборудования"));
+        List<String> selected = template != null && template.getSelectedColumns() != null
+                ? template.getSelectedColumns() : Collections.emptyList();
         list.add(new WelderWorkColumnDef("currentAmps", "Рабочий ток А"));
         list.add(new WelderWorkColumnDef("voltageVolts", "Рабочее напряжение В"));
         if (selected.contains("setCurrent")) list.add(new WelderWorkColumnDef("setCurrentAmps", "Установленный ток, А"));
         if (selected.contains("setVoltage")) list.add(new WelderWorkColumnDef("setVoltageVolts", "Установленное напряжение, В"));
         list.add(new WelderWorkColumnDef("weldDurationSec", "Время шва с"));
-        List<String> selected = template != null && template.getSelectedColumns() != null
-                ? template.getSelectedColumns() : Collections.emptyList();
         if (selected.contains("equipmentModel")) list.add(new WelderWorkColumnDef("equipmentModel", "Модель оборудования"));
         if (selected.contains("equipmentName")) list.add(new WelderWorkColumnDef("equipmentName", "Наименование оборудования"));
         if (selected.contains("wireFeedSpeed")) list.add(new WelderWorkColumnDef("wireFeedSpeed", "Скорость подачи проволоки, м/мин"));
