@@ -342,6 +342,7 @@ public class ReportTemplateService {
     /**
      * Получает шаблон по ID
      */
+    @Transactional(readOnly = true)
     public Optional<ReportTemplateDTO> getTemplateById(Long templateId) {
         return templateRepository.findById(templateId)
                 .map(this::convertToDTO);
@@ -350,6 +351,7 @@ public class ReportTemplateService {
     /**
      * Получает все активные шаблоны
      */
+    @Transactional(readOnly = true)
     public List<ReportTemplateDTO> getAllActiveTemplates() {
         return templateRepository.findByIsActiveTrue().stream()
                 .map(this::convertToDTO)
@@ -359,6 +361,7 @@ public class ReportTemplateService {
     /**
      * Получает все шаблоны пользователя
      */
+    @Transactional(readOnly = true)
     public List<ReportTemplateDTO> getTemplatesByUser(Integer userId) {
         return templateRepository.findByCreatedBy(userId).stream()
                 .map(this::convertToDTO)
@@ -368,6 +371,7 @@ public class ReportTemplateService {
     /**
      * Получает все активные шаблоны пользователя
      */
+    @Transactional(readOnly = true)
     public List<ReportTemplateDTO> getActiveTemplatesByUser(Integer userId) {
         return templateRepository.findByCreatedByAndIsActiveTrue(userId).stream()
                 .map(this::convertToDTO)

@@ -31,50 +31,43 @@ public class ReportTemplate {
     /**
      * JSON с параметрами отчета (selectedColumns, parameters и т.д.)
      */
-    @Lob
-    @Column(name = "report_parameters")
+    @Column(name = "report_parameters", columnDefinition = "TEXT")
     private String reportParameters;
 
     /**
      * JSON с выбранными ID подразделений
      */
-    @Lob
-    @Column(name = "selected_organization_unit_ids")
+    @Column(name = "selected_organization_unit_ids", columnDefinition = "TEXT")
     private String selectedOrganizationUnitIds;
 
     /**
      * JSON с выбранными ID сварщиков
      */
-    @Lob
-    @Column(name = "selected_welder_ids")
+    @Column(name = "selected_welder_ids", columnDefinition = "TEXT")
     private String selectedWelderIds;
 
     /**
      * JSON с выбранными моделями оборудования
      */
-    @Lob
-    @Column(name = "selected_equipment_models")
+    @Column(name = "selected_equipment_models", columnDefinition = "TEXT")
     private String selectedEquipmentModels;
 
     /**
      * JSON с диапазонами токов (workOutsideSetCurrent, workOutsideActualCurrent)
      */
-    @Lob
-    @Column(name = "current_ranges")
+    @Column(name = "current_ranges", columnDefinition = "TEXT")
     private String currentRanges;
 
     /**
      * JSON с настройками периода отчета (selectedPeriod, startDate, endDate, timeRange, selectedDays)
      */
-    @Lob
-    @Column(name = "period_settings")
+    @Column(name = "period_settings", columnDefinition = "TEXT")
     private String periodSettings;
 
     /**
      * JSON с настройками автоматического отчета (autoReportTime, autoReportWeekDays, autoReportMonthDays)
      */
-    @Lob
-    @Column(name = "auto_report_settings")
+    @Column(name = "auto_report_settings", columnDefinition = "TEXT")
     private String autoReportSettings;
 
     /**
