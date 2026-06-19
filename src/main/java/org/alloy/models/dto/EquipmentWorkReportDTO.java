@@ -41,6 +41,12 @@ public class EquipmentWorkReportDTO {
     /** Рабочее напряжение, В */
     private BigDecimal voltageVolts;
 
+    /** Установленный ток, А (опционально; с последнего холостого хода перед швом) */
+    private BigDecimal setCurrentAmps;
+
+    /** Установленное напряжение, В (опционально; с последнего холостого хода перед швом) */
+    private BigDecimal setVoltageVolts;
+
     /** Скорость подачи проволоки, м/мин (опционально) */
     private BigDecimal wireFeedSpeedMpm;
 

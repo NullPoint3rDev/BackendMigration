@@ -246,6 +246,8 @@ public class ReportGenerationExecutor {
                             if (Boolean.TRUE.equals(params.get("consumption"))) selectedCols.add("consumption");
                             if (Boolean.TRUE.equals(params.get("energyConsumed"))) selectedCols.add("energyConsumed");
                             if (Boolean.TRUE.equals(params.get("gasConsumption"))) selectedCols.add("gasConsumption");
+                            if (Boolean.TRUE.equals(params.get("setCurrent"))) selectedCols.add("setCurrent");
+                            if (Boolean.TRUE.equals(params.get("setVoltage"))) selectedCols.add("setVoltage");
                             template.setSelectedColumns(selectedCols);
                         }
                     }
@@ -423,6 +425,8 @@ public class ReportGenerationExecutor {
                             if (Boolean.TRUE.equals(params.get("consumption"))) cols.add("consumption");
                             if (Boolean.TRUE.equals(params.get("energyConsumed"))) cols.add("energyConsumed");
                             if (Boolean.TRUE.equals(params.get("gasConsumption"))) cols.add("gasConsumption");
+                            if (Boolean.TRUE.equals(params.get("setCurrent"))) cols.add("setCurrent");
+                            if (Boolean.TRUE.equals(params.get("setVoltage"))) cols.add("setVoltage");
                             if (!cols.isEmpty()) template.setSelectedColumns(cols);
                         }
                         if (general.getCurrentRanges() != null && general.getCurrentRanges().get("workOutsideActualCurrent") != null) {

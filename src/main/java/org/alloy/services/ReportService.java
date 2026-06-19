@@ -2572,6 +2572,8 @@ public class ReportService {
         list.add(new WelderWorkColumnDef("workMode", "Режим работы оборудования"));
         list.add(new WelderWorkColumnDef("currentAmps", "Рабочий ток А"));
         list.add(new WelderWorkColumnDef("voltageVolts", "Рабочее напряжение В"));
+        if (selected.contains("setCurrent")) list.add(new WelderWorkColumnDef("setCurrentAmps", "Установленный ток, А"));
+        if (selected.contains("setVoltage")) list.add(new WelderWorkColumnDef("setVoltageVolts", "Установленное напряжение, В"));
         list.add(new WelderWorkColumnDef("weldDurationSec", "Время шва с"));
         List<String> selected = template != null && template.getSelectedColumns() != null
                 ? template.getSelectedColumns() : Collections.emptyList();
@@ -2604,6 +2606,12 @@ public class ReportService {
                 break;
             case "voltageVolts":
                 if (!isNullOrZero(item.getVoltageVolts())) cell.setCellValue(item.getVoltageVolts().doubleValue());
+                break;
+            case "setCurrentAmps":
+                if (!isNullOrZero(item.getSetCurrentAmps())) cell.setCellValue(item.getSetCurrentAmps().doubleValue());
+                break;
+            case "setVoltageVolts":
+                if (!isNullOrZero(item.getSetVoltageVolts())) cell.setCellValue(item.getSetVoltageVolts().doubleValue());
                 break;
             case "weldDurationSec":
                 if (!isNullOrZero(item.getWeldDurationSec())) cell.setCellValue(item.getWeldDurationSec().doubleValue());
@@ -2656,6 +2664,8 @@ public class ReportService {
         list.add(new EquipmentWorkColumnDef("workMode", "Режим работы оборудования"));
         list.add(new EquipmentWorkColumnDef("currentAmps", "Рабочий ток А"));
         list.add(new EquipmentWorkColumnDef("voltageVolts", "Рабочее напряжение В"));
+        if (selected.contains("setCurrent")) list.add(new EquipmentWorkColumnDef("setCurrentAmps", "Установленный ток, А"));
+        if (selected.contains("setVoltage")) list.add(new EquipmentWorkColumnDef("setVoltageVolts", "Установленное напряжение, В"));
         if (selected.contains("wireFeedSpeed")) list.add(new EquipmentWorkColumnDef("wireFeedSpeed", "Скорость подачи проволоки, м/мин"));
         list.add(new EquipmentWorkColumnDef("weldDurationSec", "Время шва, с"));
         if (selected.contains("consumption")) list.add(new EquipmentWorkColumnDef("wireConsumptionKg", "Расход проволоки, кг"));
@@ -2703,6 +2713,12 @@ public class ReportService {
                 break;
             case "voltageVolts":
                 if (!isNullOrZero(item.getVoltageVolts())) cell.setCellValue(item.getVoltageVolts().doubleValue());
+                break;
+            case "setCurrentAmps":
+                if (!isNullOrZero(item.getSetCurrentAmps())) cell.setCellValue(item.getSetCurrentAmps().doubleValue());
+                break;
+            case "setVoltageVolts":
+                if (!isNullOrZero(item.getSetVoltageVolts())) cell.setCellValue(item.getSetVoltageVolts().doubleValue());
                 break;
             case "wireFeedSpeed":
                 if (!isNullOrZero(item.getWireFeedSpeedMpm())) cell.setCellValue(item.getWireFeedSpeedMpm().doubleValue());

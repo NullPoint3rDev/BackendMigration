@@ -502,7 +502,35 @@ public class ReportDataService {
                     merged.add(copyWeldRow(row));
                 }
             }
-            Set<Integer> machineIdsInReport = merged.stream().map(r -> r.machineId).collect(Collectors.toSet());
+            boolean needSetColumns = templateNeedsSetPointColumns(template.getSelectedColumns());
+            boolean needSetCurrent = template.getSelectedColumns() != null && template.getSelectedColumns().contains("setCurrent");
+            boolean needSetVoltage = template.getSelectedColumns() != null && template.getSelectedColumns().contains("setVoltage");
+            Map<String, Long> idleStateIdByWeldKey = new HashMap<>();
+            Map<Long, Integer> setCurrentByStateId = new HashMap<>();
+            Map<Long, Integer> setVoltageTenthsByStateId = new HashMap<>();
+            if (needSetColumns) {
+                Set<Integer> machineIdsInReport = merged.stream().map(r -> r.machineId).collect(Collectors.toSet());
+                for (Integer mid : machineIdsInReport) {
+                    List<LocalDateTime> weldStarts = new ArrayList<>();
+                    List<BigDecimal> weldDurations = new ArrayList<>();
+                    for (WeldRow row : merged) {
+                        if (row.machineId != mid || row.startTime == null || row.durationSec == null) continue;
+                        weldStarts.add(row.startTime);
+                        weldDurations.add(row.durationSec);
+                    }
+                    statesByMachineId.put(mid, calculationService.loadStatesAroundWeldRows(mid, weldStarts, weldDurations));
+                }
+                List<Long> idleStateIds = new ArrayList<>();
+                for (WeldRow r : merged) {
+                    WeldingMachineState idle = findLastIdleStateBefore(statesByMachineId.get(r.machineId), r.startTime);
+                    if (idle != null) {
+                        idleStateIdByWeldKey.put(weldRowKey(r), idle.getId());
+                        idleStateIds.add(idle.getId());
+                    }
+                }
+                if (needSetCurrent) loadSetCurrentByStateIds(idleStateIds, setCurrentByStateId);
+                if (needSetVoltage) loadSetVoltageTenthsByStateIds(idleStateIds, setVoltageTenthsByStateId);
+            }
             List<Long> allStateIds = collectStateIdsForWelderMerged(statesByMachineId, merged);
             Map<Long, String> workModeByStateId = new HashMap<>();
             if (!allStateIds.isEmpty()) {
@@ -553,6 +581,15 @@ public class ReportDataService {
                 dto.setGasConsumptionL(gasL != null ? gasL : BigDecimal.ZERO);
                 dto.setCurrentAmps(r.avgCurrent.setScale(1, RoundingMode.HALF_UP));
                 dto.setVoltageVolts(r.avgVoltage.setScale(1, RoundingMode.HALF_UP));
+                if (needSetCurrent || needSetVoltage) {
+                    Long idleStateId = idleStateIdByWeldKey.get(weldRowKey(r));
+                    if (needSetCurrent) {
+                        dto.setSetCurrentAmps(toReportAmps(idleStateId != null ? setCurrentByStateId.get(idleStateId) : null));
+                    }
+                    if (needSetVoltage) {
+                        dto.setSetVoltageVolts(toReportVoltsFromTenths(idleStateId != null ? setVoltageTenthsByStateId.get(idleStateId) : null));
+                    }
+                }
                 dto.setWeldDurationSec(r.durationSec.setScale(1, RoundingMode.HALF_UP));
                 dto.setEnergyConsumedKwh(energyKwh);
                 dto.setCurrentOutOfRange(outOfRange);
@@ -671,6 +708,34 @@ public class ReportDataService {
                     weldDurations.add(row.durationSec);
                 }
                 statesByMachineId.put(mid, calculationService.loadStatesAroundWeldRows(mid, weldStarts, weldDurations));
+            }
+            boolean needSetColumns = templateNeedsSetPointColumns(template.getSelectedColumns());
+            boolean needSetCurrent = template.getSelectedColumns() != null && template.getSelectedColumns().contains("setCurrent");
+            boolean needSetVoltage = template.getSelectedColumns() != null && template.getSelectedColumns().contains("setVoltage");
+            Map<String, Long> idleStateIdByEquipmentWeldKey = new HashMap<>();
+            Map<Long, Integer> setCurrentByStateId = new HashMap<>();
+            Map<Long, Integer> setVoltageTenthsByStateId = new HashMap<>();
+            if (needSetColumns) {
+                for (Integer mid : machineIdsInReport) {
+                    List<LocalDateTime> weldStarts = new ArrayList<>();
+                    List<BigDecimal> weldDurations = new ArrayList<>();
+                    for (EquipmentWeldRow row : merged) {
+                        if (row.machineId != mid || row.startTime == null || row.durationSec == null) continue;
+                        weldStarts.add(row.startTime);
+                        weldDurations.add(row.durationSec);
+                    }
+                    statesByMachineId.put(mid, calculationService.loadStatesAroundWeldRows(mid, weldStarts, weldDurations));
+                }
+                List<Long> idleStateIds = new ArrayList<>();
+                for (EquipmentWeldRow r : merged) {
+                    WeldingMachineState idle = findLastIdleStateBefore(statesByMachineId.get(r.machineId), r.startTime);
+                    if (idle != null) {
+                        idleStateIdByEquipmentWeldKey.put(equipmentWeldRowKey(r), idle.getId());
+                        idleStateIds.add(idle.getId());
+                    }
+                }
+                if (needSetCurrent) loadSetCurrentByStateIds(idleStateIds, setCurrentByStateId);
+                if (needSetVoltage) loadSetVoltageTenthsByStateIds(idleStateIds, setVoltageTenthsByStateId);
             }
             List<Long> allStateIds = collectStateIdsForEquipmentMerged(statesByMachineId, merged);
             boolean enrichByMachinePeriod = machineIds.size() == 1 && machineIdsInReport.size() == 1;
@@ -829,6 +894,15 @@ public class ReportDataService {
                 dto.setGasConsumptionL(gasL != null ? gasL : BigDecimal.ZERO);
                 dto.setCurrentAmps(r.avgCurrent.setScale(1, RoundingMode.HALF_UP));
                 dto.setVoltageVolts(r.avgVoltage.setScale(1, RoundingMode.HALF_UP));
+                if (needSetCurrent || needSetVoltage) {
+                    Long idleStateId = idleStateIdByEquipmentWeldKey.get(equipmentWeldRowKey(r));
+                    if (needSetCurrent) {
+                        dto.setSetCurrentAmps(toReportAmps(idleStateId != null ? setCurrentByStateId.get(idleStateId) : null));
+                    }
+                    if (needSetVoltage) {
+                        dto.setSetVoltageVolts(toReportVoltsFromTenths(idleStateId != null ? setVoltageTenthsByStateId.get(idleStateId) : null));
+                    }
+                }
                 dto.setWeldDurationSec(r.durationSec.setScale(1, RoundingMode.HALF_UP));
                 dto.setEnergyConsumedKwh(energyKwh);
                 dto.setCurrentOutOfRange(outOfRange);
@@ -861,6 +935,77 @@ public class ReportDataService {
             }
         }
         return false;
+    }
+
+    private static boolean templateNeedsSetPointColumns(List<String> selectedColumns) {
+        if (selectedColumns == null || selectedColumns.isEmpty()) return false;
+        return selectedColumns.contains("setCurrent") || selectedColumns.contains("setVoltage");
+    }
+
+    /** Последнее состояние холостого хода (не Welding) строго до начала шва. */
+    private static WeldingMachineState findLastIdleStateBefore(List<WeldingMachineState> sortedAsc, LocalDateTime weldStart) {
+        if (sortedAsc == null || sortedAsc.isEmpty() || weldStart == null) return null;
+        WeldingMachineState lastIdle = null;
+        for (WeldingMachineState s : sortedAsc) {
+            if (s.getDateCreated() == null) continue;
+            if (!s.getDateCreated().isBefore(weldStart)) break;
+            if (s.getWeldingMachineStatus() != WeldingMachineStatus.Welding) {
+                lastIdle = s;
+            }
+        }
+        return lastIdle;
+    }
+
+    private static String weldRowKey(WeldRow r) {
+        return r.machineId + "|" + r.startTime;
+    }
+
+    private static String equipmentWeldRowKey(EquipmentWeldRow r) {
+        return r.machineId + "|" + r.startTime;
+    }
+
+    private void loadSetCurrentByStateIds(List<Long> stateIds, Map<Long, Integer> currentByState) {
+        if (stateIds == null || stateIds.isEmpty() || currentByState == null) return;
+        List<Long> unique = stateIds.stream().distinct().collect(Collectors.toList());
+        List<WeldingMachineParameterValue> currentVals = getParameterValuesInBatches(unique, "Current");
+        for (WeldingMachineParameterValue pv : currentVals) {
+            if (pv.getValue() == null || pv.getValue().trim().isEmpty()) continue;
+            int v = parseParamValueToInt(pv.getValue());
+            if (v != 0) currentByState.putIfAbsent(pv.getWeldingMachineStateId(), v);
+        }
+    }
+
+    private void loadSetVoltageTenthsByStateIds(List<Long> stateIds, Map<Long, Integer> voltageTenthsByState) {
+        if (stateIds == null || stateIds.isEmpty() || voltageTenthsByState == null) return;
+        List<Long> unique = stateIds.stream().distinct().collect(Collectors.toList());
+        List<WeldingMachineParameterValue> voltageVals = getParameterValuesInBatches(unique, "Voltage");
+        for (WeldingMachineParameterValue pv : voltageVals) {
+            if (pv.getValue() == null || pv.getValue().trim().isEmpty()) continue;
+            int v = parseParamValueToInt(pv.getValue());
+            if (v != 0) voltageTenthsByState.putIfAbsent(pv.getWeldingMachineStateId(), v);
+        }
+    }
+
+    private static int parseParamValueToInt(String raw) {
+        if (raw == null) return 0;
+        String s = raw.trim().replace(',', '.');
+        if (s.isEmpty() || "null".equalsIgnoreCase(s)) return 0;
+        try {
+            if (s.contains(".")) return (int) Math.round(Double.parseDouble(s));
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static BigDecimal toReportAmps(Integer amps) {
+        if (amps == null || amps == 0) return BigDecimal.ZERO;
+        return BigDecimal.valueOf(amps).setScale(1, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal toReportVoltsFromTenths(Integer tenths) {
+        if (tenths == null || tenths == 0) return BigDecimal.ZERO;
+        return BigDecimal.valueOf(tenths).divide(BigDecimal.TEN, 1, RoundingMode.HALF_UP);
     }
 
     /** Параметры обогащения только для stateId вокруг швов — по одному property_code (индекс state_id+code). */
