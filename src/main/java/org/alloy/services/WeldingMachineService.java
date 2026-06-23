@@ -30,36 +30,24 @@ public class WeldingMachineService {
     private final OrganizationUnitRepository organizationUnitRepository;
     private final WeldingMachineStateRepository weldingMachineStateRepository;
     private final WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
-    private final WeldingMachineLastWeldService weldingMachineLastWeldService;
 
     @Autowired
     public WeldingMachineService(WeldingMachineRepository weldingMachineRepository,
                                  WeldingMachineTypeRepository weldingMachineTypeRepository,
                                  OrganizationUnitRepository organizationUnitRepository,
                                  WeldingMachineStateRepository weldingMachineStateRepository,
-                                 WeldingMachineParameterValueRepository weldingMachineParameterValueRepository,
-                                 WeldingMachineLastWeldService weldingMachineLastWeldService) {
+                                 WeldingMachineParameterValueRepository weldingMachineParameterValueRepository) {
         this.weldingMachineRepository = weldingMachineRepository;
         this.weldingMachineTypeRepository = weldingMachineTypeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
         this.weldingMachineStateRepository = weldingMachineStateRepository;
         this.weldingMachineParameterValueRepository = weldingMachineParameterValueRepository;
-        this.weldingMachineLastWeldService = weldingMachineLastWeldService;
     }
 
     public List<WeldingMachine> getAllWeldingMachines() {
         List<WeldingMachine> machines = weldingMachineRepository.findAll().stream()
                 .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
                 .collect(Collectors.toList());
-        for (WeldingMachine machine : machines) {
-            if (machine.getId() == null || machine.getLastWeldAt() != null) {
-                continue;
-            }
-            java.time.LocalDateTime fromHistory = weldingMachineLastWeldService.resolveForDisplay(machine.getId());
-            if (fromHistory != null) {
-                machine.setLastWeldAt(fromHistory);
-            }
-        }
         return machines;
     }
 

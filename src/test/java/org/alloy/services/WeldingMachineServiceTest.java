@@ -42,9 +42,6 @@ public class WeldingMachineServiceTest {
     @MockBean
     private WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
 
-    @MockBean
-    private WeldingMachineLastWeldService weldingMachineLastWeldService;
-
     private WeldingMachineService weldingMachineService;
     private WeldingMachine testWeldingMachine;
     private WeldingMachineType testType;
@@ -57,8 +54,7 @@ public class WeldingMachineServiceTest {
                 weldingMachineTypeRepository,
                 organizationUnitRepository,
                 weldingMachineStateRepository,
-                weldingMachineParameterValueRepository,
-                weldingMachineLastWeldService
+                weldingMachineParameterValueRepository
         );
 
         // Создаем тестовый тип сварочной машины
