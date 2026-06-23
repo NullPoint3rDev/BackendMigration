@@ -107,9 +107,9 @@ public class WeldingMachineDailyStatsService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public WeldingMachineDailyStats recomputeDay(Integer weldingMachineId, LocalDate statDate) {
         ZoneId zone = ZoneId.of(timezoneId);
-        ZonedDateTime dayStartZ = statDate.atStartOfDay(zone);
+        // Сутки для плитки «Расход за сутки» — с 00:01 (не с полуночи).
+        LocalDateTime dayStart = statDate.atTime(0, 1);
         ZonedDateTime dayEndZ = statDate.plusDays(1).atStartOfDay(zone);
-        LocalDateTime dayStart = dayStartZ.toLocalDateTime();
         LocalDateTime dayEnd = dayEndZ.toLocalDateTime();
         ZonedDateTime nowZ = ZonedDateTime.now(zone);
         LocalDateTime effectiveEnd = statDate.equals(nowZ.toLocalDate())
@@ -158,8 +158,12 @@ public class WeldingMachineDailyStatsService {
 
         BigDecimal wireKg = calculateWireKg(states, dayStart, effectiveEnd, wireFeedByStateId, openEndIfLast);
 
-        Map<Long, BigDecimal> gasCumulativeByStateId = loadGasCumulativeByStateId(states);
-        GasDayTotals gasTotals = calculateGasLiters(states, gasCumulativeByStateId);
+        LocalDateTime gasLookback = dayStart.minusDays(1);
+        List<WeldingMachineState> statesForGas = weldingMachineStateRepository.findByWeldingMachineIdAndDateRangeAsc(
+                weldingMachineId, gasLookback, dayEnd);
+        statesForGas.sort(Comparator.comparing(WeldingMachineState::getDateCreated, Comparator.nullsLast(Comparator.naturalOrder())));
+        Map<Long, BigDecimal> gasCumulativeByStateId = loadGasCumulativeByStateId(statesForGas);
+        GasDayTotals gasTotals = calculateGasLiters(statesForGas, gasCumulativeByStateId, dayStart);
 
         Long lastStateId = states.isEmpty() ? null : states.get(states.size() - 1).getId();
 
@@ -363,33 +367,44 @@ public class WeldingMachineDailyStatsService {
 
     private GasDayTotals calculateGasLiters(
             List<WeldingMachineState> states,
-            Map<Long, BigDecimal> gasCumulativeByStateId) {
+            Map<Long, BigDecimal> gasCumulativeByStateId,
+            LocalDateTime dayStart) {
         if (states == null || states.isEmpty() || gasCumulativeByStateId.isEmpty()) {
             return GasDayTotals.zero();
         }
-        BigDecimal baseline = null;
+        BigDecimal baselineAtDayStart = null;
+        BigDecimal lastCumulative = null;
         BigDecimal sumDelta = BigDecimal.ZERO;
-        BigDecimal prev = null;
         for (WeldingMachineState s : states) {
-            if (s.getId() == null) {
+            if (s.getId() == null || s.getDateCreated() == null) {
                 continue;
             }
             BigDecimal current = gasCumulativeByStateId.get(s.getId());
             if (current == null) {
                 continue;
             }
-            if (baseline == null) {
-                baseline = current;
+            if (s.getDateCreated().isBefore(dayStart)) {
+                baselineAtDayStart = current;
+                lastCumulative = current;
+                continue;
             }
-            if (prev != null && current.compareTo(prev) >= 0) {
-                sumDelta = sumDelta.add(current.subtract(prev));
+            if (baselineAtDayStart == null) {
+                baselineAtDayStart = current;
             }
-            prev = current;
+            if (lastCumulative != null) {
+                if (current.compareTo(lastCumulative) >= 0) {
+                    sumDelta = sumDelta.add(current.subtract(lastCumulative));
+                } else {
+                    // Сброс счётчика «с включения» — начинаем отсчёт с нового значения.
+                    sumDelta = sumDelta.add(current);
+                }
+            }
+            lastCumulative = current;
         }
-        if (baseline == null) {
+        if (baselineAtDayStart == null) {
             return GasDayTotals.zero();
         }
-        return new GasDayTotals(sumDelta.setScale(3, RoundingMode.HALF_UP), baseline.setScale(3, RoundingMode.HALF_UP));
+        return new GasDayTotals(sumDelta.setScale(3, RoundingMode.HALF_UP), baselineAtDayStart.setScale(3, RoundingMode.HALF_UP));
     }
 
     private static final class GasDayTotals {

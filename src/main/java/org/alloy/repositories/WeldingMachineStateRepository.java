@@ -20,6 +20,9 @@ public interface WeldingMachineStateRepository extends JpaRepository<WeldingMach
 
     Optional<WeldingMachineState> findTopByWeldingMachineIdOrderByDateCreatedDesc(Integer weldingMachineId);
 
+    Optional<WeldingMachineState> findTopByWeldingMachineIdAndWeldingMachineStatusOrderByDateCreatedDesc(
+            Integer weldingMachineId, WeldingMachineStatus status);
+
     List<WeldingMachineState> findByWeldingMachineIdAndWeldingMachineStatus(Integer weldingMachineId, WeldingMachineStatus status);
 
     @Query("SELECT wms FROM WeldingMachineState wms WHERE wms.weldingMachineId = :weldingMachineId AND wms.dateCreated BETWEEN :startDate AND :endDate ORDER BY wms.dateCreated DESC")

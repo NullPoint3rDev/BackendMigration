@@ -136,6 +136,10 @@ public class WeldingMachine {
     @Schema(description = "Дата и время последнего включения аппарата")
     private LocalDateTime lastPoweredOnAt;
 
+    @Column(name = "LastWeldAt")
+    @Schema(description = "Дата и время последней сварки на аппарате")
+    private LocalDateTime lastWeldAt;
+
     @JsonManagedReference("maintenanceRef")
     @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)
     @EqualsAndHashCode.Exclude

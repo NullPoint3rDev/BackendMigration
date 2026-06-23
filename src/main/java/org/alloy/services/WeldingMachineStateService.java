@@ -49,6 +49,9 @@ public class WeldingMachineStateService {
     @Autowired
     private WeldingMachineLastPoweredOnService weldingMachineLastPoweredOnService;
 
+    @Autowired
+    private WeldingMachineLastWeldService weldingMachineLastWeldService;
+
     @Value("${welding.machine.auto-create-on-unknown-mac:true}")
     private boolean autoCreateOnUnknownMac;
 
@@ -208,6 +211,7 @@ public class WeldingMachineStateService {
                     prevOpt.orElse(null),
                     stateSummary,
                     now);
+            weldingMachineLastWeldService.updateFromTelemetry(machine, stateSummary, now);
             System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата ID=" + machine.getId() + " (MAC=" + mac + "), дата=" + now);
 
             // Сохраняем параметры (State.I, State.U и др.)
