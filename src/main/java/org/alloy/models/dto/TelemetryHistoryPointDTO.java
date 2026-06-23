@@ -27,5 +27,7 @@ public class TelemetryHistoryPointDTO {
     private String rfid;
     private String errorCode;
     private String status;
+    /** Текст WeldingMachineState / «Состояние аппарата» (для дежурного режима на дорожке «Состояние»). */
+    private String machineStateText;
 }
 

@@ -109,6 +109,7 @@ public class TelemetryHistoryService {
             Double chillerTemperatureOut = parseFirstDouble(map, CHILLER_TEMP_OUT_CODES);
             String rfid = (s.getRfid() != null && !s.getRfid().isBlank()) ? s.getRfid() : parseFirstString(map, List.of("RFID.Hex", "RFID", "Rfid", "rfid"));
             String status = s.getWeldingMachineStatus() != null ? s.getWeldingMachineStatus().name() : null;
+            String machineStateText = MonitorActivityClassifier.pickMachineStateText(map);
             result.add(new TelemetryHistoryPointDTO(
                     ts,
                     current,
@@ -125,7 +126,8 @@ public class TelemetryHistoryService {
                     chillerTemperatureOut,
                     rfid,
                     s.getErrorCode(),
-                    status
+                    status,
+                    machineStateText
             ));
         }
         return result;

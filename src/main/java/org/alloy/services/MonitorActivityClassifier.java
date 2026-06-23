@@ -34,8 +34,11 @@ public final class MonitorActivityClassifier {
                 || stateLower.contains("не в сети")) {
             return MonitorActivityMode.off;
         }
-        if (stateLower.contains("дежур") || stateLower.contains("standby")
-                || stateLower.contains("waiting") || stateLower.contains("ожидан")
+        // Дежурный режим (Выкл(деж)) — суточный таймер «Выкл. состояние», не «Вкл.»
+        if (stateLower.contains("дежур") || stateLower.contains("standby")) {
+            return MonitorActivityMode.off;
+        }
+        if (stateLower.contains("waiting") || stateLower.contains("ожидан")
                 || stateLower.contains("включ") || "on".equals(stateLower) || stateLower.contains("idle")
                 || stateLower.contains("ready")) {
             return MonitorActivityMode.on;
