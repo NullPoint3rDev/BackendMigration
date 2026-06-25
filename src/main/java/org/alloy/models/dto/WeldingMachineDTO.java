@@ -3,7 +3,9 @@ package org.alloy.models.dto;
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.alloy.models.DeviceModel;
+import org.alloy.models.dto.serialization.UtcLocalDateTimeAsMoscowOffsetSerializer;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class WeldingMachineDTO {
@@ -23,7 +25,7 @@ public class WeldingMachineDTO {
     private LocalDateTime lastService;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime lastPoweredOnAt;
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @JsonSerialize(using = UtcLocalDateTimeAsMoscowOffsetSerializer.class)
     private LocalDateTime lastWeldAt;
     private OrganizationUnitShortDTO organizationUnit;
     private WeldingMachineTypeShortDTO weldingMachineType;
