@@ -44,6 +44,9 @@ public class WeldingMachineServiceTest {
     @MockBean
     private WeldingMachineLastWeldService weldingMachineLastWeldService;
 
+    @MockBean
+    private WeldingDeviceManagerService weldingDeviceManagerService;
+
     private WeldingMachineService weldingMachineService;
     private WeldingMachine testWeldingMachine;
     private WeldingMachineType testType;
@@ -57,7 +60,8 @@ public class WeldingMachineServiceTest {
                 organizationUnitRepository,
                 weldingMachineStateRepository,
                 weldingMachineParameterValueRepository,
-                weldingMachineLastWeldService
+                weldingMachineLastWeldService,
+                weldingDeviceManagerService
         );
 
         // Создаем тестовый тип сварочной машины
@@ -130,6 +134,21 @@ public class WeldingMachineServiceTest {
 
         assertEquals(LocalDateTime.of(2026, 6, 25, 11, 48), result.get(0).getLastWeldAt());
         verify(weldingMachineLastWeldService).resolveForDisplay(1);
+    }
+
+    @Test
+    void getAllWeldingMachines_ShouldPreferLiveLastWeldFromDeviceManager() {
+        testWeldingMachine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 7, 52));
+        when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
+        when(weldingMachineLastWeldService.resolveForDisplay(1))
+                .thenReturn(LocalDateTime.of(2026, 6, 25, 7, 52));
+        when(weldingDeviceManagerService.getLiveLastWeldAt("AA:BB:CC:DD:EE:FF"))
+                .thenReturn(LocalDateTime.of(2026, 6, 25, 11, 48));
+
+        List<WeldingMachine> result = weldingMachineService.getAllWeldingMachines();
+
+        assertEquals(LocalDateTime.of(2026, 6, 25, 11, 48), result.get(0).getLastWeldAt());
+        verify(weldingDeviceManagerService).getLiveLastWeldAt("AA:BB:CC:DD:EE:FF");
     }
 
     /**

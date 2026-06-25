@@ -31,6 +31,7 @@ public class WeldingMachineService {
     private final WeldingMachineStateRepository weldingMachineStateRepository;
     private final WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
     private final WeldingMachineLastWeldService weldingMachineLastWeldService;
+    private final WeldingDeviceManagerService weldingDeviceManagerService;
 
     @Autowired
     public WeldingMachineService(WeldingMachineRepository weldingMachineRepository,
@@ -38,13 +39,15 @@ public class WeldingMachineService {
                                  OrganizationUnitRepository organizationUnitRepository,
                                  WeldingMachineStateRepository weldingMachineStateRepository,
                                  WeldingMachineParameterValueRepository weldingMachineParameterValueRepository,
-                                 WeldingMachineLastWeldService weldingMachineLastWeldService) {
+                                 WeldingMachineLastWeldService weldingMachineLastWeldService,
+                                 WeldingDeviceManagerService weldingDeviceManagerService) {
         this.weldingMachineRepository = weldingMachineRepository;
         this.weldingMachineTypeRepository = weldingMachineTypeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
         this.weldingMachineStateRepository = weldingMachineStateRepository;
         this.weldingMachineParameterValueRepository = weldingMachineParameterValueRepository;
         this.weldingMachineLastWeldService = weldingMachineLastWeldService;
+        this.weldingDeviceManagerService = weldingDeviceManagerService;
     }
 
     public List<WeldingMachine> getAllWeldingMachines() {
@@ -57,10 +60,16 @@ public class WeldingMachineService {
             }
             LocalDateTime historyLastWeldAt = weldingMachineLastWeldService.resolveForDisplay(machine.getId());
             LocalDateTime currentLastWeldAt = machine.getLastWeldAt();
+            LocalDateTime liveLastWeldAt = weldingDeviceManagerService.getLiveLastWeldAt(machine.getMac());
             // ponytail: пока это N+1 запрос по числу аппаратов; если список вырастет, заменить на batch-агрегацию max(dateCreated) group by machineId.
             if (historyLastWeldAt != null
                     && (currentLastWeldAt == null || historyLastWeldAt.isAfter(currentLastWeldAt))) {
                 machine.setLastWeldAt(historyLastWeldAt);
+                currentLastWeldAt = historyLastWeldAt;
+            }
+            if (liveLastWeldAt != null
+                    && (currentLastWeldAt == null || liveLastWeldAt.isAfter(currentLastWeldAt))) {
+                machine.setLastWeldAt(liveLastWeldAt);
             }
         }
         return machines;
