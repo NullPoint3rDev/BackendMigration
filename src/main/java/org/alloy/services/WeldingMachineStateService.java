@@ -211,7 +211,7 @@ public class WeldingMachineStateService {
                     prevOpt.orElse(null),
                     stateSummary,
                     now);
-            weldingMachineLastWeldService.updateFromTelemetry(machine, stateSummary, now);
+            weldingMachineLastWeldService.updateFromTelemetry(machine, state);
             System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата ID=" + machine.getId() + " (MAC=" + mac + "), дата=" + now);
 
             // Сохраняем параметры (State.I, State.U и др.)
