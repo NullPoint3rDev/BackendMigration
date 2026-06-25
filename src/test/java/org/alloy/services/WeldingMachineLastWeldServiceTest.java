@@ -35,31 +35,35 @@ class WeldingMachineLastWeldServiceTest {
     }
 
     @Test
-    void updatesLastWeldAtOnlyForWeldingStates() {
+    void updatesLastWeldAtWhenWeldingEnds() {
         WeldingMachine machine = new WeldingMachine();
         machine.setId(7);
         machine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 10, 0));
 
-        WeldingMachineState state = new WeldingMachineState();
-        state.setWeldingMachineStatus(WeldingMachineStatus.Welding);
-        state.setDateCreated(LocalDateTime.of(2026, 6, 25, 10, 47));
+        WeldingMachineState previous = new WeldingMachineState();
+        previous.setWeldingMachineStatus(WeldingMachineStatus.Welding);
 
-        service.updateFromTelemetry(machine, state);
+        WeldingMachineState current = new WeldingMachineState();
+        current.setWeldingMachineStatus(WeldingMachineStatus.Idle);
+
+        service.updateFromTelemetry(machine, previous, current, LocalDateTime.of(2026, 6, 25, 10, 47));
 
         assertEquals(LocalDateTime.of(2026, 6, 25, 10, 47), machine.getLastWeldAt());
         verify(weldingMachineRepository).save(machine);
     }
 
     @Test
-    void ignoresNonWeldingStates() {
+    void ignoresWhenWeldingDidNotEnd() {
         WeldingMachine machine = new WeldingMachine();
         machine.setId(7);
 
-        WeldingMachineState state = new WeldingMachineState();
-        state.setWeldingMachineStatus(WeldingMachineStatus.Online);
-        state.setDateCreated(LocalDateTime.of(2026, 6, 25, 10, 47));
+        WeldingMachineState previous = new WeldingMachineState();
+        previous.setWeldingMachineStatus(WeldingMachineStatus.Idle);
 
-        service.updateFromTelemetry(machine, state);
+        WeldingMachineState current = new WeldingMachineState();
+        current.setWeldingMachineStatus(WeldingMachineStatus.Welding);
+
+        service.updateFromTelemetry(machine, previous, current, LocalDateTime.of(2026, 6, 25, 10, 47));
 
         assertNull(machine.getLastWeldAt());
         verify(weldingMachineRepository, never()).save(machine);

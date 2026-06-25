@@ -44,9 +44,6 @@ public class WeldingMachineServiceTest {
     @MockBean
     private WeldingMachineLastWeldService weldingMachineLastWeldService;
 
-    @MockBean
-    private WeldingDeviceManagerService weldingDeviceManagerService;
-
     private WeldingMachineService weldingMachineService;
     private WeldingMachine testWeldingMachine;
     private WeldingMachineType testType;
@@ -60,8 +57,7 @@ public class WeldingMachineServiceTest {
                 organizationUnitRepository,
                 weldingMachineStateRepository,
                 weldingMachineParameterValueRepository,
-                weldingMachineLastWeldService,
-                weldingDeviceManagerService
+                weldingMachineLastWeldService
         );
 
         // Создаем тестовый тип сварочной машины
@@ -111,8 +107,7 @@ public class WeldingMachineServiceTest {
     }
 
     @Test
-    void getAllWeldingMachines_ShouldPreferHistoryLastWeldWhenItIsNewer() {
-        testWeldingMachine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 7, 52));
+    void getAllWeldingMachines_ShouldFillLastWeldOnlyWhenFieldIsEmpty() {
         when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
         when(weldingMachineLastWeldService.resolveForDisplay(1))
                 .thenReturn(LocalDateTime.of(2026, 6, 25, 11, 48));
@@ -124,31 +119,14 @@ public class WeldingMachineServiceTest {
     }
 
     @Test
-    void getAllWeldingMachines_ShouldKeepMachineLastWeldWhenHistoryIsOlder() {
+    void getAllWeldingMachines_ShouldNotRecalculateWhenLastWeldAlreadyStored() {
         testWeldingMachine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 11, 48));
         when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
-        when(weldingMachineLastWeldService.resolveForDisplay(1))
-                .thenReturn(LocalDateTime.of(2026, 6, 25, 7, 52));
 
         List<WeldingMachine> result = weldingMachineService.getAllWeldingMachines();
 
         assertEquals(LocalDateTime.of(2026, 6, 25, 11, 48), result.get(0).getLastWeldAt());
-        verify(weldingMachineLastWeldService).resolveForDisplay(1);
-    }
-
-    @Test
-    void getAllWeldingMachines_ShouldPreferLiveLastWeldFromDeviceManager() {
-        testWeldingMachine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 7, 52));
-        when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
-        when(weldingMachineLastWeldService.resolveForDisplay(1))
-                .thenReturn(LocalDateTime.of(2026, 6, 25, 7, 52));
-        when(weldingDeviceManagerService.getLiveLastWeldAt("AA:BB:CC:DD:EE:FF"))
-                .thenReturn(LocalDateTime.of(2026, 6, 25, 11, 48));
-
-        List<WeldingMachine> result = weldingMachineService.getAllWeldingMachines();
-
-        assertEquals(LocalDateTime.of(2026, 6, 25, 11, 48), result.get(0).getLastWeldAt());
-        verify(weldingDeviceManagerService).getLiveLastWeldAt("AA:BB:CC:DD:EE:FF");
+        verify(weldingMachineLastWeldService, never()).resolveForDisplay(anyInt());
     }
 
     /**

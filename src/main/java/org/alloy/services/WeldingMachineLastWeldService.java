@@ -23,17 +23,20 @@ public class WeldingMachineLastWeldService {
     @Autowired
     private WeldingMachineStateRepository weldingMachineStateRepository;
 
-    public void updateFromTelemetry(WeldingMachine machine, WeldingMachineState state) {
-        if (machine == null || machine.getId() == null || state == null) {
+    public void updateFromTelemetry(
+            WeldingMachine machine,
+            WeldingMachineState previousState,
+            WeldingMachineState currentState,
+            LocalDateTime eventTime) {
+        if (machine == null || machine.getId() == null || currentState == null || eventTime == null) {
             return;
         }
-        if (state.getWeldingMachineStatus() != WeldingMachineStatus.Welding) {
+        WeldingMachineStatus prevStatus = previousState != null ? previousState.getWeldingMachineStatus() : null;
+        WeldingMachineStatus currentStatus = currentState.getWeldingMachineStatus();
+        if (prevStatus != WeldingMachineStatus.Welding || currentStatus == WeldingMachineStatus.Welding) {
             return;
         }
-        LocalDateTime candidate = state.getDateCreated();
-        if (candidate == null) {
-            return;
-        }
+        LocalDateTime candidate = eventTime;
         LocalDateTime existing = machine.getLastWeldAt();
         if (existing == null || candidate.isAfter(existing)) {
             machine.setLastWeldAt(candidate);
@@ -41,7 +44,7 @@ public class WeldingMachineLastWeldService {
         }
     }
 
-    /** Для ответа API, если в БД ещё пусто: берём последнюю точку истории со статусом Welding. */
+    /** Для ответа API при пустом поле в БД: эвристика по истории, без live-догонялок. */
     public LocalDateTime resolveForDisplay(Integer weldingMachineId) {
         if (weldingMachineId == null) {
             return null;

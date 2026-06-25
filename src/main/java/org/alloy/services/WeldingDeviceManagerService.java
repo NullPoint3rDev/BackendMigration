@@ -1,8 +1,6 @@
 package org.alloy.services;
 
-import org.alloy.models.MonitorActivityMode;
 import org.alloy.models.WeldingMachineStatus;
-import org.alloy.models.entities.WeldingMachineState;
 import org.alloy.models.weldingmachine.StateSummary;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
 import org.slf4j.Logger;
@@ -11,8 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,9 +36,6 @@ public class WeldingDeviceManagerService {
 
     // Последнее время сохранения состояния по MAC (для троттлинга)
     private final Map<String, Long> lastSaveTimestampMs = new ConcurrentHashMap<>();
-
-    // Последний момент сварки по live panel-state (тот же источник, что и live-график).
-    private final Map<String, LocalDateTime> liveLastWeldAtByMac = new ConcurrentHashMap<>();
 
     // Отдельный executor для операций с БД, чтобы не блокировать общий пул
     private final ExecutorService dbExecutor = Executors.newFixedThreadPool(3);
@@ -73,7 +66,6 @@ public class WeldingDeviceManagerService {
                 return;
             }
             preserveCoreGasMetrics(previous, stateSummary);
-            updateLiveLastWeldAt(mac, stateSummary);
 
 
             // Подробные логи отключены для производительности
@@ -227,57 +219,6 @@ public class WeldingDeviceManagerService {
      */
     public StateSummary getDeviceState(String mac) {
         return resolveDeviceState(mac);
-    }
-
-    public LocalDateTime getLiveLastWeldAt(String mac) {
-        if (mac == null || mac.isBlank()) {
-            return null;
-        }
-        LocalDateTime at = liveLastWeldAtByMac.get(mac);
-        if (at != null) {
-            return at;
-        }
-        at = liveLastWeldAtByMac.get(mac.toUpperCase());
-        if (at != null) {
-            return at;
-        }
-        return liveLastWeldAtByMac.get(mac.toLowerCase());
-    }
-
-    private void updateLiveLastWeldAt(String mac, StateSummary stateSummary) {
-        if (mac == null || mac.isBlank() || stateSummary == null) {
-            return;
-        }
-        Map<String, String> props = flattenProps(stateSummary);
-        String machineStateText = MonitorActivityClassifier.pickMachineStateText(props);
-        BigDecimal current = MonitorActivityClassifier.pickCurrentAmps(props);
-        WeldingMachineState probe = new WeldingMachineState();
-        probe.setWeldingMachineStatus(stateSummary.getStatus());
-        MonitorActivityMode mode = MonitorActivityClassifier.classify(probe, machineStateText, current);
-        if (mode != MonitorActivityMode.welding) {
-            return;
-        }
-        LocalDateTime candidate = stateSummary.getLastDatetimeUpdate() != null
-                ? stateSummary.getLastDatetimeUpdate()
-                : stateSummary.getDateCreated();
-        if (candidate == null) {
-            candidate = LocalDateTime.now();
-        }
-        liveLastWeldAtByMac.merge(mac, candidate, (prev, next) -> next.isAfter(prev) ? next : prev);
-    }
-
-    private static Map<String, String> flattenProps(StateSummary stateSummary) {
-        Map<String, String> out = new HashMap<>();
-        if (stateSummary.getProperties() == null) {
-            return out;
-        }
-        for (Map.Entry<String, StateSummaryPropertyValue> entry : stateSummary.getProperties().entrySet()) {
-            StateSummaryPropertyValue value = entry.getValue();
-            if (entry.getKey() != null && value != null && value.getValue() != null) {
-                out.put(entry.getKey(), value.getValue());
-            }
-        }
-        return out;
     }
 
 

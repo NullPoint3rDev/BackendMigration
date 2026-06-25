@@ -31,7 +31,6 @@ public class WeldingMachineService {
     private final WeldingMachineStateRepository weldingMachineStateRepository;
     private final WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
     private final WeldingMachineLastWeldService weldingMachineLastWeldService;
-    private final WeldingDeviceManagerService weldingDeviceManagerService;
 
     @Autowired
     public WeldingMachineService(WeldingMachineRepository weldingMachineRepository,
@@ -39,15 +38,13 @@ public class WeldingMachineService {
                                  OrganizationUnitRepository organizationUnitRepository,
                                  WeldingMachineStateRepository weldingMachineStateRepository,
                                  WeldingMachineParameterValueRepository weldingMachineParameterValueRepository,
-                                 WeldingMachineLastWeldService weldingMachineLastWeldService,
-                                 WeldingDeviceManagerService weldingDeviceManagerService) {
+                                 WeldingMachineLastWeldService weldingMachineLastWeldService) {
         this.weldingMachineRepository = weldingMachineRepository;
         this.weldingMachineTypeRepository = weldingMachineTypeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
         this.weldingMachineStateRepository = weldingMachineStateRepository;
         this.weldingMachineParameterValueRepository = weldingMachineParameterValueRepository;
         this.weldingMachineLastWeldService = weldingMachineLastWeldService;
-        this.weldingDeviceManagerService = weldingDeviceManagerService;
     }
 
     public List<WeldingMachine> getAllWeldingMachines() {
@@ -55,21 +52,12 @@ public class WeldingMachineService {
                 .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
                 .collect(Collectors.toList());
         for (WeldingMachine machine : machines) {
-            if (machine.getId() == null) {
+            if (machine.getId() == null || machine.getLastWeldAt() != null) {
                 continue;
             }
-            LocalDateTime historyLastWeldAt = weldingMachineLastWeldService.resolveForDisplay(machine.getId());
-            LocalDateTime currentLastWeldAt = machine.getLastWeldAt();
-            LocalDateTime liveLastWeldAt = weldingDeviceManagerService.getLiveLastWeldAt(machine.getMac());
-            // ponytail: пока это N+1 запрос по числу аппаратов; если список вырастет, заменить на batch-агрегацию max(dateCreated) group by machineId.
-            if (historyLastWeldAt != null
-                    && (currentLastWeldAt == null || historyLastWeldAt.isAfter(currentLastWeldAt))) {
-                machine.setLastWeldAt(historyLastWeldAt);
-                currentLastWeldAt = historyLastWeldAt;
-            }
-            if (liveLastWeldAt != null
-                    && (currentLastWeldAt == null || liveLastWeldAt.isAfter(currentLastWeldAt))) {
-                machine.setLastWeldAt(liveLastWeldAt);
+            LocalDateTime fallback = weldingMachineLastWeldService.resolveForDisplay(machine.getId());
+            if (fallback != null) {
+                machine.setLastWeldAt(fallback);
             }
         }
         return machines;
