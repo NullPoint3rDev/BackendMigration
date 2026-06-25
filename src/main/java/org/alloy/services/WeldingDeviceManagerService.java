@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +28,9 @@ public class WeldingDeviceManagerService {
 
     @Autowired
     private WeldingMachineStateService stateService;
+
+    @Autowired
+    private WeldingMachineLastWeldService weldingMachineLastWeldService;
 
     // Хранилище состояний всех аппаратов
     private final Map<String, StateSummary> deviceStates = new ConcurrentHashMap<>();
@@ -67,8 +71,8 @@ public class WeldingDeviceManagerService {
             }
             preserveCoreGasMetrics(previous, stateSummary);
 
-
-            // Подробные логи отключены для производительности
+            weldingMachineLastWeldService.updateFromPanelState(
+                    mac, previous, stateSummary, LocalDateTime.now());
 
             // Обновляем локальное состояние (даже если сохранение в БД не удалось)
             deviceStates.put(mac, stateSummary);

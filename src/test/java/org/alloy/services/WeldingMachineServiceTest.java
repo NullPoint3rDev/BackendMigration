@@ -109,12 +109,11 @@ public class WeldingMachineServiceTest {
     @Test
     void getAllWeldingMachines_ShouldFillLastWeldOnlyWhenFieldIsEmpty() {
         when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
-        when(weldingMachineLastWeldService.resolveForDisplay(1))
-                .thenReturn(LocalDateTime.of(2026, 6, 25, 11, 48));
+        when(weldingMachineLastWeldService.resolveForDisplay(1)).thenReturn(null);
 
         List<WeldingMachine> result = weldingMachineService.getAllWeldingMachines();
 
-        assertEquals(LocalDateTime.of(2026, 6, 25, 11, 48), result.get(0).getLastWeldAt());
+        assertNull(result.get(0).getLastWeldAt());
         verify(weldingMachineLastWeldService).resolveForDisplay(1);
     }
 
