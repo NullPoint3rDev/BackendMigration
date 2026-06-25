@@ -13,7 +13,6 @@ import org.alloy.repositories.OrganizationUnitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.context.TestPropertySource;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -105,6 +104,32 @@ public class WeldingMachineServiceTest {
         
         // Проверяем, что метод репозитория был вызван ровно один раз
         verify(weldingMachineRepository, times(1)).findAll();
+    }
+
+    @Test
+    void getAllWeldingMachines_ShouldPreferHistoryLastWeldWhenItIsNewer() {
+        testWeldingMachine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 7, 52));
+        when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
+        when(weldingMachineLastWeldService.resolveForDisplay(1))
+                .thenReturn(LocalDateTime.of(2026, 6, 25, 11, 48));
+
+        List<WeldingMachine> result = weldingMachineService.getAllWeldingMachines();
+
+        assertEquals(LocalDateTime.of(2026, 6, 25, 11, 48), result.get(0).getLastWeldAt());
+        verify(weldingMachineLastWeldService).resolveForDisplay(1);
+    }
+
+    @Test
+    void getAllWeldingMachines_ShouldKeepMachineLastWeldWhenHistoryIsOlder() {
+        testWeldingMachine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 11, 48));
+        when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
+        when(weldingMachineLastWeldService.resolveForDisplay(1))
+                .thenReturn(LocalDateTime.of(2026, 6, 25, 7, 52));
+
+        List<WeldingMachine> result = weldingMachineService.getAllWeldingMachines();
+
+        assertEquals(LocalDateTime.of(2026, 6, 25, 11, 48), result.get(0).getLastWeldAt());
+        verify(weldingMachineLastWeldService).resolveForDisplay(1);
     }
 
     /**
