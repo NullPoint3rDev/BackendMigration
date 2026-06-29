@@ -25,6 +25,8 @@ class MonitorActivityClassifierTest {
         MonitorActivityMode mode = MonitorActivityClassifier.classify(
                 state, "Аппарат в режиме ожидания", null);
         assertEquals(MonitorActivityMode.on, mode);
+    }
+
     @Test
     void coreArcWithGasCountsAsWelding() {
         WeldingMachineState state = new WeldingMachineState();
