@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Классификация режима плиток мониторинга по тексту состояния и току (как DeviceMonitorPage).
+ * Классификация режима мониторинга: сварка — по тексту состояния аппарата или статусу Welding.
  */
 public final class MonitorActivityClassifier {
 
@@ -20,19 +20,10 @@ public final class MonitorActivityClassifier {
             WeldingMachineState state,
             String machineStateText,
             BigDecimal currentAmps) {
-        return classify(state, machineStateText, currentAmps, null, null);
-    }
-
-    public static MonitorActivityMode classify(
-            WeldingMachineState state,
-            String machineStateText,
-            BigDecimal currentAmps,
-            BigDecimal gasFlowLpm,
-            BigDecimal voltageVolts) {
         if (state == null) {
             return MonitorActivityMode.off;
         }
-        if (isWelding(state, machineStateText, currentAmps, gasFlowLpm, voltageVolts)) {
+        if (isWelding(state, machineStateText, currentAmps)) {
             return MonitorActivityMode.welding;
         }
         String stateLower = normalize(machineStateText);
@@ -43,7 +34,6 @@ public final class MonitorActivityClassifier {
                 || stateLower.contains("не в сети")) {
             return MonitorActivityMode.off;
         }
-        // Дежурный режим (Выкл(деж)) — суточный таймер «Выкл. состояние», не «Вкл.»
         if (stateLower.contains("дежур") || stateLower.contains("standby")) {
             return MonitorActivityMode.off;
         }
@@ -59,6 +49,16 @@ public final class MonitorActivityClassifier {
             return MonitorActivityMode.error;
         }
         return MonitorActivityMode.on;
+    }
+
+    /** Совместимость: газ и напряжение не участвуют в классификации. */
+    public static MonitorActivityMode classify(
+            WeldingMachineState state,
+            String machineStateText,
+            BigDecimal currentAmps,
+            BigDecimal gasFlowLpm,
+            BigDecimal voltageVolts) {
+        return classify(state, machineStateText, currentAmps);
     }
 
     private static boolean isErrorState(WeldingMachineState state, String stateLower) {
@@ -78,12 +78,16 @@ public final class MonitorActivityClassifier {
         }
     }
 
-    private static boolean isWelding(
+    /**
+     * Сварка: текст «Сварка» / Welding, статус Welding, либо ток без текста состояния.
+     */
+    public static boolean isWelding(
             WeldingMachineState state,
             String machineStateText,
-            BigDecimal currentAmps,
-            BigDecimal gasFlowLpm,
-            BigDecimal voltageVolts) {
+            BigDecimal currentAmps) {
+        if (state == null) {
+            return false;
+        }
         String stateLower = normalize(machineStateText);
         if (stateLower.equals("сварка") || stateLower.equals("welding")
                 || stateLower.contains("сварка") || stateLower.contains("welding")
@@ -98,26 +102,7 @@ public final class MonitorActivityClassifier {
                 && currentAmps.compareTo(BigDecimal.ONE) > 0) {
             return true;
         }
-        // Core: текст «Аппарат включен», но идёт дуга — газ, ток и напряжение на дуге.
-        if (gasFlowLpm != null && gasFlowLpm.compareTo(new BigDecimal("0.15")) > 0
-                && currentAmps != null && currentAmps.compareTo(BigDecimal.TEN) > 0
-                && voltageVolts != null && voltageVolts.compareTo(new BigDecimal("0.5")) > 0) {
-            return true;
-        }
         return false;
-    }
-
-    /** Единая проверка «идёт сварка» для истории телеметрии и UI. */
-    public static boolean isArcWelding(
-            WeldingMachineState state,
-            String machineStateText,
-            BigDecimal currentAmps,
-            BigDecimal gasFlowLpm,
-            BigDecimal voltageVolts) {
-        if (state == null) {
-            return false;
-        }
-        return isWelding(state, machineStateText, currentAmps, gasFlowLpm, voltageVolts);
     }
 
     private static String normalize(String text) {

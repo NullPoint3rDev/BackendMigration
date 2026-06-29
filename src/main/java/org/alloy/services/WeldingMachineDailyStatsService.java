@@ -141,9 +141,7 @@ public class WeldingMachineDailyStatsService {
             Map<String, String> props = propsByStateId.getOrDefault(s.getId(), Collections.emptyMap());
             String stateText = MonitorActivityClassifier.pickMachineStateText(props);
             BigDecimal current = MonitorActivityClassifier.pickCurrentAmps(props);
-            BigDecimal gasFlow = MonitorActivityClassifier.pickGasFlowLpm(props);
-            BigDecimal voltage = MonitorActivityClassifier.pickVoltageVolts(props);
-            MonitorActivityMode mode = MonitorActivityClassifier.classify(s, stateText, current, gasFlow, voltage);
+            MonitorActivityMode mode = MonitorActivityClassifier.classify(s, stateText, current);
             switch (mode) {
                 case welding:
                     weldingMs += overlapMs;

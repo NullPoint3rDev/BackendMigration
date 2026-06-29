@@ -17,8 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * «Последний шов» = серверное время окончания дуги (текст «Сварка» или газ+ток+напряжение на Core).
- * Пока идёт сварка, поле не меняется (остаётся предыдущий завершённый шов).
+ * «Последний шов» = серверное время окончания сварки (переход «Сварка» → другое состояние).
  */
 @Service
 @Transactional
@@ -34,7 +33,7 @@ public class WeldingMachineLastWeldService {
     private WeldingMachineRepository weldingMachineRepository;
 
     /**
-     * На каждом пакете телеметрии (до троттлинга БД): запись только при окончании сварки.
+     * На каждом пакете телеметрии: запись только при окончании сварки.
      */
     public void updateFromPanelState(
             String mac,
@@ -44,7 +43,7 @@ public class WeldingMachineLastWeldService {
         if (mac == null || mac.isBlank() || current == null || eventTime == null) {
             return;
         }
-        if (!isArcWelding(previous) || isArcWelding(current)) {
+        if (!isWelding(previous) || isWelding(current)) {
             return;
         }
         Optional<WeldingMachine> machineOpt = resolveMachine(mac);
@@ -67,7 +66,7 @@ public class WeldingMachineLastWeldService {
         return null;
     }
 
-    static boolean isArcWelding(StateSummary summary) {
+    static boolean isWelding(StateSummary summary) {
         if (summary == null) {
             return false;
         }
@@ -76,9 +75,7 @@ public class WeldingMachineLastWeldService {
         Map<String, String> props = toPropsMap(summary);
         String machineStateText = MonitorActivityClassifier.pickMachineStateText(props);
         BigDecimal current = MonitorActivityClassifier.pickCurrentAmps(props);
-        BigDecimal gas = MonitorActivityClassifier.pickGasFlowLpm(props);
-        BigDecimal voltage = MonitorActivityClassifier.pickVoltageVolts(props);
-        return MonitorActivityClassifier.isArcWelding(state, machineStateText, current, gas, voltage);
+        return MonitorActivityClassifier.isWelding(state, machineStateText, current);
     }
 
     static boolean isExplicitSvarka(StateSummary summary) {

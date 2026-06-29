@@ -86,33 +86,11 @@ class WeldingMachineLastWeldServiceTest {
     }
 
     @Test
-    void updatesLastWeldAtWhenCoreArcEnds() {
-        WeldingMachine machine = new WeldingMachine();
-        machine.setId(7);
-        machine.setMac("AA:BB:CC:DD:EE:FF");
-        when(weldingMachineRepository.findByMac("AA:BB:CC:DD:EE:FF")).thenReturn(Optional.of(machine));
-
-        StateSummary previous = summaryWithState("Аппарат включен");
-        previous.getProperties().put("Current", prop("314"));
-        previous.getProperties().put("Voltage", prop("315"));
-        previous.getProperties().put("State.GasFlow", prop("2.5"));
-        StateSummary current = summaryWithState("Аппарат включен");
-        current.getProperties().put("Current", prop("314"));
-        current.getProperties().put("Voltage", prop("315"));
-
-        service.updateFromPanelState(
-                "AA:BB:CC:DD:EE:FF", previous, current, LocalDateTime.of(2026, 6, 29, 9, 41));
-
-        assertEquals(LocalDateTime.of(2026, 6, 29, 9, 41), machine.getLastWeldAt());
-        verify(weldingMachineRepository).save(machine);
-    }
-
-    @Test
     void ignoresHighCurrentWithoutSvarkaText() {
         assertFalse(WeldingMachineLastWeldService.isExplicitSvarka(summaryWithState("Аппарат включен")));
         StateSummary withCurrent = summaryWithState("Аппарат включен");
         withCurrent.getProperties().put("State.I", prop("296"));
-        assertFalse(WeldingMachineLastWeldService.isArcWelding(withCurrent));
+        assertFalse(WeldingMachineLastWeldService.isWelding(withCurrent));
     }
 
     @Test
