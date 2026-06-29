@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.models.entities.WeldingMachine;
+import org.alloy.models.entities.WeldingMachineState;
 import org.alloy.models.weldingmachine.StateSummary;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
 import org.alloy.repositories.WeldingMachineRepository;
@@ -8,12 +9,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
- * «Последний шов» = серверное время перехода текста «Сварка» в любое другое состояние.
+ * «Последний шов» = серверное время окончания дуги (текст «Сварка» или газ+ток+напряжение на Core).
  * Пока идёт сварка, поле не меняется (остаётся предыдущий завершённый шов).
  */
 @Service
@@ -40,7 +44,7 @@ public class WeldingMachineLastWeldService {
         if (mac == null || mac.isBlank() || current == null || eventTime == null) {
             return;
         }
-        if (!isExplicitSvarka(previous) || isExplicitSvarka(current)) {
+        if (!isArcWelding(previous) || isArcWelding(current)) {
             return;
         }
         Optional<WeldingMachine> machineOpt = resolveMachine(mac);
@@ -61,6 +65,20 @@ public class WeldingMachineLastWeldService {
     /** Для ответа API при пустом поле: без пересчёта истории. */
     public LocalDateTime resolveForDisplay(Integer weldingMachineId) {
         return null;
+    }
+
+    static boolean isArcWelding(StateSummary summary) {
+        if (summary == null) {
+            return false;
+        }
+        WeldingMachineState state = new WeldingMachineState();
+        state.setWeldingMachineStatus(summary.getStatus());
+        Map<String, String> props = toPropsMap(summary);
+        String machineStateText = MonitorActivityClassifier.pickMachineStateText(props);
+        BigDecimal current = MonitorActivityClassifier.pickCurrentAmps(props);
+        BigDecimal gas = MonitorActivityClassifier.pickGasFlowLpm(props);
+        BigDecimal voltage = MonitorActivityClassifier.pickVoltageVolts(props);
+        return MonitorActivityClassifier.isArcWelding(state, machineStateText, current, gas, voltage);
     }
 
     static boolean isExplicitSvarka(StateSummary summary) {
@@ -86,6 +104,19 @@ public class WeldingMachineLastWeldService {
             }
         }
         return null;
+    }
+
+    private static Map<String, String> toPropsMap(StateSummary summary) {
+        Map<String, String> out = new HashMap<>();
+        if (summary == null || summary.getProperties() == null) {
+            return out;
+        }
+        summary.getProperties().forEach((key, value) -> {
+            if (value != null && value.getValue() != null && !value.getValue().isBlank()) {
+                out.put(key, value.getValue().trim());
+            }
+        });
+        return out;
     }
 
     private Optional<WeldingMachine> resolveMachine(String mac) {
