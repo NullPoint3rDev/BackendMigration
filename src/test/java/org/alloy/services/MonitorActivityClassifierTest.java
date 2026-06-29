@@ -6,6 +6,8 @@ import org.alloy.models.entities.WeldingMachineState;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -56,7 +58,7 @@ class MonitorActivityClassifierTest {
 
     @Test
     void pickVoltagePrefersVoltageOverZeroStateU() {
-        Map<String, String> props = new java.util.HashMap<>();
+        Map<String, String> props = new HashMap<>();
         props.put("State.U", "0");
         props.put("Voltage", "304");
         assertEquals(0, new BigDecimal("30.4").compareTo(MonitorActivityClassifier.pickVoltageVolts(props)));
