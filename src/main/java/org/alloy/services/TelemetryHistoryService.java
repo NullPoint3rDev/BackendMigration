@@ -101,9 +101,9 @@ public class TelemetryHistoryService {
             BigDecimal gasFlow = MonitorActivityClassifier.pickGasFlowLpm(map);
             boolean welding = MonitorActivityClassifier.isWelding(s, machineStateText, currentAmps);
             Double current = welding ? toDouble(currentAmps) : null;
-            Double voltage = welding ? parseFirstDouble(map, VOLTAGE_CODES) : null;
+            Double voltage = welding ? toDouble(voltageVolts) : null;
             Double setCurrent = welding ? null : toDouble(currentAmps);
-            Double setVoltage = welding ? null : parseFirstDouble(map, VOLTAGE_CODES);
+            Double setVoltage = welding ? null : toDouble(voltageVolts);
             Double gasFlowLpm = toDouble(gasFlow);
             Double mainsVoltageA = parseFirstDouble(map, MAINS_VOLTAGE_A_CODES);
             Double mainsVoltageB = parseFirstDouble(map, MAINS_VOLTAGE_B_CODES);
