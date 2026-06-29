@@ -53,4 +53,12 @@ class MonitorActivityClassifierTest {
         assertEquals(MonitorActivityMode.on, mode);
         assertFalse(MonitorActivityClassifier.isWelding(state, "Аппарат включен", new BigDecimal("314")));
     }
+
+    @Test
+    void pickVoltagePrefersVoltageOverZeroStateU() {
+        Map<String, String> props = new java.util.HashMap<>();
+        props.put("State.U", "0");
+        props.put("Voltage", "304");
+        assertEquals(0, new BigDecimal("30.4").compareTo(MonitorActivityClassifier.pickVoltageVolts(props)));
+    }
 }

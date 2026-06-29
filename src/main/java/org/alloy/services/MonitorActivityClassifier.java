@@ -142,16 +142,45 @@ public final class MonitorActivityClassifier {
         if (propsByCode == null) {
             return null;
         }
-        for (String key : new String[]{"State.U", "Напряжение", "Voltage", "voltage"}) {
-            BigDecimal v = parseDecimal(propsByCode.get(key));
+        // Сначала Voltage (Core: десятые вольта), как на фронте — State.U часто 0 и не должен перекрывать.
+        for (String key : new String[]{"Voltage", "voltage", "Напряжение", "State.U"}) {
+            BigDecimal v = parseVoltageProperty(key, propsByCode.get(key));
             if (v != null) {
-                if (v.compareTo(new BigDecimal("100")) > 0) {
-                    return v.movePointLeft(1);
-                }
                 return v;
             }
         }
         return null;
+    }
+
+    private static BigDecimal parseVoltageProperty(String key, String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        if ("State.U".equals(key)) {
+            String t = raw.trim();
+            try {
+                if (t.matches("(?i)[0-9A-F]+")) {
+                    int dec = Integer.parseInt(t, 16);
+                    if (dec > 0) {
+                        return new BigDecimal(dec).movePointLeft(1);
+                    }
+                    return null;
+                }
+            } catch (NumberFormatException ignored) {
+                /* decimal fallback below */
+            }
+        }
+        BigDecimal v = parseDecimal(raw);
+        if (v == null) {
+            return null;
+        }
+        if (v.compareTo(new BigDecimal("100")) > 0) {
+            return v.movePointLeft(1);
+        }
+        if (v.compareTo(BigDecimal.ZERO) == 0) {
+            return null;
+        }
+        return v;
     }
 
     public static BigDecimal pickGasFlowLpm(Map<String, String> propsByCode) {
