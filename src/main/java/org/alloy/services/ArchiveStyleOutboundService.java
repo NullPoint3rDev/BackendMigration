@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 // import java.time.format.DateTimeFormatter; // пока не используется
 import java.util.Map;
 
@@ -51,7 +52,7 @@ public class ArchiveStyleOutboundService {
     public String buildTimeSyncMessage(String mac, boolean appendCrlf) {
         if (!timeSyncEnabled) return null;
         
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Moscow"));
         String hh = to2Hex(now.getHour());
         String mm = to2Hex(now.getMinute());
         String ss = to2Hex(now.getSecond());

@@ -43,7 +43,7 @@ public class CoreOutboundService {
          */
         public String buildTimeSyncMessage(String mac, boolean appendCrlf) {
             if (!timeSyncEnabled) return null;
-            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            java.time.LocalDateTime now = java.time.LocalDateTime.now(java.time.ZoneId.of("Europe/Moscow"));
             String hh = to2Hex(now.getHour());
             String mm = to2Hex(now.getMinute());
             String ss = to2Hex(now.getSecond());
