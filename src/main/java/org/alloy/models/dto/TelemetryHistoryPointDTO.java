@@ -29,5 +29,7 @@ public class TelemetryHistoryPointDTO {
     private String status;
     /** Текст WeldingMachineState / «Состояние аппарата» (для дежурного режима на дорожке «Состояние»). */
     private String machineStateText;
+    /** Факт сварки (дуга): текст «Сварка», статус Welding или газ+ток+напряжение на Core. */
+    private Boolean isWelding;
 }
 

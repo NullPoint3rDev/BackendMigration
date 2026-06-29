@@ -25,5 +25,16 @@ class MonitorActivityClassifierTest {
         MonitorActivityMode mode = MonitorActivityClassifier.classify(
                 state, "Аппарат в режиме ожидания", null);
         assertEquals(MonitorActivityMode.on, mode);
+    @Test
+    void coreArcWithGasCountsAsWelding() {
+        WeldingMachineState state = new WeldingMachineState();
+        state.setWeldingMachineStatus(WeldingMachineStatus.Idle);
+        MonitorActivityMode mode = MonitorActivityClassifier.classify(
+                state,
+                "Аппарат включен",
+                new java.math.BigDecimal("314"),
+                new java.math.BigDecimal("2.5"),
+                new java.math.BigDecimal("31.5"));
+        assertEquals(MonitorActivityMode.welding, mode);
     }
 }

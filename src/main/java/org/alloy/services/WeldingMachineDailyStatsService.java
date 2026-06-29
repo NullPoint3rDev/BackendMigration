@@ -41,6 +41,8 @@ public class WeldingMachineDailyStatsService {
     private static final List<String> STATE_TEXT_KEYS = List.of(
             "Состояние аппарата", "WeldingMachineState", "State.WeldingMachineState");
     private static final List<String> CURRENT_KEYS = List.of("State.I", "Ток", "Current", "current");
+    private static final List<String> VOLTAGE_KEYS = List.of("State.U", "Напряжение", "Voltage", "voltage");
+    private static final List<String> GAS_FLOW_KEYS = List.of("State.GasFlow", "GasFlow", "gasFlow");
 
     @Value("${monitor.daily-stats.timezone:Europe/Moscow}")
     private String timezoneId;
@@ -139,7 +141,9 @@ public class WeldingMachineDailyStatsService {
             Map<String, String> props = propsByStateId.getOrDefault(s.getId(), Collections.emptyMap());
             String stateText = MonitorActivityClassifier.pickMachineStateText(props);
             BigDecimal current = MonitorActivityClassifier.pickCurrentAmps(props);
-            MonitorActivityMode mode = MonitorActivityClassifier.classify(s, stateText, current);
+            BigDecimal gasFlow = MonitorActivityClassifier.pickGasFlowLpm(props);
+            BigDecimal voltage = MonitorActivityClassifier.pickVoltageVolts(props);
+            MonitorActivityMode mode = MonitorActivityClassifier.classify(s, stateText, current, gasFlow, voltage);
             switch (mode) {
                 case welding:
                     weldingMs += overlapMs;
@@ -259,6 +263,8 @@ public class WeldingMachineDailyStatsService {
         }
         List<String> keys = new ArrayList<>(STATE_TEXT_KEYS);
         keys.addAll(CURRENT_KEYS);
+        keys.addAll(VOLTAGE_KEYS);
+        keys.addAll(GAS_FLOW_KEYS);
         final int batchSize = 5000;
         for (int i = 0; i < ids.size(); i += batchSize) {
             List<Long> batch = ids.subList(i, Math.min(i + batchSize, ids.size()));

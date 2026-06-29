@@ -11,6 +11,7 @@ import org.alloy.repositories.WeldingMachineStateRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -70,7 +71,8 @@ public class TelemetryHistoryService {
             "Температура вторичной обмотки", "SecondaryCoilTemperature", "secondaryCoilTemperature",
             "Температура охлаждающей жидкости на входе", "ChillerTemperature1", "chillerTemperature1",
             "Температура охлаждающей жидкости на выходе", "ChillerTemperature2", "chillerTemperature2",
-            "RFID.Hex", "RFID", "Rfid", "rfid"
+            "RFID.Hex", "RFID", "Rfid", "rfid",
+            "Состояние аппарата", "WeldingMachineState", "State.WeldingMachineState"
     );
 
     public List<TelemetryHistoryPointDTO> getTelemetryHistory(String mac, long fromMs, long toMs) {
@@ -93,13 +95,17 @@ public class TelemetryHistoryService {
         for (WeldingMachineState s : states) {
             long ts = s.getDateCreated() != null ? s.getDateCreated().atZone(zone).toInstant().toEpochMilli() : 0L;
             Map<String, String> map = byState.getOrDefault(s.getId(), Map.of());
-            WeldingMachineStatus st = s.getWeldingMachineStatus();
-            boolean welding = st == WeldingMachineStatus.Welding;
-            Double current = welding ? parseFirstDouble(map, CURRENT_CODES) : null;
+            String machineStateText = MonitorActivityClassifier.pickMachineStateText(map);
+            BigDecimal currentAmps = MonitorActivityClassifier.pickCurrentAmps(map);
+            BigDecimal voltageVolts = MonitorActivityClassifier.pickVoltageVolts(map);
+            BigDecimal gasFlow = MonitorActivityClassifier.pickGasFlowLpm(map);
+            boolean welding = MonitorActivityClassifier.isArcWelding(
+                    s, machineStateText, currentAmps, gasFlow, voltageVolts);
+            Double current = welding ? toDouble(currentAmps) : null;
             Double voltage = welding ? parseFirstDouble(map, VOLTAGE_CODES) : null;
-            Double setCurrent = welding ? null : parseFirstDouble(map, CURRENT_CODES);
+            Double setCurrent = welding ? null : toDouble(currentAmps);
             Double setVoltage = welding ? null : parseFirstDouble(map, VOLTAGE_CODES);
-            Double gasFlowLpm = parseFirstDouble(map, GAS_FLOW_CODES);
+            Double gasFlowLpm = toDouble(gasFlow);
             Double mainsVoltageA = parseFirstDouble(map, MAINS_VOLTAGE_A_CODES);
             Double mainsVoltageB = parseFirstDouble(map, MAINS_VOLTAGE_B_CODES);
             Double mainsVoltageC = parseFirstDouble(map, MAINS_VOLTAGE_C_CODES);
@@ -109,7 +115,6 @@ public class TelemetryHistoryService {
             Double chillerTemperatureOut = parseFirstDouble(map, CHILLER_TEMP_OUT_CODES);
             String rfid = (s.getRfid() != null && !s.getRfid().isBlank()) ? s.getRfid() : parseFirstString(map, List.of("RFID.Hex", "RFID", "Rfid", "rfid"));
             String status = s.getWeldingMachineStatus() != null ? s.getWeldingMachineStatus().name() : null;
-            String machineStateText = MonitorActivityClassifier.pickMachineStateText(map);
             result.add(new TelemetryHistoryPointDTO(
                     ts,
                     current,
@@ -127,7 +132,8 @@ public class TelemetryHistoryService {
                     rfid,
                     s.getErrorCode(),
                     status,
-                    machineStateText
+                    machineStateText,
+                    welding
             ));
         }
         return result;
@@ -149,6 +155,10 @@ public class TelemetryHistoryService {
             }
         }
         return byState;
+    }
+
+    private static Double toDouble(BigDecimal value) {
+        return value != null ? value.doubleValue() : null;
     }
 
     private static Double parseFirstDouble(Map<String, String> map, List<String> keys) {

@@ -20,10 +20,19 @@ public final class MonitorActivityClassifier {
             WeldingMachineState state,
             String machineStateText,
             BigDecimal currentAmps) {
+        return classify(state, machineStateText, currentAmps, null, null);
+    }
+
+    public static MonitorActivityMode classify(
+            WeldingMachineState state,
+            String machineStateText,
+            BigDecimal currentAmps,
+            BigDecimal gasFlowLpm,
+            BigDecimal voltageVolts) {
         if (state == null) {
             return MonitorActivityMode.off;
         }
-        if (isWelding(state, machineStateText, currentAmps)) {
+        if (isWelding(state, machineStateText, currentAmps, gasFlowLpm, voltageVolts)) {
             return MonitorActivityMode.welding;
         }
         String stateLower = normalize(machineStateText);
@@ -72,7 +81,9 @@ public final class MonitorActivityClassifier {
     private static boolean isWelding(
             WeldingMachineState state,
             String machineStateText,
-            BigDecimal currentAmps) {
+            BigDecimal currentAmps,
+            BigDecimal gasFlowLpm,
+            BigDecimal voltageVolts) {
         String stateLower = normalize(machineStateText);
         if (stateLower.equals("сварка") || stateLower.equals("welding")
                 || stateLower.contains("сварка") || stateLower.contains("welding")
@@ -87,7 +98,26 @@ public final class MonitorActivityClassifier {
                 && currentAmps.compareTo(BigDecimal.ONE) > 0) {
             return true;
         }
+        // Core: текст «Аппарат включен», но идёт дуга — газ, ток и напряжение на дуге.
+        if (gasFlowLpm != null && gasFlowLpm.compareTo(new BigDecimal("0.15")) > 0
+                && currentAmps != null && currentAmps.compareTo(BigDecimal.TEN) > 0
+                && voltageVolts != null && voltageVolts.compareTo(new BigDecimal("0.5")) > 0) {
+            return true;
+        }
         return false;
+    }
+
+    /** Единая проверка «идёт сварка» для истории телеметрии и UI. */
+    public static boolean isArcWelding(
+            WeldingMachineState state,
+            String machineStateText,
+            BigDecimal currentAmps,
+            BigDecimal gasFlowLpm,
+            BigDecimal voltageVolts) {
+        if (state == null) {
+            return false;
+        }
+        return isWelding(state, machineStateText, currentAmps, gasFlowLpm, voltageVolts);
     }
 
     private static String normalize(String text) {
@@ -115,6 +145,35 @@ public final class MonitorActivityClassifier {
             return null;
         }
         for (String key : new String[]{"State.I", "Ток", "Current", "current"}) {
+            BigDecimal v = parseDecimal(propsByCode.get(key));
+            if (v != null) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    public static BigDecimal pickVoltageVolts(Map<String, String> propsByCode) {
+        if (propsByCode == null) {
+            return null;
+        }
+        for (String key : new String[]{"State.U", "Напряжение", "Voltage", "voltage"}) {
+            BigDecimal v = parseDecimal(propsByCode.get(key));
+            if (v != null) {
+                if (v.compareTo(new BigDecimal("100")) > 0) {
+                    return v.movePointLeft(1);
+                }
+                return v;
+            }
+        }
+        return null;
+    }
+
+    public static BigDecimal pickGasFlowLpm(Map<String, String> propsByCode) {
+        if (propsByCode == null) {
+            return null;
+        }
+        for (String key : new String[]{"State.GasFlow", "GasFlow", "gasFlow"}) {
             BigDecimal v = parseDecimal(propsByCode.get(key));
             if (v != null) {
                 return v;
