@@ -52,8 +52,8 @@ public class CorePacketParser {
             // 7. uint8_t Year
             if (off < bytes.length) p.year = readU8(bytes, off++);
 
-            // 8. uint16_t reserve (big-endian)
-            if (off + 1 < bytes.length) { p.reserve = readU16BE(bytes, off); off += 2; }
+            // 8. uint16_t instant wire feed speed, m/min x10 (big-endian)
+            if (off + 1 < bytes.length) { p.instantWireFeedSpeedTenths = readU16BE(bytes, off); off += 2; }
 
             // 9. int8_t flags
             if (off < bytes.length) p.flags = readI8(bytes, off++);
