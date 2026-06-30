@@ -96,15 +96,6 @@ jobs:
           Set-Location (Join-Path $env:GITHUB_WORKSPACE 'deploy')
           docker compose --env-file $stagingEnv up -d --build backend
 
-      - name: Refresh monitoring stack (config-only, no image rebuild)
-        shell: powershell
-        run: |
-          Set-StrictMode -Version Latest
-          $ErrorActionPreference = 'Stop'
-          $stagingEnv = 'C:\WTStaging\BackendStaging\deploy\.env'
-          Set-Location (Join-Path $env:GITHUB_WORKSPACE 'deploy')
-          docker compose --env-file $stagingEnv up -d prometheus grafana loki promtail postgres-exporter
-
       - name: Wait for backend healthy
         shell: powershell
         run: |
@@ -121,6 +112,15 @@ jobs:
             }
             Start-Sleep -Seconds 5
           } while ((Get-Date) -lt $deadline)
-          Write-Error "Backend did not become healthy within 3 minutes (last status: $status)"
-          docker compose -f $compose --env-file $stagingEnv logs --tail 80 backend
+          Write-Error "Backend did not become healthy within 5 minutes (last status: $status)"
+          docker compose -f $compose --env-file $stagingEnv logs --tail 120 backend
           exit 1
+
+      - name: Refresh monitoring stack (config-only, no image rebuild)
+        shell: powershell
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $stagingEnv = 'C:\WTStaging\BackendStaging\deploy\.env'
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE 'deploy')
+          docker compose --env-file $stagingEnv up -d prometheus grafana loki promtail postgres-exporter
