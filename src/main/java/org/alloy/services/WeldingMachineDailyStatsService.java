@@ -455,6 +455,52 @@ public class WeldingMachineDailyStatsService {
         return BigDecimal.ZERO;
     }
 
+    /**
+     * Расход газа (л) за полуинтервал [windowStart, windowEnd) по дельтам счётчика «с включения».
+     * Используется в отчётах по швам и в суточной статистике.
+     */
+    static BigDecimal sumGasCumulativeLitersInWindow(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> gasCumulativeByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd) {
+        if (states == null || states.isEmpty()
+                || gasCumulativeByStateId == null || gasCumulativeByStateId.isEmpty()
+                || windowStart == null || windowEnd == null) {
+            return BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        }
+        List<WeldingMachineState> sorted = new ArrayList<>(states);
+        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated, Comparator.nullsLast(Comparator.naturalOrder())));
+        BigDecimal lastCumulative = null;
+        BigDecimal sumDelta = BigDecimal.ZERO;
+        for (WeldingMachineState s : sorted) {
+            if (s.getId() == null || s.getDateCreated() == null) {
+                continue;
+            }
+            BigDecimal current = gasCumulativeByStateId.get(s.getId());
+            if (current == null) {
+                continue;
+            }
+            LocalDateTime t = s.getDateCreated();
+            if (t.isBefore(windowStart)) {
+                lastCumulative = current;
+                continue;
+            }
+            if (!t.isBefore(windowEnd)) {
+                break;
+            }
+            if (lastCumulative != null) {
+                sumDelta = sumDelta.add(sumGasCumulativeDelta(lastCumulative, current));
+                if (current.compareTo(lastCumulative) >= 0 || isGasCounterPowerOnReset(current, lastCumulative)) {
+                    lastCumulative = current;
+                }
+            } else {
+                lastCumulative = current;
+            }
+        }
+        return sumDelta.setScale(3, RoundingMode.HALF_UP);
+    }
+
     private static final class GasDayTotals {
         final BigDecimal consumptionL;
         final BigDecimal baselineAtDayStartL;

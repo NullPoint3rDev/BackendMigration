@@ -48,4 +48,36 @@ class WeldingMachineDailyStatsGasTest {
         sum = sum.add(WeldingMachineDailyStatsService.sumGasCumulativeDelta(last, bd("80")));
         assertEquals(0, sum.compareTo(bd("80")));
     }
+
+    @Test
+    void weldWindow_sumsCumulativeWithGlitchIgnored() {
+        java.time.LocalDateTime t0 = java.time.LocalDateTime.of(2026, 6, 30, 9, 59, 0);
+        java.time.LocalDateTime t1 = java.time.LocalDateTime.of(2026, 6, 30, 10, 5, 0);
+        java.time.LocalDateTime t2 = java.time.LocalDateTime.of(2026, 6, 30, 10, 8, 0);
+        java.time.LocalDateTime t3 = java.time.LocalDateTime.of(2026, 6, 30, 10, 9, 0);
+        java.time.LocalDateTime weldStart = java.time.LocalDateTime.of(2026, 6, 30, 10, 0, 0);
+        java.time.LocalDateTime weldEnd = java.time.LocalDateTime.of(2026, 6, 30, 10, 10, 0);
+
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, t0);
+        org.alloy.models.entities.WeldingMachineState s1 = state(2L, t1);
+        org.alloy.models.entities.WeldingMachineState s2 = state(3L, t2);
+        org.alloy.models.entities.WeldingMachineState s3 = state(4L, t3);
+
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("100"));
+        cum.put(2L, bd("110"));
+        cum.put(3L, bd("107")); // глюк
+        cum.put(4L, bd("115"));
+
+        BigDecimal liters = WeldingMachineDailyStatsService.sumGasCumulativeLitersInWindow(
+                java.util.List.of(s0, s1, s2, s3), cum, weldStart, weldEnd);
+        assertEquals(0, liters.compareTo(bd("15")));
+    }
+
+    private static org.alloy.models.entities.WeldingMachineState state(Long id, java.time.LocalDateTime created) {
+        org.alloy.models.entities.WeldingMachineState s = new org.alloy.models.entities.WeldingMachineState();
+        s.setId(id);
+        s.setDateCreated(created);
+        return s;
+    }
 }
