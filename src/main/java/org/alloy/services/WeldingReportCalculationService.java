@@ -683,11 +683,16 @@ public class WeldingReportCalculationService {
             }
 
             for (PendingWeldSegment p : pending) {
-                List<WeldingMachineState> windowStates = statesInTimeWindow(
-                        sorted, p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5));
-                LocalDateTime serverEnd = p.serverEnd != null ? p.serverEnd : p.segmentEndTime;
+                LocalDateTime serverWindowEnd = resolveServerWindowEnd(
+                        p.weldStartTime, p.serverEnd, p.segmentDurationMs);
+                List<WeldingMachineState> windowStates = serverWindowEnd != null
+                        ? statesInTimeWindow(sorted, p.weldStartTime.minusMinutes(5), serverWindowEnd.plusMinutes(5))
+                        : java.util.Collections.emptyList();
+                long serverSpanMs = (p.weldStartTime != null && serverWindowEnd != null)
+                        ? java.time.Duration.between(p.weldStartTime, serverWindowEnd).toMillis() : 0L;
+                long electricalDurationMs = serverSpanMs > 0 ? serverSpanMs : p.segmentDurationMs;
                 org.alloy.models.dto.WeldSegmentDTO dto = buildSegmentDto(
-                        p.weldStartTime, serverEnd, p.segmentDurationMs, 0, 0,
+                        p.weldStartTime, serverWindowEnd, electricalDurationMs, 0, 0,
                         windowStates, currentByState, voltageByState, p.segmentStartForDto, stateNameByStateId);
                 dto.setStartStateId(p.weldStartStateId);
                 dto.setEndStateId(p.weldEndStateId);
@@ -975,10 +980,24 @@ public class WeldingReportCalculationService {
         Long weldStartStateId;
         Long weldEndStateId;
         int endIndex = -1;
-        LocalDateTime segmentEndTime;
+        /** Время аппарата (Date./Time.*) — только для длительности/отображения в отчёте. */
+        LocalDateTime deviceSegmentEnd;
+        /** Конец шва по date_created в БД — для поиска состояний и I/U. */
         LocalDateTime serverEnd;
         LocalDateTime segmentStartForDto;
         long segmentDurationMs;
+    }
+
+    /** ponytail: date_created всегда серверное UTC; deviceSegmentEnd нельзя смешивать с ним в statesInTimeWindow. */
+    static LocalDateTime resolveServerWindowEnd(
+            LocalDateTime weldStartTime, LocalDateTime serverEnd, long segmentDurationMs) {
+        if (serverEnd != null) {
+            return serverEnd;
+        }
+        if (weldStartTime != null && segmentDurationMs > 0) {
+            return weldStartTime.plus(segmentDurationMs, java.time.temporal.ChronoUnit.MILLIS);
+        }
+        return null;
     }
 
     private PendingWeldSegment buildPendingWeldSegment(
@@ -986,14 +1005,15 @@ public class WeldingReportCalculationService {
             WeldingMachineState endState, java.util.Map<Long, String> stateNameByStateId,
             java.util.Map<Long, LocalDateTime> deviceTimeByStateId) {
         LocalDateTime segmentStartForDto = weldStartTime;
-        LocalDateTime segmentEndTime = endState.getDateCreated();
-        long segmentDurationMs = java.time.Duration.between(weldStartTime, segmentEndTime).toMillis();
+        LocalDateTime serverEnd = endState.getDateCreated();
+        LocalDateTime deviceSegmentEnd = serverEnd;
+        long segmentDurationMs = java.time.Duration.between(weldStartTime, serverEnd).toMillis();
         LocalDateTime deviceStart = deviceTimeByStateId.get(weldStartStateId);
         LocalDateTime deviceEnd = deviceTimeByStateId.get(endState.getId());
         if (deviceStart != null && deviceEnd != null && !deviceEnd.isBefore(deviceStart)) {
             segmentDurationMs = java.time.Duration.between(deviceStart, deviceEnd).toMillis();
             segmentStartForDto = deviceStart;
-            segmentEndTime = deviceEnd;
+            deviceSegmentEnd = deviceEnd;
         }
         if (endIndex + 1 < sorted.size()) {
             WeldingMachineState next = sorted.get(endIndex + 1);
@@ -1004,7 +1024,10 @@ public class WeldingReportCalculationService {
                     long durToNext = java.time.Duration.between(startForDur, nextDevice).toMillis();
                     if (durToNext > 0 && durToNext < segmentDurationMs) {
                         segmentDurationMs = durToNext;
-                        segmentEndTime = nextDevice;
+                        deviceSegmentEnd = nextDevice;
+                        if (next.getDateCreated() != null) {
+                            serverEnd = next.getDateCreated();
+                        }
                     }
                 }
             }
@@ -1015,8 +1038,8 @@ public class WeldingReportCalculationService {
         p.weldStartStateId = weldStartStateId;
         p.weldEndStateId = endState.getId();
         p.endIndex = endIndex;
-        p.segmentEndTime = segmentEndTime;
-        p.serverEnd = endState.getDateCreated();
+        p.deviceSegmentEnd = deviceSegmentEnd;
+        p.serverEnd = serverEnd;
         p.segmentStartForDto = segmentStartForDto;
         p.segmentDurationMs = segmentDurationMs;
         return p;
@@ -1045,9 +1068,9 @@ public class WeldingReportCalculationService {
         p.weldStartTime = weldStartTime;
         p.weldStartStateId = weldStartStateId;
         p.segmentDurationMs = segmentDurationMs;
-        p.segmentEndTime = weldStartTime.plus(segmentDurationMs, java.time.temporal.ChronoUnit.MILLIS);
+        p.deviceSegmentEnd = weldStartTime.plus(segmentDurationMs, java.time.temporal.ChronoUnit.MILLIS);
         p.segmentStartForDto = deviceTimeByStateId.getOrDefault(weldStartStateId, weldStartTime);
-        p.serverEnd = p.segmentEndTime;
+        p.serverEnd = p.deviceSegmentEnd;
         return p;
     }
 
@@ -1066,8 +1089,11 @@ public class WeldingReportCalculationService {
         }
         java.util.List<Window> windows = new java.util.ArrayList<>(pending.size());
         for (PendingWeldSegment p : pending) {
-            if (p == null || p.weldStartTime == null || p.segmentEndTime == null) continue;
-            windows.add(new Window(p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5)));
+            if (p == null || p.weldStartTime == null) continue;
+            LocalDateTime serverWindowEnd = resolveServerWindowEnd(
+                    p.weldStartTime, p.serverEnd, p.segmentDurationMs);
+            if (serverWindowEnd == null) continue;
+            windows.add(new Window(p.weldStartTime.minusMinutes(5), serverWindowEnd.plusMinutes(5)));
         }
         if (windows.isEmpty()) return java.util.Collections.emptySet();
         windows.sort(java.util.Comparator.comparing(w -> w.from));
@@ -1142,7 +1168,7 @@ public class WeldingReportCalculationService {
     }
 
     private static void copyPendingTiming(PendingWeldSegment target, PendingWeldSegment source) {
-        target.segmentEndTime = source.segmentEndTime;
+        target.deviceSegmentEnd = source.deviceSegmentEnd;
         target.serverEnd = source.serverEnd;
         target.segmentStartForDto = source.segmentStartForDto;
         target.segmentDurationMs = source.segmentDurationMs;
