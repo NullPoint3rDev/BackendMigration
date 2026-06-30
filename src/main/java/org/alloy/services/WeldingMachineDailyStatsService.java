@@ -88,9 +88,18 @@ public class WeldingMachineDailyStatsService {
         if (day.equals(today()) && row.getGasBaselineAtDayStartL() == null) {
             row = recomputeDay(machine.getId(), day);
         } else if (shouldScheduleRecompute(row, day)) {
-            scheduleRecompute(machine.getId(), day);
+            if (isInvalidatedCache(row)) {
+                row = recomputeDay(machine.getId(), day);
+            } else {
+                scheduleRecompute(machine.getId(), day);
+            }
         }
         return toDto(machine, row);
+    }
+
+    /** Помечено миграцией V1_17 — нужен синхронный пересчёт, иначе плитка показывает старый gas_consumption_l. */
+    private static boolean isInvalidatedCache(WeldingMachineDailyStats row) {
+        return row.getComputedAt() != null && row.getComputedAt().getYear() < 2000;
     }
 
     public void scheduleRecompute(Integer weldingMachineId, LocalDate statDate) {
@@ -196,6 +205,9 @@ public class WeldingMachineDailyStatsService {
     }
 
     private boolean shouldScheduleRecompute(WeldingMachineDailyStats row, LocalDate statDate) {
+        if (isInvalidatedCache(row)) {
+            return true;
+        }
         if (!statDate.equals(today())) {
             return row.getComputedAt() == null;
         }
@@ -369,6 +381,11 @@ public class WeldingMachineDailyStatsService {
         }
     }
 
+    /** Минимальное падение (л), чтобы считать сбросом счётчика, а не глюком связи. */
+    private static final BigDecimal GAS_COUNTER_RESET_MIN_DROP_L = new BigDecimal("100");
+    /** После сброса новое значение должно быть заметно ниже предыдущего (доля). */
+    private static final BigDecimal GAS_COUNTER_RESET_MAX_RATIO = new BigDecimal("0.5");
+
     private GasDayTotals calculateGasLiters(
             List<WeldingMachineState> states,
             Map<Long, BigDecimal> gasCumulativeByStateId,
@@ -396,19 +413,46 @@ public class WeldingMachineDailyStatsService {
                 baselineAtDayStart = current;
             }
             if (lastCumulative != null) {
-                if (current.compareTo(lastCumulative) >= 0) {
-                    sumDelta = sumDelta.add(current.subtract(lastCumulative));
-                } else {
-                    // Сброс счётчика «с включения» — начинаем отсчёт с нового значения.
-                    sumDelta = sumDelta.add(current);
+                sumDelta = sumDelta.add(sumGasCumulativeDelta(lastCumulative, current));
+                if (current.compareTo(lastCumulative) >= 0 || isGasCounterPowerOnReset(current, lastCumulative)) {
+                    lastCumulative = current;
                 }
+            } else {
+                lastCumulative = current;
             }
-            lastCumulative = current;
         }
         if (baselineAtDayStart == null) {
             return GasDayTotals.zero();
         }
         return new GasDayTotals(sumDelta.setScale(3, RoundingMode.HALF_UP), baselineAtDayStart.setScale(3, RoundingMode.HALF_UP));
+    }
+
+    /**
+     * ponytail: мелкие просадки накопительного счётчика (обрыв связи) не считаем сбросом.
+     * Реальный сброс «с включения» — крупное падение и новое значение &lt; 50% от предыдущего.
+     */
+    static boolean isGasCounterPowerOnReset(BigDecimal current, BigDecimal lastCumulative) {
+        if (current == null || lastCumulative == null) {
+            return false;
+        }
+        BigDecimal drop = lastCumulative.subtract(current);
+        if (drop.compareTo(GAS_COUNTER_RESET_MIN_DROP_L) < 0) {
+            return false;
+        }
+        return current.compareTo(lastCumulative.multiply(GAS_COUNTER_RESET_MAX_RATIO)) < 0;
+    }
+
+    static BigDecimal sumGasCumulativeDelta(BigDecimal lastCumulative, BigDecimal current) {
+        if (lastCumulative == null || current == null) {
+            return BigDecimal.ZERO;
+        }
+        if (current.compareTo(lastCumulative) >= 0) {
+            return current.subtract(lastCumulative);
+        }
+        if (isGasCounterPowerOnReset(current, lastCumulative)) {
+            return current;
+        }
+        return BigDecimal.ZERO;
     }
 
     private static final class GasDayTotals {
