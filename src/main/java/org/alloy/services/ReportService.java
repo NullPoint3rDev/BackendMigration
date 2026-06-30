@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.models.dto.*;
+import org.alloy.models.dto.serialization.ReportPeriodTimes;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import com.itextpdf.kernel.pdf.PdfDocument;
@@ -3821,11 +3822,11 @@ public class ReportService {
         return String.format("%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
     }
 
-    /** Время окончания периода для отчёта: 23:59 или текущее время, если дата окончания — сегодня и 23:59 ещё не наступило. */
+    /** Время окончания периода для отчёта: 23:59 или текущее время (Москва), если дата окончания — сегодня. */
     private String getPeriodEndTimeDisplay(LocalDate periodEndDate) {
         if (periodEndDate == null) return "";
-        LocalTime now = LocalTime.now();
-        if (periodEndDate.equals(LocalDate.now()) && now.isBefore(LocalTime.of(23, 59))) {
+        LocalTime now = ReportPeriodTimes.displayTimeNow();
+        if (periodEndDate.equals(ReportPeriodTimes.displayDateToday()) && now.isBefore(LocalTime.of(23, 59))) {
             return formatTime(now);
         }
         return formatTime(LocalTime.of(23, 59));

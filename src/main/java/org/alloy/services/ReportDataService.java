@@ -1,6 +1,7 @@
 package org.alloy.services;
 
 import org.alloy.models.dto.*;
+import org.alloy.models.dto.serialization.ReportPeriodTimes;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.Employee;
 import org.alloy.models.entities.WeldingMachineState;
@@ -36,6 +37,18 @@ import java.util.stream.Collectors;
 
 @Service
 public class ReportDataService {
+
+    /** Период отчёта в UI — Europe/Moscow; date_created в БД — UTC naive. */
+    private static LocalDateTime[] toStoragePeriod(
+            LocalDate periodStartDate, LocalDate periodEndDate,
+            LocalTime periodStartTime, LocalTime periodEndTime) {
+        LocalTime startT = periodStartTime != null ? periodStartTime : LocalTime.MIN;
+        LocalTime endT = periodEndTime != null ? periodEndTime : LocalTime.MAX;
+        return new LocalDateTime[] {
+                ReportPeriodTimes.displayLocalToStorage(periodStartDate, startT),
+                ReportPeriodTimes.displayLocalToStorage(periodEndDate, endT)
+        };
+    }
 
     @Autowired
     private WeldingReportCalculationService calculationService;
@@ -353,8 +366,10 @@ public class ReportDataService {
         List<WireConsumptionReportDTO> result = new ArrayList<>();
 
         try {
-            LocalDateTime startDateTime = LocalDateTime.of(periodStartDate, periodStartTime != null ? periodStartTime : LocalTime.MIN);
-            LocalDateTime endDateTime = LocalDateTime.of(periodEndDate, periodEndTime != null ? periodEndTime : LocalTime.MAX);
+            LocalDateTime[] storagePeriod = toStoragePeriod(
+                    periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+            LocalDateTime startDateTime = storagePeriod[0];
+            LocalDateTime endDateTime = storagePeriod[1];
 
             // Получаем список сварщиков на основе шаблона
             Set<Integer> welderIds = getSelectedWelderIds(template);
@@ -415,8 +430,10 @@ public class ReportDataService {
         List<WelderWorkReportDTO> result = new ArrayList<>();
         if (template == null) return result;
 
-        LocalDateTime startDateTime = LocalDateTime.of(periodStartDate, periodStartTime != null ? periodStartTime : LocalTime.MIN);
-        LocalDateTime endDateTime = LocalDateTime.of(periodEndDate, periodEndTime != null ? periodEndTime : LocalTime.MAX);
+        LocalDateTime[] storagePeriod = toStoragePeriod(
+                periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+        LocalDateTime startDateTime = storagePeriod[0];
+        LocalDateTime endDateTime = storagePeriod[1];
         int minIntervalSec = template.getMinIntervalBetweenWeldsSec() != null ? template.getMinIntervalBetweenWeldsSec() : 0;
         int minDurationSec = template.getMinWeldDurationSec() != null ? template.getMinWeldDurationSec() : 0;
         Integer actualMin = template.getActualCurrentMin();
@@ -623,8 +640,10 @@ public class ReportDataService {
         List<EquipmentWorkReportDTO> result = new ArrayList<>();
         if (template == null) return result;
 
-        LocalDateTime startDateTime = LocalDateTime.of(periodStartDate, periodStartTime != null ? periodStartTime : LocalTime.MIN);
-        LocalDateTime endDateTime = LocalDateTime.of(periodEndDate, periodEndTime != null ? periodEndTime : LocalTime.MAX);
+        LocalDateTime[] storagePeriod = toStoragePeriod(
+                periodStartDate, periodEndDate, periodStartTime, periodEndTime);
+        LocalDateTime startDateTime = storagePeriod[0];
+        LocalDateTime endDateTime = storagePeriod[1];
         int minIntervalSec = template.getMinIntervalBetweenWeldsSec() != null ? template.getMinIntervalBetweenWeldsSec() : 0;
         int minDurationSec = template.getMinWeldDurationSec() != null ? template.getMinWeldDurationSec() : 0;
         Integer actualMin = template.getActualCurrentMin();
