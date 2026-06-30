@@ -557,6 +557,7 @@ public class ReportDataService {
                 // Подсветка «вне диапазона» только если в шаблоне явно включены пределы факт. тока (как в шапке Excel).
                 boolean outOfRange = Boolean.TRUE.equals(template.getIncludeActualCurrentRange())
                         && actualMin != null && actualMax != null
+                        && currentInt > 0
                         && (currentInt < actualMin || currentInt > actualMax);
 
                 LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
@@ -828,6 +829,7 @@ public class ReportDataService {
                 if (currentInt < 1) currentInt = 0;
                 boolean outOfRange = Boolean.TRUE.equals(template.getIncludeActualCurrentRange())
                         && actualMin != null && actualMax != null
+                        && currentInt > 0
                         && (currentInt < actualMin || currentInt > actualMax);
 
                 LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());

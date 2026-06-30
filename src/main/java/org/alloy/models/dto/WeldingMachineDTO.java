@@ -29,7 +29,10 @@ public class WeldingMachineDTO {
     private LocalDateTime lastWeldAt;
     private OrganizationUnitShortDTO organizationUnit;
     private WeldingMachineTypeShortDTO weldingMachineType;
-    // ... другие нужные поля
+    private String modules;
+    private Double maintenanceInterval;
+    private Integer maintenanceRegulation;
+    private Integer userServiceNotifiedBeforeHours;
 
     // Геттеры и сеттеры
     public Integer getId() { return id; }
@@ -66,4 +69,12 @@ public class WeldingMachineDTO {
     public void setOrganizationUnit(OrganizationUnitShortDTO organizationUnit) { this.organizationUnit = organizationUnit; }
     public WeldingMachineTypeShortDTO getWeldingMachineType() { return weldingMachineType; }
     public void setWeldingMachineType(WeldingMachineTypeShortDTO weldingMachineType) { this.weldingMachineType = weldingMachineType; }
+    public String getModules() { return modules; }
+    public void setModules(String modules) { this.modules = modules; }
+    public Double getMaintenanceInterval() { return maintenanceInterval; }
+    public void setMaintenanceInterval(Double maintenanceInterval) { this.maintenanceInterval = maintenanceInterval; }
+    public Integer getMaintenanceRegulation() { return maintenanceRegulation; }
+    public void setMaintenanceRegulation(Integer maintenanceRegulation) { this.maintenanceRegulation = maintenanceRegulation; }
+    public Integer getUserServiceNotifiedBeforeHours() { return userServiceNotifiedBeforeHours; }
+    public void setUserServiceNotifiedBeforeHours(Integer userServiceNotifiedBeforeHours) { this.userServiceNotifiedBeforeHours = userServiceNotifiedBeforeHours; }
 } 

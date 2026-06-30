@@ -2292,9 +2292,8 @@ public class ReportService {
     }
 
     /**
-     * Генерирует отчёт "По работе сварщика" в формате XLSX для нескольких сварщиков:
-     * один лист, подряд блоки «заголовок (ФИО, подразделение, таб. №) + таблица» для каждого сварщика.
-     * Если по сварщику данных нет — выводится одна строка с нулями.
+     * Генерирует отчёт "По работе сварщика" в формате XLSX: отдельный лист на каждого сварщика.
+     * Имя листа = ФИО (до 31 символа). Если по сварщику данных нет — одна строка с нулями.
      */
     public byte[] generateWelderWorkReportMultiSection(
             List<WelderWorkReportSectionDTO> sections,
@@ -2312,8 +2311,6 @@ public class ReportService {
             }
         }
         try (Workbook workbook = new XSSFWorkbook()) {
-            Sheet sheet = workbook.createSheet("Отчет по работе сварщика");
-
             CellStyle headerStyle = createHeaderStyle(workbook);
             CellStyle labelStyle = workbook.createCellStyle();
             Font boldFont = workbook.createFont();
@@ -2326,107 +2323,93 @@ public class ReportService {
             CellStyle totalWeldGrayStyle = createTotalWeldTimeGrayStyle(workbook);
             CellStyle totalWeldGrayStyleWithDecimalFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
             CellStyle totalWeldGrayStyleWireKgFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.00000");
-
-            int rowIdx = 0;
-            Row titleRow = sheet.createRow(rowIdx++);
-            Cell titleCell = titleRow.createCell(1);
-            titleCell.setCellValue("Отчет по работе сварщика:");
-            titleCell.setCellStyle(headerStyle);
-            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 1, 2));
-
-            boolean periodAndRangeWritten = false;
+            CellStyle totalWeldGrayStyleGasLFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
 
             for (int s = 0; s < sections.size(); s++) {
                 WelderWorkReportSectionDTO section = sections.get(s);
-                if (s > 0) {
-                    rowIdx++;
-                }
+                String sheetName = uniqueWelderWorkSheetName(workbook, section.getWelderFullName(), s);
+                Sheet sheet = workbook.createSheet(sheetName);
+                int rowIdx = 0;
 
-                // Заголовок блока: ФИО, таб. №, Подразделение
+                Row titleRow = sheet.createRow(rowIdx++);
+                Cell titleCell = titleRow.createCell(1);
+                titleCell.setCellValue("Отчет по работе сварщика:");
+                titleCell.setCellStyle(headerStyle);
+                sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 1, 2));
+
                 Row r1 = sheet.createRow(rowIdx++);
                 Cell e1 = r1.createCell(4);
                 e1.setCellValue("ФИО сварщика");
                 e1.setCellStyle(labelStyle);
-                Cell f1 = r1.createCell(5);
-                f1.setCellValue(section.getWelderFullName() != null ? section.getWelderFullName() : "");
+                r1.createCell(5).setCellValue(section.getWelderFullName() != null ? section.getWelderFullName() : "");
 
                 Row r2 = sheet.createRow(rowIdx++);
                 Cell e2 = r2.createCell(4);
                 e2.setCellValue("таб. №");
                 e2.setCellStyle(labelStyle);
-                Cell f2 = r2.createCell(5);
-                f2.setCellValue(section.getWelderTabNumber() != null ? section.getWelderTabNumber() : "");
+                r2.createCell(5).setCellValue(section.getWelderTabNumber() != null ? section.getWelderTabNumber() : "");
 
                 Row r3 = sheet.createRow(rowIdx++);
                 Cell e3 = r3.createCell(4);
                 e3.setCellValue("Подразделение:");
                 e3.setCellStyle(labelStyle);
-                Cell f3 = r3.createCell(5);
-                f3.setCellValue(section.getWelderDepartment() != null ? section.getWelderDepartment() : "");
+                r3.createCell(5).setCellValue(section.getWelderDepartment() != null ? section.getWelderDepartment() : "");
 
                 rowIdx++;
 
-                if (!periodAndRangeWritten) {
-                    Row r5 = sheet.createRow(rowIdx++);
-                    Cell e5 = r5.createCell(4);
-                    e5.setCellValue("за период:");
-                    e5.setCellStyle(labelStyle);
-                    Cell f5 = r5.createCell(5);
-                    f5.setCellValue("с");
-                    f5.setCellStyle(labelStyle);
-                    Cell g5 = r5.createCell(6);
-                    g5.setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
-                    r5.createCell(7).setCellValue(periodStartTime != null ? formatTime(periodStartTime) : "00:00:00");
+                Row r5 = sheet.createRow(rowIdx++);
+                Cell e5 = r5.createCell(4);
+                e5.setCellValue("за период:");
+                e5.setCellStyle(labelStyle);
+                Cell f5 = r5.createCell(5);
+                f5.setCellValue("с");
+                f5.setCellStyle(labelStyle);
+                r5.createCell(6).setCellValue(periodStartDate != null ? periodStartDate.toString() : "");
+                r5.createCell(7).setCellValue(periodStartTime != null ? formatTime(periodStartTime) : "00:00:00");
 
-                    Row r6 = sheet.createRow(rowIdx++);
-                    Cell f6 = r6.createCell(5);
-                    f6.setCellValue("по");
-                    f6.setCellStyle(labelStyle);
-                    Cell g6 = r6.createCell(6);
-                    g6.setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
-                    r6.createCell(7).setCellValue(getPeriodEndTimeDisplay(periodEndDate));
+                Row r6 = sheet.createRow(rowIdx++);
+                Cell f6 = r6.createCell(5);
+                f6.setCellValue("по");
+                f6.setCellStyle(labelStyle);
+                r6.createCell(6).setCellValue(periodEndDate != null ? periodEndDate.toString() : "");
+                r6.createCell(7).setCellValue(getPeriodEndTimeDisplay(periodEndDate));
 
-                    boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
-                    if (includeActualRange) {
-                        Row r7 = sheet.createRow(rowIdx++);
-                        Cell b7 = r7.createCell(1);
-                        b7.setCellValue("Разрешенный диапазон фактического тока, А");
-                        b7.setCellStyle(labelStyle);
-                        sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 1, 3));
+                boolean includeActualRange = template != null && Boolean.TRUE.equals(template.getIncludeActualCurrentRange());
+                if (includeActualRange) {
+                    Row r7 = sheet.createRow(rowIdx++);
+                    Cell b7 = r7.createCell(1);
+                    b7.setCellValue("Разрешенный диапазон фактического тока, А");
+                    b7.setCellStyle(labelStyle);
+                    sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowIdx - 1, rowIdx - 1, 1, 3));
 
-                        Row r8 = sheet.createRow(rowIdx++);
-                        Cell b8 = r8.createCell(1);
-                        b8.setCellValue("min");
-                        b8.setCellStyle(labelStyle);
-                        Cell c8 = r8.createCell(2);
-                        if (template.getActualCurrentMin() != null) c8.setCellValue(template.getActualCurrentMin());
+                    Row r8 = sheet.createRow(rowIdx++);
+                    Cell b8 = r8.createCell(1);
+                    b8.setCellValue("min");
+                    b8.setCellStyle(labelStyle);
+                    Cell c8 = r8.createCell(2);
+                    if (template.getActualCurrentMin() != null) c8.setCellValue(template.getActualCurrentMin());
 
-                        Row r9 = sheet.createRow(rowIdx++);
-                        Cell b9 = r9.createCell(1);
-                        b9.setCellValue("max");
-                        b9.setCellStyle(labelStyle);
-                        Cell c9 = r9.createCell(2);
-                        if (template.getActualCurrentMax() != null) c9.setCellValue(template.getActualCurrentMax());
-                    }
-                    // Минимальный интервал между швами — только если включён и задан
-                    if (template != null && template.getMinIntervalBetweenWeldsSec() != null) {
-                        Row rMinInterval = sheet.createRow(rowIdx++);
-                        rMinInterval.createCell(4).setCellValue("Минимальный интервал между швами, с");
-                        rMinInterval.getCell(4).setCellStyle(labelStyle);
-                        rMinInterval.createCell(5).setCellValue(template.getMinIntervalBetweenWeldsSec());
-                    }
-                    // Минимальный учитываемый шов — только если включён и задан
-                    if (template != null && template.getMinWeldDurationSec() != null) {
-                        Row rMinWeld = sheet.createRow(rowIdx++);
-                        rMinWeld.createCell(4).setCellValue("Минимальный учитываемый шов, с");
-                        rMinWeld.getCell(4).setCellStyle(labelStyle);
-                        rMinWeld.createCell(5).setCellValue(template.getMinWeldDurationSec());
-                    }
-                    periodAndRangeWritten = true;
-                    rowIdx++;
+                    Row r9 = sheet.createRow(rowIdx++);
+                    Cell b9 = r9.createCell(1);
+                    b9.setCellValue("max");
+                    b9.setCellStyle(labelStyle);
+                    Cell c9 = r9.createCell(2);
+                    if (template.getActualCurrentMax() != null) c9.setCellValue(template.getActualCurrentMax());
                 }
+                if (template != null && template.getMinIntervalBetweenWeldsSec() != null) {
+                    Row rMinInterval = sheet.createRow(rowIdx++);
+                    rMinInterval.createCell(4).setCellValue("Минимальный интервал между швами, с");
+                    rMinInterval.getCell(4).setCellStyle(labelStyle);
+                    rMinInterval.createCell(5).setCellValue(template.getMinIntervalBetweenWeldsSec());
+                }
+                if (template != null && template.getMinWeldDurationSec() != null) {
+                    Row rMinWeld = sheet.createRow(rowIdx++);
+                    rMinWeld.createCell(4).setCellValue("Минимальный учитываемый шов, с");
+                    rMinWeld.getCell(4).setCellStyle(labelStyle);
+                    rMinWeld.createCell(5).setCellValue(template.getMinWeldDurationSec());
+                }
+                rowIdx++;
 
-                // Заголовок таблицы
                 Row headerRow = sheet.createRow(rowIdx++);
                 for (int c = 0; c < columnDefs.size(); c++) {
                     Cell cell = headerRow.createCell(c);
@@ -2437,8 +2420,7 @@ public class ReportService {
                 List<WelderWorkReportDTO> rows = section.getRows();
                 if (rows == null) rows = Collections.emptyList();
                 if (rows.isEmpty()) {
-                    WelderWorkReportDTO zeroRow = createZeroWelderWorkRow();
-                    rows = Collections.singletonList(zeroRow);
+                    rows = Collections.singletonList(createZeroWelderWorkRow());
                 }
                 for (int i = 0; i < rows.size(); i++) {
                     WelderWorkReportDTO item = rows.get(i);
@@ -2467,7 +2449,7 @@ public class ReportService {
                         }
                     }
                 }
-                // Строка итогов: суммарное время шва, расход проволоки (кг), затраченная энергия (серые ячейки)
+
                 BigDecimal totalWeldSec = rows.stream()
                         .map(WelderWorkReportDTO::getWeldDurationSec)
                         .filter(Objects::nonNull)
@@ -2495,7 +2477,6 @@ public class ReportService {
                     if ("wireConsumptionKg".equals(k)) wireColWelder = i;
                     if ("gasConsumptionL".equals(k)) gasColWelder = i;
                 }
-                CellStyle totalWeldGrayStyleGasLFormat = createCellStyleWithNumberFormat(workbook, totalWeldGrayStyle, "0.000");
                 Row totalRow = sheet.createRow(rowIdx++);
                 for (int col = 0; col < columnDefs.size(); col++) {
                     Cell cell = totalRow.createCell(col);
@@ -2516,24 +2497,60 @@ public class ReportService {
                         cell.setCellStyle(totalWeldGrayStyle);
                     }
                 }
-            }
 
-            int maxColumn = columnDefs.size() - 1;
-            for (int i = 0; i <= maxColumn; i++) {
-                sheet.autoSizeColumn(i);
-                int currentWidth = sheet.getColumnWidth(i);
-                sheet.setColumnWidth(i, (int) (currentWidth * 1.1));
-            }
-            int minWidthForTitle = 3000;
-            if (sheet.getColumnWidth(1) + sheet.getColumnWidth(2) < minWidthForTitle) {
-                sheet.setColumnWidth(1, minWidthForTitle / 2);
-                sheet.setColumnWidth(2, minWidthForTitle / 2);
+                int maxColumn = columnDefs.size() - 1;
+                for (int i = 0; i <= maxColumn; i++) {
+                    sheet.autoSizeColumn(i);
+                    sheet.setColumnWidth(i, (int) (sheet.getColumnWidth(i) * 1.1));
+                }
+                int minWidthForTitle = 3000;
+                if (sheet.getColumnWidth(1) + sheet.getColumnWidth(2) < minWidthForTitle) {
+                    sheet.setColumnWidth(1, minWidthForTitle / 2);
+                    sheet.setColumnWidth(2, minWidthForTitle / 2);
+                }
             }
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
+    }
+
+    private static String uniqueWelderWorkSheetName(Workbook workbook, String welderFullName, int sectionIndex) {
+        String base = welderFullName != null ? welderFullName.trim() : "";
+        if (base.isEmpty()) {
+            base = "Сварщик " + (sectionIndex + 1);
+        }
+        base = base.replaceAll("[\\\\/?*\\[\\]:]", " ").trim();
+        if (base.isEmpty()) {
+            base = "Сварщик " + (sectionIndex + 1);
+        }
+        if (base.length() > 31) {
+            base = base.substring(0, 31);
+        }
+        if (workbook.getSheet(base) == null) {
+            return base;
+        }
+        for (int i = 2; i < 100; i++) {
+            String suffix = " (" + i + ")";
+            String trimmed = base;
+            if (trimmed.length() + suffix.length() > 31) {
+                trimmed = trimmed.substring(0, 31 - suffix.length());
+            }
+            String candidate = trimmed + suffix;
+            if (workbook.getSheet(candidate) == null) {
+                return candidate;
+            }
+        }
+        return "Сварщик" + (sectionIndex + 1);
+    }
+
+    private String formatDurationAsTotalHmsOrZero(Duration duration) {
+        if (duration == null) {
+            return "00:00:00";
+        }
+        String formatted = formatDurationAsTotalHms(duration);
+        return formatted == null || formatted.isEmpty() ? "00:00:00" : formatted;
     }
 
     private WelderWorkReportDTO createZeroWelderWorkRow() {
@@ -3719,10 +3736,10 @@ public class ReportService {
                         }
                         break;
                     case "workOutsideSetCurrent":
-                        cell.setCellValue(formatDuration(item.getTimeOutsideSetCurrentRange()));
+                        cell.setCellValue(formatDurationAsTotalHmsOrZero(item.getTimeOutsideSetCurrentRange()));
                         break;
                     case "workOutsideActualCurrent":
-                        cell.setCellValue(formatDuration(item.getTimeOutsideActualCurrentRange()));
+                        cell.setCellValue(formatDurationAsTotalHmsOrZero(item.getTimeOutsideActualCurrentRange()));
                         break;
                     case "energyConsumed":
                         if (item.getEnergyConsumed() != null) {

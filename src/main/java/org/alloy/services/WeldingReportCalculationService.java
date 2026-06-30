@@ -358,7 +358,38 @@ public class WeldingReportCalculationService {
     }
 
     private static boolean isValidCurrentVoltagePoint(int currentAmps, int voltageVolts) {
-        return currentAmps > 0 && voltageVolts >= 0 && voltageVolts <= currentAmps;
+        return currentAmps >= MIN_ARC_CURRENT_AMPS_FOR_REPORT
+                && voltageVolts > 0
+                && voltageVolts <= 200;
+    }
+
+    private static boolean isArcVoltagePropertyCode(String code) {
+        return "Voltage".equals(code) || "voltage".equals(code)
+                || "State.U".equals(code) || "State.V".equals(code)
+                || "Напряжение".equals(code) || "U".equals(code);
+    }
+
+    private static boolean isArcCurrentPropertyCode(String code) {
+        return "Current".equals(code) || "current".equals(code)
+                || "State.I".equals(code) || "I".equals(code) || "Ток".equals(code);
+    }
+
+    /** ponytail: CORE хранит U в десятых вольта (315 → 31,5 В); порог 100 — эвристика. */
+    private static int normalizeArcVoltageVolts(int raw) {
+        if (raw <= 0) return 0;
+        return raw > 100 ? raw / 10 : raw;
+    }
+
+    private void putArcElectricalSample(
+            String code, long stateId, String valueStr,
+            java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
+        int raw = parseValueToInt(valueStr);
+        if (raw == 0) return;
+        if (isArcVoltagePropertyCode(code)) {
+            voltageByState.putIfAbsent(stateId, normalizeArcVoltageVolts(raw));
+        } else if (isArcCurrentPropertyCode(code)) {
+            currentByState.putIfAbsent(stateId, raw);
+        }
     }
 
     private static double calculateMedian(List<Integer> values) {
@@ -986,7 +1017,8 @@ public class WeldingReportCalculationService {
             java.util.Set<Long> iuStateIds, int totalStates, boolean useMachineDateRange,
             java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
         int iuCount = iuStateIds != null ? iuStateIds.size() : 0;
-        java.util.List<String> iuCodes = java.util.Arrays.asList("Current", "State.I", "I", "Ток", "Voltage");
+        java.util.List<String> iuCodes = java.util.Arrays.asList(
+                "Current", "State.I", "I", "Ток", "Voltage", "voltage", "State.U", "State.V", "Напряжение", "U");
 
         if (useMachineDateRange && machineId != null && (iuCount == 0 || totalStates < LARGE_PERIOD_STATE_COUNT)) {
             // Малый период: JOIN за весь период — один проход по таблице
@@ -1029,12 +1061,7 @@ public class WeldingReportCalculationService {
                     String code = row[1].toString();
                     String valueStr = row[2].toString();
                     if ("null".equalsIgnoreCase(valueStr.trim())) continue;
-                    if ("Voltage".equals(code)) {
-                        int v = parseValueToInt(valueStr);
-                        if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
-                    } else {
-                        currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
-                    }
+                    putArcElectricalSample(code, stateId, valueStr, currentByState, voltageByState);
                 }
             } catch (Exception e) {
                 System.err.println("[REPORT-CALC] ⚠️ loadIU fallback batch: " + e.getMessage());
@@ -1055,7 +1082,8 @@ public class WeldingReportCalculationService {
             java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
         if (machineId == null || start == null || end == null) return;
         try {
-            java.util.List<String> codes = java.util.Arrays.asList("Current", "State.I", "I", "Ток", "Voltage");
+            java.util.List<String> codes = java.util.Arrays.asList(
+                    "Current", "State.I", "I", "Ток", "Voltage", "voltage", "State.U", "State.V", "Напряжение", "U");
             forEachMachineDateRangeChunk(start, end, (chunkStart, chunkEnd) -> {
                 List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
                         machineId, chunkStart, chunkEnd, codes);
@@ -1069,12 +1097,7 @@ public class WeldingReportCalculationService {
                         String code = row[1].toString();
                         String valueStr = row[2].toString();
                         if ("null".equalsIgnoreCase(valueStr.trim())) continue;
-                        if ("Voltage".equals(code)) {
-                            int v = parseValueToInt(valueStr);
-                            if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
-                        } else {
-                            currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
-                        }
+                        putArcElectricalSample(code, stateId, valueStr, currentByState, voltageByState);
                     }
                 }
             });
@@ -1093,12 +1116,7 @@ public class WeldingReportCalculationService {
             String code = row[1].toString();
             String valueStr = row[2].toString();
             if ("null".equalsIgnoreCase(valueStr.trim())) continue;
-            if ("Voltage".equals(code)) {
-                int v = parseValueToInt(valueStr);
-                if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
-            } else {
-                currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
-            }
+            putArcElectricalSample(code, stateId, valueStr, currentByState, voltageByState);
         }
     }
 
