@@ -1302,8 +1302,9 @@ public class ReportDataService {
     }
 
     /**
-     * Швы для отчёта: из материализованного кэша (если сутки пересчитаны), иначе live-расчёт.
-     * Средний ток/напряжение из кэша не берём — пересчитываем по актуальной логике.
+     * Швы для отчёта: всегда live-расчёт по состояниям периода.
+     * ponytail: кэш сегментов хранит устаревшие границы; на коротких периодах (24 ч)
+     * recalculate по кэшу давал пустые I/U на коротких швах.
      */
     private List<WeldSegmentDTO> resolveWeldSegmentsForReport(
             Integer machineId,
@@ -1314,13 +1315,6 @@ public class ReportDataService {
         if (states == null || states.isEmpty()) {
             states = calculationService.loadStatesForReport(machineId, periodStart, periodEnd);
             states.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-        }
-        Optional<List<WeldSegmentDTO>> cached = weldSegmentCacheService.findSegmentsForReportIfReady(
-                machineId, periodStart, periodEnd);
-        if (cached.isPresent()) {
-            List<WeldSegmentDTO> segments = new ArrayList<>(cached.get());
-            calculationService.recalculateSegmentElectricalAverages(segments, states);
-            return segments;
         }
         return calculationService.calculateWeldSegmentsFromStates(states);
     }

@@ -801,11 +801,20 @@ public class WeldingReportCalculationService {
         long weightedI = 0;
         long weightedU = 0;
         long totalDt = 0;
+        boolean useMedianBand = candidateVoltages.size() > 2;
         for (Point p : points) {
-            if (!isWithinSegmentMedianBand(p.u, medianVoltage)) continue;
+            if (useMedianBand && !isWithinSegmentMedianBand(p.u, medianVoltage)) continue;
             weightedI += (long) p.i * p.overlapDt;
             weightedU += (long) p.u * p.overlapDt;
             totalDt += p.overlapDt;
+        }
+        if (totalDt == 0 && !points.isEmpty()) {
+            // ponytail: короткий шов — медианный фильтр мог выкинуть все точки
+            for (Point p : points) {
+                weightedI += (long) p.i * p.overlapDt;
+                weightedU += (long) p.u * p.overlapDt;
+                totalDt += p.overlapDt;
+            }
         }
         if (totalDt > 0) {
             seg.setAverageCurrent(BigDecimal.valueOf((double) weightedI / totalDt).setScale(1, RoundingMode.HALF_UP));
