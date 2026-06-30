@@ -641,18 +641,14 @@ public class ReportDataService {
                 Optional<WeldingMachine> machineOpt = weldingMachineRepository.findById(machineId);
                 String machineName = machineOpt.map(WeldingMachine::getName).orElse("");
                 String equipmentModel = machineOpt.map(m -> m.getDeviceModel() != null ? m.getDeviceModel().name() : "").orElse("");
-                Optional<List<WeldSegmentDTO>> cachedSegments = weldSegmentCacheService.findSegmentsForReportIfReady(
-                        machineId, startDateTime, endDateTime);
-                List<org.alloy.models.dto.WeldSegmentDTO> segments;
-                if (cachedSegments.isPresent()) {
-                    segments = cachedSegments.get();
-                } else {
-                    List<WeldingMachineState> machineStates = calculationService.loadStatesForReport(
-                            machineId, startDateTime, endDateTime);
-                    machineStates.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-                    statesByMachineId.put(machineId, machineStates);
-                    segments = calculationService.calculateWeldSegmentsFromStates(machineStates);
-                }
+                List<WeldingMachineState> machineStates = statesByMachineId.computeIfAbsent(machineId, mid -> {
+                    List<WeldingMachineState> list = calculationService.loadStatesForReport(
+                            mid, startDateTime, endDateTime);
+                    list.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+                    return list;
+                });
+                List<org.alloy.models.dto.WeldSegmentDTO> segments =
+                        resolveWeldSegmentsForReport(machineId, startDateTime, endDateTime, machineStates);
                 for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
                     if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
                     long durSec = seg.getDurationSeconds().longValue();
@@ -1307,18 +1303,26 @@ public class ReportDataService {
 
     /**
      * Швы для отчёта: из материализованного кэша (если сутки пересчитаны), иначе live-расчёт.
+     * Средний ток/напряжение из кэша не берём — пересчитываем по актуальной логике.
      */
     private List<WeldSegmentDTO> resolveWeldSegmentsForReport(
             Integer machineId,
             LocalDateTime periodStart,
             LocalDateTime periodEnd,
             List<WeldingMachineState> machineStates) {
+        List<WeldingMachineState> states = machineStates;
+        if (states == null || states.isEmpty()) {
+            states = calculationService.loadStatesForReport(machineId, periodStart, periodEnd);
+            states.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+        }
         Optional<List<WeldSegmentDTO>> cached = weldSegmentCacheService.findSegmentsForReportIfReady(
                 machineId, periodStart, periodEnd);
         if (cached.isPresent()) {
-            return cached.get();
+            List<WeldSegmentDTO> segments = new ArrayList<>(cached.get());
+            calculationService.recalculateSegmentElectricalAverages(segments, states);
+            return segments;
         }
-        return calculationService.calculateWeldSegmentsFromStates(machineStates);
+        return calculationService.calculateWeldSegmentsFromStates(states);
     }
 
     private static class EquipmentWeldRow {

@@ -684,6 +684,59 @@ public class WeldingReportCalculationService {
     }
 
     /**
+     * Пересчитывает средний ток/напряжение по уже известным границам швов.
+     * ponytail: кэш сегментов хранит тайминг; I/U при отчёте всегда по актуальной логике.
+     */
+    public void recalculateSegmentElectricalAverages(
+            List<org.alloy.models.dto.WeldSegmentDTO> segments, List<WeldingMachineState> states) {
+        if (segments == null || segments.isEmpty() || states == null || states.isEmpty()) {
+            return;
+        }
+        try {
+            List<WeldingMachineState> sorted = new ArrayList<>(states);
+            sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+            Integer machineId = sorted.stream().map(WeldingMachineState::getWeldingMachineId)
+                    .filter(java.util.Objects::nonNull).findFirst().orElse(null);
+            LocalDateTime rangeStart = null;
+            LocalDateTime rangeEnd = null;
+            for (WeldingMachineState s : sorted) {
+                if (s.getDateCreated() == null) continue;
+                if (rangeStart == null || s.getDateCreated().isBefore(rangeStart)) rangeStart = s.getDateCreated();
+                if (rangeEnd == null || s.getDateCreated().isAfter(rangeEnd)) rangeEnd = s.getDateCreated();
+            }
+            for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
+                if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
+                LocalDateTime segEnd = seg.getStartTime().plusSeconds(seg.getDurationSeconds().longValue());
+                if (rangeStart == null || seg.getStartTime().isBefore(rangeStart)) rangeStart = seg.getStartTime();
+                if (rangeEnd == null || segEnd.isAfter(rangeEnd)) rangeEnd = segEnd;
+            }
+            boolean useMachineDateRange = machineId != null && rangeStart != null && rangeEnd != null;
+            java.util.Map<Long, String> stateNameByStateId =
+                    loadStateNameByStateIds(collectStateIdsNeedingWeldingStateName(sorted));
+            java.util.Map<Long, Integer> currentByState = new java.util.HashMap<>();
+            java.util.Map<Long, Integer> voltageByState = new java.util.HashMap<>();
+            List<Long> fullStateIds = sorted.stream().map(WeldingMachineState::getId).collect(java.util.stream.Collectors.toList());
+            loadCurrentAndVoltageForWeldSegments(
+                    machineId, rangeStart, rangeEnd, fullStateIds, new java.util.HashSet<>(fullStateIds), sorted.size(),
+                    useMachineDateRange, currentByState, voltageByState);
+            for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
+                if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
+                long durMs = seg.getDurationSeconds().multiply(BigDecimal.valueOf(1000)).longValue();
+                LocalDateTime segEnd = seg.getStartTime().plus(durMs, java.time.temporal.ChronoUnit.MILLIS);
+                List<WeldingMachineState> windowStates = statesInTimeWindow(
+                        sorted, seg.getStartTime().minusMinutes(5), segEnd.plusMinutes(5));
+                org.alloy.models.dto.WeldSegmentDTO recalc = buildSegmentDto(
+                        seg.getStartTime(), segEnd, durMs, 0, 0,
+                        windowStates, currentByState, voltageByState, seg.getStartTime(), stateNameByStateId);
+                seg.setAverageCurrent(recalc.getAverageCurrent());
+                seg.setAverageVoltage(recalc.getAverageVoltage());
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ⚠️ recalculateSegmentElectricalAverages: " + e.getMessage());
+        }
+    }
+
+    /**
      * Строит DTO сегмента. Окно [weldStartTime, segmentEndTime] — серверное (для поиска состояний).
      * startTime в DTO — серверное (weldStartTime), чтобы в ReportDataService по нему находились состояния для скорости проволоки и даты.
      */

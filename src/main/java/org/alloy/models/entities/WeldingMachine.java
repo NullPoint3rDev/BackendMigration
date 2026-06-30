@@ -86,7 +86,7 @@ public class WeldingMachine {
     @Schema(description = "Интервал обслуживания (в днях)", example = "30.0")
     private Double maintenanceInterval;
 
-    @Column(name = "Modules")
+    @Column(name = "Modules", columnDefinition = "TEXT")
     @Schema(description = "Модули", example = "[\"module1\", \"module2\"]")
     private String modules;
 
