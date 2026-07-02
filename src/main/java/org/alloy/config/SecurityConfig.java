@@ -4,27 +4,28 @@ import org.alloy.security.JwtAuthenticationFilter;
 import org.alloy.security.JwtTokenProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.Arrays;
 
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(prePostEnabled = true)
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtTokenProvider jwtTokenProvider;
@@ -36,15 +37,17 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         this.passwordEncoder = passwordEncoder;
     }
 
-    @Override
-    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
     }
 
     @Bean
-    @Override
-    public AuthenticationManager authenticationManagerBean() throws Exception {
-        return super.authenticationManagerBean();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
@@ -76,60 +79,57 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return source;
     }
 
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        System.out.println("SecurityConfig: configure(HttpSecurity) called!");
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors().and()
-                .csrf().disable()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
-                .authorizeRequests()
-                // Public endpoint are available for all type of users (login page, swagger docs, websocket for welding machines, health-check)
-                .antMatchers("/auth/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**", "/health").permitAll()
-                // Actuator на отдельном management-порту (9100), не публикуется наружу — доступен только Prometheus внутри docker-сети
-                .antMatchers("/actuator/**").permitAll()
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoint are available for all type of users (login page, swagger docs, websocket for welding machines, health-check)
+                        .requestMatchers("/auth/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**", "/health").permitAll()
+                        // Actuator на отдельном management-порту (9100), не публикуется наружу — доступен только Prometheus внутри docker-сети
+                        .requestMatchers("/actuator/**").permitAll()
 
-                // User accounts — детализация в контроллерах по PERMISSION_*
-                .antMatchers(HttpMethod.GET, "/user-accounts/current").authenticated()
-                .antMatchers(HttpMethod.PUT, "/user-accounts/profile").authenticated()
-                .antMatchers(HttpMethod.POST, "/user-accounts/photo").authenticated()
-                .antMatchers(HttpMethod.GET, "/user-accounts/photo/**").authenticated()
-                .antMatchers(HttpMethod.GET, "/user-accounts/username/**").authenticated()
-                .antMatchers(HttpMethod.GET, "/user-accounts/email/**").authenticated()
-                .antMatchers("/user-accounts/**").authenticated()
-                .antMatchers("/user-roles/**").authenticated()
-                .antMatchers("/user-permissions/**").authenticated()
-                .antMatchers("/user-role-permissions/**").authenticated()
-                .antMatchers("/user-permission-grants/**").authenticated()
+                        // User accounts — детализация в контроллерах по PERMISSION_*
+                        .requestMatchers(HttpMethod.GET, "/user-accounts/current").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/user-accounts/profile").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/user-accounts/photo").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/user-accounts/photo/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/user-accounts/username/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/user-accounts/email/**").authenticated()
+                        .requestMatchers("/user-accounts/**").authenticated()
+                        .requestMatchers("/user-roles/**").authenticated()
+                        .requestMatchers("/user-permissions/**").authenticated()
+                        .requestMatchers("/user-role-permissions/**").authenticated()
+                        .requestMatchers("/user-permission-grants/**").authenticated()
 
-                // Reports, equipment, orgs, welders, notifications — проверка по правам в контроллерах
-                .antMatchers("/reports/**").authenticated()
-                .antMatchers("/automated-reports/**").authenticated()
-                .antMatchers("/devices/**").authenticated()
-                .antMatchers("/welding-devices/**").authenticated()
-                .antMatchers("/welding-machines/**").authenticated()
-                .antMatchers("/device-test/**").authenticated()
-                .antMatchers("/employees/**").authenticated()
-                .antMatchers("/welders/**").authenticated()
-                .antMatchers("/organizations/**").authenticated()
-                .antMatchers("/organization-units/**").authenticated()
-                .antMatchers("/system-settings/**").authenticated()
-                .antMatchers("/email-templates/**").authenticated()
-                .antMatchers("/email-test/**").authenticated()
-                .antMatchers("/notifications/**").authenticated()
-                .antMatchers("/notification-templates/**").authenticated()
-                .antMatchers("/library-documents/**").authenticated()
-                .antMatchers("/certifications/**").authenticated()
-                .antMatchers("/maintenance/**").authenticated()
-                .antMatchers("/welding-procedure-specifications/**").authenticated()
+                        // Reports, equipment, orgs, welders, notifications — проверка по правам в контроллерах
+                        .requestMatchers("/reports/**").authenticated()
+                        .requestMatchers("/automated-reports/**").authenticated()
+                        .requestMatchers("/devices/**").authenticated()
+                        .requestMatchers("/welding-devices/**").authenticated()
+                        .requestMatchers("/welding-machines/**").authenticated()
+                        .requestMatchers("/device-test/**").authenticated()
+                        .requestMatchers("/employees/**").authenticated()
+                        .requestMatchers("/welders/**").authenticated()
+                        .requestMatchers("/organizations/**").authenticated()
+                        .requestMatchers("/organization-units/**").authenticated()
+                        .requestMatchers("/system-settings/**").authenticated()
+                        .requestMatchers("/email-templates/**").authenticated()
+                        .requestMatchers("/email-test/**").authenticated()
+                        .requestMatchers("/notifications/**").authenticated()
+                        .requestMatchers("/notification-templates/**").authenticated()
+                        .requestMatchers("/library-documents/**").authenticated()
+                        .requestMatchers("/certifications/**").authenticated()
+                        .requestMatchers("/maintenance/**").authenticated()
+                        .requestMatchers("/welding-procedure-specifications/**").authenticated()
 
-                // The rest of the endpoints are available for all authorized users
-                .anyRequest().authenticated()
-                .and()
+                        // The rest of the endpoints are available for all authorized users
+                        .anyRequest().authenticated()
+                )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
-
-
-} 
+}

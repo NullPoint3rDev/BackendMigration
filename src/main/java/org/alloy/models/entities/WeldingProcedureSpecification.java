@@ -7,7 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity

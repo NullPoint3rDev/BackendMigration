@@ -2,7 +2,7 @@ package org.alloy.models;
 
 import lombok.Data;
 import org.alloy.models.entities.UserRole;
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Data
 @Entity

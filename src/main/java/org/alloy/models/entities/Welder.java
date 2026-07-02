@@ -8,7 +8,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
