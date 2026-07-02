@@ -27,7 +27,6 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
   # Email/SMTP Configuration
@@ -53,16 +52,16 @@ spring:
         debug: false
     default-encoding: UTF-8
 
-  logging:
-    level:
-      root: INFO
-      org.alloy: DEBUG
-      org.springframework.web: INFO
-      org.hibernate: INFO
+logging:
+  level:
+    root: INFO
+    org.alloy: DEBUG
+    org.springframework.web: INFO
+    org.hibernate: INFO
 
-  app:
-    jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
-    jwtExpirationInMs: 43200000 # 12 hours in milliseconds
+app:
+  jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
+  jwtExpirationInMs: 43200000 # 12 hours in milliseconds
 
 # Server Configuration (должно быть на корневом уровне)
 server:

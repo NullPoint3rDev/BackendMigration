@@ -35,7 +35,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.Optional;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 @RestController
 @RequestMapping("/user-accounts")

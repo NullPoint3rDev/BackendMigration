@@ -20,7 +20,7 @@ import java.lang.annotation.Target;
 
 /**
  * {@code @WebMvcTest} без JPA + {@link MvcTestConfig}.
- * Реальный {@link SecurityConfig} исключён ({@code WebSecurityConfigurerAdapter} тянет JWT/UserDetailsService);
+ * Реальный {@link SecurityConfig} исключён (тянет JWT/UserDetailsService);
  * method security даёт {@link org.alloy.config.MethodSecurityTestConfig} из {@link MvcTestConfig}.
  * Использование: {@code @AlloyWebMvcTest(SurveyController.class)}.
  */

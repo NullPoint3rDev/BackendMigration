@@ -6,7 +6,7 @@ import org.alloy.models.GeneralStatus;
 import org.alloy.models.EmployeeType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity

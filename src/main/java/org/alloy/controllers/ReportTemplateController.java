@@ -48,7 +48,7 @@ public class ReportTemplateController {
             ReportTemplateDTO savedTemplate = templateService.saveTemplate(template, userId);
             return ResponseEntity.ok(savedTemplate);
         } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatus()).build();
+            return ResponseEntity.status(e.getStatusCode()).build();
         } catch (SecurityException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
@@ -134,7 +134,7 @@ public class ReportTemplateController {
             templateService.deleteTemplate(templateId, userId);
             return ResponseEntity.ok().build();
         } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatus()).build();
+            return ResponseEntity.status(e.getStatusCode()).build();
         } catch (SecurityException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (IllegalArgumentException e) {
