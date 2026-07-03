@@ -19,10 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -195,6 +197,22 @@ public class WeldingMachineDailyStatsService {
             }
         }
 
+        // Замощаем непокрытое телеметрией время как «Выкл.», иначе сумма таймеров < суток:
+        // голова [00:01 → первый пакет], хвост [последний покрытый момент → now], а также весь день,
+        // если пакетов не было вовсе. Штатные зазоры между опросами уже учтены через gap-to-next.
+        if (states.isEmpty()) {
+            offMs += gapMsWithin(dayStart, effectiveEnd, dayStart, effectiveEnd);
+        } else {
+            LocalDateTime coveredStart = states.get(0).getDateCreated();
+            WeldingMachineState last = states.get(states.size() - 1);
+            long lastDurationMs = WeldingStateDurationUtil.effectiveStateDurationMs(last, states, openEndIfLast);
+            LocalDateTime coveredEnd = last.getDateCreated() != null
+                    ? last.getDateCreated().plus(lastDurationMs, ChronoUnit.MILLIS)
+                    : effectiveEnd;
+            offMs += gapMsWithin(dayStart, coveredStart, dayStart, effectiveEnd);
+            offMs += gapMsWithin(coveredEnd, effectiveEnd, dayStart, effectiveEnd);
+        }
+
         BigDecimal wireKg = calculateWireKg(states, dayStart, effectiveEnd, wireFeedByStateId, openEndIfLast);
 
         LocalDateTime gasLookback = dayStart.minusDays(1);
@@ -246,6 +264,20 @@ public class WeldingMachineDailyStatsService {
         }
         ZoneId zone = ZoneId.of(timezoneId);
         return row.getComputedAt().isBefore(LocalDateTime.now(zone).minusSeconds(staleSeconds));
+    }
+
+    /** Длительность пересечения [from, to] с окном [winStart, winEnd] в мс (>= 0). */
+    static long gapMsWithin(LocalDateTime from, LocalDateTime to,
+                            LocalDateTime winStart, LocalDateTime winEnd) {
+        if (from == null || to == null || winStart == null || winEnd == null) {
+            return 0L;
+        }
+        LocalDateTime s = from.isBefore(winStart) ? winStart : from;
+        LocalDateTime e = to.isAfter(winEnd) ? winEnd : to;
+        if (!s.isBefore(e)) {
+            return 0L;
+        }
+        return Duration.between(s, e).toMillis();
     }
 
     private WeldingMachineDailyStats emptyStats(Integer weldingMachineId, LocalDate statDate) {

@@ -74,6 +74,29 @@ class WeldingMachineDailyStatsGasTest {
         assertEquals(0, liters.compareTo(bd("15")));
     }
 
+    @Test
+    void offTiling_headTailAndFullDayClampCorrectly() {
+        java.time.LocalDateTime dayStart = java.time.LocalDateTime.of(2026, 6, 30, 0, 1, 0);
+        java.time.LocalDateTime now = java.time.LocalDateTime.of(2026, 6, 30, 20, 0, 0);
+        java.time.LocalDateTime firstPacket = java.time.LocalDateTime.of(2026, 6, 30, 3, 0, 0);
+        java.time.LocalDateTime lastCovered = java.time.LocalDateTime.of(2026, 6, 30, 19, 13, 0);
+
+        // Голова: [00:01, 03:00] = 2ч59м.
+        assertEquals(2L * 3600_000 + 59L * 60_000,
+                WeldingMachineDailyStatsService.gapMsWithin(dayStart, firstPacket, dayStart, now));
+        // Хвост: [19:13, 20:00] = 47м.
+        assertEquals(47L * 60_000,
+                WeldingMachineDailyStatsService.gapMsWithin(lastCovered, now, dayStart, now));
+        // Пустой день: весь интервал [00:01, 20:00] = 19ч59м.
+        assertEquals(19L * 3600_000 + 59L * 60_000,
+                WeldingMachineDailyStatsService.gapMsWithin(dayStart, now, dayStart, now));
+        // Кламп: интервал вне окна → 0.
+        assertEquals(0L, WeldingMachineDailyStatsService.gapMsWithin(now, dayStart, dayStart, now));
+        // Кламп: часть до окна отсекается (состояние началось до 00:01).
+        assertEquals(0L, WeldingMachineDailyStatsService.gapMsWithin(
+                dayStart.minusHours(1), dayStart, dayStart, now));
+    }
+
     private static org.alloy.models.entities.WeldingMachineState state(Long id, java.time.LocalDateTime created) {
         org.alloy.models.entities.WeldingMachineState s = new org.alloy.models.entities.WeldingMachineState();
         s.setId(id);
