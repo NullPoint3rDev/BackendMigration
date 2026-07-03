@@ -10,8 +10,7 @@ public class CorePacket {
 
     public int month;                  // uint8
     public int year;                   // uint8
-    /** Мгновенная скорость подачи проволоки (uint16 BE, сырьё: десятые м/мин). */
-    public int instantWireFeedSpeedTenths;
+    public int reserve;                // uint16
 
     public int flags;                  // int8
     public int weldingMachineState;    // int8 (0=idle,1=welding?)
@@ -85,11 +84,6 @@ public class CorePacket {
         return raw / 10.0;
     }
 
-    /** Мгновенная скорость подачи проволоки, м/мин (сырьё / 10). */
-    public double getDisplayInstantWireFeedMpm() {
-        return instantWireFeedSpeedTenths / 10.0;
-    }
-
     /** Накопленный расход газа с включения, л (сырьё / 10). */
     public double getDisplayGasConsumptionSincePowerOnLiters() {
         return gasConsumptionSincePowerOnLiters / 10.0;
@@ -101,8 +95,6 @@ public class CorePacket {
                 "index=" + index + " (0x" + String.format("%08X", index) + ")" +
                 ", time=" + String.format("%02d:%02d:%02d", hours, minutes, seconds) +
                 ", date=" + String.format("%02d-%02d-%02d", year, month, date) +
-                ", instantWireFeedSpeedTenths=" + instantWireFeedSpeedTenths +
-                ", instantWireFeedMpm=" + getDisplayInstantWireFeedMpm() +
                 ", flags=" + flags +
                 ", weldingMachineState=" + weldingMachineState +
                 ", gasFlow=" + gasFlow +
