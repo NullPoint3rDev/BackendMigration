@@ -36,6 +36,10 @@ import java.util.stream.Collectors;
 @Service
 public class WeldingMachineDailyStatsService {
 
+    private static String recomputeLockKey(Integer weldingMachineId, LocalDate statDate) {
+        return weldingMachineId + "|" + statDate;
+    }
+
     private static final String WIRE_PARAM = "Расход проволоки";
     private static final String GAS_CUMULATIVE_PARAM = "Core.GasConsumptionSincePowerOn";
     private static final List<String> STATE_TEXT_KEYS = List.of(
@@ -71,11 +75,15 @@ public class WeldingMachineDailyStatsService {
     @Autowired
     private WeldingMachineDailyStatsAsyncExecutor asyncExecutor;
 
-    /** machineId → время последней постановки пересчёта в очередь */
-    private final ConcurrentHashMap<Integer, Long> lastRecomputeScheduledMs = new ConcurrentHashMap<>();
+    /** machineId|statDate → монитор: один пересчёт суток на JVM, без перезаписи устаревшим async. */
+    private final ConcurrentHashMap<String, Object> recomputeLocks = new ConcurrentHashMap<>();
+
+    /** machineId|statDate → время последней постановки пересчёта в очередь */
+    private final ConcurrentHashMap<String, Long> lastRecomputeScheduledMs = new ConcurrentHashMap<>();
 
     /**
-     * Быстрый ответ для UI: только чтение кэша. Пересчёт — асинхронно, если кэш устарел.
+     * UI: для сегодня при устаревшем кэше — синхронный пересчёт (ответ = то, что в БД).
+     * Прошлые даты — async по расписанию/дебаунсу.
      */
     @Transactional
     public WeldingMachineDailyStatsDTO getDailyStatsByMac(String mac, LocalDate statDate) {
@@ -84,11 +92,10 @@ public class WeldingMachineDailyStatsService {
         WeldingMachineDailyStats row = dailyStatsRepository
                 .findByWeldingMachineIdAndStatDate(machine.getId(), day)
                 .orElseGet(() -> emptyStats(machine.getId(), day));
-        // baseline нужен для live-расчёта на UI; без него фронт залипает на устаревшем gasConsumptionL из кэша
         if (day.equals(today()) && row.getGasBaselineAtDayStartL() == null) {
             row = recomputeDay(machine.getId(), day);
         } else if (shouldScheduleRecompute(row, day)) {
-            if (isInvalidatedCache(row)) {
+            if (isInvalidatedCache(row) || day.equals(today())) {
                 row = recomputeDay(machine.getId(), day);
             } else {
                 scheduleRecompute(machine.getId(), day);
@@ -106,17 +113,33 @@ public class WeldingMachineDailyStatsService {
         if (weldingMachineId == null || statDate == null) {
             return;
         }
+        String key = recomputeLockKey(weldingMachineId, statDate);
         long now = System.currentTimeMillis();
-        Long prev = lastRecomputeScheduledMs.get(weldingMachineId);
+        Long prev = lastRecomputeScheduledMs.get(key);
         if (prev != null && now - prev < recomputeDebounceMs) {
             return;
         }
-        lastRecomputeScheduledMs.put(weldingMachineId, now);
+        lastRecomputeScheduledMs.put(key, now);
         asyncExecutor.recomputeDayAsync(weldingMachineId, statDate);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public WeldingMachineDailyStats recomputeDay(Integer weldingMachineId, LocalDate statDate) {
+        Object lock = recomputeLocks.computeIfAbsent(recomputeLockKey(weldingMachineId, statDate), k -> new Object());
+        synchronized (lock) {
+            Optional<WeldingMachineDailyStats> cached = dailyStatsRepository
+                    .findByWeldingMachineIdAndStatDate(weldingMachineId, statDate);
+            if (cached.isPresent()) {
+                WeldingMachineDailyStats row = cached.get();
+                if (!isInvalidatedCache(row) && !shouldScheduleRecompute(row, statDate)) {
+                    return row;
+                }
+            }
+            return recomputeDayAndSave(weldingMachineId, statDate);
+        }
+    }
+
+    private WeldingMachineDailyStats recomputeDayAndSave(Integer weldingMachineId, LocalDate statDate) {
         ZoneId zone = ZoneId.of(timezoneId);
         // Сутки для плитки «Расход за сутки» — с 00:01 (не с полуночи).
         LocalDateTime dayStart = statDate.atTime(0, 1);
