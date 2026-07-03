@@ -152,7 +152,7 @@ public class WeldingDataParserService {
                 addProperty(props, "Температура первичной обмотки", String.format("%.1f", core.primaryCoilTemperature / 10.0), "number");
                 addProperty(props, "Температура вторичной обмотки", String.format("%.1f", core.secondaryCoilTemperature / 10.0), "number");
 
-                // Скорость подачи проволоки с аппарата (м/мин); в БД хранится под именем «Расход проволоки» (историческое имя параметра)
+                // Скорость подачи проволоки с аппарата (м/мин); в БД — «Расход проволоки» (историческое имя параметра)
                 float wireFeedMetersPerMin = uint32ToFloat(core.wireIndex);
                 addProperty(props, "Расход проволоки", String.format("%.1f", wireFeedMetersPerMin), "number");
                 // RFID: добавим в двух представлениях — десятичном и шестнадцатеричном
