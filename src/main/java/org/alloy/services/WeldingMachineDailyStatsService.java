@@ -209,44 +209,20 @@ public class WeldingMachineDailyStatsService {
         WeldingMachineDailyStats row = dailyStatsRepository
                 .findByWeldingMachineIdAndStatDate(weldingMachineId, statDate)
                 .orElseGet(WeldingMachineDailyStats::new);
-        applyMonotonicTodayIfNeeded(row, statDate, offMs, errorMs, onMs, weldingMs, wireKg);
+        // Пересчёт детерминирован и не убывает по времени сам по себе (кумулятив от начала суток),
+        // поэтому пишем честный результат — без Math.max, который залипал на старых раздутых пиках.
         row.setWeldingMachineId(weldingMachineId);
         row.setStatDate(statDate);
+        row.setOffMs(offMs);
+        row.setStandbyMs(errorMs);
+        row.setOnMs(onMs);
+        row.setWeldingMs(weldingMs);
+        row.setWireConsumptionKg(wireKg != null ? wireKg : BigDecimal.ZERO);
         row.setGasConsumptionL(gasTotals.consumptionL);
         row.setGasBaselineAtDayStartL(gasTotals.baselineAtDayStartL);
         row.setLastStateId(lastStateId);
         row.setComputedAt(LocalDateTime.now(zone));
         return dailyStatsRepository.save(row);
-    }
-
-    /** За сегодня таймеры и проволока в кэше только растут — без откатов на UI. */
-    private void applyMonotonicTodayIfNeeded(
-            WeldingMachineDailyStats row,
-            LocalDate statDate,
-            long offMs,
-            long errorMs,
-            long onMs,
-            long weldingMs,
-            BigDecimal wireKg) {
-        if (!statDate.equals(today())) {
-            row.setOffMs(offMs);
-            row.setStandbyMs(errorMs);
-            row.setOnMs(onMs);
-            row.setWeldingMs(weldingMs);
-            row.setWireConsumptionKg(wireKg != null ? wireKg : BigDecimal.ZERO);
-            return;
-        }
-        row.setOffMs(Math.max(nullToZero(row.getOffMs()), offMs));
-        row.setStandbyMs(Math.max(nullToZero(row.getStandbyMs()), errorMs));
-        row.setOnMs(Math.max(nullToZero(row.getOnMs()), onMs));
-        row.setWeldingMs(Math.max(nullToZero(row.getWeldingMs()), weldingMs));
-        BigDecimal prevWire = row.getWireConsumptionKg() != null ? row.getWireConsumptionKg() : BigDecimal.ZERO;
-        BigDecimal nextWire = wireKg != null ? wireKg : BigDecimal.ZERO;
-        row.setWireConsumptionKg(prevWire.max(nextWire).setScale(5, RoundingMode.HALF_UP));
-    }
-
-    private static long nullToZero(Long v) {
-        return v != null ? v : 0L;
     }
 
     /** Планировщик: по одной транзакции на аппарат, без удержания одного connection на весь цикл. */
