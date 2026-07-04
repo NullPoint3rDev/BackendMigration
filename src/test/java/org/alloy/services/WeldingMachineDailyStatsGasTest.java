@@ -98,13 +98,21 @@ class WeldingMachineDailyStatsGasTest {
     }
 
     @Test
-    void wireCumulative_sumsPositiveDeltasAndHandlesReset() {
+    void wireCumulative_sumsRiseIgnoresNoiseHandlesReset() {
         // Монотонный рост (как в БД сегодня): 2387.1 → 2406.4 → 2417.1 = +30.0 м.
         assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
                 java.util.List.of(bd("2387.1"), bd("2406.4"), bd("2417.1"))).compareTo(bd("30.0")));
-        // Сброс «с включения»: 2800 → 50 (перезагрузка) → 80 = 50 + 30 = 80 м.
+        // Реальный сброс «с включения» (падение >2x): 2800 → 50 → 80 = 50 + 30 = 80 м.
         assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
                 java.util.List.of(bd("2800"), bd("50"), bd("80"))).compareTo(bd("80")));
+        // Шумовые V-просадки (это раздувало сумму до сотен кг) не должны накручивать:
+        // 2500 → 2400 → 2500 → 2400 → 2500 = 0 м (счётчик вернулся к тому же уровню).
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of(bd("2500"), bd("2400"), bd("2500"), bd("2400"), bd("2500")))
+                .compareTo(BigDecimal.ZERO));
+        // Шум + реальный рост: 2500 → 2400(шум) → 2600 = +100 (от исходных 2500), не +200.
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of(bd("2500"), bd("2400"), bd("2600"))).compareTo(bd("100")));
         // Одно значение / пусто → 0.
         assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
                 java.util.List.of(bd("100"))).compareTo(BigDecimal.ZERO));

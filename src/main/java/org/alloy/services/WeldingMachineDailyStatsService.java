@@ -314,30 +314,46 @@ public class WeldingMachineDailyStatsService {
         return meters.multiply(wireLinearDensityKgPerMeter).setScale(5, RoundingMode.HALF_UP);
     }
 
+    /** Падение счётчика проволоки более чем вдвое считаем сбросом «с включения» (перезагрузка). */
+    private static final BigDecimal WIRE_COUNTER_RESET_MAX_RATIO = new BigDecimal("0.5");
+
     /**
-     * Сумма положительных дельт накопительного счётчика проволоки (метры за период).
-     * Падение значения трактуем как сброс «с включения» (перезагрузка аппарата) и добавляем
-     * само новое значение как поданное после сброса — как в логике газа.
-     * ponytail: без порога-антиглюка (данные счётчика чистые/монотонные); если появятся мелкие
-     * просадки от обрыва связи — добавить фильтр по аналогии с isGasCounterPowerOnReset.
+     * Сумма прироста накопительного счётчика проволоки (метры за период), как в логике газа:
+     * рост → плюс дельта; крупное падение (перезагрузка) → плюс само новое значение;
+     * мелкая просадка (шум/обрыв) → игнор, а last не двигаем вниз, иначе шумовой «отскок»
+     * даст ложный прирост (это и раздувало сумму до сотен кг).
      */
     static BigDecimal sumWireCumulativeMeters(List<BigDecimal> orderedValues) {
+        if (orderedValues == null) {
+            return BigDecimal.ZERO;
+        }
         BigDecimal meters = BigDecimal.ZERO;
         BigDecimal last = null;
         for (BigDecimal cur : orderedValues) {
             if (cur == null) {
                 continue;
             }
-            if (last != null) {
-                if (cur.compareTo(last) >= 0) {
-                    meters = meters.add(cur.subtract(last));
-                } else {
-                    meters = meters.add(cur);
-                }
+            if (last == null) {
+                last = cur;
+                continue;
             }
-            last = cur;
+            if (cur.compareTo(last) >= 0) {
+                meters = meters.add(cur.subtract(last));
+                last = cur;
+            } else if (isWireCounterReset(cur, last)) {
+                meters = meters.add(cur);
+                last = cur;
+            }
+            // иначе мелкая просадка — пропускаем, last оставляем прежним
         }
         return meters;
+    }
+
+    static boolean isWireCounterReset(BigDecimal current, BigDecimal last) {
+        if (current == null || last == null || last.signum() <= 0) {
+            return false;
+        }
+        return current.compareTo(last.multiply(WIRE_COUNTER_RESET_MAX_RATIO)) < 0;
     }
 
     private Map<Long, Map<String, String>> loadPropsByStateId(List<WeldingMachineState> states) {
