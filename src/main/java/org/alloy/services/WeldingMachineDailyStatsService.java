@@ -1,7 +1,6 @@
 package org.alloy.services;
 
 import org.alloy.models.MonitorActivityMode;
-import org.alloy.models.WeldingMachineStatus;
 import org.alloy.models.dto.WeldingMachineDailyStatsDTO;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineDailyStats;
@@ -213,7 +212,7 @@ public class WeldingMachineDailyStatsService {
             offMs += gapMsWithin(coveredEnd, effectiveEnd, dayStart, effectiveEnd);
         }
 
-        BigDecimal wireKg = calculateWireKg(states, dayStart, effectiveEnd, wireFeedByStateId, openEndIfLast);
+        BigDecimal wireKg = calculateWireKg(states, wireFeedByStateId);
 
         LocalDateTime gasLookback = dayStart.minusDays(1);
         List<WeldingMachineState> statesForGas = weldingMachineStateRepository.findByWeldingMachineIdAndDateRangeAsc(
@@ -293,35 +292,52 @@ public class WeldingMachineDailyStatsService {
         return row;
     }
 
+    /**
+     * «Расход проволоки» с аппарата — накопительная длина поданной проволоки (м) «с включения»
+     * (uint32→float), а НЕ мгновенная скорость. Суточный расход считаем по дельтам счётчика
+     * (как газ), затем переводим метры в кг через линейную плотность.
+     */
     private BigDecimal calculateWireKg(
             List<WeldingMachineState> states,
-            LocalDateTime dayStart,
-            LocalDateTime dayEnd,
-            Map<Long, BigDecimal> wireFeedByStateId,
-            LocalDateTime openEndIfLast) {
+            Map<Long, BigDecimal> wireFeedByStateId) {
         if (states == null || states.isEmpty() || wireLinearDensityKgPerMeter == null) {
             return BigDecimal.ZERO.setScale(5, RoundingMode.HALF_UP);
         }
-        BigDecimal density = wireLinearDensityKgPerMeter;
-        BigDecimal sum = BigDecimal.ZERO;
+        List<BigDecimal> ordered = new ArrayList<>();
         for (WeldingMachineState s : states) {
-            if (s.getWeldingMachineStatus() != WeldingMachineStatus.Welding) {
-                continue;
+            BigDecimal v = wireFeedByStateId.get(s.getId());
+            if (v != null) {
+                ordered.add(v);
             }
-            long overlapMs = WeldingStateDurationUtil.overlapDurationMs(
-                    s, dayStart, dayEnd, states, openEndIfLast);
-            if (overlapMs <= 0) {
-                continue;
-            }
-            BigDecimal mpm = wireFeedByStateId.get(s.getId());
-            if (mpm == null || mpm.compareTo(BigDecimal.ZERO) <= 0) {
-                continue;
-            }
-            BigDecimal minutes = BigDecimal.valueOf(overlapMs)
-                    .divide(BigDecimal.valueOf(60_000), 8, RoundingMode.HALF_UP);
-            sum = sum.add(mpm.multiply(density).multiply(minutes));
         }
-        return sum.setScale(5, RoundingMode.HALF_UP);
+        BigDecimal meters = sumWireCumulativeMeters(ordered);
+        return meters.multiply(wireLinearDensityKgPerMeter).setScale(5, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Сумма положительных дельт накопительного счётчика проволоки (метры за период).
+     * Падение значения трактуем как сброс «с включения» (перезагрузка аппарата) и добавляем
+     * само новое значение как поданное после сброса — как в логике газа.
+     * ponytail: без порога-антиглюка (данные счётчика чистые/монотонные); если появятся мелкие
+     * просадки от обрыва связи — добавить фильтр по аналогии с isGasCounterPowerOnReset.
+     */
+    static BigDecimal sumWireCumulativeMeters(List<BigDecimal> orderedValues) {
+        BigDecimal meters = BigDecimal.ZERO;
+        BigDecimal last = null;
+        for (BigDecimal cur : orderedValues) {
+            if (cur == null) {
+                continue;
+            }
+            if (last != null) {
+                if (cur.compareTo(last) >= 0) {
+                    meters = meters.add(cur.subtract(last));
+                } else {
+                    meters = meters.add(cur);
+                }
+            }
+            last = cur;
+        }
+        return meters;
     }
 
     private Map<Long, Map<String, String>> loadPropsByStateId(List<WeldingMachineState> states) {

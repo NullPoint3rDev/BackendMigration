@@ -97,6 +97,21 @@ class WeldingMachineDailyStatsGasTest {
                 dayStart.minusHours(1), dayStart, dayStart, now));
     }
 
+    @Test
+    void wireCumulative_sumsPositiveDeltasAndHandlesReset() {
+        // Монотонный рост (как в БД сегодня): 2387.1 → 2406.4 → 2417.1 = +30.0 м.
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of(bd("2387.1"), bd("2406.4"), bd("2417.1"))).compareTo(bd("30.0")));
+        // Сброс «с включения»: 2800 → 50 (перезагрузка) → 80 = 50 + 30 = 80 м.
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of(bd("2800"), bd("50"), bd("80"))).compareTo(bd("80")));
+        // Одно значение / пусто → 0.
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of(bd("100"))).compareTo(BigDecimal.ZERO));
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of()).compareTo(BigDecimal.ZERO));
+    }
+
     private static org.alloy.models.entities.WeldingMachineState state(Long id, java.time.LocalDateTime created) {
         org.alloy.models.entities.WeldingMachineState s = new org.alloy.models.entities.WeldingMachineState();
         s.setId(id);
