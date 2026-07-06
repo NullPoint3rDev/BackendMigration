@@ -3,7 +3,6 @@ package org.alloy.models.entities;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.alloy.models.entities.Attachment;
 
 @Entity
 public class Message {
@@ -13,8 +12,7 @@ public class Message {
 
     private String subject;
 
-    @Lob
-    @Column
+    @Column(columnDefinition = "text")
     private String body;
 
     @ManyToOne(fetch = FetchType.LAZY)

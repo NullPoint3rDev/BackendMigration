@@ -23,7 +23,7 @@ spring:
     # Иначе сессия/соединение могут тянуться на весь HTTP-запрос (тяжёлые отчёты/история → leak warnings, обрывы PG).
     #open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: false
     properties:
       hibernate:
@@ -60,7 +60,7 @@ logging:
     org.hibernate: INFO
 
 app:
-  jwtSecret: 1900-Asco-tPkw-yVal-lejo-Cali-forn-iamy-secr-etkey
+  jwtSecret: wt2-dev-jwt-secret-2026-hs512-min-64-bytes-please-change-this-value-now
   jwtExpirationInMs: 43200000 # 12 hours in milliseconds
 
 # Server Configuration (должно быть на корневом уровне)

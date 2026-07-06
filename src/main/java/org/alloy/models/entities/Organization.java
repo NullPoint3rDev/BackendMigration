@@ -4,9 +4,7 @@ import org.alloy.models.GeneralStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import io.swagger.v3.oas.annotations.media.Schema;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -49,8 +47,7 @@ public class Organization {
     @Column(name = "Website")
     private String website;
 
-    @Lob
-    @Column(name = "Logo")
+    @Column(name = "Logo", columnDefinition = "text")
     private String logo;
 
     @Column(name = "Settings")

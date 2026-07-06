@@ -7,8 +7,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Entity для шаблона отчета по расходу проволоки
@@ -33,15 +31,13 @@ public class WireConsumptionReportTemplate {
     /**
      * JSON с выбранными ID подразделений
      */
-    @Lob
-    @Column(name = "selected_organization_unit_ids")
+    @Column(name = "selected_organization_unit_ids", columnDefinition = "text")
     private String selectedOrganizationUnitIds;
 
     /**
      * JSON с выбранными ID сварщиков
      */
-    @Lob
-    @Column(name = "selected_welder_ids")
+    @Column(name = "selected_welder_ids", columnDefinition = "text")
     private String selectedWelderIds;
 
     /**
@@ -71,8 +67,7 @@ public class WireConsumptionReportTemplate {
     /**
      * JSON с выбранными колонками
      */
-    @Lob
-    @Column(name = "selected_columns")
+    @Column(name = "selected_columns", columnDefinition = "text")
     private String selectedColumns;
 
     /**

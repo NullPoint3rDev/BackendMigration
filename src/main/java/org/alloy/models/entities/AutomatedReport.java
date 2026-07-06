@@ -56,12 +56,10 @@ public class AutomatedReport {
     @Column(name = "last_error_message", length = 1000)
     private String lastErrorMessage;
 
-    @Lob
-    @Column(name = "configuration")
+    @Column(name = "configuration", columnDefinition = "text")
     private String configuration;
 
-    @Lob
-    @Column(name = "triggers_config")
+    @Column(name = "triggers_config", columnDefinition = "text")
     private String triggersConfig;
 
     @Column(name = "email_notifications")

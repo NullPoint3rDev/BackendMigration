@@ -13,8 +13,8 @@ spring:
     validate-on-migrate: false
   jpa:
     hibernate:
-      # Flyway — явные DDL/индексы; Hibernate дополняет схему по @Entity (новые таблицы).
-      ddl-auto: update
+      # Flyway управляет схемой; Hibernate не трогает и не валидирует старую схему, чтобы не падать на легаси-расхождениях типов.
+      ddl-auto: none
     show-sql: false
   mail:
     host: ${SPRING_MAIL_HOST:localhost}
@@ -33,7 +33,7 @@ server:
   address: 0.0.0.0
 
 app:
-  jwtSecret: ${APP_JWT_SECRET:change-me-staging-jwt-secret-min-32-chars}
+  jwtSecret: ${APP_JWT_SECRET:change-me-staging-jwt-secret-min-64-bytes-for-hs512-signing-key}
   jwtExpirationInMs: ${APP_JWT_EXPIRATION_MS:43200000}
 
 welding:
