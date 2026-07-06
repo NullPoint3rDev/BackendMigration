@@ -86,7 +86,7 @@ public class WeldingMachine {
     @Schema(description = "Интервал обслуживания (в днях)", example = "30.0")
     private Double maintenanceInterval;
 
-    @Column(name = "Modules")
+    @Column(name = "Modules", columnDefinition = "TEXT")
     @Schema(description = "Модули", example = "[\"module1\", \"module2\"]")
     private String modules;
 
@@ -135,6 +135,10 @@ public class WeldingMachine {
     @Column(name = "LastPoweredOnAt")
     @Schema(description = "Дата и время последнего включения аппарата")
     private LocalDateTime lastPoweredOnAt;
+
+    @Column(name = "LastWeldAt")
+    @Schema(description = "Дата и время последней сварки на аппарате")
+    private LocalDateTime lastWeldAt;
 
     @JsonManagedReference("maintenanceRef")
     @OneToMany(mappedBy = "weldingMachine", cascade = CascadeType.ALL, orphanRemoval = true)

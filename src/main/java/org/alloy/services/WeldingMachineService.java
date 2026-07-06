@@ -30,24 +30,37 @@ public class WeldingMachineService {
     private final OrganizationUnitRepository organizationUnitRepository;
     private final WeldingMachineStateRepository weldingMachineStateRepository;
     private final WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
+    private final WeldingMachineLastWeldService weldingMachineLastWeldService;
 
     @Autowired
     public WeldingMachineService(WeldingMachineRepository weldingMachineRepository,
                                  WeldingMachineTypeRepository weldingMachineTypeRepository,
                                  OrganizationUnitRepository organizationUnitRepository,
                                  WeldingMachineStateRepository weldingMachineStateRepository,
-                                 WeldingMachineParameterValueRepository weldingMachineParameterValueRepository) {
+                                 WeldingMachineParameterValueRepository weldingMachineParameterValueRepository,
+                                 WeldingMachineLastWeldService weldingMachineLastWeldService) {
         this.weldingMachineRepository = weldingMachineRepository;
         this.weldingMachineTypeRepository = weldingMachineTypeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
         this.weldingMachineStateRepository = weldingMachineStateRepository;
         this.weldingMachineParameterValueRepository = weldingMachineParameterValueRepository;
+        this.weldingMachineLastWeldService = weldingMachineLastWeldService;
     }
 
     public List<WeldingMachine> getAllWeldingMachines() {
-        return weldingMachineRepository.findAll().stream()
+        List<WeldingMachine> machines = weldingMachineRepository.findAll().stream()
                 .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
                 .collect(Collectors.toList());
+        for (WeldingMachine machine : machines) {
+            if (machine.getId() == null || machine.getLastWeldAt() != null) {
+                continue;
+            }
+            LocalDateTime fallback = weldingMachineLastWeldService.resolveForDisplay(machine.getId());
+            if (fallback != null) {
+                machine.setLastWeldAt(fallback);
+            }
+        }
+        return machines;
     }
 
     public Optional<WeldingMachine> getWeldingMachineById(Integer id) {

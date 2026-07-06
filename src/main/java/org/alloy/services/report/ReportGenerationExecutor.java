@@ -1,6 +1,7 @@
 package org.alloy.services.report;
 
 import org.alloy.models.dto.*;
+import org.alloy.models.dto.serialization.ReportPeriodTimes;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.repositories.EmployeeRepository;
@@ -142,8 +143,8 @@ public class ReportGenerationExecutor {
             LocalTime periodEndTime = generationRequest.getPeriodEndTime() != null
                     ? generationRequest.getPeriodEndTime() : LocalTime.of(23, 59, 59);
 
-            // Если конец периода ещё не наступил — принимаем за конец текущий момент и пишем его в отчёт
-            LocalDateTime now = LocalDateTime.now();
+            // Если конец периода ещё не наступил — принимаем за конец текущий момент (Москва) и пишем его в отчёт
+            LocalDateTime now = ReportPeriodTimes.nowDisplay();
             LocalDateTime endDateTime = periodEndDate != null
                     ? LocalDateTime.of(periodEndDate, periodEndTime) : null;
             if (endDateTime != null && endDateTime.isAfter(now)) {
@@ -315,7 +316,7 @@ public class ReportGenerationExecutor {
                 Object pt = templateWithPeriodSettings.getPeriodSettings().get("periodType");
                 String periodType = pt != null ? pt.toString().trim() : "";
                 if ("За 24 часа".equals(periodType) || "LAST_24_HOURS".equalsIgnoreCase(periodType) || "24h".equalsIgnoreCase(periodType)) {
-                    java.time.LocalDateTime end = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime end = ReportPeriodTimes.nowDisplay();
                     java.time.LocalDateTime start = end.minusHours(24);
                     periodStartDate = start.toLocalDate();
                     periodEndDate = end.toLocalDate();
@@ -490,13 +491,29 @@ public class ReportGenerationExecutor {
             if (templateWithPeriodSettings != null && templateWithPeriodSettings.getPeriodSettings() != null) {
                 Object pt = templateWithPeriodSettings.getPeriodSettings().get("periodType");
                 String periodType = pt != null ? pt.toString().trim() : "";
-                if ("За 24 часа".equals(periodType) || "LAST_24_HOURS".equalsIgnoreCase(periodType)) {
-                    java.time.LocalDateTime end = java.time.LocalDateTime.now();
+                if ("За 24 часа".equals(periodType) || "LAST_24_HOURS".equalsIgnoreCase(periodType) || "24h".equalsIgnoreCase(periodType)) {
+                    java.time.LocalDateTime end = ReportPeriodTimes.nowDisplay();
                     java.time.LocalDateTime start = end.minusHours(24);
                     periodStartDate = start.toLocalDate();
                     periodEndDate = end.toLocalDate();
                     periodStartTime = start.toLocalTime();
                     periodEndTime = end.toLocalTime();
+                } else if ("За 7 дней".equals(periodType) || "LAST_7_DAYS".equalsIgnoreCase(periodType) || "7DAYS".equalsIgnoreCase(periodType)) {
+                    java.time.LocalDateTime end = ReportPeriodTimes.nowDisplay();
+                    java.time.LocalDateTime start = end.minusDays(7);
+                    periodStartDate = start.toLocalDate();
+                    periodEndDate = end.toLocalDate();
+                    periodStartTime = start.toLocalTime();
+                    periodEndTime = end.toLocalTime();
+                }
+            }
+
+            java.time.LocalDateTime nowDisplay = ReportPeriodTimes.nowDisplay();
+            if (periodEndDate != null && periodEndTime != null) {
+                java.time.LocalDateTime endDisplay = java.time.LocalDateTime.of(periodEndDate, periodEndTime);
+                if (endDisplay.isAfter(nowDisplay)) {
+                    periodEndDate = nowDisplay.toLocalDate();
+                    periodEndTime = nowDisplay.toLocalTime();
                 }
             }
 
@@ -577,14 +594,14 @@ public class ReportGenerationExecutor {
                 if (pt != null) periodTypeFromRequest = pt.toString().trim();
             }
             if ("За 24 часа".equals(periodTypeFromRequest) || "LAST_24_HOURS".equalsIgnoreCase(periodTypeFromRequest) || "24h".equalsIgnoreCase(periodTypeFromRequest)) {
-                LocalDateTime end = LocalDateTime.now();
+                LocalDateTime end = ReportPeriodTimes.nowDisplay();
                 LocalDateTime start = end.minusHours(24);
                 periodStartDate = start.toLocalDate();
                 periodEndDate = end.toLocalDate();
                 periodStartTime = start.toLocalTime();
                 periodEndTime = end.toLocalTime();
             } else if ("За 7 дней".equals(periodTypeFromRequest) || "LAST_7_DAYS".equalsIgnoreCase(periodTypeFromRequest) || "7DAYS".equalsIgnoreCase(periodTypeFromRequest)) {
-                LocalDateTime end = LocalDateTime.now();
+                LocalDateTime end = ReportPeriodTimes.nowDisplay();
                 LocalDateTime start = end.minusDays(7);
                 periodStartDate = start.toLocalDate();
                 periodEndDate = end.toLocalDate();
@@ -592,8 +609,8 @@ public class ReportGenerationExecutor {
                 periodEndTime = end.toLocalTime();
             }
 
-            // Если конец периода всё ещё в будущем — ограничиваем текущим моментом
-            LocalDateTime now = LocalDateTime.now();
+            // Если конец периода всё ещё в будущем — ограничиваем текущим моментом (Москва)
+            LocalDateTime now = ReportPeriodTimes.nowDisplay();
             LocalDateTime endDateTime = LocalDateTime.of(periodEndDate, periodEndTime);
             if (endDateTime.isAfter(now)) {
                 periodEndDate = now.toLocalDate();

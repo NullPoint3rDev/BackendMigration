@@ -26,6 +26,11 @@ public class WeldingMachineMapper {
         }
         dto.setLastService(entity.getLastServiceOn());
         dto.setLastPoweredOnAt(entity.getLastPoweredOnAt());
+        dto.setLastWeldAt(entity.getLastWeldAt());
+        dto.setModules(entity.getModules());
+        dto.setMaintenanceInterval(entity.getMaintenanceInterval());
+        dto.setMaintenanceRegulation(entity.getMaintenanceRegulation());
+        dto.setUserServiceNotifiedBeforeHours(entity.getUserServiceNotifiedBeforeHours());
         // OrganizationUnitShortDTO
         if (entity.getOrganizationUnit() != null) {
             OrganizationUnitShortDTO orgDto = new OrganizationUnitShortDTO();
@@ -61,7 +66,18 @@ public class WeldingMachineMapper {
         if (dto.getWeldingMachineType() != null) {
             entity.setWeldingMachineTypeId(dto.getWeldingMachineType().getId());
         }
-        // Можно добавить дополнительные поля, если они появятся в DTO
+        if (dto.getModules() != null) {
+            entity.setModules(dto.getModules());
+        }
+        if (dto.getMaintenanceInterval() != null) {
+            entity.setMaintenanceInterval(dto.getMaintenanceInterval());
+        }
+        if (dto.getMaintenanceRegulation() != null) {
+            entity.setMaintenanceRegulation(dto.getMaintenanceRegulation());
+        }
+        if (dto.getUserServiceNotifiedBeforeHours() != null) {
+            entity.setUserServiceNotifiedBeforeHours(dto.getUserServiceNotifiedBeforeHours());
+        }
         return entity;
     }
 } 

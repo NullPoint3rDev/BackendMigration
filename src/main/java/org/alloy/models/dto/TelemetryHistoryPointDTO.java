@@ -13,7 +13,7 @@ public class TelemetryHistoryPointDTO {
     private Double voltage;
     /** Установленный ток (Current в простое; null во время сварки). */
     private Double setCurrent;
-    /** Установленное напряжение, десятые вольта (Voltage в простое; null во время сварки). */
+    /** Установленное напряжение, В (в простое; null во время сварки). */
     private Double setVoltage;
     /** Мгновенный расход газа, л/мин (State.GasFlow). */
     private Double gasFlowLpm;
@@ -29,5 +29,7 @@ public class TelemetryHistoryPointDTO {
     private String status;
     /** Текст WeldingMachineState / «Состояние аппарата» (для дежурного режима на дорожке «Состояние»). */
     private String machineStateText;
+    /** Факт сварки (дуга): текст «Сварка», статус Welding или газ+ток+напряжение на Core. */
+    private Boolean isWelding;
 }
 

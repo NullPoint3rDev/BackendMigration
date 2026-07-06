@@ -357,8 +357,71 @@ public class WeldingReportCalculationService {
         return n.contains("свар") || n.contains("weld");
     }
 
+    private static boolean isExplicitIdleStateText(String name) {
+        if (name == null || name.isBlank()) return false;
+        String n = name.toLowerCase(java.util.Locale.ROOT);
+        if (n.contains("свар") || n.contains("weld")) return false;
+        return n.contains("включен") || n.contains("ожидан") || n.contains("дежурн") || n.contains("idle");
+    }
+
     private static boolean isValidCurrentVoltagePoint(int currentAmps, int voltageVolts) {
-        return currentAmps > 0 && voltageVolts >= 0 && voltageVolts <= currentAmps;
+        return currentAmps >= MIN_ARC_CURRENT_AMPS_FOR_REPORT
+                && voltageVolts > 0
+                && voltageVolts <= 200;
+    }
+
+    private static boolean isArcVoltagePropertyCode(String code) {
+        return "Voltage".equals(code) || "voltage".equals(code)
+                || "State.U".equals(code) || "State.V".equals(code)
+                || "Напряжение".equals(code) || "U".equals(code);
+    }
+
+    private static boolean isArcCurrentPropertyCode(String code) {
+        return "Current".equals(code) || "current".equals(code)
+                || "State.I".equals(code) || "I".equals(code) || "Ток".equals(code);
+    }
+
+    /** ponytail: CORE хранит U в десятых вольта (315 → 31,5 В); порог 100 — эвристика. */
+    private static int normalizeArcVoltageVolts(int raw) {
+        if (raw <= 0) return 0;
+        return raw > 100 ? raw / 10 : raw;
+    }
+
+    private static int arcCurrentCodePriority(String code) {
+        if ("State.I".equals(code)) return 3;
+        if ("Ток".equals(code)) return 2;
+        if ("Current".equals(code) || "current".equals(code) || "I".equals(code)) return 1;
+        return 0;
+    }
+
+    private static int arcVoltageCodePriority(String code) {
+        if ("State.U".equals(code) || "State.V".equals(code)) return 3;
+        if ("Напряжение".equals(code)) return 2;
+        if ("Voltage".equals(code) || "voltage".equals(code) || "U".equals(code)) return 1;
+        return 0;
+    }
+
+    private void putArcElectricalSample(
+            String code, long stateId, String valueStr,
+            java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState,
+            java.util.Map<Long, Integer> currentPriorityByState, java.util.Map<Long, Integer> voltagePriorityByState) {
+        int raw = parseValueToInt(valueStr);
+        if (raw == 0) return;
+        if (isArcVoltagePropertyCode(code)) {
+            int pri = arcVoltageCodePriority(code);
+            Integer existingPri = voltagePriorityByState.get(stateId);
+            if (existingPri == null || pri >= existingPri) {
+                voltageByState.put(stateId, normalizeArcVoltageVolts(raw));
+                voltagePriorityByState.put(stateId, pri);
+            }
+        } else if (isArcCurrentPropertyCode(code)) {
+            int pri = arcCurrentCodePriority(code);
+            Integer existingPri = currentPriorityByState.get(stateId);
+            if (existingPri == null || pri >= existingPri) {
+                currentByState.put(stateId, raw);
+                currentPriorityByState.put(stateId, pri);
+            }
+        }
     }
 
     private static double calculateMedian(List<Integer> values) {
@@ -550,29 +613,15 @@ public class WeldingReportCalculationService {
             boolean useMachineDateRange = machineId != null && rangeStart != null && rangeEnd != null;
             boolean largePeriod = sorted.size() >= LARGE_PERIOD_STATE_COUNT;
 
-            // На длинном периоде (сотни тысяч состояний) JOIN+LIKE по parameter_value недопустим по времени.
-            // Core при «Сварка» пишет welding_machine_status=Welding — достаточно колонки из loadStatesForReport.
+            // Текст «Сварка» из параметров нужен всегда на коротком периоде: enum в колонке часто не совпадает с Core.
             java.util.Map<Long, String> stateNameByStateId;
             if (!useMachineDateRange || machineId == null) {
                 stateNameByStateId = loadStateNameByStateIds(collectStateIdsNeedingWeldingStateName(sorted));
             } else if (largePeriod) {
                 stateNameByStateId = new java.util.HashMap<>();
             } else {
-                // Для небольших периодов text-JOIN может быть дорогим. Попробуем сначала оценить,
-                // насколько часто колонка welding_machine_status уже маркирует сварку.
-                int enumWeldCount = 0;
-                for (WeldingMachineState s : sorted) {
-                    if (s != null && s.getWeldingMachineStatus() == WeldingMachineStatus.Welding) {
-                        enumWeldCount++;
-                    }
-                }
-                double enumRatio = sorted.isEmpty() ? 0d : (enumWeldCount / (double) sorted.size());
-                boolean shouldLoadTextJoin = enumRatio < 0.01; // эвристика: при достаточном enum coverage текст не нужен
-                if (!shouldLoadTextJoin) {
-                    stateNameByStateId = new java.util.HashMap<>();
-                } else {
-                    stateNameByStateId = loadWeldingTextStateNamesByMachineDateRange(machineId, rangeStart, rangeEnd);
-                }
+                stateNameByStateId = loadWeldingTextStateNamesByMachineDateRange(machineId, rangeStart, rangeEnd);
+                stateNameByStateId.putAll(loadStateNameByStateIds(collectStateIdsNeedingWeldingStateName(sorted)));
             }
             if (sorted.size() >= 10_000) {
                 ReportGenerationProgressContext.update(35, "Поиск швов…");
@@ -634,11 +683,16 @@ public class WeldingReportCalculationService {
             }
 
             for (PendingWeldSegment p : pending) {
-                List<WeldingMachineState> windowStates = statesInTimeWindow(
-                        sorted, p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5));
-                LocalDateTime serverEnd = p.serverEnd != null ? p.serverEnd : p.segmentEndTime;
+                LocalDateTime serverWindowEnd = resolveServerWindowEnd(
+                        p.weldStartTime, p.serverEnd, p.segmentDurationMs);
+                List<WeldingMachineState> windowStates = serverWindowEnd != null
+                        ? statesInTimeWindow(sorted, p.weldStartTime.minusMinutes(5), serverWindowEnd.plusMinutes(5))
+                        : java.util.Collections.emptyList();
+                long serverSpanMs = (p.weldStartTime != null && serverWindowEnd != null)
+                        ? java.time.Duration.between(p.weldStartTime, serverWindowEnd).toMillis() : 0L;
+                long electricalDurationMs = serverSpanMs > 0 ? serverSpanMs : p.segmentDurationMs;
                 org.alloy.models.dto.WeldSegmentDTO dto = buildSegmentDto(
-                        p.weldStartTime, serverEnd, p.segmentDurationMs, 0, 0,
+                        p.weldStartTime, serverWindowEnd, electricalDurationMs, 0, 0,
                         windowStates, currentByState, voltageByState, p.segmentStartForDto, stateNameByStateId);
                 dto.setStartStateId(p.weldStartStateId);
                 dto.setEndStateId(p.weldEndStateId);
@@ -650,6 +704,67 @@ public class WeldingReportCalculationService {
             e.printStackTrace();
         }
         return result;
+    }
+
+    /**
+     * Пересчитывает средний ток/напряжение по уже известным границам швов.
+     * ponytail: кэш сегментов хранит тайминг; I/U при отчёте всегда по актуальной логике.
+     */
+    public void recalculateSegmentElectricalAverages(
+            List<org.alloy.models.dto.WeldSegmentDTO> segments, List<WeldingMachineState> states) {
+        if (segments == null || segments.isEmpty() || states == null || states.isEmpty()) {
+            return;
+        }
+        try {
+            List<WeldingMachineState> sorted = new ArrayList<>(states);
+            sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
+            Integer machineId = sorted.stream().map(WeldingMachineState::getWeldingMachineId)
+                    .filter(java.util.Objects::nonNull).findFirst().orElse(null);
+            LocalDateTime rangeStart = null;
+            LocalDateTime rangeEnd = null;
+            for (WeldingMachineState s : sorted) {
+                if (s.getDateCreated() == null) continue;
+                if (rangeStart == null || s.getDateCreated().isBefore(rangeStart)) rangeStart = s.getDateCreated();
+                if (rangeEnd == null || s.getDateCreated().isAfter(rangeEnd)) rangeEnd = s.getDateCreated();
+            }
+            for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
+                if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
+                LocalDateTime segEnd = seg.getStartTime().plusSeconds(seg.getDurationSeconds().longValue());
+                if (rangeStart == null || seg.getStartTime().isBefore(rangeStart)) rangeStart = seg.getStartTime();
+                if (rangeEnd == null || segEnd.isAfter(rangeEnd)) rangeEnd = segEnd;
+            }
+            boolean useMachineDateRange = machineId != null && rangeStart != null && rangeEnd != null;
+            boolean largePeriod = sorted.size() >= LARGE_PERIOD_STATE_COUNT;
+            java.util.Map<Long, String> stateNameByStateId;
+            if (!useMachineDateRange || machineId == null) {
+                stateNameByStateId = loadStateNameByStateIds(collectStateIdsNeedingWeldingStateName(sorted));
+            } else if (largePeriod) {
+                stateNameByStateId = new java.util.HashMap<>();
+            } else {
+                stateNameByStateId = loadWeldingTextStateNamesByMachineDateRange(machineId, rangeStart, rangeEnd);
+                stateNameByStateId.putAll(loadStateNameByStateIds(collectStateIdsNeedingWeldingStateName(sorted)));
+            }
+            java.util.Map<Long, Integer> currentByState = new java.util.HashMap<>();
+            java.util.Map<Long, Integer> voltageByState = new java.util.HashMap<>();
+            List<Long> fullStateIds = sorted.stream().map(WeldingMachineState::getId).collect(java.util.stream.Collectors.toList());
+            loadCurrentAndVoltageForWeldSegments(
+                    machineId, rangeStart, rangeEnd, fullStateIds, new java.util.HashSet<>(fullStateIds), sorted.size(),
+                    useMachineDateRange, currentByState, voltageByState);
+            for (org.alloy.models.dto.WeldSegmentDTO seg : segments) {
+                if (seg.getStartTime() == null || seg.getDurationSeconds() == null) continue;
+                long durMs = seg.getDurationSeconds().multiply(BigDecimal.valueOf(1000)).longValue();
+                LocalDateTime segEnd = seg.getStartTime().plus(durMs, java.time.temporal.ChronoUnit.MILLIS);
+                List<WeldingMachineState> windowStates = statesInTimeWindow(
+                        sorted, seg.getStartTime().minusMinutes(5), segEnd.plusMinutes(5));
+                org.alloy.models.dto.WeldSegmentDTO recalc = buildSegmentDto(
+                        seg.getStartTime(), segEnd, durMs, 0, 0,
+                        windowStates, currentByState, voltageByState, seg.getStartTime(), stateNameByStateId);
+                seg.setAverageCurrent(recalc.getAverageCurrent());
+                seg.setAverageVoltage(recalc.getAverageVoltage());
+            }
+        } catch (Exception e) {
+            System.err.println("[REPORT-CALC] ⚠️ recalculateSegmentElectricalAverages: " + e.getMessage());
+        }
     }
 
     /**
@@ -670,19 +785,96 @@ public class WeldingReportCalculationService {
 
         long segmentWindowMs = segmentEndTime != null ? java.time.Duration.between(weldStartTime, segmentEndTime).toMillis() : segmentDurationMs;
         if (segmentWindowMs <= 0) segmentWindowMs = segmentDurationMs;
+        List<ElectricalPoint> points = collectSegmentElectricalPoints(
+                states, weldStartTime, segmentEndTime, segmentWindowMs,
+                currentByState, voltageByState, stateNameByStateId, true);
+        if (points.isEmpty()) {
+            points = collectSegmentElectricalPoints(
+                    states, weldStartTime, segmentEndTime, segmentWindowMs,
+                    currentByState, voltageByState, stateNameByStateId, false);
+        }
         List<Integer> candidateVoltages = new ArrayList<>();
-        class Point {
-            long overlapDt;
-            int i;
-            int u;
-            Point(long overlapDt, int i, int u) {
-                this.overlapDt = overlapDt;
-                this.i = i;
-                this.u = u;
+        for (ElectricalPoint p : points) {
+            candidateVoltages.add(p.u);
+        }
+
+        double medianVoltage = calculateMedian(candidateVoltages);
+        long weightedI = 0;
+        long weightedU = 0;
+        long totalDt = 0;
+        boolean useMedianBand = candidateVoltages.size() > 2;
+        for (ElectricalPoint p : points) {
+            if (useMedianBand && !isWithinSegmentMedianBand(p.u, medianVoltage)) continue;
+            weightedI += (long) p.i * p.overlapDt;
+            weightedU += (long) p.u * p.overlapDt;
+            totalDt += p.overlapDt;
+        }
+        if (totalDt == 0 && !points.isEmpty()) {
+            // ponytail: короткий шов — медианный фильтр мог выкинуть все точки
+            for (ElectricalPoint p : points) {
+                weightedI += (long) p.i * p.overlapDt;
+                weightedU += (long) p.u * p.overlapDt;
+                totalDt += p.overlapDt;
             }
         }
-        List<Point> points = new ArrayList<>();
+        if (totalDt > 0) {
+            seg.setAverageCurrent(BigDecimal.valueOf((double) weightedI / totalDt).setScale(1, RoundingMode.HALF_UP));
+            seg.setAverageVoltage(BigDecimal.valueOf((double) weightedU / totalDt).setScale(1, RoundingMode.HALF_UP));
+        } else {
+            // Fallback: ближайшее по времени состояние с I/U
+            WeldingMachineState nearest = findNearestElectricalState(
+                    states, weldStartTime, segmentEndTime, currentByState, voltageByState, stateNameByStateId, true);
+            if (nearest == null) {
+                nearest = findNearestElectricalState(
+                        states, weldStartTime, segmentEndTime, currentByState, voltageByState, stateNameByStateId, false);
+            }
+            if (nearest != null) {
+                int I = currentByState.getOrDefault(nearest.getId(), 0);
+                int U = voltageByState.getOrDefault(nearest.getId(), 0);
+                seg.setAverageCurrent(BigDecimal.valueOf(I).setScale(1, RoundingMode.HALF_UP));
+                seg.setAverageVoltage(BigDecimal.valueOf(U).setScale(1, RoundingMode.HALF_UP));
+            } else {
+                seg.setAverageCurrent(BigDecimal.ZERO);
+                seg.setAverageVoltage(BigDecimal.ZERO);
+            }
+        }
+        return seg;
+    }
 
+    private static class ElectricalPoint {
+        long overlapDt;
+        int i;
+        int u;
+
+        ElectricalPoint(long overlapDt, int i, int u) {
+            this.overlapDt = overlapDt;
+            this.i = i;
+            this.u = u;
+        }
+    }
+
+    private static boolean includeElectricalSample(
+            WeldingMachineState s, int currentAmps, int voltageVolts,
+            java.util.Map<Long, String> stateNameByStateId, boolean weldingOnly) {
+        if (currentAmps <= MIN_ARC_CURRENT_AMPS_FOR_REPORT || !isValidCurrentVoltagePoint(currentAmps, voltageVolts)) {
+            return false;
+        }
+        if (isWeldingState(s, stateNameByStateId)) {
+            return true;
+        }
+        if (weldingOnly) {
+            return false;
+        }
+        String stateText = stateNameByStateId.get(s.getId());
+        return stateText == null || !isExplicitIdleStateText(stateText);
+    }
+
+    private static List<ElectricalPoint> collectSegmentElectricalPoints(
+            List<WeldingMachineState> states,
+            LocalDateTime weldStartTime, LocalDateTime segmentEndTime, long segmentWindowMs,
+            java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState,
+            java.util.Map<Long, String> stateNameByStateId, boolean weldingOnly) {
+        List<ElectricalPoint> points = new ArrayList<>();
         for (int idx = 0; idx < states.size(); idx++) {
             WeldingMachineState s = states.get(idx);
             if (s.getDateCreated() == null) continue;
@@ -708,52 +900,33 @@ public class WeldingReportCalculationService {
             if (overlapDt <= 0) continue;
             int I = currentByState.getOrDefault(s.getId(), 0);
             int U = voltageByState.getOrDefault(s.getId(), 0);
-            if (!isWeldingState(s, stateNameByStateId) || I <= MIN_ARC_CURRENT_AMPS_FOR_REPORT || !isValidCurrentVoltagePoint(I, U)) continue;
-            points.add(new Point(overlapDt, I, U));
-            candidateVoltages.add(U);
+            if (!includeElectricalSample(s, I, U, stateNameByStateId, weldingOnly)) continue;
+            points.add(new ElectricalPoint(overlapDt, I, U));
         }
+        return points;
+    }
 
-        double medianVoltage = calculateMedian(candidateVoltages);
-        long weightedI = 0;
-        long weightedU = 0;
-        long totalDt = 0;
-        for (Point p : points) {
-            if (!isWithinSegmentMedianBand(p.u, medianVoltage)) continue;
-            weightedI += (long) p.i * p.overlapDt;
-            weightedU += (long) p.u * p.overlapDt;
-            totalDt += p.overlapDt;
-        }
-        if (totalDt > 0) {
-            seg.setAverageCurrent(BigDecimal.valueOf((double) weightedI / totalDt).setScale(1, RoundingMode.HALF_UP));
-            seg.setAverageVoltage(BigDecimal.valueOf((double) weightedU / totalDt).setScale(1, RoundingMode.HALF_UP));
-        } else {
-            // Fallback: ближайшее по времени состояние с I/U
-            WeldingMachineState nearest = null;
-            long nearestDistMs = Long.MAX_VALUE;
-            for (WeldingMachineState s : states) {
-                if (s.getDateCreated() == null) continue;
-                int I = currentByState.getOrDefault(s.getId(), 0);
-                int U = voltageByState.getOrDefault(s.getId(), 0);
-                if (!isWeldingState(s, stateNameByStateId) || I <= MIN_ARC_CURRENT_AMPS_FOR_REPORT || !isValidCurrentVoltagePoint(I, U)) continue;
-                long dist = Math.min(
-                        Math.abs(java.time.Duration.between(weldStartTime, s.getDateCreated()).toMillis()),
-                        Math.abs(java.time.Duration.between(segmentEndTime, s.getDateCreated()).toMillis()));
-                if (dist < nearestDistMs) {
-                    nearestDistMs = dist;
-                    nearest = s;
-                }
-            }
-            if (nearest != null) {
-                int I = currentByState.getOrDefault(nearest.getId(), 0);
-                int U = voltageByState.getOrDefault(nearest.getId(), 0);
-                seg.setAverageCurrent(BigDecimal.valueOf(I).setScale(1, RoundingMode.HALF_UP));
-                seg.setAverageVoltage(BigDecimal.valueOf(U).setScale(1, RoundingMode.HALF_UP));
-            } else {
-                seg.setAverageCurrent(BigDecimal.ZERO);
-                seg.setAverageVoltage(BigDecimal.ZERO);
+    private static WeldingMachineState findNearestElectricalState(
+            List<WeldingMachineState> states,
+            LocalDateTime weldStartTime, LocalDateTime segmentEndTime,
+            java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState,
+            java.util.Map<Long, String> stateNameByStateId, boolean weldingOnly) {
+        WeldingMachineState nearest = null;
+        long nearestDistMs = Long.MAX_VALUE;
+        for (WeldingMachineState s : states) {
+            if (s.getDateCreated() == null) continue;
+            int I = currentByState.getOrDefault(s.getId(), 0);
+            int U = voltageByState.getOrDefault(s.getId(), 0);
+            if (!includeElectricalSample(s, I, U, stateNameByStateId, weldingOnly)) continue;
+            long dist = Math.min(
+                    Math.abs(java.time.Duration.between(weldStartTime, s.getDateCreated()).toMillis()),
+                    Math.abs(java.time.Duration.between(segmentEndTime, s.getDateCreated()).toMillis()));
+            if (dist < nearestDistMs) {
+                nearestDistMs = dist;
+                nearest = s;
             }
         }
-        return seg;
+        return nearest;
     }
 
     /** Порог: за длинный период не грузим Date./Time.* на все состояния — только границы швов. */
@@ -807,10 +980,24 @@ public class WeldingReportCalculationService {
         Long weldStartStateId;
         Long weldEndStateId;
         int endIndex = -1;
-        LocalDateTime segmentEndTime;
+        /** Время аппарата (Date./Time.*) — только для длительности/отображения в отчёте. */
+        LocalDateTime deviceSegmentEnd;
+        /** Конец шва по date_created в БД — для поиска состояний и I/U. */
         LocalDateTime serverEnd;
         LocalDateTime segmentStartForDto;
         long segmentDurationMs;
+    }
+
+    /** ponytail: date_created всегда серверное UTC; deviceSegmentEnd нельзя смешивать с ним в statesInTimeWindow. */
+    static LocalDateTime resolveServerWindowEnd(
+            LocalDateTime weldStartTime, LocalDateTime serverEnd, long segmentDurationMs) {
+        if (serverEnd != null) {
+            return serverEnd;
+        }
+        if (weldStartTime != null && segmentDurationMs > 0) {
+            return weldStartTime.plus(segmentDurationMs, java.time.temporal.ChronoUnit.MILLIS);
+        }
+        return null;
     }
 
     private PendingWeldSegment buildPendingWeldSegment(
@@ -818,14 +1005,15 @@ public class WeldingReportCalculationService {
             WeldingMachineState endState, java.util.Map<Long, String> stateNameByStateId,
             java.util.Map<Long, LocalDateTime> deviceTimeByStateId) {
         LocalDateTime segmentStartForDto = weldStartTime;
-        LocalDateTime segmentEndTime = endState.getDateCreated();
-        long segmentDurationMs = java.time.Duration.between(weldStartTime, segmentEndTime).toMillis();
+        LocalDateTime serverEnd = endState.getDateCreated();
+        LocalDateTime deviceSegmentEnd = serverEnd;
+        long segmentDurationMs = java.time.Duration.between(weldStartTime, serverEnd).toMillis();
         LocalDateTime deviceStart = deviceTimeByStateId.get(weldStartStateId);
         LocalDateTime deviceEnd = deviceTimeByStateId.get(endState.getId());
         if (deviceStart != null && deviceEnd != null && !deviceEnd.isBefore(deviceStart)) {
             segmentDurationMs = java.time.Duration.between(deviceStart, deviceEnd).toMillis();
             segmentStartForDto = deviceStart;
-            segmentEndTime = deviceEnd;
+            deviceSegmentEnd = deviceEnd;
         }
         if (endIndex + 1 < sorted.size()) {
             WeldingMachineState next = sorted.get(endIndex + 1);
@@ -836,7 +1024,10 @@ public class WeldingReportCalculationService {
                     long durToNext = java.time.Duration.between(startForDur, nextDevice).toMillis();
                     if (durToNext > 0 && durToNext < segmentDurationMs) {
                         segmentDurationMs = durToNext;
-                        segmentEndTime = nextDevice;
+                        deviceSegmentEnd = nextDevice;
+                        if (next.getDateCreated() != null) {
+                            serverEnd = next.getDateCreated();
+                        }
                     }
                 }
             }
@@ -847,8 +1038,8 @@ public class WeldingReportCalculationService {
         p.weldStartStateId = weldStartStateId;
         p.weldEndStateId = endState.getId();
         p.endIndex = endIndex;
-        p.segmentEndTime = segmentEndTime;
-        p.serverEnd = endState.getDateCreated();
+        p.deviceSegmentEnd = deviceSegmentEnd;
+        p.serverEnd = serverEnd;
         p.segmentStartForDto = segmentStartForDto;
         p.segmentDurationMs = segmentDurationMs;
         return p;
@@ -877,9 +1068,9 @@ public class WeldingReportCalculationService {
         p.weldStartTime = weldStartTime;
         p.weldStartStateId = weldStartStateId;
         p.segmentDurationMs = segmentDurationMs;
-        p.segmentEndTime = weldStartTime.plus(segmentDurationMs, java.time.temporal.ChronoUnit.MILLIS);
+        p.deviceSegmentEnd = weldStartTime.plus(segmentDurationMs, java.time.temporal.ChronoUnit.MILLIS);
         p.segmentStartForDto = deviceTimeByStateId.getOrDefault(weldStartStateId, weldStartTime);
-        p.serverEnd = p.segmentEndTime;
+        p.serverEnd = p.deviceSegmentEnd;
         return p;
     }
 
@@ -898,8 +1089,11 @@ public class WeldingReportCalculationService {
         }
         java.util.List<Window> windows = new java.util.ArrayList<>(pending.size());
         for (PendingWeldSegment p : pending) {
-            if (p == null || p.weldStartTime == null || p.segmentEndTime == null) continue;
-            windows.add(new Window(p.weldStartTime.minusMinutes(5), p.segmentEndTime.plusMinutes(5)));
+            if (p == null || p.weldStartTime == null) continue;
+            LocalDateTime serverWindowEnd = resolveServerWindowEnd(
+                    p.weldStartTime, p.serverEnd, p.segmentDurationMs);
+            if (serverWindowEnd == null) continue;
+            windows.add(new Window(p.weldStartTime.minusMinutes(5), serverWindowEnd.plusMinutes(5)));
         }
         if (windows.isEmpty()) return java.util.Collections.emptySet();
         windows.sort(java.util.Comparator.comparing(w -> w.from));
@@ -974,7 +1168,7 @@ public class WeldingReportCalculationService {
     }
 
     private static void copyPendingTiming(PendingWeldSegment target, PendingWeldSegment source) {
-        target.segmentEndTime = source.segmentEndTime;
+        target.deviceSegmentEnd = source.deviceSegmentEnd;
         target.serverEnd = source.serverEnd;
         target.segmentStartForDto = source.segmentStartForDto;
         target.segmentDurationMs = source.segmentDurationMs;
@@ -986,7 +1180,8 @@ public class WeldingReportCalculationService {
             java.util.Set<Long> iuStateIds, int totalStates, boolean useMachineDateRange,
             java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
         int iuCount = iuStateIds != null ? iuStateIds.size() : 0;
-        java.util.List<String> iuCodes = java.util.Arrays.asList("Current", "State.I", "I", "Ток", "Voltage");
+        java.util.List<String> iuCodes = java.util.Arrays.asList(
+                "Current", "State.I", "I", "Ток", "Voltage", "voltage", "State.U", "State.V", "Напряжение", "U");
 
         if (useMachineDateRange && machineId != null && (iuCount == 0 || totalStates < LARGE_PERIOD_STATE_COUNT)) {
             // Малый период: JOIN за весь период — один проход по таблице
@@ -1023,19 +1218,7 @@ public class WeldingReportCalculationService {
             List<Long> batch = idList.subList(i, Math.min(i + BATCH_SIZE, idList.size()));
             try {
                 List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueNativeByStateIds(batch, iuCodes);
-                for (Object[] row : rows) {
-                    if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
-                    long stateId = ((Number) row[0]).longValue();
-                    String code = row[1].toString();
-                    String valueStr = row[2].toString();
-                    if ("null".equalsIgnoreCase(valueStr.trim())) continue;
-                    if ("Voltage".equals(code)) {
-                        int v = parseValueToInt(valueStr);
-                        if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
-                    } else {
-                        currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
-                    }
-                }
+                mergeArcElectricalRows(rows, currentByState, voltageByState);
             } catch (Exception e) {
                 System.err.println("[REPORT-CALC] ⚠️ loadIU fallback batch: " + e.getMessage());
             }
@@ -1055,27 +1238,23 @@ public class WeldingReportCalculationService {
             java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
         if (machineId == null || start == null || end == null) return;
         try {
-            java.util.List<String> codes = java.util.Arrays.asList("Current", "State.I", "I", "Ток", "Voltage");
+            java.util.List<String> codes = java.util.Arrays.asList(
+                    "Current", "State.I", "I", "Ток", "Voltage", "voltage", "State.U", "State.V", "Напряжение", "U");
+            java.util.Map<Long, Integer> currentPriorityByState = new java.util.HashMap<>();
+            java.util.Map<Long, Integer> voltagePriorityByState = new java.util.HashMap<>();
             forEachMachineDateRangeChunk(start, end, (chunkStart, chunkEnd) -> {
                 List<Object[]> rows = parameterValueRepository.findStateIdCodeAndValueByMachineDateRange(
                         machineId, chunkStart, chunkEnd, codes);
-                if (allowedStateIds == null || allowedStateIds.isEmpty()) {
-                    mergeArcElectricalRows(rows, currentByState, voltageByState);
-                } else {
-                    for (Object[] row : rows) {
-                        if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
-                        long stateId = ((Number) row[0]).longValue();
-                        if (!allowedStateIds.contains(stateId)) continue;
-                        String code = row[1].toString();
-                        String valueStr = row[2].toString();
-                        if ("null".equalsIgnoreCase(valueStr.trim())) continue;
-                        if ("Voltage".equals(code)) {
-                            int v = parseValueToInt(valueStr);
-                            if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
-                        } else {
-                            currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
-                        }
-                    }
+                if (rows == null) return;
+                for (Object[] row : rows) {
+                    if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
+                    long stateId = ((Number) row[0]).longValue();
+                    if (allowedStateIds != null && !allowedStateIds.isEmpty() && !allowedStateIds.contains(stateId)) continue;
+                    String code = row[1].toString();
+                    String valueStr = row[2].toString();
+                    if ("null".equalsIgnoreCase(valueStr.trim())) continue;
+                    putArcElectricalSample(code, stateId, valueStr, currentByState, voltageByState,
+                            currentPriorityByState, voltagePriorityByState);
                 }
             });
         } catch (Exception e) {
@@ -1087,18 +1266,16 @@ public class WeldingReportCalculationService {
             List<Object[]> rows,
             java.util.Map<Long, Integer> currentByState, java.util.Map<Long, Integer> voltageByState) {
         if (rows == null) return;
+        java.util.Map<Long, Integer> currentPriorityByState = new java.util.HashMap<>();
+        java.util.Map<Long, Integer> voltagePriorityByState = new java.util.HashMap<>();
         for (Object[] row : rows) {
             if (row == null || row.length < 3 || row[0] == null || row[1] == null || row[2] == null) continue;
             long stateId = ((Number) row[0]).longValue();
             String code = row[1].toString();
             String valueStr = row[2].toString();
             if ("null".equalsIgnoreCase(valueStr.trim())) continue;
-            if ("Voltage".equals(code)) {
-                int v = parseValueToInt(valueStr);
-                if (v != 0) voltageByState.putIfAbsent(stateId, v / 10);
-            } else {
-                currentByState.putIfAbsent(stateId, parseValueToInt(valueStr));
-            }
+            putArcElectricalSample(code, stateId, valueStr, currentByState, voltageByState,
+                    currentPriorityByState, voltagePriorityByState);
         }
     }
 

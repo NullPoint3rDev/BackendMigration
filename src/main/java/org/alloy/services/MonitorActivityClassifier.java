@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Классификация режима плиток мониторинга по тексту состояния и току (как DeviceMonitorPage).
+ * Классификация режима мониторинга: сварка — по тексту состояния аппарата или статусу Welding.
  */
 public final class MonitorActivityClassifier {
 
@@ -34,7 +34,6 @@ public final class MonitorActivityClassifier {
                 || stateLower.contains("не в сети")) {
             return MonitorActivityMode.off;
         }
-        // Дежурный режим (Выкл(деж)) — суточный таймер «Выкл. состояние», не «Вкл.»
         if (stateLower.contains("дежур") || stateLower.contains("standby")) {
             return MonitorActivityMode.off;
         }
@@ -50,6 +49,16 @@ public final class MonitorActivityClassifier {
             return MonitorActivityMode.error;
         }
         return MonitorActivityMode.on;
+    }
+
+    /** Совместимость: газ и напряжение не участвуют в классификации. */
+    public static MonitorActivityMode classify(
+            WeldingMachineState state,
+            String machineStateText,
+            BigDecimal currentAmps,
+            BigDecimal gasFlowLpm,
+            BigDecimal voltageVolts) {
+        return classify(state, machineStateText, currentAmps);
     }
 
     private static boolean isErrorState(WeldingMachineState state, String stateLower) {
@@ -69,10 +78,16 @@ public final class MonitorActivityClassifier {
         }
     }
 
-    private static boolean isWelding(
+    /**
+     * Сварка: текст «Сварка» / Welding, статус Welding, либо ток без текста состояния.
+     */
+    public static boolean isWelding(
             WeldingMachineState state,
             String machineStateText,
             BigDecimal currentAmps) {
+        if (state == null) {
+            return false;
+        }
         String stateLower = normalize(machineStateText);
         if (stateLower.equals("сварка") || stateLower.equals("welding")
                 || stateLower.contains("сварка") || stateLower.contains("welding")
@@ -115,6 +130,64 @@ public final class MonitorActivityClassifier {
             return null;
         }
         for (String key : new String[]{"State.I", "Ток", "Current", "current"}) {
+            BigDecimal v = parseDecimal(propsByCode.get(key));
+            if (v != null) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    public static BigDecimal pickVoltageVolts(Map<String, String> propsByCode) {
+        if (propsByCode == null) {
+            return null;
+        }
+        // Сначала Voltage (Core: десятые вольта), как на фронте — State.U часто 0 и не должен перекрывать.
+        for (String key : new String[]{"Voltage", "voltage", "Напряжение", "State.U"}) {
+            BigDecimal v = parseVoltageProperty(key, propsByCode.get(key));
+            if (v != null) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    private static BigDecimal parseVoltageProperty(String key, String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        if ("State.U".equals(key)) {
+            String t = raw.trim();
+            try {
+                if (t.matches("(?i)[0-9A-F]+")) {
+                    int dec = Integer.parseInt(t, 16);
+                    if (dec > 0) {
+                        return new BigDecimal(dec).movePointLeft(1);
+                    }
+                    return null;
+                }
+            } catch (NumberFormatException ignored) {
+                /* decimal fallback below */
+            }
+        }
+        BigDecimal v = parseDecimal(raw);
+        if (v == null) {
+            return null;
+        }
+        if (v.compareTo(new BigDecimal("100")) > 0) {
+            return v.movePointLeft(1);
+        }
+        if (v.compareTo(BigDecimal.ZERO) == 0) {
+            return null;
+        }
+        return v;
+    }
+
+    public static BigDecimal pickGasFlowLpm(Map<String, String> propsByCode) {
+        if (propsByCode == null) {
+            return null;
+        }
+        for (String key : new String[]{"State.GasFlow", "GasFlow", "gasFlow"}) {
             BigDecimal v = parseDecimal(propsByCode.get(key));
             if (v != null) {
                 return v;

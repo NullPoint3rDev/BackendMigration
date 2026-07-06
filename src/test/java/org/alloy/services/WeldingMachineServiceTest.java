@@ -13,7 +13,6 @@ import org.alloy.repositories.OrganizationUnitRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.test.context.TestPropertySource;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -42,6 +41,9 @@ public class WeldingMachineServiceTest {
     @MockBean
     private WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
 
+    @MockBean
+    private WeldingMachineLastWeldService weldingMachineLastWeldService;
+
     private WeldingMachineService weldingMachineService;
     private WeldingMachine testWeldingMachine;
     private WeldingMachineType testType;
@@ -54,7 +56,8 @@ public class WeldingMachineServiceTest {
                 weldingMachineTypeRepository,
                 organizationUnitRepository,
                 weldingMachineStateRepository,
-                weldingMachineParameterValueRepository
+                weldingMachineParameterValueRepository,
+                weldingMachineLastWeldService
         );
 
         // Создаем тестовый тип сварочной машины
@@ -101,6 +104,28 @@ public class WeldingMachineServiceTest {
         
         // Проверяем, что метод репозитория был вызван ровно один раз
         verify(weldingMachineRepository, times(1)).findAll();
+    }
+
+    @Test
+    void getAllWeldingMachines_ShouldFillLastWeldOnlyWhenFieldIsEmpty() {
+        when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
+        when(weldingMachineLastWeldService.resolveForDisplay(1)).thenReturn(null);
+
+        List<WeldingMachine> result = weldingMachineService.getAllWeldingMachines();
+
+        assertNull(result.get(0).getLastWeldAt());
+        verify(weldingMachineLastWeldService).resolveForDisplay(1);
+    }
+
+    @Test
+    void getAllWeldingMachines_ShouldNotRecalculateWhenLastWeldAlreadyStored() {
+        testWeldingMachine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 11, 48));
+        when(weldingMachineRepository.findAll()).thenReturn(List.of(testWeldingMachine));
+
+        List<WeldingMachine> result = weldingMachineService.getAllWeldingMachines();
+
+        assertEquals(LocalDateTime.of(2026, 6, 25, 11, 48), result.get(0).getLastWeldAt());
+        verify(weldingMachineLastWeldService, never()).resolveForDisplay(anyInt());
     }
 
     /**

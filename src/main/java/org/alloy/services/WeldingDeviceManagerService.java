@@ -1,6 +1,5 @@
 package org.alloy.services;
 
-import org.alloy.controllers.DeviceController;
 import org.alloy.models.WeldingMachineStatus;
 import org.alloy.models.weldingmachine.StateSummary;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
@@ -10,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +30,7 @@ public class WeldingDeviceManagerService {
     private WeldingMachineStateService stateService;
 
     @Autowired
-    private DeviceController deviceController;
+    private WeldingMachineLastWeldService weldingMachineLastWeldService;
 
     // Хранилище состояний всех аппаратов
     private final Map<String, StateSummary> deviceStates = new ConcurrentHashMap<>();
@@ -71,8 +71,8 @@ public class WeldingDeviceManagerService {
             }
             preserveCoreGasMetrics(previous, stateSummary);
 
-
-            // Подробные логи отключены для производительности
+            weldingMachineLastWeldService.updateFromPanelState(
+                    mac, previous, stateSummary, LocalDateTime.now());
 
             // Обновляем локальное состояние (даже если сохранение в БД не удалось)
             deviceStates.put(mac, stateSummary);
@@ -222,13 +222,7 @@ public class WeldingDeviceManagerService {
      * Получает текущее состояние аппарата по MAC адресу
      */
     public StateSummary getDeviceState(String mac) {
-        StateSummary state = resolveDeviceState(mac);
-        if (state != null) {
-            long now = System.currentTimeMillis();
-            long lastUpdate = state.getLastDatetimeUpdate().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
-            long timeDiff = now - lastUpdate;
-        }
-        return state;
+        return resolveDeviceState(mac);
     }
 
 
