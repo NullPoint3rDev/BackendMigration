@@ -52,6 +52,9 @@ public class WeldingMachineStateService {
     @Value("${welding.machine.auto-create-on-unknown-mac:true}")
     private boolean autoCreateOnUnknownMac;
 
+    @Value("${welding.machine.last-online-throttle-seconds:30}")
+    private int lastOnlineThrottleSeconds;
+
     // Черный список MAC-адресов, для которых запрещено автоматическое создание аппаратов
     private static final java.util.Set<String> BLOCKED_MAC_ADDRESSES = java.util.Set.of(
             "ECFABCCA42E8"  // Тестовый MAC, не должен автоматически создаваться
@@ -150,12 +153,12 @@ public class WeldingMachineStateService {
                 // System.out.println("[STATE-SERVICE] ✅ Сварочный аппарат создан с ID: " + machine.getId());
             } else {
                 machine = machineOpt.get();
-                // Обновляем время последнего подключения
-                machine.setLastOnlineOn(LocalDateTime.now());
-                weldingMachineRepository.save(machine);
             }
 
             LocalDateTime now = LocalDateTime.now();
+            if (machine.getId() != null) {
+                touchLastOnlineIfDue(machine, now);
+            }
             // Закрываем длительность предыдущего состояния с ошибкой (до следующей телеметрии)
             Optional<WeldingMachineState> prevOpt = weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(machine.getId());
             if (prevOpt.isPresent()) {
@@ -350,5 +353,14 @@ public class WeldingMachineStateService {
             return new java.util.ArrayList<>();
         }
         return weldingMachineStateRepository.findDistinctWeldingMachineIdsByRfidCodes(rfidCodes);
+    }
+
+    /** ponytail: узкий UPDATE раз в N с — не блокируем строку welding_machine на каждом poll. */
+    private void touchLastOnlineIfDue(WeldingMachine machine, LocalDateTime now) {
+        LocalDateTime threshold = now.minusSeconds(lastOnlineThrottleSeconds);
+        int updated = weldingMachineRepository.touchLastOnlineOnIfStale(machine.getId(), now, threshold);
+        if (updated > 0) {
+            machine.setLastOnlineOn(now);
+        }
     }
 }
