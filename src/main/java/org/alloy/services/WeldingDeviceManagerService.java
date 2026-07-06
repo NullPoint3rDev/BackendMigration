@@ -13,9 +13,9 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import jakarta.annotation.PreDestroy;
 
 @Service
@@ -40,6 +40,10 @@ public class WeldingDeviceManagerService {
 
     // Последнее время сохранения состояния по MAC (для троттлинга)
     private final Map<String, Long> lastSaveTimestampMs = new ConcurrentHashMap<>();
+
+    // Coalescing: один in-flight save на MAC, в БД уходит последний snapshot
+    private final Map<String, StateSummary> pendingSaveByMac = new ConcurrentHashMap<>();
+    private final Map<String, AtomicBoolean> saveInFlightByMac = new ConcurrentHashMap<>();
 
     // Отдельный executor для операций с БД, чтобы не блокировать общий пул
     private final ExecutorService dbExecutor = Executors.newFixedThreadPool(3);
@@ -89,14 +93,7 @@ public class WeldingDeviceManagerService {
             Long lastSaved = lastSaveTimestampMs.getOrDefault(mac, 0L);
             if (now - lastSaved >= 400) {
                 lastSaveTimestampMs.put(mac, now);
-                // Сохраняем в БД асинхронно (выделенный executor)
-                CompletableFuture.runAsync(() -> {
-                    try {
-                        stateService.saveMachineState(mac, stateSummary);
-                    } catch (Exception dbError) {
-                        dbError.printStackTrace();
-                    }
-                }, dbExecutor);
+                scheduleCoalescedDbSave(mac, stateSummary);
             }
 
         } catch (Exception e) {
@@ -105,6 +102,45 @@ public class WeldingDeviceManagerService {
         }
     }
 
+
+    private void scheduleCoalescedDbSave(String mac, StateSummary stateSummary) {
+        pendingSaveByMac.put(mac, stateSummary);
+        tryStartCoalescedSave(mac);
+    }
+
+    private void tryStartCoalescedSave(String mac) {
+        AtomicBoolean inFlight = saveInFlightByMac.computeIfAbsent(mac, ignored -> new AtomicBoolean(false));
+        if (!inFlight.compareAndSet(false, true)) {
+            return;
+        }
+        dbExecutor.execute(() -> runCoalescedSaveLoop(mac, inFlight));
+    }
+
+    private void runCoalescedSaveLoop(String mac, AtomicBoolean inFlight) {
+        try {
+            while (true) {
+                StateSummary snapshot = pendingSaveByMac.remove(mac);
+                if (snapshot == null) {
+                    break;
+                }
+                try {
+                    stateService.saveMachineState(mac, snapshot);
+                } catch (Exception dbError) {
+                    System.err.println("[DEVICE-MANAGER] ❌ Ошибка сохранения в БД для " + mac + ": "
+                            + dbError.getMessage());
+                    dbError.printStackTrace();
+                }
+                if (!pendingSaveByMac.containsKey(mac)) {
+                    break;
+                }
+            }
+        } finally {
+            inFlight.set(false);
+            if (pendingSaveByMac.containsKey(mac)) {
+                tryStartCoalescedSave(mac);
+            }
+        }
+    }
 
     /**
      * Получает статус подключения аппарата

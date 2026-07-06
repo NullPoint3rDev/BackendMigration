@@ -114,6 +114,9 @@ mac:
 
 # Конфигурация archive-style TCP сервера
 welding:
+  machine:
+    # Не трогать welding_machine.last_online_on на каждом poll (снимает lock storm)
+    last-online-throttle-seconds: 30
   archive:
     server:
       port: 3003  # Порт для TCP сервера (принимает все устройства)
