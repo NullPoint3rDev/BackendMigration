@@ -75,6 +75,18 @@ class WeldingMachineDailyStatsGasTest {
     }
 
     @Test
+    void dayBounds_moscowStatDate_convertsToUtcForDb() {
+        java.time.ZoneId moscow = java.time.ZoneId.of("Europe/Moscow");
+        java.time.LocalDate statDate = java.time.LocalDate.of(2026, 7, 7);
+        java.time.ZonedDateTime now = java.time.ZonedDateTime.of(2026, 7, 7, 0, 30, 0, 0, moscow);
+        WeldingMachineDailyStatsService.DayBoundsUtc bounds =
+                WeldingMachineDailyStatsService.dayBoundsForStatDate(statDate, moscow, now);
+        assertEquals(java.time.LocalDateTime.of(2026, 7, 6, 21, 1, 0), bounds.dayStart);
+        assertEquals(java.time.LocalDateTime.of(2026, 7, 7, 21, 0, 0), bounds.dayEnd);
+        assertEquals(java.time.LocalDateTime.of(2026, 7, 6, 21, 30, 0), bounds.effectiveEnd);
+    }
+
+    @Test
     void offTiling_headTailAndFullDayClampCorrectly() {
         java.time.LocalDateTime dayStart = java.time.LocalDateTime.of(2026, 6, 30, 0, 1, 0);
         java.time.LocalDateTime now = java.time.LocalDateTime.of(2026, 6, 30, 20, 0, 0);

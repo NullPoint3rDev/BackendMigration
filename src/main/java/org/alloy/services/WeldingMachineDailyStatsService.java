@@ -2,6 +2,7 @@ package org.alloy.services;
 
 import org.alloy.models.MonitorActivityMode;
 import org.alloy.models.dto.WeldingMachineDailyStatsDTO;
+import org.alloy.models.dto.serialization.DisplayTimeZones;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineDailyStats;
 import org.alloy.models.entities.WeldingMachineParameterValue;
@@ -93,10 +94,10 @@ public class WeldingMachineDailyStatsService {
         WeldingMachineDailyStats row = dailyStatsRepository
                 .findByWeldingMachineIdAndStatDate(machine.getId(), day)
                 .orElseGet(() -> emptyStats(machine.getId(), day));
-        if (day.equals(today()) && row.getGasBaselineAtDayStartL() == null) {
+        if (isOpenStatDate(day) && row.getGasBaselineAtDayStartL() == null) {
             row = recomputeDay(machine.getId(), day);
         } else if (shouldScheduleRecompute(row, day)) {
-            if (isInvalidatedCache(row) || day.equals(today())) {
+            if (isInvalidatedCache(row) || isOpenStatDate(day)) {
                 row = recomputeDay(machine.getId(), day);
             } else {
                 scheduleRecompute(machine.getId(), day);
@@ -114,7 +115,7 @@ public class WeldingMachineDailyStatsService {
         if (weldingMachineId == null || statDate == null) {
             return;
         }
-        if (statDate.equals(today())) {
+        if (isOpenStatDate(statDate)) {
             recomputeDay(weldingMachineId, statDate);
             return;
         }
@@ -146,14 +147,10 @@ public class WeldingMachineDailyStatsService {
 
     private WeldingMachineDailyStats recomputeDayAndSave(Integer weldingMachineId, LocalDate statDate) {
         ZoneId zone = ZoneId.of(timezoneId);
-        // Сутки для плитки «Расход за сутки» — с 00:01 (не с полуночи).
-        LocalDateTime dayStart = statDate.atTime(0, 1);
-        ZonedDateTime dayEndZ = statDate.plusDays(1).atStartOfDay(zone);
-        LocalDateTime dayEnd = dayEndZ.toLocalDateTime();
-        ZonedDateTime nowZ = ZonedDateTime.now(zone);
-        LocalDateTime effectiveEnd = statDate.equals(nowZ.toLocalDate())
-                ? (nowZ.toLocalDateTime().isBefore(dayEnd) ? nowZ.toLocalDateTime() : dayEnd)
-                : dayEnd;
+        DayBoundsUtc bounds = dayBoundsForStatDate(statDate, zone, ZonedDateTime.now(zone));
+        LocalDateTime dayStart = bounds.dayStart;
+        LocalDateTime dayEnd = bounds.dayEnd;
+        LocalDateTime effectiveEnd = bounds.effectiveEnd;
 
         List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineIdAndDateRangeAsc(
                 weldingMachineId, dayStart, dayEnd);
@@ -255,7 +252,7 @@ public class WeldingMachineDailyStatsService {
         if (isInvalidatedCache(row)) {
             return true;
         }
-        if (!statDate.equals(today())) {
+        if (!isOpenStatDate(statDate)) {
             return row.getComputedAt() == null;
         }
         if (row.getComputedAt() == null) {
@@ -263,6 +260,40 @@ public class WeldingMachineDailyStatsService {
         }
         ZoneId zone = ZoneId.of(timezoneId);
         return row.getComputedAt().isBefore(LocalDateTime.now(zone).minusSeconds(staleSeconds));
+    }
+
+    /** Сутки ещё идут (сегодня или календарный день «впереди» Moscow — UI в UTC+3/+4). */
+    private boolean isOpenStatDate(LocalDate statDate) {
+        return statDate != null && !statDate.isBefore(today());
+    }
+
+    /**
+     * Границы календарных суток statDate в displayZone → naive UTC для date_created в БД.
+     * ponytail: date_created пишется LocalDateTime.now() в Docker (UTC wall-clock).
+     */
+    static DayBoundsUtc dayBoundsForStatDate(LocalDate statDate, ZoneId displayZone, ZonedDateTime nowInDisplayZone) {
+        ZonedDateTime dayStartZ = statDate.atTime(0, 1).atZone(displayZone);
+        ZonedDateTime dayEndZ = statDate.plusDays(1).atStartOfDay(displayZone);
+        ZonedDateTime effectiveEndZ = statDate.equals(nowInDisplayZone.toLocalDate())
+                ? (nowInDisplayZone.isBefore(dayEndZ) ? nowInDisplayZone : dayEndZ)
+                : dayEndZ;
+        ZoneId storage = DisplayTimeZones.STORAGE;
+        return new DayBoundsUtc(
+                dayStartZ.withZoneSameInstant(storage).toLocalDateTime(),
+                dayEndZ.withZoneSameInstant(storage).toLocalDateTime(),
+                effectiveEndZ.withZoneSameInstant(storage).toLocalDateTime());
+    }
+
+    static final class DayBoundsUtc {
+        final LocalDateTime dayStart;
+        final LocalDateTime dayEnd;
+        final LocalDateTime effectiveEnd;
+
+        DayBoundsUtc(LocalDateTime dayStart, LocalDateTime dayEnd, LocalDateTime effectiveEnd) {
+            this.dayStart = dayStart;
+            this.dayEnd = dayEnd;
+            this.effectiveEnd = effectiveEnd;
+        }
     }
 
     /** Длительность пересечения [from, to] с окном [winStart, winEnd] в мс (>= 0). */
