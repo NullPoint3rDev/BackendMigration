@@ -29,8 +29,11 @@ public class WeldingMachineMapper {
         dto.setLastWeldAt(entity.getLastWeldAt());
         dto.setModules(entity.getModules());
         dto.setMaintenanceInterval(entity.getMaintenanceInterval());
+        dto.setMaintenanceIntervalUnit(entity.getMaintenanceIntervalUnit());
         dto.setMaintenanceRegulation(entity.getMaintenanceRegulation());
         dto.setUserServiceNotifiedBeforeHours(entity.getUserServiceNotifiedBeforeHours());
+        dto.setManufactureDate(entity.getManufactureDate());
+        dto.setRfidEnabled(entity.getRfidEnabled());
         // OrganizationUnitShortDTO
         if (entity.getOrganizationUnit() != null) {
             OrganizationUnitShortDTO orgDto = new OrganizationUnitShortDTO();
@@ -72,12 +75,20 @@ public class WeldingMachineMapper {
         if (dto.getMaintenanceInterval() != null) {
             entity.setMaintenanceInterval(dto.getMaintenanceInterval());
         }
+        if (dto.getMaintenanceIntervalUnit() != null) {
+            entity.setMaintenanceIntervalUnit(dto.getMaintenanceIntervalUnit());
+        }
         if (dto.getMaintenanceRegulation() != null) {
             entity.setMaintenanceRegulation(dto.getMaintenanceRegulation());
         }
         if (dto.getUserServiceNotifiedBeforeHours() != null) {
             entity.setUserServiceNotifiedBeforeHours(dto.getUserServiceNotifiedBeforeHours());
         }
+        if (dto.getManufactureDate() != null) {
+            entity.setManufactureDate(dto.getManufactureDate());
+        }
+        // rfidEnabled может быть null (не пришёл при редактировании) — тогда сохраняем текущее значение в сервисе.
+        entity.setRfidEnabled(dto.getRfidEnabled());
         return entity;
     }
 } 

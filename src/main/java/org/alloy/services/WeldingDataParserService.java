@@ -155,8 +155,9 @@ public class WeldingDataParserService {
                 // Скорость подачи проволоки с аппарата (м/мин); в БД — «Расход проволоки» (историческое имя параметра)
                 float wireFeedMetersPerMin = uint32ToFloat(core.wireIndex);
                 addProperty(props, "Расход проволоки", String.format("%.1f", wireFeedMetersPerMin), "number");
-                // RFID: добавим в двух представлениях — десятичном и шестнадцатеричном
-                if (core.rfidData != 0L) {
+                // RFID: добавим в двух представлениях — десятичном и шестнадцатеричном.
+                // При выключенном RFID у аппарата (rfidEnabled=false) пропуск игнорируем (как будто нули).
+                if (core.rfidData != 0L && deviceModelService.isRfidEnabledByMac(mac)) {
                     // addProperty(props, "RFID", String.valueOf(core.rfidData), "number");
                     addProperty(props, "RFID.Hex", String.format("%016X", core.rfidData), "text");
                 }

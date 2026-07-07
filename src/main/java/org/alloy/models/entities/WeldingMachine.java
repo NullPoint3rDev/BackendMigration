@@ -86,6 +86,18 @@ public class WeldingMachine {
     @Schema(description = "Интервал обслуживания (в днях)", example = "30.0")
     private Double maintenanceInterval;
 
+    @Column(name = "MaintenanceIntervalUnit")
+    @Schema(description = "Единица наработки между ТО: HOURS | DAYS", example = "DAYS")
+    private String maintenanceIntervalUnit;
+
+    @Column(name = "ManufactureDate")
+    @Schema(description = "Дата изготовления")
+    private java.time.LocalDate manufactureDate;
+
+    @Column(name = "RfidEnabled", nullable = false)
+    @Schema(description = "Активация RFID: передача пропусков и привязка сварщиков", example = "true")
+    private Boolean rfidEnabled;
+
     @Column(name = "Modules", columnDefinition = "TEXT")
     @Schema(description = "Модули", example = "[\"module1\", \"module2\"]")
     private String modules;

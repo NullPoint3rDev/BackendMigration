@@ -16,6 +16,8 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
 
     List<WeldingMachine> findByOrganizationUnitId(Integer organizationUnitId);
 
+    List<WeldingMachine> findByOrganizationUnitIdIn(List<Integer> organizationUnitIds);
+
     List<WeldingMachine> findByWeldingMachineTypeId(Integer weldingMachineTypeId);
 
     Optional<WeldingMachine> findByMac(String mac);

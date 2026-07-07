@@ -68,6 +68,21 @@ public class DeviceModelService {
     }
 
     /**
+     * Активирован ли RFID у аппарата с этим MAC. По умолчанию (нет в БД/поле null) — true.
+     * ponytail: запрос в БД на каждый пакет (как и getDeviceModelByMac); при росте нагрузки — кэш по MAC.
+     */
+    public boolean isRfidEnabledByMac(String mac) {
+        if (mac == null || mac.isEmpty()) {
+            return true;
+        }
+        Optional<WeldingMachine> machine = weldingMachineRepository.findByMac(normalizeMac(mac));
+        if (machine.isPresent() && machine.get().getRfidEnabled() != null) {
+            return machine.get().getRfidEnabled();
+        }
+        return true;
+    }
+
+    /**
      * Нормализовать MAC-адрес (убрать двоеточия, сделать заглавными)
      */
     public String normalizeMac(String mac) {

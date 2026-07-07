@@ -79,6 +79,9 @@ public class ArchiveStyleTcpListener {
     @Autowired
     private WeldingMetrics weldingMetrics;
 
+    @Autowired
+    private DeviceLivenessRegistry deviceLivenessRegistry;
+
     private final WeldingMachineRepository weldingMachineRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -216,6 +219,12 @@ public class ArchiveStyleTcpListener {
                         if (macAddress != null) {
                             log.debug("[ARCHIVE-TCP-LISTENER] MAC определен по IP {}: {}", clientIp, macAddress);
                         }
+                    }
+
+                    // Фиксируем «живость» ЛЮБОГО MAC до проверки разрешённых — чтобы можно было
+                    // проверить соединение ещё не зарегистрированного аппарата при добавлении оборудования.
+                    if (macAddress != null && !macAddress.isEmpty()) {
+                        deviceLivenessRegistry.markSeen(macAddress);
                     }
 
                     // Проверяем разрешенные MAC-адреса

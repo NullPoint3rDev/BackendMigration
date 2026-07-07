@@ -126,7 +126,58 @@ public class WeldingMachineService {
         // weldingMachineType is now optional, so we don't set it here
         weldingMachine.setOrganizationUnit(orgUnit);
 
+        // RFID активирован по умолчанию, если явно не задано иное.
+        if (weldingMachine.getRfidEnabled() == null) {
+            weldingMachine.setRfidEnabled(true);
+        }
+
         return weldingMachineRepository.save(weldingMachine);
+    }
+
+    /** Активные аппараты того же предприятия (organization), что и указанное подразделение. */
+    private List<WeldingMachine> activeMachinesInSameOrganization(Integer organizationUnitId) {
+        if (organizationUnitId == null) {
+            return java.util.Collections.emptyList();
+        }
+        OrganizationUnit unit = organizationUnitRepository.findById(organizationUnitId).orElse(null);
+        List<Integer> unitIds;
+        if (unit != null && unit.getOrganizationId() != null) {
+            unitIds = organizationUnitRepository.findByOrganizationId(unit.getOrganizationId()).stream()
+                    .map(OrganizationUnit::getId)
+                    .collect(Collectors.toList());
+        } else {
+            unitIds = java.util.Collections.singletonList(organizationUnitId);
+        }
+        if (unitIds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return weldingMachineRepository.findByOrganizationUnitIdIn(unitIds).stream()
+                .filter(m -> m.getStatus() != GeneralStatus.Deleted)
+                .collect(Collectors.toList());
+    }
+
+    /** Наименование уже используется другим аппаратом в этом предприятии. */
+    public boolean isNameTakenInOrganization(String name, Integer organizationUnitId, Integer excludeId) {
+        if (name == null || name.trim().isEmpty() || organizationUnitId == null) {
+            return false;
+        }
+        String target = name.trim();
+        return activeMachinesInSameOrganization(organizationUnitId).stream()
+                .anyMatch(m -> !Objects.equals(m.getId(), excludeId)
+                        && m.getName() != null
+                        && m.getName().trim().equalsIgnoreCase(target));
+    }
+
+    /** Инвентарный номер уже используется другим аппаратом в этом предприятии. */
+    public boolean isInventoryNumberTakenInOrganization(String inventoryNumber, Integer organizationUnitId, Integer excludeId) {
+        if (inventoryNumber == null || inventoryNumber.trim().isEmpty() || organizationUnitId == null) {
+            return false;
+        }
+        String target = inventoryNumber.trim();
+        return activeMachinesInSameOrganization(organizationUnitId).stream()
+                .anyMatch(m -> !Objects.equals(m.getId(), excludeId)
+                        && m.getInventoryNumber() != null
+                        && m.getInventoryNumber().trim().equalsIgnoreCase(target));
     }
 
     public WeldingMachine updateWeldingMachine(WeldingMachine incoming) {
@@ -176,6 +227,15 @@ public class WeldingMachineService {
         }
         if (incoming.getMaintenanceInterval() != null) {
             existing.setMaintenanceInterval(incoming.getMaintenanceInterval());
+        }
+        if (incoming.getMaintenanceIntervalUnit() != null) {
+            existing.setMaintenanceIntervalUnit(incoming.getMaintenanceIntervalUnit());
+        }
+        if (incoming.getManufactureDate() != null) {
+            existing.setManufactureDate(incoming.getManufactureDate());
+        }
+        if (incoming.getRfidEnabled() != null) {
+            existing.setRfidEnabled(incoming.getRfidEnabled());
         }
         if (incoming.getUserServiceNotifiedBeforeHours() != null) {
             existing.setUserServiceNotifiedBeforeHours(incoming.getUserServiceNotifiedBeforeHours());

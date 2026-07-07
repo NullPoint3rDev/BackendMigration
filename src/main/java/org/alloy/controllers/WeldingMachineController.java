@@ -44,6 +44,9 @@ public class WeldingMachineController {
     private final Wt2AccessService wt2AccessService;
 
     @Autowired
+    private org.alloy.services.DeviceLivenessRegistry deviceLivenessRegistry;
+
+    @Autowired
     public WeldingMachineController(WeldingMachineService weldingMachineService, DeviceModelService deviceModelService, Wt2AccessService wt2AccessService) {
         this.weldingMachineService = weldingMachineService;
         this.deviceModelService = deviceModelService;
@@ -321,6 +324,27 @@ public class WeldingMachineController {
     }
 
     @Operation(
+            summary = "Проверка соединения устройства по MAC",
+            description = "Возвращает время последней посылки устройства с данным MAC на сервер (epoch ms) и текущее серверное время. " +
+                    "Клиент фиксирует serverTimeMs при старте и опрашивает эндпоинт, пока lastSeenMs не станет >= baseline (аппарат постучался)."
+    )
+    @GetMapping("/mac-liveness")
+    public ResponseEntity<?> getMacLiveness(
+            @Parameter(description = "MAC-адрес устройства", required = true, example = "E09806083396")
+            @RequestParam String mac
+    ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanWriteEquipment(principal);
+        String normalizedMac = deviceModelService.normalizeMac(mac);
+        Long lastSeenMs = deviceLivenessRegistry.getLastSeenMs(normalizedMac);
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("mac", normalizedMac);
+        body.put("lastSeenMs", lastSeenMs);
+        body.put("serverTimeMs", System.currentTimeMillis());
+        return ResponseEntity.ok(body);
+    }
+
+    @Operation(
             summary = "Создать новую сварочную машину",
             description = "Создает новую сварочную машину в системе. " +
                     "Машина должна содержать информацию о типе, подразделении, " +
@@ -394,6 +418,13 @@ public class WeldingMachineController {
 
         // Устанавливаем нормализованный MAC
         machineDTO.setMac(normalizedMac);
+
+        // Бизнес-правила: уникальность в предприятии и порядок дат.
+        Integer createOrgUnitId = machineDTO.getOrganizationUnit() != null ? machineDTO.getOrganizationUnit().getId() : null;
+        ResponseEntity<?> createValidation = validateEquipmentBusinessRules(machineDTO, createOrgUnitId, null);
+        if (createValidation != null) {
+            return createValidation;
+        }
 
         try {
             String principal = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -499,6 +530,13 @@ public class WeldingMachineController {
         // Устанавливаем нормализованный MAC
         machineDTO.setMac(normalizedMac);
 
+        // Бизнес-правила: уникальность в предприятии и порядок дат (исключая текущий аппарат).
+        Integer updateOrgUnitId = machineDTO.getOrganizationUnit() != null ? machineDTO.getOrganizationUnit().getId() : null;
+        ResponseEntity<?> updateValidation = validateEquipmentBusinessRules(machineDTO, updateOrgUnitId, id);
+        if (updateValidation != null) {
+            return updateValidation;
+        }
+
         try {
             WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
             entity.setId(id);
@@ -603,6 +641,36 @@ public class WeldingMachineController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    /** Проверяет уникальность наименования/инв. номера в предприятии и порядок дат. Возвращает ошибку или null. */
+    private ResponseEntity<?> validateEquipmentBusinessRules(WeldingMachineDTO dto, Integer organizationUnitId, Integer excludeId) {
+        if (organizationUnitId != null
+                && weldingMachineService.isNameTakenInOrganization(dto.getName(), organizationUnitId, excludeId)) {
+            return businessError("DUPLICATE_ERROR", "Наименование уже используется в этой организации");
+        }
+        if (organizationUnitId != null
+                && dto.getInventoryNumber() != null && !dto.getInventoryNumber().trim().isEmpty()
+                && weldingMachineService.isInventoryNumberTakenInOrganization(dto.getInventoryNumber(), organizationUnitId, excludeId)) {
+            return businessError("DUPLICATE_ERROR", "Инвентарный номер уже используется в этой организации");
+        }
+        java.time.LocalDateTime commission = dto.getCommissionDate();
+        java.time.LocalDate manufacture = dto.getManufactureDate();
+        if (commission != null && manufacture != null && commission.toLocalDate().isBefore(manufacture)) {
+            return businessError("VALIDATION_ERROR", "Дата ввода в эксплуатацию не может быть раньше даты изготовления");
+        }
+        java.time.LocalDateTime lastService = dto.getLastService();
+        if (commission != null && lastService != null && lastService.isBefore(commission)) {
+            return businessError("VALIDATION_ERROR", "Дата последнего ТО не может быть раньше даты ввода в эксплуатацию");
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> businessError(String code, String message) {
+        ErrorResponse error = new ErrorResponse();
+        error.setError(code);
+        error.setMessage(message);
+        return ResponseEntity.badRequest().body(error);
     }
 
     @Schema(description = "Модель ответа с ошибкой")

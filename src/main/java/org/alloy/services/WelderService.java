@@ -4,6 +4,7 @@ import org.alloy.models.dto.WelderDTO;
 import org.alloy.models.entities.RfidPass;
 import org.alloy.models.entities.Welder;
 import org.alloy.models.entities.WeldingMachine;
+import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.repositories.RfidPassRepository;
 import org.alloy.repositories.WelderRepository;
 import org.alloy.repositories.WeldingMachineRepository;
@@ -45,7 +46,38 @@ public class WelderService {
     @Autowired
     private WeldingMachineLastPoweredOnService weldingMachineLastPoweredOnService;
 
+    @Autowired
+    private OrganizationUnitRepository organizationUnitRepository;
+
     private static final String UPLOAD_DIR = "uploads/welders";
+
+    /**
+     * Уникальные должности сварщиков (для комбобокса на карточке сварщика).
+     * Если задан organizationId — только по подразделениям этого предприятия.
+     * ponytail: справочник должностей выводится из уже сохранённых сварщиков (вариант B);
+     * при необходимости мгновенной видимости новой должности до сохранения — завести отдельную сущность.
+     */
+    public List<String> getDistinctPositions(List<Welder> welders, Integer organizationId) {
+        final java.util.Set<String> allowedDepts;
+        if (organizationId != null) {
+            allowedDepts = organizationUnitRepository.findByOrganizationId(organizationId).stream()
+                    .map(u -> u.getName() == null ? "" : u.getName().trim().toLowerCase(Locale.ROOT))
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
+        } else {
+            allowedDepts = null;
+        }
+        return welders.stream()
+                .filter(w -> allowedDepts == null
+                        || (w.getDepartment() != null
+                        && allowedDepts.contains(w.getDepartment().trim().toLowerCase(Locale.ROOT))))
+                .map(Welder::getPosition)
+                .filter(p -> p != null && !p.trim().isEmpty())
+                .map(String::trim)
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .collect(Collectors.toList());
+    }
 
     /** Маска 64 бит — типичный размер RFID в hex; снимаем расхождения ведущих нулей между аппаратом и БД. */
     private static final BigInteger RFID_HEX_MASK_64 = BigInteger.ONE.shiftLeft(64).subtract(BigInteger.ONE);

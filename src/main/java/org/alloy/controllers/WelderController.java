@@ -107,6 +107,15 @@ public class WelderController {
     }
 
     @PreAuthorize("isAuthenticated()")
+    @GetMapping("/positions")
+    public ResponseEntity<List<String>> getPositions(@RequestParam(required = false) Integer organizationId) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanReadWelders(principal);
+        List<Welder> welders = wt2AccessService.filterWelders(welderService.getAllWelders(), principal);
+        return ResponseEntity.ok(welderService.getDistinctPositions(welders, organizationId));
+    }
+
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/status/{status}")
     public ResponseEntity<List<Welder>> getWeldersByStatus(@PathVariable Welder.WelderStatus status) {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();

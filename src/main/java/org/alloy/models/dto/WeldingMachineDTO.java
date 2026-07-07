@@ -31,8 +31,12 @@ public class WeldingMachineDTO {
     private WeldingMachineTypeShortDTO weldingMachineType;
     private String modules;
     private Double maintenanceInterval;
+    private String maintenanceIntervalUnit;
     private Integer maintenanceRegulation;
     private Integer userServiceNotifiedBeforeHours;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private java.time.LocalDate manufactureDate;
+    private Boolean rfidEnabled;
 
     // Геттеры и сеттеры
     public Integer getId() { return id; }
@@ -73,6 +77,12 @@ public class WeldingMachineDTO {
     public void setModules(String modules) { this.modules = modules; }
     public Double getMaintenanceInterval() { return maintenanceInterval; }
     public void setMaintenanceInterval(Double maintenanceInterval) { this.maintenanceInterval = maintenanceInterval; }
+    public String getMaintenanceIntervalUnit() { return maintenanceIntervalUnit; }
+    public void setMaintenanceIntervalUnit(String maintenanceIntervalUnit) { this.maintenanceIntervalUnit = maintenanceIntervalUnit; }
+    public java.time.LocalDate getManufactureDate() { return manufactureDate; }
+    public void setManufactureDate(java.time.LocalDate manufactureDate) { this.manufactureDate = manufactureDate; }
+    public Boolean getRfidEnabled() { return rfidEnabled; }
+    public void setRfidEnabled(Boolean rfidEnabled) { this.rfidEnabled = rfidEnabled; }
     public Integer getMaintenanceRegulation() { return maintenanceRegulation; }
     public void setMaintenanceRegulation(Integer maintenanceRegulation) { this.maintenanceRegulation = maintenanceRegulation; }
     public Integer getUserServiceNotifiedBeforeHours() { return userServiceNotifiedBeforeHours; }
