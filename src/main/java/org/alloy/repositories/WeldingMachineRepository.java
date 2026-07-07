@@ -54,6 +54,17 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
     @Query(value = "DELETE FROM welding_limit_program WHERE welding_machineid = :machineId", nativeQuery = true)
     void deleteLimitProgramsByMachineId(@Param("machineId") Integer machineId);
 
+    /** Bulk-удаление значений параметров всех состояний аппарата (иначе N+1 подвешивает удаление). */
+    @Modifying(clearAutomatically = true)
+    @Query(value = "DELETE FROM welding_machine_parameter_value WHERE WeldingMachineStateID IN "
+            + "(SELECT id FROM welding_machine_state WHERE welding_machineid = :machineId)", nativeQuery = true)
+    void deleteParameterValuesByMachineId(@Param("machineId") Integer machineId);
+
+    /** Bulk-удаление всех состояний аппарата. */
+    @Modifying(clearAutomatically = true)
+    @Query(value = "DELETE FROM welding_machine_state WHERE welding_machineid = :machineId", nativeQuery = true)
+    void deleteStatesByMachineId(@Param("machineId") Integer machineId);
+
     /** Узкое обновление last_online_on — без полного save(entity). */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE WeldingMachine wm SET wm.lastOnlineOn = :now WHERE wm.id = :id "

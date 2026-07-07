@@ -4,8 +4,6 @@ import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineType;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.GeneralStatus;
-import org.alloy.models.entities.WeldingMachineParameterValue;
-import org.alloy.models.entities.WeldingMachineState;
 import org.alloy.repositories.WeldingMachineParameterValueRepository;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.alloy.repositories.WeldingMachineStateRepository;
@@ -276,17 +274,8 @@ public class WeldingMachineService {
 
         weldingMachineRepository.deleteWelderMachineLinks(id);
 
-        List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineId(id);
-        for (WeldingMachineState state : states) {
-            List<WeldingMachineParameterValue> values =
-                    weldingMachineParameterValueRepository.findByWeldingMachineStateId(state.getId());
-            if (!values.isEmpty()) {
-                weldingMachineParameterValueRepository.deleteAll(values);
-            }
-        }
-        if (!states.isEmpty()) {
-            weldingMachineStateRepository.deleteAll(states);
-        }
+        weldingMachineRepository.deleteParameterValuesByMachineId(id);
+        weldingMachineRepository.deleteStatesByMachineId(id);
 
         weldingMachineRepository.deleteDailyStatsByMachineId(id);
         weldingMachineRepository.deleteMaintenancesByMachineId(id);
