@@ -12,6 +12,8 @@ import org.alloy.repositories.OrganizationUnitRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +24,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class WeldingMachineService {
+
+    private static final Logger log = LoggerFactory.getLogger(WeldingMachineService.class);
 
     private final WeldingMachineRepository weldingMachineRepository;
     private final WeldingMachineTypeRepository weldingMachineTypeRepository;
@@ -272,15 +276,27 @@ public class WeldingMachineService {
             throw new IllegalArgumentException("Welding machine not found");
         }
 
+        long t0 = System.currentTimeMillis();
+        log.info("hardDeleteWeldingMachine: start id={}", id);
+
         weldingMachineRepository.deleteWelderMachineLinks(id);
+        log.info("hardDeleteWeldingMachine: id={} welder links deleted (+{} ms)", id, System.currentTimeMillis() - t0);
+
+        weldingMachineRepository.deleteWeldSegmentsByMachineId(id);
+        weldingMachineRepository.deleteWeldSegmentDayMarksByMachineId(id);
+        log.info("hardDeleteWeldingMachine: id={} weld segments deleted (+{} ms)", id, System.currentTimeMillis() - t0);
 
         weldingMachineRepository.deleteParameterValuesByMachineId(id);
+        log.info("hardDeleteWeldingMachine: id={} parameter values deleted (+{} ms)", id, System.currentTimeMillis() - t0);
+
         weldingMachineRepository.deleteStatesByMachineId(id);
+        log.info("hardDeleteWeldingMachine: id={} states deleted (+{} ms)", id, System.currentTimeMillis() - t0);
 
         weldingMachineRepository.deleteDailyStatsByMachineId(id);
         weldingMachineRepository.deleteMaintenancesByMachineId(id);
         weldingMachineRepository.deleteLimitProgramsByMachineId(id);
 
         weldingMachineRepository.deleteById(id);
+        log.info("hardDeleteWeldingMachine: id={} done (+{} ms total)", id, System.currentTimeMillis() - t0);
     }
 }

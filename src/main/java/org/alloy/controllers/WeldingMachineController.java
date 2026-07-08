@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.stream.Collectors;
 
 @RestController
@@ -33,6 +35,8 @@ import java.util.stream.Collectors;
         "API поддерживает поиск машин по различным параметрам и управление их состоянием.")
 @SecurityRequirement(name = "JWT")
 public class WeldingMachineController {
+
+    private static final Logger log = LoggerFactory.getLogger(WeldingMachineController.class);
 
     @PostConstruct
     public void init() {
@@ -665,6 +669,9 @@ public class WeldingMachineController {
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("hardDeleteWeldingMachine failed for id={}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

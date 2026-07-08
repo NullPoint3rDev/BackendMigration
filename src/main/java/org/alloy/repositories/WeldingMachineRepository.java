@@ -38,30 +38,39 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
     @Query("SELECT wm FROM WeldingMachine wm WHERE wm.name IN :names")
     List<WeldingMachine> findByNames(@Param("names") List<String> names);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "DELETE FROM welder_welding_machine WHERE welding_machine_id = :machineId", nativeQuery = true)
     void deleteWelderMachineLinks(@Param("machineId") Integer machineId);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "DELETE FROM welding_machine_weld_segment WHERE welding_machine_id = :machineId", nativeQuery = true)
+    void deleteWeldSegmentsByMachineId(@Param("machineId") Integer machineId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "DELETE FROM welding_machine_weld_segment_day_mark WHERE welding_machine_id = :machineId", nativeQuery = true)
+    void deleteWeldSegmentDayMarksByMachineId(@Param("machineId") Integer machineId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "DELETE FROM welding_machine_daily_stats WHERE welding_machine_id = :machineId", nativeQuery = true)
     void deleteDailyStatsByMachineId(@Param("machineId") Integer machineId);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "DELETE FROM maintenance WHERE welding_machineid = :machineId", nativeQuery = true)
     void deleteMaintenancesByMachineId(@Param("machineId") Integer machineId);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "DELETE FROM welding_limit_program WHERE welding_machineid = :machineId", nativeQuery = true)
     void deleteLimitProgramsByMachineId(@Param("machineId") Integer machineId);
 
-    /** Bulk-удаление значений параметров всех состояний аппарата (иначе N+1 подвешивает удаление). */
-    @Modifying(clearAutomatically = true)
-    @Query(value = "DELETE FROM welding_machine_parameter_value WHERE welding_machine_stateid IN "
-            + "(SELECT id FROM welding_machine_state WHERE welding_machineid = :machineId)", nativeQuery = true)
+    /** Bulk-удаление значений параметров (JOIN быстрее IN-subquery на больших объёмах). */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "DELETE FROM welding_machine_parameter_value pv "
+            + "USING welding_machine_state s "
+            + "WHERE pv.welding_machine_stateid = s.id AND s.welding_machineid = :machineId", nativeQuery = true)
     void deleteParameterValuesByMachineId(@Param("machineId") Integer machineId);
 
     /** Bulk-удаление всех состояний аппарата. */
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "DELETE FROM welding_machine_state WHERE welding_machineid = :machineId", nativeQuery = true)
     void deleteStatesByMachineId(@Param("machineId") Integer machineId);
 
