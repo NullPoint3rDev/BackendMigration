@@ -363,10 +363,7 @@ public class WeldingMachineController {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
         wt2AccessService.assertCanWriteEquipment(principal);
         String normalizedMac = deviceModelService.normalizeMac(mac);
-        boolean exists = weldingMachineService.getWeldingMachineByMac(normalizedMac)
-                .filter(m -> m.getStatus() != org.alloy.models.GeneralStatus.Deleted)
-                .filter(m -> excludeId == null || !excludeId.equals(m.getId()))
-                .isPresent();
+        boolean exists = weldingMachineService.isMacInUse(normalizedMac, excludeId);
         java.util.Map<String, Object> body = new java.util.HashMap<>();
         body.put("mac", normalizedMac);
         body.put("exists", exists);
@@ -438,7 +435,7 @@ public class WeldingMachineController {
         }
 
         // Проверка уникальности MAC
-        if (weldingMachineService.getWeldingMachineByMac(normalizedMac).isPresent()) {
+        if (weldingMachineService.isMacInUse(normalizedMac, null)) {
             ErrorResponse error = new ErrorResponse();
             error.setError("DUPLICATE_ERROR");
             error.setMessage("Устройство с таким MAC-адресом уже существует");
@@ -548,8 +545,7 @@ public class WeldingMachineController {
         }
 
         // Проверка уникальности MAC (исключая текущую машину)
-        Optional<WeldingMachine> existingMachineWithMac = weldingMachineService.getWeldingMachineByMac(normalizedMac);
-        if (existingMachineWithMac.isPresent() && !existingMachineWithMac.get().getId().equals(id)) {
+        if (weldingMachineService.isMacInUse(normalizedMac, id)) {
             ErrorResponse error = new ErrorResponse();
             error.setError("DUPLICATE_ERROR");
             error.setMessage("Устройство с таким MAC-адресом уже существует");
@@ -627,10 +623,8 @@ public class WeldingMachineController {
 
     @Operation(
             summary = "Удалить сварочную машину (жесткое удаление)",
-            description = "Выполняет полное удаление сварочной машины из базы данных. " +
-                    "Этот метод следует использовать с осторожностью, так как " +
-                    "удаленные данные невозможно восстановить. " +
-                    "Если машина не найдена, возвращается 404 ошибка."
+            description = "Мгновенно скрывает аппарат и освобождает MAC. Полная очистка данных "
+                    + "выполняется асинхронно в фоне по ID аппарата."
     )
     @ApiResponses(value = {
             @ApiResponse(

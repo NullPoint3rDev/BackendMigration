@@ -44,6 +44,12 @@ public class WeldingMachineServiceTest {
     @MockBean
     private WeldingMachineLastWeldService weldingMachineLastWeldService;
 
+    @MockBean
+    private WeldingMachinePurgeAsyncExecutor purgeAsyncExecutor;
+
+    @MockBean
+    private org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+
     private WeldingMachineService weldingMachineService;
     private WeldingMachine testWeldingMachine;
     private WeldingMachineType testType;
@@ -57,7 +63,9 @@ public class WeldingMachineServiceTest {
                 organizationUnitRepository,
                 weldingMachineStateRepository,
                 weldingMachineParameterValueRepository,
-                weldingMachineLastWeldService
+                weldingMachineLastWeldService,
+                purgeAsyncExecutor,
+                transactionTemplate
         );
 
         // Создаем тестовый тип сварочной машины
@@ -360,7 +368,7 @@ public class WeldingMachineServiceTest {
      * Проверяет корректность удаления существующей сварочной машины
      */
     @Test
-    void deleteWeldingMachine_WhenExists_ShouldMarkAsDeleted() {
+    void deleteWeldingMachine_WhenExists_ShouldMarkAsPurgingAndSchedulePurge() {
         // Подготавливаем тестовые данные
         when(weldingMachineRepository.findById(1)).thenReturn(Optional.of(testWeldingMachine));
         when(weldingMachineRepository.save(any(WeldingMachine.class))).thenReturn(testWeldingMachine);
@@ -370,9 +378,11 @@ public class WeldingMachineServiceTest {
 
         // Проверяем, что методы репозитория были вызваны
         verify(weldingMachineRepository, times(1)).findById(1);
-        verify(weldingMachineRepository, times(1)).save(argThat(machine -> 
-            machine.getStatus() == GeneralStatus.Deleted
+        verify(weldingMachineRepository, times(1)).save(argThat(machine ->
+            machine.getStatus() == GeneralStatus.Purging
+                && machine.getMac().startsWith("DELETED_1_")
         ));
+        verify(purgeAsyncExecutor, times(1)).purgeAsync(1);
     }
 
     /**
@@ -380,17 +390,15 @@ public class WeldingMachineServiceTest {
      * Проверяет корректность полного удаления существующей сварочной машины
      */
     @Test
-    void hardDeleteWeldingMachine_WhenExists_ShouldDeleteMachine() {
-        // Подготавливаем тестовые данные
-        when(weldingMachineRepository.existsById(1)).thenReturn(true);
-        when(weldingMachineStateRepository.findByWeldingMachineId(1)).thenReturn(Collections.emptyList());
+    void hardDeleteWeldingMachine_WhenExists_ShouldSchedulePurge() {
+        when(weldingMachineRepository.findById(1)).thenReturn(Optional.of(testWeldingMachine));
+        when(weldingMachineRepository.save(any(WeldingMachine.class))).thenReturn(testWeldingMachine);
 
-        // Вызываем тестируемый метод
         weldingMachineService.hardDeleteWeldingMachine(1);
 
-        // Проверяем, что методы репозитория были вызваны
-        verify(weldingMachineRepository, times(1)).existsById(1);
-        verify(weldingMachineRepository, times(1)).deleteById(1);
+        verify(weldingMachineRepository, times(1)).findById(1);
+        verify(purgeAsyncExecutor, times(1)).purgeAsync(1);
+        verify(weldingMachineRepository, never()).deleteById(1);
     }
 
     /**
@@ -399,10 +407,8 @@ public class WeldingMachineServiceTest {
      */
     @Test
     void hardDeleteWeldingMachine_WhenNotExists_ShouldThrowException() {
-        // Подготавливаем тестовые данные
-        when(weldingMachineRepository.existsById(1)).thenReturn(false);
+        when(weldingMachineRepository.findById(1)).thenReturn(Optional.empty());
 
-        // Проверяем, что вызов метода вызывает исключение
         assertThrows(IllegalArgumentException.class, () -> {
             weldingMachineService.hardDeleteWeldingMachine(1);
         }, "Должно быть выброшено исключение при попытке удалить несуществующую сварочную машину");

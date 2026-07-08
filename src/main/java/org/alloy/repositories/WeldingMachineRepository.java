@@ -1,5 +1,6 @@
 package org.alloy.repositories;
 
+import org.alloy.models.GeneralStatus;
 import org.alloy.models.entities.WeldingMachine;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -21,6 +22,10 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
     List<WeldingMachine> findByWeldingMachineTypeId(Integer weldingMachineTypeId);
 
     Optional<WeldingMachine> findByMac(String mac);
+
+    @Query("SELECT wm FROM WeldingMachine wm WHERE wm.mac = :mac "
+            + "AND wm.status NOT IN (org.alloy.models.GeneralStatus.Deleted, org.alloy.models.GeneralStatus.Purging)")
+    Optional<WeldingMachine> findActiveByMac(@Param("mac") String mac);
 
     Optional<WeldingMachine> findBySerialNumber(String serialNumber);
 
@@ -69,10 +74,25 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
             + "WHERE pv.welding_machine_stateid = s.id AND s.welding_machineid = :machineId", nativeQuery = true)
     void deleteParameterValuesByMachineId(@Param("machineId") Integer machineId);
 
+    /** Порционное удаление значений параметров — меньше блокировок на больших объёмах. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "DELETE FROM welding_machine_parameter_value WHERE ctid IN ("
+            + "SELECT pv.ctid FROM welding_machine_parameter_value pv "
+            + "INNER JOIN welding_machine_state s ON pv.welding_machine_stateid = s.id "
+            + "WHERE s.welding_machineid = :machineId LIMIT :batchSize)", nativeQuery = true)
+    int deleteParameterValuesBatch(@Param("machineId") Integer machineId, @Param("batchSize") int batchSize);
+
     /** Bulk-удаление всех состояний аппарата. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "DELETE FROM welding_machine_state WHERE welding_machineid = :machineId", nativeQuery = true)
     void deleteStatesByMachineId(@Param("machineId") Integer machineId);
+
+    /** Порционное удаление состояний аппарата. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "DELETE FROM welding_machine_state WHERE ctid IN ("
+            + "SELECT ctid FROM welding_machine_state WHERE welding_machineid = :machineId LIMIT :batchSize)",
+            nativeQuery = true)
+    int deleteStatesBatch(@Param("machineId") Integer machineId, @Param("batchSize") int batchSize);
 
     /** Узкое обновление last_online_on — без полного save(entity). */
     @Modifying(clearAutomatically = true, flushAutomatically = true)

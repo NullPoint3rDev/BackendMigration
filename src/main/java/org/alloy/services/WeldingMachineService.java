@@ -10,8 +10,11 @@ import org.alloy.repositories.WeldingMachineStateRepository;
 import org.alloy.repositories.WeldingMachineTypeRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +36,11 @@ public class WeldingMachineService {
     private final WeldingMachineStateRepository weldingMachineStateRepository;
     private final WeldingMachineParameterValueRepository weldingMachineParameterValueRepository;
     private final WeldingMachineLastWeldService weldingMachineLastWeldService;
+    private final WeldingMachinePurgeAsyncExecutor purgeAsyncExecutor;
+    private final TransactionTemplate transactionTemplate;
+
+    @Value("${welding.machine.purge.batch-size:10000}")
+    private int purgeBatchSize;
 
     @Autowired
     public WeldingMachineService(WeldingMachineRepository weldingMachineRepository,
@@ -40,18 +48,35 @@ public class WeldingMachineService {
                                  OrganizationUnitRepository organizationUnitRepository,
                                  WeldingMachineStateRepository weldingMachineStateRepository,
                                  WeldingMachineParameterValueRepository weldingMachineParameterValueRepository,
-                                 WeldingMachineLastWeldService weldingMachineLastWeldService) {
+                                 WeldingMachineLastWeldService weldingMachineLastWeldService,
+                                 @Lazy WeldingMachinePurgeAsyncExecutor purgeAsyncExecutor,
+                                 TransactionTemplate transactionTemplate) {
         this.weldingMachineRepository = weldingMachineRepository;
         this.weldingMachineTypeRepository = weldingMachineTypeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
         this.weldingMachineStateRepository = weldingMachineStateRepository;
         this.weldingMachineParameterValueRepository = weldingMachineParameterValueRepository;
         this.weldingMachineLastWeldService = weldingMachineLastWeldService;
+        this.purgeAsyncExecutor = purgeAsyncExecutor;
+        this.transactionTemplate = transactionTemplate;
+    }
+
+    public static boolean isVisibleInUi(GeneralStatus status) {
+        return status != GeneralStatus.Deleted && status != GeneralStatus.Purging;
+    }
+
+    public static boolean acceptsTelemetry(GeneralStatus status) {
+        return isVisibleInUi(status);
+    }
+
+    static String tombstoneMac(int id, String mac) {
+        String normalized = mac == null ? "" : mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
+        return "DELETED_" + id + "_" + normalized;
     }
 
     public List<WeldingMachine> getAllWeldingMachines() {
         List<WeldingMachine> machines = weldingMachineRepository.findAll().stream()
-                .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
+                .filter(machine -> isVisibleInUi(machine.getStatus()))
                 .collect(Collectors.toList());
         for (WeldingMachine machine : machines) {
             if (machine.getId() == null || machine.getLastWeldAt() != null) {
@@ -74,18 +99,27 @@ public class WeldingMachineService {
     }
 
     public Optional<WeldingMachine> getWeldingMachineByMac(String mac) {
-        return weldingMachineRepository.findByMac(mac);
+        return weldingMachineRepository.findActiveByMac(mac);
+    }
+
+    public boolean isMacInUse(String mac, Integer excludeId) {
+        if (mac == null || mac.isBlank()) {
+            return false;
+        }
+        return weldingMachineRepository.findActiveByMac(mac)
+                .filter(m -> excludeId == null || !excludeId.equals(m.getId()))
+                .isPresent();
     }
 
     public List<WeldingMachine> getWeldingMachinesByOrganizationId(Integer organizationUnitId) {
         return weldingMachineRepository.findByOrganizationUnitId(organizationUnitId).stream()
-                .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
+                .filter(machine -> isVisibleInUi(machine.getStatus()))
                 .collect(Collectors.toList());
     }
 
     public List<WeldingMachine> getWeldingMachinesByTypeId(Integer typeId) {
         return weldingMachineRepository.findByWeldingMachineTypeId(typeId).stream()
-                .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
+                .filter(machine -> isVisibleInUi(machine.getStatus()))
                 .collect(Collectors.toList());
     }
 
@@ -94,7 +128,7 @@ public class WeldingMachineService {
             return getWeldingMachinesByOrganizationId(organizationUnitId);
         }
         return weldingMachineRepository.searchWeldingMachines(organizationUnitId, searchTerm.trim()).stream()
-                .filter(machine -> machine.getStatus() != GeneralStatus.Deleted)
+                .filter(machine -> isVisibleInUi(machine.getStatus()))
                 .collect(Collectors.toList());
     }
 
@@ -154,7 +188,7 @@ public class WeldingMachineService {
             return java.util.Collections.emptyList();
         }
         return weldingMachineRepository.findByOrganizationUnitIdIn(unitIds).stream()
-                .filter(m -> m.getStatus() != GeneralStatus.Deleted)
+                .filter(m -> isVisibleInUi(m.getStatus()))
                 .collect(Collectors.toList());
     }
 
@@ -264,39 +298,91 @@ public class WeldingMachineService {
     }
 
     public void deleteWeldingMachine(Integer id) {
-        WeldingMachine weldingMachine = weldingMachineRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Welding machine not found"));
-
-        weldingMachine.setStatus(GeneralStatus.Deleted);
-        weldingMachineRepository.save(weldingMachine);
+        requestPurgeWeldingMachine(id);
     }
 
     public void hardDeleteWeldingMachine(Integer id) {
-        if (!weldingMachineRepository.existsById(id)) {
+        requestPurgeWeldingMachine(id);
+    }
+
+    /** Мгновенно скрывает аппарат, освобождает MAC и запускает фоновую очистку по id. */
+    public void requestPurgeWeldingMachine(Integer id) {
+        WeldingMachine machine = weldingMachineRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Welding machine not found"));
+
+        if (machine.getStatus() == GeneralStatus.Purging) {
+            purgeAsyncExecutor.purgeAsync(id);
+            return;
+        }
+        if (!isVisibleInUi(machine.getStatus())) {
             throw new IllegalArgumentException("Welding machine not found");
         }
 
+        String originalMac = machine.getMac();
+        machine.setStatus(GeneralStatus.Purging);
+        if (originalMac != null && !originalMac.isBlank()) {
+            machine.setMac(tombstoneMac(id, originalMac));
+        }
+        weldingMachineRepository.save(machine);
+        log.info("requestPurgeWeldingMachine: id={} mac freed (was {}), background purge scheduled",
+                id, originalMac);
+        purgeAsyncExecutor.purgeAsync(id);
+    }
+
+    /** Фоновая очистка данных аппарата — строго по machine id, не по MAC. */
+    public void purgeWeldingMachineData(Integer id) {
+        WeldingMachine machine = weldingMachineRepository.findById(id).orElse(null);
+        if (machine == null) {
+            log.info("purgeWeldingMachineData: id={} already removed", id);
+            return;
+        }
+        if (machine.getStatus() != GeneralStatus.Purging) {
+            log.warn("purgeWeldingMachineData: id={} skipped, status={}", id, machine.getStatus());
+            return;
+        }
+
         long t0 = System.currentTimeMillis();
-        log.info("hardDeleteWeldingMachine: start id={}", id);
+        log.info("purgeWeldingMachineData: start id={}", id);
 
-        weldingMachineRepository.deleteWelderMachineLinks(id);
-        log.info("hardDeleteWeldingMachine: id={} welder links deleted (+{} ms)", id, System.currentTimeMillis() - t0);
+        int deleted;
+        do {
+            deleted = deleteParameterValuesBatch(id);
+            if (deleted > 0) {
+                log.info("purgeWeldingMachineData: id={} parameter values batch={} (+{} ms)",
+                        id, deleted, System.currentTimeMillis() - t0);
+            }
+        } while (deleted >= purgeBatchSize);
 
-        weldingMachineRepository.deleteWeldSegmentsByMachineId(id);
-        weldingMachineRepository.deleteWeldSegmentDayMarksByMachineId(id);
-        log.info("hardDeleteWeldingMachine: id={} weld segments deleted (+{} ms)", id, System.currentTimeMillis() - t0);
+        do {
+            deleted = deleteStatesBatch(id);
+            if (deleted > 0) {
+                log.info("purgeWeldingMachineData: id={} states batch={} (+{} ms)",
+                        id, deleted, System.currentTimeMillis() - t0);
+            }
+        } while (deleted >= purgeBatchSize);
 
-        weldingMachineRepository.deleteParameterValuesByMachineId(id);
-        log.info("hardDeleteWeldingMachine: id={} parameter values deleted (+{} ms)", id, System.currentTimeMillis() - t0);
+        transactionTemplate.executeWithoutResult(status -> {
+            weldingMachineRepository.deleteWelderMachineLinks(id);
+            weldingMachineRepository.deleteWeldSegmentsByMachineId(id);
+            weldingMachineRepository.deleteWeldSegmentDayMarksByMachineId(id);
+            weldingMachineRepository.deleteDailyStatsByMachineId(id);
+            weldingMachineRepository.deleteMaintenancesByMachineId(id);
+            weldingMachineRepository.deleteLimitProgramsByMachineId(id);
+            weldingMachineRepository.deleteById(id);
+        });
 
-        weldingMachineRepository.deleteStatesByMachineId(id);
-        log.info("hardDeleteWeldingMachine: id={} states deleted (+{} ms)", id, System.currentTimeMillis() - t0);
+        log.info("purgeWeldingMachineData: id={} done (+{} ms total)", id, System.currentTimeMillis() - t0);
+    }
 
-        weldingMachineRepository.deleteDailyStatsByMachineId(id);
-        weldingMachineRepository.deleteMaintenancesByMachineId(id);
-        weldingMachineRepository.deleteLimitProgramsByMachineId(id);
+    private int deleteParameterValuesBatch(Integer machineId) {
+        Integer deleted = transactionTemplate.execute(
+                status -> weldingMachineRepository.deleteParameterValuesBatch(machineId, purgeBatchSize));
+        return deleted != null ? deleted : 0;
+    }
 
-        weldingMachineRepository.deleteById(id);
-        log.info("hardDeleteWeldingMachine: id={} done (+{} ms total)", id, System.currentTimeMillis() - t0);
+    private int deleteStatesBatch(Integer machineId) {
+        Integer deleted = transactionTemplate.execute(
+                status -> weldingMachineRepository.deleteStatesBatch(machineId, purgeBatchSize));
+        return deleted != null ? deleted : 0;
     }
 }

@@ -5,5 +5,7 @@ public enum GeneralStatus {
     Inactive,
     Deleted,
     Pending,
-    Blocked
+    Blocked,
+    /** Аппарат скрыт из UI, MAC освобождён; данные удаляются фоновым job по id. */
+    Purging
 }

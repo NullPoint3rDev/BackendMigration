@@ -376,7 +376,7 @@ public class ArchiveStyleTcpListener {
         String normalizedMac = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
 
         // Проверяем наличие MAC-адреса в базе данных
-        return weldingMachineRepository.findByMac(normalizedMac).isPresent();
+        return weldingMachineRepository.findActiveByMac(normalizedMac).isPresent();
     }
 
 

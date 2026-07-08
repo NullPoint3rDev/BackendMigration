@@ -67,7 +67,7 @@ public class WeldingMachineStateService {
     public void saveMachineState(String mac, StateSummary stateSummary) {
         try {
             // Ищем сварочный аппарат по MAC
-            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findActiveByMac(mac);
             WeldingMachine machine;
 
             if (!machineOpt.isPresent()) {
@@ -153,6 +153,9 @@ public class WeldingMachineStateService {
                 // System.out.println("[STATE-SERVICE] ✅ Сварочный аппарат создан с ID: " + machine.getId());
             } else {
                 machine = machineOpt.get();
+                if (!WeldingMachineService.acceptsTelemetry(machine.getStatus())) {
+                    return;
+                }
             }
 
             LocalDateTime now = LocalDateTime.now();
@@ -245,7 +248,7 @@ public class WeldingMachineStateService {
 
     public StateSummary getCurrentState(String mac) {
         try {
-            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findActiveByMac(mac);
             if (!machineOpt.isPresent()) {
                 return null;
             }
