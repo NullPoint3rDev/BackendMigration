@@ -345,6 +345,31 @@ public class WeldingMachineController {
     }
 
     @Operation(
+            summary = "Проверка существования аппарата по MAC",
+            description = "Возвращает exists=true, если в системе уже есть неудалённый аппарат с данным MAC. " +
+                    "excludeId позволяет исключить текущий аппарат при редактировании."
+    )
+    @GetMapping("/mac-exists")
+    public ResponseEntity<?> checkMacExists(
+            @Parameter(description = "MAC-адрес устройства", required = true, example = "E09806083396")
+            @RequestParam String mac,
+            @Parameter(description = "ID аппарата, который нужно исключить (режим редактирования)")
+            @RequestParam(required = false) Integer excludeId
+    ) {
+        String principal = SecurityContextHolder.getContext().getAuthentication().getName();
+        wt2AccessService.assertCanWriteEquipment(principal);
+        String normalizedMac = deviceModelService.normalizeMac(mac);
+        boolean exists = weldingMachineService.getWeldingMachineByMac(normalizedMac)
+                .filter(m -> m.getStatus() != org.alloy.models.GeneralStatus.Deleted)
+                .filter(m -> excludeId == null || !excludeId.equals(m.getId()))
+                .isPresent();
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("mac", normalizedMac);
+        body.put("exists", exists);
+        return ResponseEntity.ok(body);
+    }
+
+    @Operation(
             summary = "Создать новую сварочную машину",
             description = "Создает новую сварочную машину в системе. " +
                     "Машина должна содержать информацию о типе, подразделении, " +
