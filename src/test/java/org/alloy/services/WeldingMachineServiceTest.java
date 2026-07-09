@@ -368,7 +368,7 @@ public class WeldingMachineServiceTest {
      * Проверяет корректность удаления существующей сварочной машины
      */
     @Test
-    void deleteWeldingMachine_WhenExists_ShouldMarkAsPurgingAndSchedulePurge() {
+    void deleteWeldingMachine_WhenExists_ShouldMarkAsPurgingWithoutImmediatePurge() {
         // Подготавливаем тестовые данные
         when(weldingMachineRepository.findById(1)).thenReturn(Optional.of(testWeldingMachine));
         when(weldingMachineRepository.save(any(WeldingMachine.class))).thenReturn(testWeldingMachine);
@@ -381,8 +381,9 @@ public class WeldingMachineServiceTest {
         verify(weldingMachineRepository, times(1)).save(argThat(machine ->
             machine.getStatus() == GeneralStatus.Purging
                 && machine.getMac().startsWith("DELETED_1_")
+                && machine.getPurgingSince() != null
         ));
-        verify(purgeAsyncExecutor, times(1)).purgeAsync(1);
+        verify(purgeAsyncExecutor, never()).purgeAsync(any());
     }
 
     /**
@@ -390,14 +391,14 @@ public class WeldingMachineServiceTest {
      * Проверяет корректность полного удаления существующей сварочной машины
      */
     @Test
-    void hardDeleteWeldingMachine_WhenExists_ShouldSchedulePurge() {
+    void hardDeleteWeldingMachine_WhenExists_ShouldMarkAsPurgingWithoutImmediatePurge() {
         when(weldingMachineRepository.findById(1)).thenReturn(Optional.of(testWeldingMachine));
         when(weldingMachineRepository.save(any(WeldingMachine.class))).thenReturn(testWeldingMachine);
 
         weldingMachineService.hardDeleteWeldingMachine(1);
 
         verify(weldingMachineRepository, times(1)).findById(1);
-        verify(purgeAsyncExecutor, times(1)).purgeAsync(1);
+        verify(purgeAsyncExecutor, never()).purgeAsync(any());
         verify(weldingMachineRepository, never()).deleteById(1);
     }
 

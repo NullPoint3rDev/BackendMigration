@@ -40,7 +40,10 @@ public class WeldingMachineService {
     private final TransactionTemplate transactionTemplate;
 
     @Value("${welding.machine.purge.batch-size:10000}")
-    private int purgeBatchSize;
+    private int purgeBatchSize = 10000;
+
+    @Value("${welding.machine.purge.retention-days:7}")
+    private int purgeRetentionDays = 7;
 
     @Autowired
     public WeldingMachineService(WeldingMachineRepository weldingMachineRepository,
@@ -310,13 +313,13 @@ public class WeldingMachineService {
         requestPurgeWeldingMachine(id);
     }
 
-    /** Мгновенно скрывает аппарат, освобождает MAC и запускает фоновую очистку по id. */
+    /** Мгновенно скрывает аппарат и освобождает MAC; данные чистятся через retention-период. */
     public void requestPurgeWeldingMachine(Integer id) {
         WeldingMachine machine = weldingMachineRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Welding machine not found"));
 
         if (machine.getStatus() == GeneralStatus.Purging) {
-            purgeAsyncExecutor.purgeAsync(id);
+            log.info("requestPurgeWeldingMachine: id={} already purging since {}", id, machine.getPurgingSince());
             return;
         }
         if (!isVisibleInUi(machine.getStatus())) {
@@ -324,14 +327,25 @@ public class WeldingMachineService {
         }
 
         String originalMac = machine.getMac();
+        LocalDateTime now = LocalDateTime.now();
         machine.setStatus(GeneralStatus.Purging);
+        machine.setPurgingSince(now);
         if (originalMac != null && !originalMac.isBlank()) {
             machine.setMac(tombstoneMac(id, originalMac));
         }
         weldingMachineRepository.save(machine);
-        log.info("requestPurgeWeldingMachine: id={} mac freed (was {}), background purge scheduled",
-                id, originalMac);
-        purgeAsyncExecutor.purgeAsync(id);
+        log.info("requestPurgeWeldingMachine: id={} mac freed (was {}), data purge after {} days (since {})",
+                id, originalMac, purgeRetentionDays, now);
+    }
+
+    /** Подхватывает аппараты в Purging старше retention и запускает очистку по id. */
+    public int purgeDueWeldingMachines() {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(purgeRetentionDays);
+        List<WeldingMachine> due = weldingMachineRepository.findDueForPurge(cutoff);
+        for (WeldingMachine machine : due) {
+            purgeAsyncExecutor.purgeAsync(machine.getId());
+        }
+        return due.size();
     }
 
     /** Фоновая очистка данных аппарата — строго по machine id, не по MAC. */
@@ -343,6 +357,12 @@ public class WeldingMachineService {
         }
         if (machine.getStatus() != GeneralStatus.Purging) {
             log.warn("purgeWeldingMachineData: id={} skipped, status={}", id, machine.getStatus());
+            return;
+        }
+        // ponytail: защита от раннего вызова — ждём retention (NULL = legacy, чистим сразу)
+        if (machine.getPurgingSince() != null
+                && machine.getPurgingSince().isAfter(LocalDateTime.now().minusDays(purgeRetentionDays))) {
+            log.info("purgeWeldingMachineData: id={} not due yet (purgingSince={})", id, machine.getPurgingSince());
             return;
         }
 

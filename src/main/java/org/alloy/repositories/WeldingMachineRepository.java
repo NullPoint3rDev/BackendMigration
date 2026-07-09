@@ -27,6 +27,11 @@ public interface WeldingMachineRepository extends JpaRepository<WeldingMachine, 
             + "AND wm.status NOT IN (org.alloy.models.GeneralStatus.Deleted, org.alloy.models.GeneralStatus.Purging)")
     Optional<WeldingMachine> findActiveByMac(@Param("mac") String mac);
 
+    /** Аппараты в Purging, готовые к полной очистке (старше cutoff или без timestamp — legacy). */
+    @Query("SELECT wm FROM WeldingMachine wm WHERE wm.status = org.alloy.models.GeneralStatus.Purging "
+            + "AND (wm.purgingSince IS NULL OR wm.purgingSince <= :cutoff)")
+    List<WeldingMachine> findDueForPurge(@Param("cutoff") LocalDateTime cutoff);
+
     Optional<WeldingMachine> findBySerialNumber(String serialNumber);
 
     @Query("SELECT wm FROM WeldingMachine wm WHERE wm.organizationUnitId = :organizationUnitId AND (wm.name LIKE %:searchTerm% OR wm.serialNumber LIKE %:searchTerm% OR wm.mac LIKE %:searchTerm%)")
