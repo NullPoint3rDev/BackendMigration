@@ -66,6 +66,10 @@ public class WeldingMachineStateService {
     @Transactional
     public void saveMachineState(String mac, StateSummary stateSummary) {
         try {
+            // Отладочный MAC — без живого железа, телеметрию не принимаем
+            if (DeviceModelService.isDebugMac(mac)) {
+                return;
+            }
             // Ищем сварочный аппарат по MAC
             Optional<WeldingMachine> machineOpt = weldingMachineRepository.findActiveByMac(mac);
             WeldingMachine machine;

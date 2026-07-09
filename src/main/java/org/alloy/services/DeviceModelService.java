@@ -14,8 +14,20 @@ import java.util.Optional;
 @Service
 public class DeviceModelService {
 
+    /** Отладочный MAC для разработчиков: ввод xxxxxxxxxxxx, в БД — XXXXXXXXXXXX. */
+    public static final String DEBUG_MAC = "XXXXXXXXXXXX";
+
     @Autowired
     private WeldingMachineRepository weldingMachineRepository;
+
+    /** true, если MAC — отладочный (12 символов x/X, разделители игнорируются). */
+    public static boolean isDebugMac(String mac) {
+        if (mac == null || mac.isEmpty()) {
+            return false;
+        }
+        String cleaned = mac.replaceAll("[^0-9A-Fa-fxX]", "");
+        return cleaned.length() == 12 && cleaned.equalsIgnoreCase("xxxxxxxxxxxx");
+    }
 
     /**
      * Получить модель устройства по MAC-адресу из базы данных
@@ -83,11 +95,15 @@ public class DeviceModelService {
     }
 
     /**
-     * Нормализовать MAC-адрес (убрать двоеточия, сделать заглавными)
+     * Нормализовать MAC-адрес (убрать двоеточия, сделать заглавными).
+     * Отладочный xxxxxxxxxxxx сохраняется как XXXXXXXXXXXX (иначе x вырежется как не-hex).
      */
     public String normalizeMac(String mac) {
         if (mac == null) {
             return null;
+        }
+        if (isDebugMac(mac)) {
+            return DEBUG_MAC;
         }
         return mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
     }
@@ -98,6 +114,9 @@ public class DeviceModelService {
     public boolean isValidMacFormat(String mac) {
         if (mac == null || mac.isEmpty()) {
             return false;
+        }
+        if (isDebugMac(mac)) {
+            return true;
         }
         String normalized = normalizeMac(mac);
         return normalized.length() == 12 && normalized.matches("[0-9A-F]+");

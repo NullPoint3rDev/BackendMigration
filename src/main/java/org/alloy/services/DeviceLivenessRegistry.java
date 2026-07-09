@@ -17,13 +17,16 @@ public class DeviceLivenessRegistry {
 
     private static String normalize(String mac) {
         if (mac == null) return null;
+        if (DeviceModelService.isDebugMac(mac)) {
+            return DeviceModelService.DEBUG_MAC;
+        }
         String norm = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
         return norm.isEmpty() ? null : norm;
     }
 
     public void markSeen(String mac) {
         String norm = normalize(mac);
-        if (norm != null) {
+        if (norm != null && !DeviceModelService.DEBUG_MAC.equals(norm)) {
             lastSeenMsByMac.put(norm, System.currentTimeMillis());
         }
     }
@@ -31,6 +34,11 @@ public class DeviceLivenessRegistry {
     /** Время последней посылки от MAC (epoch ms) или null, если аппарат ни разу не появлялся. */
     public Long getLastSeenMs(String mac) {
         String norm = normalize(mac);
-        return norm == null ? null : lastSeenMsByMac.get(norm);
+        if (norm == null) return null;
+        // Отладочный MAC всегда «онлайн» — проверка соединения в модалке проходит сразу.
+        if (DeviceModelService.DEBUG_MAC.equals(norm)) {
+            return System.currentTimeMillis();
+        }
+        return lastSeenMsByMac.get(norm);
     }
 }

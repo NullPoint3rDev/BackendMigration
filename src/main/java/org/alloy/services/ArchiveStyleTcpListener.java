@@ -371,6 +371,10 @@ public class ArchiveStyleTcpListener {
         if (mac == null || mac.isEmpty()) {
             return false;
         }
+        // Отладочный MAC не принимает TCP/телеметрию, даже если аппарат есть в БД
+        if (DeviceModelService.isDebugMac(mac)) {
+            return false;
+        }
 
         // Нормализуем MAC-адрес: убираем все не-шестнадцатеричные символы и приводим к верхнему регистру
         String normalizedMac = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();

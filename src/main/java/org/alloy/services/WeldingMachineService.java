@@ -70,7 +70,12 @@ public class WeldingMachineService {
     }
 
     static String tombstoneMac(int id, String mac) {
-        String normalized = mac == null ? "" : mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
+        String normalized;
+        if (DeviceModelService.isDebugMac(mac)) {
+            normalized = DeviceModelService.DEBUG_MAC;
+        } else {
+            normalized = mac == null ? "" : mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
+        }
         return "DELETED_" + id + "_" + normalized;
     }
 
