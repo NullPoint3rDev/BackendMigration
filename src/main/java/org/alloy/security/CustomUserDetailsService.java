@@ -20,16 +20,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
+
+    /** ponytail: JWT filter hits DB every request; ceiling — до 60s stale roles/block. */
+    private static final long USER_DETAILS_CACHE_TTL_MS = 60_000L;
 
     private final UserRepository userRepository;
     private final UserAccountRepository userAccountRepository;
     private final UserRolePermissionRepository userRolePermissionRepository;
     private final UserRoleRepository userRoleRepository;
     private final UserPermissionGrantRepository userPermissionGrantRepository;
+    private final ConcurrentHashMap<String, CachedUserDetails> userDetailsCache = new ConcurrentHashMap<>();
 
     public CustomUserDetailsService(UserRepository userRepository,
                                     UserAccountRepository userAccountRepository,
@@ -45,22 +50,30 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        long now = System.currentTimeMillis();
+        CachedUserDetails cached = userDetailsCache.get(username);
+        if (cached != null && now - cached.loadedAtMs < USER_DETAILS_CACHE_TTL_MS) {
+            return cached.userDetails;
+        }
+
         System.out.println("CustomUserDetailsService: Попытка загрузки пользователя: " + username);
 
         Optional<UserAccount> userAccountOpt = userAccountRepository.findByUserName(username);
         if (userAccountOpt.isPresent()) {
             GeneralStatus accountStatus = userAccountOpt.get().getStatus();
             if (accountStatus == GeneralStatus.Blocked || accountStatus == GeneralStatus.Deleted) {
+                userDetailsCache.remove(username);
                 throw new UsernameNotFoundException("User account is blocked");
             }
         }
 
-        return userRepository.findByUsername(username)
+        UserDetails details = userRepository.findByUsername(username)
                 .map(user -> {
                     System.out.println("CustomUserDetailsService: Пользователь найден в базе: " + username + ", статус: " + user.getStatus());
 
                     // users.status: 0 = Active, 1 = Blocked, 2 = Deleted
                     if (user.getStatus() != null && (user.getStatus() == 1 || user.getStatus() == 2)) {
+                        userDetailsCache.remove(username);
                         throw new UsernameNotFoundException("User account is blocked");
                     }
 
@@ -71,6 +84,19 @@ public class CustomUserDetailsService implements UserDetailsService {
                     System.out.println("CustomUserDetailsService: Пользователь не найден в базе: " + username);
                     return new UsernameNotFoundException("User not found with username: " + username);
                 });
+
+        userDetailsCache.put(username, new CachedUserDetails(details, now));
+        return details;
+    }
+
+    private static final class CachedUserDetails {
+        final UserDetails userDetails;
+        final long loadedAtMs;
+
+        CachedUserDetails(UserDetails userDetails, long loadedAtMs) {
+            this.userDetails = userDetails;
+            this.loadedAtMs = loadedAtMs;
+        }
     }
 
     private UserDetails createUserDetails(User user) {

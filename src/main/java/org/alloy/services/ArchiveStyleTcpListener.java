@@ -21,7 +21,11 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Map;
-// import java.util.concurrent.ConcurrentHashMap; // пока не используется
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -37,6 +41,11 @@ public class ArchiveStyleTcpListener {
     private static final int TIMEOUT_SECONDS = 30;
     private static final int BUFFER_SIZE = 4096;
     private static final int SLEEP_MS = 100;
+    /** TTL кэша allowlist MAC — не бить БД на каждый TCP-пакет. */
+    private static final long MAC_ALLOW_CACHE_TTL_MS = 60_000L;
+    private static final int CLIENT_POOL_CORE = 4;
+    private static final int CLIENT_POOL_MAX = 32;
+    private static final int CLIENT_POOL_QUEUE = 64;
 
     @Value("${welding.archive.server.port:3001}")
     private int serverPort;
@@ -56,9 +65,9 @@ public class ArchiveStyleTcpListener {
     private Thread listenerThread;
     private ServerSocket serverSocket;
     private final AtomicInteger threadCounter = new AtomicInteger(0);
-
-    // Активные подключения для отслеживания (пока не используется)
-    // private final Map<String, ClientConnection> activeConnections = new ConcurrentHashMap<>();
+    private ExecutorService clientExecutor;
+    // ponytail: in-memory TTL; ceiling — до 60s stale после add/delete аппарата
+    private final ConcurrentHashMap<String, CachedMacAllow> macAllowCache = new ConcurrentHashMap<>();
 
     // Эти сервисы используются через статические методы очередей
     // @Autowired
@@ -98,8 +107,23 @@ public class ArchiveStyleTcpListener {
         System.out.println("[ARCHIVE-TCP-LISTENER] Проверка MAC-адресов: по базе данных (WeldingMachine)");
         System.out.println("[ARCHIVE-TCP-LISTENER] Таймаут: " + TIMEOUT_SECONDS + " секунд");
 
-        log.info("[ARCHIVE-TCP-LISTENER] Запуск сервера. Порт: {}, IP: {}, Проверка MAC: по БД",
-                serverPort, serverIp);
+        log.info("[ARCHIVE-TCP-LISTENER] Запуск сервера. Порт: {}, IP: {}, Проверка MAC: по БД (кэш {}ms)",
+                serverPort, serverIp, MAC_ALLOW_CACHE_TTL_MS);
+
+        AtomicInteger poolThreadNo = new AtomicInteger(0);
+        clientExecutor = new ThreadPoolExecutor(
+                CLIENT_POOL_CORE,
+                CLIENT_POOL_MAX,
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(CLIENT_POOL_QUEUE),
+                r -> {
+                    Thread t = new Thread(r);
+                    t.setDaemon(true);
+                    t.setName("ClientHandler-" + poolThreadNo.incrementAndGet());
+                    return t;
+                },
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
 
         listenerThread = new Thread(this::runListener);
         listenerThread.setDaemon(true);
@@ -120,11 +144,8 @@ public class ArchiveStyleTcpListener {
 
                     log.info("[ARCHIVE-TCP-LISTENER] Подключение от {}", clientIp);
 
-                    // Создаем отдельный поток для каждого подключения
-                    Thread clientThread = new Thread(() -> handleClientConnection(clientSocket));
-                    clientThread.setDaemon(true);
-                    clientThread.setName("ClientHandler-" + threadCounter.incrementAndGet());
-                    clientThread.start();
+                    threadCounter.incrementAndGet();
+                    clientExecutor.execute(() -> handleClientConnection(clientSocket));
 
                 } catch (IOException e) {
                     if (running) {
@@ -364,7 +385,7 @@ public class ArchiveStyleTcpListener {
     }
 
     /**
-     * Проверка разрешенных MAC-адресов по базе данных
+     * Проверка разрешенных MAC-адресов по базе данных (с TTL-кэшем).
      * MAC-адрес разрешен, если существует сварочный аппарат с таким MAC в базе данных
      */
     private boolean isAllowedMac(String mac) {
@@ -379,8 +400,15 @@ public class ArchiveStyleTcpListener {
         // Нормализуем MAC-адрес: убираем все не-шестнадцатеричные символы и приводим к верхнему регистру
         String normalizedMac = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
 
-        // Проверяем наличие MAC-адреса в базе данных
-        return weldingMachineRepository.findActiveByMac(normalizedMac).isPresent();
+        long now = System.currentTimeMillis();
+        CachedMacAllow cached = macAllowCache.get(normalizedMac);
+        if (cached != null && now - cached.checkedAtMs < MAC_ALLOW_CACHE_TTL_MS) {
+            return cached.allowed;
+        }
+
+        boolean allowed = weldingMachineRepository.findActiveByMac(normalizedMac).isPresent();
+        macAllowCache.put(normalizedMac, new CachedMacAllow(allowed, now));
+        return allowed;
     }
 
 
@@ -447,27 +475,26 @@ public class ArchiveStyleTcpListener {
         if (listenerThread != null) {
             listenerThread.interrupt();
         }
+
+        if (clientExecutor != null) {
+            clientExecutor.shutdownNow();
+            try {
+                if (!clientExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.warn("[ARCHIVE-TCP-LISTENER] Client pool did not terminate in time");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
-    // Внутренний класс для отслеживания подключений (пока не используется)
-    // private static class ClientConnection {
-    //     private final String ip;
-    //     private final LocalDateTime connectedAt;
-    //     private LocalDateTime lastActivity;
-    //     
-    //     public ClientConnection(String ip) {
-    //         this.ip = ip;
-    //         this.connectedAt = LocalDateTime.now();
-    //         this.lastActivity = LocalDateTime.now();
-    //     }
-    //     
-    //     public void updateActivity() {
-    //         this.lastActivity = LocalDateTime.now();
-    //     }
-    //     
-    //     // Getters
-    //     public String getIp() { return ip; }
-    //     public LocalDateTime getConnectedAt() { return connectedAt; }
-    //     public LocalDateTime getLastActivity() { return lastActivity; }
-    // }
+    private static final class CachedMacAllow {
+        final boolean allowed;
+        final long checkedAtMs;
+
+        CachedMacAllow(boolean allowed, long checkedAtMs) {
+            this.allowed = allowed;
+            this.checkedAtMs = checkedAtMs;
+        }
+    }
 }

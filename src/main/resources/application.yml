@@ -5,14 +5,14 @@ spring:
     password: 1900AscotPkwy
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 15
-      minimum-idle: 2
+      maximum-pool-size: 30
+      minimum-idle: 5
       connection-timeout: 30000
       validation-timeout: 5000
       idle-timeout: 600000
       max-lifetime: 1800000
       keepalive-time: 300000
-      leak-detection-threshold: 180000
+      leak-detection-threshold: 60000
 
   flyway:
     enabled: true
