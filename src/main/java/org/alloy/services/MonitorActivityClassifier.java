@@ -79,7 +79,8 @@ public final class MonitorActivityClassifier {
     }
 
     /**
-     * Сварка: текст «Сварка» / Welding, статус Welding, либо ток без текста состояния.
+     * Сварка: текст «Сварка» / Welding или статус Welding.
+     * Без эвристики «ток без текста» — уставка в State.I иначе попадает в сварочный ток.
      */
     public static boolean isWelding(
             WeldingMachineState state,
@@ -90,16 +91,10 @@ public final class MonitorActivityClassifier {
         }
         String stateLower = normalize(machineStateText);
         if (stateLower.equals("сварка") || stateLower.equals("welding")
-                || stateLower.contains("сварка") || stateLower.contains("welding")
-                || stateLower.contains("сварочн") || stateLower.contains("weld")) {
+                || stateLower.contains("сварка") || stateLower.contains("welding")) {
             return true;
         }
         if (state.getWeldingMachineStatus() == WeldingMachineStatus.Welding) {
-            return true;
-        }
-        if ((machineStateText == null || machineStateText.isBlank())
-                && currentAmps != null
-                && currentAmps.compareTo(BigDecimal.ONE) > 0) {
             return true;
         }
         return false;

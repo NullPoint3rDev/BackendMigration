@@ -57,6 +57,16 @@ class MonitorActivityClassifierTest {
     }
 
     @Test
+    void blankStateTextWithCurrentIsNotWelding() {
+        WeldingMachineState state = new WeldingMachineState();
+        state.setWeldingMachineStatus(WeldingMachineStatus.Idle);
+        assertFalse(MonitorActivityClassifier.isWelding(state, null, new BigDecimal("130")));
+        assertFalse(MonitorActivityClassifier.isWelding(state, "  ", new BigDecimal("130")));
+        assertEquals(MonitorActivityMode.on,
+                MonitorActivityClassifier.classify(state, null, new BigDecimal("130")));
+    }
+
+    @Test
     void pickVoltagePrefersVoltageOverZeroStateU() {
         Map<String, String> props = new HashMap<>();
         props.put("State.U", "0");
