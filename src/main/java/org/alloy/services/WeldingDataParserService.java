@@ -62,16 +62,15 @@ public class WeldingDataParserService {
             CorePacket core = CorePacketParser.parse(data);
             if (core != null) {
                 Map<String, StateSummaryPropertyValue> props = new HashMap<>();
-                // Отображаемые значения в зависимости от состояния: 1 — сварка, 0 — холостой ход
-                int stateVal = core.weldingMachineState;
-                int displayCurrent = (stateVal == 1 ? core.weldingCurrent : core.current);
-                // Core отдаёт напряжение как слово в единицах 1/10 В. Используем готовое значение из CorePacket
+                boolean arcActive = core.isArcActive();
+                int displayCurrent = (int) Math.round(core.getDisplayCurrent());
                 double displayVoltageDouble = core.getDisplayVoltage();
                 int displayVoltageTenth = (int) Math.round(displayVoltageDouble * 10);
 
                 // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
                 // Для тока кладём как есть (А)
                 addProperty(props, "Current", String.valueOf(displayCurrent), "number");
+                addProperty(props, "WeldingCurrent", String.valueOf(core.weldingCurrent), "number");
                 addProperty(props, "Voltage", String.valueOf(displayVoltageTenth), "number");
                 addProperty(props, "Packet.Index", String.valueOf(core.index), "number");
 
@@ -83,8 +82,8 @@ public class WeldingDataParserService {
                 addProperty(props, "Date.Month", String.valueOf(core.month), "number");
                 addProperty(props, "Date.Year", String.valueOf(core.year), "number");
 
-                // Преобразуем состояние аппарата из числа в текст
-                String machineStateText = getMachineStateText(core.weldingMachineState);
+                // Преобразуем состояние аппарата: при дуге без state=1 — «Сварка», иначе текст по stateVal
+                String machineStateText = arcActive ? "Сварка" : getMachineStateText(core.weldingMachineState);
                 addProperty(props, "Состояние аппарата", machineStateText, "text");
                 // Также добавляем под ключом WeldingMachineState для совместимости с фронтендом
                 addProperty(props, "WeldingMachineState", machineStateText, "text");

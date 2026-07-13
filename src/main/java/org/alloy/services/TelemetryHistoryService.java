@@ -62,7 +62,7 @@ public class TelemetryHistoryService {
             "Температура охлаждающей жидкости на выходе", "ChillerTemperature2", "chillerTemperature2"
     );
     private static final List<String> PARAMETER_CODES_FOR_HISTORY = List.of(
-            "Current", "Voltage",
+            "Current", "Voltage", "WeldingCurrent",
             "State.GasFlow", "GasFlow", "gasFlow",
             "Напряжение фазы А", "VoltagePhaseA", "voltagePhaseA", "voltage_phase_a", "Voltage_Phase_A",
             "Напряжение фазы B", "Напряжение фазы В", "VoltagePhaseB", "voltagePhaseB", "voltage_phase_b", "Voltage_Phase_B",
@@ -99,7 +99,7 @@ public class TelemetryHistoryService {
             BigDecimal currentAmps = MonitorActivityClassifier.pickCurrentAmps(map);
             BigDecimal voltageVolts = MonitorActivityClassifier.pickVoltageVolts(map);
             BigDecimal gasFlow = MonitorActivityClassifier.pickGasFlowLpm(map);
-            boolean welding = MonitorActivityClassifier.isWelding(s, machineStateText, currentAmps);
+            boolean welding = MonitorActivityClassifier.isWelding(s, machineStateText, currentAmps, map);
             Double current = welding ? toDouble(currentAmps) : null;
             Double voltage = welding ? toDouble(voltageVolts) : null;
             Double setCurrent = welding ? null : toDouble(currentAmps);

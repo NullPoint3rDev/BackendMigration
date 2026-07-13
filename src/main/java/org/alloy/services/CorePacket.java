@@ -69,12 +69,21 @@ public class CorePacket {
     /** true, если в пакете присутствуют поля 39–40 хвоста (газ). */
     public boolean hasExtendedGasMetrics;
 
+    /** Дуга: явный state=1 или weldingCurrent заметно выше уставки при state=0. */
+    public boolean isArcActive() {
+        if (weldingMachineState == 1) {
+            return true;
+        }
+        // ponytail: порог 10А + 5А над уставкой; upgrade — калибровка под модель.
+        return weldingCurrent > 10 && weldingCurrent > current + 5;
+    }
+
     public double getDisplayCurrent() {
-        return (weldingMachineState == 1) ? weldingCurrent : current;
+        return isArcActive() ? weldingCurrent : current;
     }
 
     public double getDisplayVoltage() {
-        int raw = (weldingMachineState == 1) ? weldingVoltage : voltage;
+        int raw = isArcActive() ? weldingVoltage : voltage;
         return raw / 10.0;
     }
 

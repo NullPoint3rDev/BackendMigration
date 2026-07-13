@@ -78,14 +78,21 @@ public final class MonitorActivityClassifier {
         }
     }
 
-    /**
-     * Сварка: текст «Сварка» / Welding или статус Welding.
-     * Без эвристики «ток без текста» — уставка в State.I иначе попадает в сварочный ток.
-     */
     public static boolean isWelding(
             WeldingMachineState state,
             String machineStateText,
             BigDecimal currentAmps) {
+        return isWelding(state, machineStateText, currentAmps, null);
+    }
+
+    /**
+     * Сварка: текст «Сварка» / Welding или weldingCurrent >> уставки (Core state=0 при дуге).
+     */
+    public static boolean isWelding(
+            WeldingMachineState state,
+            String machineStateText,
+            BigDecimal currentAmps,
+            Map<String, String> propsByCode) {
         if (state == null) {
             return false;
         }
@@ -96,6 +103,13 @@ public final class MonitorActivityClassifier {
         }
         if (state.getWeldingMachineStatus() == WeldingMachineStatus.Welding) {
             return true;
+        }
+        BigDecimal weldI = propsByCode != null ? parseDecimal(propsByCode.get("WeldingCurrent")) : null;
+        if (weldI != null && weldI.compareTo(new BigDecimal("10")) > 0) {
+            BigDecimal setI = currentAmps != null ? currentAmps : parseDecimal(propsByCode.get("Current"));
+            if (setI == null || weldI.compareTo(setI.add(new BigDecimal("5"))) > 0) {
+                return true;
+            }
         }
         return false;
     }
