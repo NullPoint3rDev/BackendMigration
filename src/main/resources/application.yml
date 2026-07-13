@@ -125,8 +125,6 @@ welding:
       macs: 8CAAB50C4254,E09806083396, ECFABCC9703B, C82B9620E506, E098060B22D2  #Разрешенные MAC-адреса (все устройства)
     parser:
       debug: false  # Отладочный режим парсера
-    worker:
-      max-concurrency: 12  # Не выше Hikari pool — иначе исчерпание соединений (pool=30)
     outbound:
       enabled: true  # Включить исходящие пакеты
       payload: ""  # HEX payload для отправки

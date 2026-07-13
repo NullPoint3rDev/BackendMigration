@@ -75,12 +75,12 @@ public class WeldingDeviceManagerService {
             }
             preserveCoreGasMetrics(previous, stateSummary);
 
-            weldingMachineLastWeldService.updateFromPanelState(
-                    mac, previous, stateSummary, LocalDateTime.now());
-
-            // Обновляем локальное состояние (даже если сохранение в БД не удалось)
+            // Сначала in-memory — panel-state живёт от lastDatetimeUpdate, не ждём БД/lastWeld.
             deviceStates.put(mac, stateSummary);
             connectionStatus.put(mac, true);
+
+            weldingMachineLastWeldService.updateFromPanelState(
+                    mac, previous, stateSummary, LocalDateTime.now());
 
             // WebSocket отключен - все устройства работают через polling API (как в archive проекте)
             // deviceController.sendDeviceState(stateSummary, mac);

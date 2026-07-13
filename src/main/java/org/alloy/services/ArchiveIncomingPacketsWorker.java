@@ -20,7 +20,7 @@ public class ArchiveIncomingPacketsWorker {
     
     private static final Logger log = LoggerFactory.getLogger(ArchiveIncomingPacketsWorker.class);
 
-    @Value("${welding.archive.worker.max-concurrency:12}")
+    @Value("${welding.archive.worker.max-concurrency:50}")
     private int maxConcurrency;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
