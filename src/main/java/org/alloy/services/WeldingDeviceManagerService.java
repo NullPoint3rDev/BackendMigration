@@ -30,6 +30,12 @@ public class WeldingDeviceManagerService {
     private WeldingMachineStateService stateService;
 
     @Autowired
+    private DeviceLivenessRegistry deviceLivenessRegistry;
+
+    @Autowired
+    private DeviceModelService deviceModelService;
+
+    @Autowired
     private WeldingMachineLastWeldService weldingMachineLastWeldService;
 
     // Хранилище состояний всех аппаратов
@@ -58,29 +64,34 @@ public class WeldingDeviceManagerService {
      */
     public void processDeviceData(String data, String mac) {
         try {
-            if (mac != null && data != null) {
+            String normalizedMac = deviceModelService.normalizeMac(mac);
+            if (normalizedMac == null || normalizedMac.isEmpty()) {
+                return;
+            }
+
+            if (data != null) {
                 String packet = data.trim();
                 if (!packet.startsWith("PING:")) {
-                    log.info("{} {}", mac, packet);
+                    log.info("{} {}", normalizedMac, packet);
                 }
             }
 
             // Парсим данные
-            StateSummary previous = deviceStates.get(mac);
-            StateSummary stateSummary = dataParser.parseWeldingData(data, mac);
+            StateSummary previous = deviceStates.get(normalizedMac);
+            StateSummary stateSummary = dataParser.parseWeldingData(data, normalizedMac);
 
             if (stateSummary == null) {
-                System.err.println("[DEVICE-MANAGER] ⚠️ Парсер вернул null для MAC=" + mac);
+                System.err.println("[DEVICE-MANAGER] ⚠️ Парсер вернул null для MAC=" + normalizedMac);
                 return;
             }
             preserveCoreGasMetrics(previous, stateSummary);
 
             // Сначала in-memory — panel-state живёт от lastDatetimeUpdate, не ждём БД/lastWeld.
-            deviceStates.put(mac, stateSummary);
-            connectionStatus.put(mac, true);
+            deviceStates.put(normalizedMac, stateSummary);
+            connectionStatus.put(normalizedMac, true);
 
             weldingMachineLastWeldService.updateFromPanelState(
-                    mac, previous, stateSummary, LocalDateTime.now());
+                    normalizedMac, previous, stateSummary, LocalDateTime.now());
 
             // WebSocket отключен - все устройства работают через polling API (как в archive проекте)
             // deviceController.sendDeviceState(stateSummary, mac);
@@ -90,10 +101,10 @@ public class WeldingDeviceManagerService {
 
             // Троттлинг сохранений в БД: не чаще раза в 400мс на устройство
             long now = System.currentTimeMillis();
-            Long lastSaved = lastSaveTimestampMs.getOrDefault(mac, 0L);
+            Long lastSaved = lastSaveTimestampMs.getOrDefault(normalizedMac, 0L);
             if (now - lastSaved >= 400) {
-                lastSaveTimestampMs.put(mac, now);
-                scheduleCoalescedDbSave(mac, stateSummary);
+                lastSaveTimestampMs.put(normalizedMac, now);
+                scheduleCoalescedDbSave(normalizedMac, stateSummary);
             }
 
         } catch (Exception e) {
@@ -149,15 +160,27 @@ public class WeldingDeviceManagerService {
         if (mac == null || mac.isBlank()) {
             return null;
         }
-        StateSummary state = deviceStates.get(mac);
+        String normalizedMac = deviceModelService.normalizeMac(mac);
+        if (normalizedMac == null || normalizedMac.isEmpty()) {
+            return null;
+        }
+        StateSummary state = deviceStates.get(normalizedMac);
         if (state != null) {
             return state;
         }
-        state = deviceStates.get(mac.toUpperCase());
-        if (state != null) {
-            return state;
+        return deviceStates.get(mac.toUpperCase());
+    }
+
+    /** Продлевает свежесть panel-state, пока пакет в очереди воркера (TCP уже принял). */
+    public void touchInboundTelemetry(String mac) {
+        String normalizedMac = deviceModelService.normalizeMac(mac);
+        if (normalizedMac == null) {
+            return;
         }
-        return deviceStates.get(mac.toLowerCase());
+        StateSummary state = deviceStates.get(normalizedMac);
+        if (state != null) {
+            state.setLastDatetimeUpdate(LocalDateTime.now());
+        }
     }
 
     private static void preserveCoreGasMetrics(StateSummary previous, StateSummary current) {
@@ -179,19 +202,25 @@ public class WeldingDeviceManagerService {
     }
 
     public boolean isDeviceConnected(String mac) {
+        long now = System.currentTimeMillis();
+
+        Long seenMs = deviceLivenessRegistry.getLastSeenMs(mac);
+        if (seenMs != null && now - seenMs < 30000) {
+            return resolveDeviceState(mac) != null;
+        }
+
         StateSummary state = resolveDeviceState(mac);
         if (state == null) {
             return false;
         }
 
-        // Проверяем, есть ли данные в последние 10 секунд (как в archive проекте)
-        long now = System.currentTimeMillis();
-        long lastUpdate = state.getLastDatetimeUpdate().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
-        long timeDiff = now - lastUpdate;
+        if (state.getLastDatetimeUpdate() == null) {
+            return false;
+        }
 
-        boolean connected = timeDiff < 10000; // 10 секунд (как в archive)
-
-        return connected;
+        long lastUpdate = state.getLastDatetimeUpdate()
+                .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return now - lastUpdate < 10000;
     }
 
     /**

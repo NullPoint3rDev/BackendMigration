@@ -3,6 +3,8 @@ package org.alloy.services;
 import org.alloy.models.DeviceModel;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.repositories.WeldingMachineRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Service
 public class DeviceModelService {
+
+    private static final Logger log = LoggerFactory.getLogger(DeviceModelService.class);
 
     /** Отладочный MAC для разработчиков: ввод xxxxxxxxxxxx, в БД — XXXXXXXXXXXX. */
     public static final String DEBUG_MAC = "XXXXXXXXXXXX";
@@ -89,7 +93,7 @@ public class DeviceModelService {
         return payload.length() >= 100 && payload.matches("[0-9A-Fa-f]+");
     }
 
-    private boolean isCoreMacInConfig(String mac) {
+    public boolean isCoreMacInConfig(String mac) {
         if (mac == null || mac.isEmpty()) {
             return false;
         }
@@ -114,12 +118,10 @@ public class DeviceModelService {
         boolean matches = false;
         switch (expectedModel) {
             case CORE:
-                // Core пакеты обычно содержат определенные поля
-                matches = packetData.contains("CURRENT") || packetData.contains("VOLTAGE") || 
-                         packetData.contains("POWER") || packetData.contains("TEMPERATURE");
+                matches = packetData.contains("CURRENT") || packetData.contains("VOLTAGE")
+                        || packetData.contains("POWER") || packetData.contains("TEMPERATURE");
                 break;
             case MONITORING_BLOCK:
-                // Блок мониторинга имеет формат: :MAC;данные
                 boolean hasMac = packetData.contains(":" + mac);
                 boolean hasSemicolon = packetData.contains(";");
                 matches = hasMac && hasSemicolon;
@@ -127,7 +129,7 @@ public class DeviceModelService {
             default:
                 matches = false;
         }
-        
+
         return matches;
     }
 
@@ -150,22 +152,35 @@ public class DeviceModelService {
             return cached;
         }
 
-        Optional<WeldingMachine> machine = weldingMachineRepository.findByMac(normalizedMac);
-        DeviceModel model;
+        // Без БД: config + getByMac — hot path телеметрии не должен падать на Hikari timeout.
+        DeviceModel model = resolveModelWithoutDb(normalizedMac);
         boolean rfidEnabled = true;
-        if (machine.isPresent()) {
-            WeldingMachine wm = machine.get();
-            model = wm.getDeviceModel() != null ? wm.getDeviceModel() : DeviceModel.getByMac(normalizedMac);
-            if (wm.getRfidEnabled() != null) {
-                rfidEnabled = wm.getRfidEnabled();
+
+        try {
+            Optional<WeldingMachine> machine = weldingMachineRepository.findByMac(normalizedMac);
+            if (machine.isPresent()) {
+                WeldingMachine wm = machine.get();
+                if (wm.getDeviceModel() != null) {
+                    model = wm.getDeviceModel();
+                }
+                if (wm.getRfidEnabled() != null) {
+                    rfidEnabled = wm.getRfidEnabled();
+                }
             }
-        } else {
-            model = DeviceModel.getByMac(normalizedMac);
+        } catch (Exception e) {
+            log.warn("MAC meta DB lookup failed for {}: {}", normalizedMac, e.getMessage());
         }
 
         CachedMachineMeta meta = new CachedMachineMeta(model, rfidEnabled, now);
         macMetaCache.put(normalizedMac, meta);
         return meta;
+    }
+
+    private DeviceModel resolveModelWithoutDb(String normalizedMac) {
+        if (isCoreMacInConfig(normalizedMac)) {
+            return DeviceModel.CORE;
+        }
+        return DeviceModel.getByMac(normalizedMac);
     }
 
     /**

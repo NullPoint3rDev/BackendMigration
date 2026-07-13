@@ -91,6 +91,12 @@ public class ArchiveStyleTcpListener {
     @Autowired
     private DeviceLivenessRegistry deviceLivenessRegistry;
 
+    @Autowired
+    private DeviceModelService deviceModelService;
+
+    @Value("${welding.archive.allowed.macs:}")
+    private String archiveAllowedMacsConfig;
+
     private final WeldingMachineRepository weldingMachineRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -250,6 +256,8 @@ public class ArchiveStyleTcpListener {
 
                     // Проверяем разрешенные MAC-адреса
                     if (isAllowedMac(macAddress)) {
+                        deviceManager.touchInboundTelemetry(macAddress);
+
                         // Немедленно отвечаем на запрос синхронизации времени от Core
                         if (isTimeSyncRequest(data, macAddress) && coreOutboundService != null) {
                             try {
@@ -406,9 +414,32 @@ public class ArchiveStyleTcpListener {
             return cached.allowed;
         }
 
-        boolean allowed = weldingMachineRepository.findActiveByMac(normalizedMac).isPresent();
+        boolean allowed;
+        try {
+            allowed = weldingMachineRepository.findActiveByMac(normalizedMac).isPresent();
+        } catch (Exception e) {
+            log.warn("[ARCHIVE-TCP-LISTENER] MAC allowlist DB lookup failed for {}: {}", normalizedMac, e.getMessage());
+            allowed = deviceModelService.isCoreMacInConfig(normalizedMac)
+                    || isMacInArchiveAllowedConfig(normalizedMac);
+        }
+        if (!allowed) {
+            allowed = deviceModelService.isCoreMacInConfig(normalizedMac)
+                    || isMacInArchiveAllowedConfig(normalizedMac);
+        }
         macAllowCache.put(normalizedMac, new CachedMacAllow(allowed, now));
         return allowed;
+    }
+
+    private boolean isMacInArchiveAllowedConfig(String normalizedMac) {
+        if (archiveAllowedMacsConfig == null || archiveAllowedMacsConfig.isBlank()) {
+            return false;
+        }
+        for (String part : archiveAllowedMacsConfig.split(",")) {
+            if (normalizedMac.equalsIgnoreCase(part.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
