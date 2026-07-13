@@ -45,10 +45,6 @@ public class WeldingDeviceManagerService {
     private final Map<String, StateSummary> pendingSaveByMac = new ConcurrentHashMap<>();
     private final Map<String, AtomicBoolean> saveInFlightByMac = new ConcurrentHashMap<>();
 
-    /** Последний Welding-snapshot по MAC (epoch ms) — для live-hold между poll 1с. */
-    private final Map<String, Long> lastWeldingSeenAtMs = new ConcurrentHashMap<>();
-    private static final long CORE_WELDING_LIVE_HOLD_MS = 2500L;
-
     // Отдельный executor для операций с БД, чтобы не блокировать общий пул
     private final ExecutorService dbExecutor = Executors.newFixedThreadPool(3);
 
@@ -78,7 +74,6 @@ public class WeldingDeviceManagerService {
                 return;
             }
             preserveCoreGasMetrics(previous, stateSummary);
-            stabilizeCoreWeldingLiveState(mac, previous, stateSummary);
 
             weldingMachineLastWeldService.updateFromPanelState(
                     mac, previous, stateSummary, LocalDateTime.now());
@@ -163,79 +158,6 @@ public class WeldingDeviceManagerService {
             return state;
         }
         return deviceStates.get(mac.toLowerCase());
-    }
-
-    private void stabilizeCoreWeldingLiveState(String mac, StateSummary previous, StateSummary current) {
-        if (current == null || mac == null) {
-            return;
-        }
-        String key = macKey(mac);
-        long now = System.currentTimeMillis();
-        if (isWeldingStateSummary(current)) {
-            lastWeldingSeenAtMs.put(key, now);
-            return;
-        }
-        if (previous == null || !isWeldingStateSummary(previous)) {
-            return;
-        }
-        Long lastWelding = lastWeldingSeenAtMs.get(key);
-        if (lastWelding == null || now - lastWelding > CORE_WELDING_LIVE_HOLD_MS) {
-            return;
-        }
-        // ponytail: poll 1с может попасть между пакетами Idle — держим Welding до 2.5с после последнего подтверждения
-        current.setStatus(WeldingMachineStatus.Welding);
-        overlayWeldingPresentation(previous, current);
-    }
-
-    private static String macKey(String mac) {
-        return mac.trim().toUpperCase();
-    }
-
-    private static boolean isWeldingStateSummary(StateSummary summary) {
-        if (summary == null) {
-            return false;
-        }
-        if (summary.getStatus() == WeldingMachineStatus.Welding) {
-            return true;
-        }
-        if (summary.getProperties() == null) {
-            return false;
-        }
-        for (String propKey : new String[]{"WeldingMachineState", "Состояние аппарата"}) {
-            StateSummaryPropertyValue prop = summary.getProperties().get(propKey);
-            if (prop == null || prop.getValue() == null) {
-                continue;
-            }
-            String lower = prop.getValue().toLowerCase();
-            if (lower.contains("сварка") || lower.contains("welding")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static void overlayWeldingPresentation(StateSummary from, StateSummary to) {
-        if (from == null || to == null || from.getProperties() == null || to.getProperties() == null) {
-            return;
-        }
-        for (String propKey : new String[]{"Состояние аппарата", "WeldingMachineState", "Current", "Voltage"}) {
-            copyProperty(from, to, propKey);
-        }
-    }
-
-    private static void copyProperty(StateSummary from, StateSummary to, String key) {
-        StateSummaryPropertyValue src = from.getProperties().get(key);
-        if (src == null) {
-            return;
-        }
-        StateSummaryPropertyValue dst = new StateSummaryPropertyValue();
-        dst.setValue(src.getValue());
-        dst.setPropertyType(src.getPropertyType());
-        dst.setRawValue(src.getRawValue());
-        dst.setLimitsExceeded(src.isLimitsExceeded());
-        dst.setLimitMin(src.getLimitMin());
-        dst.setLimitMax(src.getLimitMax());
-        to.getProperties().put(key, dst);
     }
 
     private static void preserveCoreGasMetrics(StateSummary previous, StateSummary current) {
