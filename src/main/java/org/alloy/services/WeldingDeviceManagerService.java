@@ -214,15 +214,10 @@ public class WeldingDeviceManagerService {
     public void markDeviceDisconnected(String mac) {
         connectionStatus.put(mac, false);
 
-        // Обновляем состояние как Offline
-        StateSummary state = deviceStates.get(mac);
-        if (state != null) {
-            state.setStatus(WeldingMachineStatus.Offline);
-            deviceStates.put(mac, state);
-
-            // WebSocket отключен в текущей архитектуре (polling)
-        }
-
+        // Не переписываем status последнего пакета на Offline: online/offline решает
+        // свежесть данных (isDeviceConnected, порог 10с). Иначе разрыв одного из
+        // параллельных TCP-соединений затирает реальный Welding/Idle на Offline
+        // до прихода следующего пакета — на фронте мигает «Не в сети» при живой сварке.
     }
 
     @PreDestroy
