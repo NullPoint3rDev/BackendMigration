@@ -63,10 +63,11 @@ public class WeldingDataParserService {
             if (core != null) {
                 Map<String, StateSummaryPropertyValue> props = new HashMap<>();
                 // Отображаемые значения в зависимости от состояния: 1 — сварка, 0 — холостой ход
-                int stateVal = core.weldingMachineState;
+                int stateVal = resolveCoreWeldingStateVal(core);
                 int displayCurrent = (stateVal == 1 ? core.weldingCurrent : core.current);
-                // Core отдаёт напряжение как слово в единицах 1/10 В. Используем готовое значение из CorePacket
-                double displayVoltageDouble = core.getDisplayVoltage();
+                // Core отдаёт напряжение как слово в единицах 1/10 В
+                int displayVoltageRaw = (stateVal == 1 ? core.weldingVoltage : core.voltage);
+                double displayVoltageDouble = displayVoltageRaw / 10.0;
                 int displayVoltageTenth = (int) Math.round(displayVoltageDouble * 10);
 
                 // Фронт для ключа 'Voltage' делит значение на 10 (см. DeviceMonitorPage), поэтому кладём десятые Вольта
@@ -84,7 +85,7 @@ public class WeldingDataParserService {
                 addProperty(props, "Date.Year", String.valueOf(core.year), "number");
 
                 // Преобразуем состояние аппарата из числа в текст
-                String machineStateText = getMachineStateText(core.weldingMachineState);
+                String machineStateText = getMachineStateText(stateVal);
                 addProperty(props, "Состояние аппарата", machineStateText, "text");
                 // Также добавляем под ключом WeldingMachineState для совместимости с фронтендом
                 addProperty(props, "WeldingMachineState", machineStateText, "text");
@@ -745,6 +746,27 @@ public class WeldingDataParserService {
      * @param state числовое значение состояния (0-5)
      * @return текстовое описание состояния
      */
+    /** Эффективный state Core: 1=сварка. ponytail: weldingCurrent≠уставка при state=0 — дуга, не простой. */
+    static int resolveCoreWeldingStateVal(CorePacket core) {
+        if (core == null) {
+            return 0;
+        }
+        if (core.weldingMachineState == 1) {
+            return 1;
+        }
+        return coreArcLooksActive(core) ? 1 : core.weldingMachineState;
+    }
+
+    static boolean coreArcLooksActive(CorePacket core) {
+        int weldI = core.weldingCurrent;
+        if (weldI <= 20) {
+            return false;
+        }
+        int setI = core.current;
+        // В простое Current=уставка (152A); weldingCurrent совпадает или 0 — не дуга.
+        return setI <= 0 || weldI != setI;
+    }
+
     private String getMachineStateText(int state) {
         switch (state) {
             case 0:
