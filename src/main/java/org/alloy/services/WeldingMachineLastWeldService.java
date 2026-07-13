@@ -7,7 +7,8 @@ import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,7 +21,6 @@ import java.util.Optional;
  * «Последний шов» = серверное время окончания сварки (переход «Сварка» → другое состояние).
  */
 @Service
-@Transactional
 public class WeldingMachineLastWeldService {
 
     private static final String[] MACHINE_STATE_TEXT_KEYS = {
@@ -29,11 +29,18 @@ public class WeldingMachineLastWeldService {
             "State.WeldingMachineState"
     };
 
+    private final TransactionTemplate transactionTemplate;
+
     @Autowired
     private WeldingMachineRepository weldingMachineRepository;
 
+    public WeldingMachineLastWeldService(PlatformTransactionManager transactionManager) {
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+    }
+
     /**
      * На каждом пакете телеметрии: запись только при окончании сварки.
+     * Без @Transactional на методе — иначе каждый пакет держит JDBC-соединение.
      */
     public void updateFromPanelState(
             String mac,
@@ -46,6 +53,10 @@ public class WeldingMachineLastWeldService {
         if (!isWelding(previous) || isWelding(current)) {
             return;
         }
+        transactionTemplate.executeWithoutResult(status -> persistLastWeldAt(mac, eventTime));
+    }
+
+    private void persistLastWeldAt(String mac, LocalDateTime eventTime) {
         Optional<WeldingMachine> machineOpt = resolveMachine(mac);
         if (!machineOpt.isPresent()) {
             return;
@@ -117,14 +128,10 @@ public class WeldingMachineLastWeldService {
     }
 
     private Optional<WeldingMachine> resolveMachine(String mac) {
-        String normalized = mac.trim();
-        Optional<WeldingMachine> opt = weldingMachineRepository.findByMac(normalized);
-        if (!opt.isPresent()) {
-            opt = weldingMachineRepository.findByMac(normalized.toUpperCase());
+        String normalized = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
+        if (normalized.isEmpty()) {
+            return Optional.empty();
         }
-        if (!opt.isPresent()) {
-            opt = weldingMachineRepository.findByMac(normalized.toLowerCase());
-        }
-        return opt;
+        return weldingMachineRepository.findActiveByMac(normalized);
     }
 }

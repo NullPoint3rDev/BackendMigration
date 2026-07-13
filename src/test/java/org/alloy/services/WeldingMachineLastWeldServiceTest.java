@@ -7,6 +7,9 @@ import org.alloy.repositories.WeldingMachineRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -16,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,7 +33,10 @@ class WeldingMachineLastWeldServiceTest {
     @BeforeEach
     void setUp() {
         weldingMachineRepository = mock(WeldingMachineRepository.class);
-        service = new WeldingMachineLastWeldService();
+        PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
+        when(transactionManager.getTransaction(any(TransactionDefinition.class)))
+                .thenReturn(new SimpleTransactionStatus());
+        service = new WeldingMachineLastWeldService(transactionManager);
         ReflectionTestUtils.setField(service, "weldingMachineRepository", weldingMachineRepository);
     }
 
@@ -37,9 +44,9 @@ class WeldingMachineLastWeldServiceTest {
     void updatesLastWeldAtWhenSvarkaEnds() {
         WeldingMachine machine = new WeldingMachine();
         machine.setId(7);
-        machine.setMac("AA:BB:CC:DD:EE:FF");
+        machine.setMac("AABBCCDDEEFF");
         machine.setLastWeldAt(LocalDateTime.of(2026, 6, 25, 10, 0));
-        when(weldingMachineRepository.findByMac("AA:BB:CC:DD:EE:FF")).thenReturn(Optional.of(machine));
+        when(weldingMachineRepository.findActiveByMac("AABBCCDDEEFF")).thenReturn(Optional.of(machine));
 
         StateSummary previous = summaryWithState("Сварка");
         StateSummary current = summaryWithState("Аппарат включен");
@@ -56,7 +63,7 @@ class WeldingMachineLastWeldServiceTest {
         WeldingMachine machine = new WeldingMachine();
         machine.setId(7);
         machine.setMac("AA:BB:CC:DD:EE:FF");
-        when(weldingMachineRepository.findByMac("AA:BB:CC:DD:EE:FF")).thenReturn(Optional.of(machine));
+        when(weldingMachineRepository.findActiveByMac("AABBCCDDEEFF")).thenReturn(Optional.of(machine));
 
         service.updateFromPanelState(
                 "AA:BB:CC:DD:EE:FF",
@@ -73,7 +80,7 @@ class WeldingMachineLastWeldServiceTest {
         WeldingMachine machine = new WeldingMachine();
         machine.setId(7);
         machine.setMac("AA:BB:CC:DD:EE:FF");
-        when(weldingMachineRepository.findByMac("AA:BB:CC:DD:EE:FF")).thenReturn(Optional.of(machine));
+        when(weldingMachineRepository.findActiveByMac("AABBCCDDEEFF")).thenReturn(Optional.of(machine));
 
         service.updateFromPanelState(
                 "AA:BB:CC:DD:EE:FF",

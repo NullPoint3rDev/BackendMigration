@@ -3,6 +3,7 @@ package org.alloy.services;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -18,10 +19,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ArchiveIncomingPacketsWorker {
     
     private static final Logger log = LoggerFactory.getLogger(ArchiveIncomingPacketsWorker.class);
-    
-    // Максимальное количество одновременных задач (как в archive проекте)
-    private static final int MAX_CONCURRENCY = 50;
-    
+
+    @Value("${welding.archive.worker.max-concurrency:12}")
+    private int maxConcurrency;
+
     private final AtomicBoolean running = new AtomicBoolean(true);
     private ExecutorService executorService;
     private Semaphore concurrencySemaphore;
@@ -32,10 +33,10 @@ public class ArchiveIncomingPacketsWorker {
     @PostConstruct
     public void start() {
         System.out.println("[ARCHIVE-PACKETS-WORKER] 🚀 Запуск воркера обработки входящих пакетов (параллельная обработка)");
-        log.info("[ARCHIVE-PACKETS-WORKER] Запуск воркера с максимальной параллельностью: {}", MAX_CONCURRENCY);
-        
+        log.info("[ARCHIVE-PACKETS-WORKER] Запуск воркера с максимальной параллельностью: {}", maxConcurrency);
+
         // Создаем семафор для контроля параллельности (как в archive проекте)
-        concurrencySemaphore = new Semaphore(MAX_CONCURRENCY);
+        concurrencySemaphore = new Semaphore(maxConcurrency);
         
         // Создаем пул потоков для обработки пакетов
         executorService = Executors.newCachedThreadPool();
@@ -102,7 +103,7 @@ public class ArchiveIncomingPacketsWorker {
     public java.util.Map<String, Object> getWorkerStatistics() {
         return java.util.Map.of(
             "running", running.get(),
-            "maxConcurrency", MAX_CONCURRENCY,
+            "maxConcurrency", maxConcurrency,
             "availablePermits", concurrencySemaphore != null ? concurrencySemaphore.availablePermits() : 0,
             "queueSize", ArchiveIncomingPacketsQueue.size(),
             "queueEmpty", ArchiveIncomingPacketsQueue.isEmpty(),
