@@ -23,8 +23,12 @@ public enum DeviceModel {
     public static DeviceModel getByMac(String mac) {
         if (mac == null || mac.isEmpty()) return null;
         
-        // Хардкод для существующих устройств
-        if (mac.equalsIgnoreCase("E09806083396") || mac.equalsIgnoreCase("DC4F22763D5C")) {
+        // Хардкод для существующих устройств (fallback, если в БД нет DeviceModel)
+        if (mac.equalsIgnoreCase("E09806083396")
+                || mac.equalsIgnoreCase("DC4F22763D5C")
+                || mac.equalsIgnoreCase("E098060B22D2")
+                || mac.equalsIgnoreCase("C82B9620E506")
+                || mac.equalsIgnoreCase("ECFABCC9703B")) {
             return CORE;
         }
         if (mac.equalsIgnoreCase("8CAAB50C4254")) {

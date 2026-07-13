@@ -4,6 +4,7 @@ import org.alloy.models.DeviceModel;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -19,6 +20,9 @@ public class DeviceModelService {
 
     @Autowired
     private WeldingMachineRepository weldingMachineRepository;
+
+    @Value("${welding.core.macs:E09806083396,DC4F22763D5C,E098060B22D2,C82B9620E506}")
+    private String coreMacsConfig;
 
     /** true, если MAC — отладочный (12 символов x/X, разделители игнорируются). */
     public static boolean isDebugMac(String mac) {
@@ -48,6 +52,58 @@ public class DeviceModelService {
         // Если в БД нет, используем обратную совместимость
         DeviceModel fallbackModel = DeviceModel.getByMac(normalizedMac);
         return fallbackModel;
+    }
+
+    /** Core по MAC (БД, fallback getByMac, welding.core.macs). */
+    public boolean isCoreDevice(String mac) {
+        DeviceModel model = getDeviceModelByMac(mac);
+        if (model == DeviceModel.CORE) {
+            return true;
+        }
+        if (model == DeviceModel.MONITORING_BLOCK) {
+            return false;
+        }
+        return isCoreMacInConfig(mac);
+    }
+
+    /**
+     * Core-парсер: явная модель/MAC или длинный hex-payload WTINFO (не архивный блок ~76 nibbles).
+     */
+    public boolean shouldUseCoreParser(String mac, String packetData) {
+        DeviceModel model = getDeviceModelByMac(mac);
+        if (model == DeviceModel.MONITORING_BLOCK) {
+            return false;
+        }
+        if (model == DeviceModel.CORE || isCoreMacInConfig(mac)) {
+            return true;
+        }
+        return isCorePacketFormat(packetData);
+    }
+
+    /** ponytail: длина hex ≥100 — WTINFO Core; архивный блок мониторинга ~76 nibbles. */
+    public static boolean isCorePacketFormat(String packetData) {
+        if (packetData == null) {
+            return false;
+        }
+        int semi = packetData.indexOf(';');
+        if (semi < 0 || semi + 1 >= packetData.length()) {
+            return false;
+        }
+        String payload = packetData.substring(semi + 1).trim();
+        return payload.length() >= 100 && payload.matches("[0-9A-Fa-f]+");
+    }
+
+    private boolean isCoreMacInConfig(String mac) {
+        if (mac == null || mac.isEmpty()) {
+            return false;
+        }
+        String normalized = normalizeMac(mac);
+        for (String part : coreMacsConfig.split(",")) {
+            if (normalized.equalsIgnoreCase(part.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

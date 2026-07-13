@@ -23,9 +23,6 @@ public class WeldingDataParserService {
     @Value("${welding.parser.debug_mode:true}")
     private boolean debugMode;
 
-    @Value("${welding.core.macs:E09806083396,DC4F22763D5C}")
-    private String coreMacsConfig;
-
     @Value("${welding.core.voltage_scale_idle:16}")
     private int coreVoltageScaleIdle;
     @Value("${welding.core.voltage_scale_welding:10}")
@@ -61,7 +58,7 @@ public class WeldingDataParserService {
         }
 
         // Для плат Core разбираем специализированным парсером и сразу выставляем ток/напряжение
-        if (deviceModel == DeviceModel.CORE || isCoreMac(mac)) {
+        if (deviceModelService.shouldUseCoreParser(mac, data)) {
             CorePacket core = CorePacketParser.parse(data);
             if (core != null) {
                 Map<String, StateSummaryPropertyValue> props = new HashMap<>();
@@ -237,15 +234,6 @@ public class WeldingDataParserService {
         }
 
         return state;
-    }
-
-    private boolean isCoreMac(String mac) {
-        if (mac == null || mac.isEmpty()) return false;
-        String[] parts = coreMacsConfig.split(",");
-        for (String part : parts) {
-            if (mac.equalsIgnoreCase(part.trim())) return true;
-        }
-        return false;
     }
 
     /**

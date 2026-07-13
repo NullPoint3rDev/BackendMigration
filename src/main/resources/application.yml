@@ -132,6 +132,7 @@ welding:
     timesync:
       enabled: true  # Включить синхронизацию времени
   core:
+    macs: E09806083396,DC4F22763D5C,E098060B22D2,C82B9620E506,ECFABCC9703B
     voltage_scale_idle: 16   # Масштаб для напряжения без сварки (idle)
     voltage_scale_welding: 10  # Масштаб для напряжения при сварке (welding)
     voltage_offset_idle: 0    # Калибровочный сдвиг (отключен)

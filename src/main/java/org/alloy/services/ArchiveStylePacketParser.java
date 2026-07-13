@@ -23,9 +23,9 @@ public class ArchiveStylePacketParser {
     @Value("${welding.archive.parser.debug:false}")
     private boolean debugMode;
     
-    // @Autowired
-    // private DeviceModelService deviceModelService; // пока не используется
-    
+    @Autowired
+    private DeviceModelService deviceModelService;
+
     @Autowired
     private WeldingDeviceManagerService deviceManager;
     
@@ -45,7 +45,7 @@ public class ArchiveStylePacketParser {
             }
             
             // Core устройства: сразу передаем данные в общий менеджер (как в archive, без WS)
-            if (isCoreDevice(packet.getMac())) {
+            if (deviceModelService.shouldUseCoreParser(packet.getMac(), packet.getData())) {
                 if (debugMode) {
                     System.out.println("[ARCHIVE-PARSER] 🔄 Передача CORE пакета напрямую в deviceManager: " + packet.getMac());
                 }
@@ -304,16 +304,6 @@ public class ArchiveStylePacketParser {
                 return "00";
             }
         }
-    }
-    
-    /**
-     * Проверка, является ли устройство Core
-     */
-    private boolean isCoreDevice(String mac) {
-        if (mac == null) return false;
-        
-        // Проверяем по MAC-адресу
-        return mac.equalsIgnoreCase("E09806083396") || mac.equalsIgnoreCase("DC4F22763D5C");
     }
     
     /**

@@ -78,7 +78,7 @@ public class TcpCoreDeviceClient {
                             String mac = extractMacFromPacket(data);
                             if (mac != null) {
                                 System.out.println("[TCP-CORE] 🔍 Извлечен MAC: " + mac);
-                                if (coreMac.equalsIgnoreCase(mac)) {
+                                if (isConfiguredCoreMac(mac)) {
                                     if (!data.startsWith("PING:")) {
                                         String msg = "[TCP-CORE] ✅ Данные от Core (" + mac + "): " + data;
                                         System.out.println(msg);
@@ -95,7 +95,7 @@ public class TcpCoreDeviceClient {
                         }
                         
                         System.out.println("[TCP-CORE] 🔌 Соединение закрыто устройством");
-                        deviceManager.markDeviceDisconnected(coreMac);
+                        // ponytail: coreMac — список; disconnect по конкретному MAC не делаем здесь
                     }
                     
                 } catch (java.net.ConnectException e) {
@@ -103,7 +103,6 @@ public class TcpCoreDeviceClient {
                     System.err.println("[TCP-CORE] ❌ Ошибка подключения: " + e.getMessage());
                     log.error("[TCP-CORE] Ошибка подключения", e);
                     System.err.println("[TCP-CORE] 🔄 Повторная попытка через " + retryIntervalMs + "мс (попытка " + retryCount + "/" + maxRetries + ")");
-                    deviceManager.markDeviceDisconnected(coreMac);
                     if (retryCount >= maxRetries) {
                         System.err.println("[TCP-CORE] ⚠️ Достигнуто максимальное количество попыток. Останавливаемся.");
                         break;
@@ -114,7 +113,6 @@ public class TcpCoreDeviceClient {
                 } catch (Exception e) {
                     System.err.println("[TCP-CORE] ❌ Ошибка: " + e.getMessage());
                     log.error("[TCP-CORE] Ошибка", e);
-                    deviceManager.markDeviceDisconnected(coreMac);
                     try {
                         Thread.sleep(retryIntervalMs);
                     } catch (InterruptedException ignored) {}
@@ -141,7 +139,6 @@ public class TcpCoreDeviceClient {
                         long timeSinceLastData = System.currentTimeMillis() - lastDataReceived;
                         if (timeSinceLastData > 30000) {
                             System.out.println("[TCP-CORE] ⚠️ Данных не было " + (timeSinceLastData / 1000) + " секунд, отмечаем как отключенный");
-                            deviceManager.markDeviceDisconnected(coreMac);
                             isConnected = false;
                         }
                     }
@@ -152,6 +149,18 @@ public class TcpCoreDeviceClient {
         });
         heartbeatThread.setDaemon(true);
         heartbeatThread.start();
+    }
+
+    private boolean isConfiguredCoreMac(String mac) {
+        if (mac == null || coreMac == null) {
+            return false;
+        }
+        for (String part : coreMac.split(",")) {
+            if (mac.equalsIgnoreCase(part.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String extractMacFromPacket(String data) {

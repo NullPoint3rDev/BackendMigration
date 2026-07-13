@@ -1,11 +1,15 @@
 package org.alloy.services;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 
 @Service
 public class CoreOutboundService {
+
+    @Autowired
+    private DeviceModelService deviceModelService;
 
     @Value("${core.outbound.enabled:true}")
     private boolean enabled;
@@ -95,10 +99,7 @@ public class CoreOutboundService {
      * Проверяет, является ли устройство Core по MAC-адресу
      */
     public boolean isCoreDevice(String mac) {
-        if (mac == null) return false;
-        
-        // Проверяем по MAC-адресу
-        return mac.equalsIgnoreCase("E09806083396") || mac.equalsIgnoreCase("ECFABCCA42E8");
+        return deviceModelService.isCoreDevice(mac);
     }
     
     /**
