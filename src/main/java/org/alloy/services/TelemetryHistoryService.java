@@ -1,7 +1,7 @@
 package org.alloy.services;
 
-import org.alloy.models.WeldingMachineStatus;
 import org.alloy.models.dto.TelemetryHistoryPointDTO;
+import org.alloy.models.dto.serialization.DisplayTimeZones;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.entities.WeldingMachineParameterValue;
 import org.alloy.models.entities.WeldingMachineState;
@@ -81,9 +81,11 @@ public class TelemetryHistoryService {
         if (machineOpt.isEmpty()) return List.of();
         Integer machineId = machineOpt.get().getId();
 
-        ZoneId zone = ZoneId.systemDefault();
-        LocalDateTime from = LocalDateTime.ofInstant(Instant.ofEpochMilli(fromMs), zone);
-        LocalDateTime to = LocalDateTime.ofInstant(Instant.ofEpochMilli(toMs), zone);
+        // ponytail: date_created в БД = UTC naive (как saveState / daily-stats). Не systemDefault —
+        // иначе на JVM Europe/Moscow шовы уезжают на offset часов и пропадают из окна «сегодня».
+        ZoneId storage = DisplayTimeZones.STORAGE;
+        LocalDateTime from = LocalDateTime.ofInstant(Instant.ofEpochMilli(fromMs), storage);
+        LocalDateTime to = LocalDateTime.ofInstant(Instant.ofEpochMilli(toMs), storage);
 
         List<WeldingMachineState> states = weldingMachineStateRepository.findByWeldingMachineIdAndDateRangeAsc(machineId, from, to);
         if (states.isEmpty()) return List.of();
@@ -93,7 +95,9 @@ public class TelemetryHistoryService {
 
         List<TelemetryHistoryPointDTO> result = new ArrayList<>(states.size());
         for (WeldingMachineState s : states) {
-            long ts = s.getDateCreated() != null ? s.getDateCreated().atZone(zone).toInstant().toEpochMilli() : 0L;
+            long ts = s.getDateCreated() != null
+                    ? s.getDateCreated().atZone(storage).toInstant().toEpochMilli()
+                    : 0L;
             Map<String, String> map = byState.getOrDefault(s.getId(), Map.of());
             String machineStateText = MonitorActivityClassifier.pickMachineStateText(map);
             BigDecimal currentAmps = MonitorActivityClassifier.pickCurrentAmps(map);
