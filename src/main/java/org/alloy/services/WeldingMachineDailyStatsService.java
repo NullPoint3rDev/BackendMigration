@@ -352,8 +352,8 @@ public class WeldingMachineDailyStatsService {
     /**
      * Сумма прироста накопительного счётчика проволоки (метры за период), как в логике газа:
      * рост → плюс дельта; крупное падение (перезагрузка) → плюс само новое значение;
-     * мелкая просадка (шум/обрыв) → игнор, а last не двигаем вниз, иначе шумовой «отскок»
-     * даст ложный прирост (это и раздувало сумму до сотен кг).
+     * мелкая просадка / нули (шум/обрыв) → игнор, last не двигаем вниз, иначе
+     * цикл 120→0→120 накручивает +120 м за круг (сотни кг в сутки).
      */
     static BigDecimal sumWireCumulativeMeters(List<BigDecimal> orderedValues) {
         if (orderedValues == null) {
@@ -366,6 +366,10 @@ public class WeldingMachineDailyStatsService {
                 continue;
             }
             if (last == null) {
+                // ponytail: ведущие нули — шум телеметрии, не baseline
+                if (cur.signum() <= 0) {
+                    continue;
+                }
                 last = cur;
                 continue;
             }
@@ -376,13 +380,17 @@ public class WeldingMachineDailyStatsService {
                 meters = meters.add(cur);
                 last = cur;
             }
-            // иначе мелкая просадка — пропускаем, last оставляем прежним
+            // иначе мелкая просадка / ноль — пропускаем, last оставляем прежним
         }
         return meters;
     }
 
     static boolean isWireCounterReset(BigDecimal current, BigDecimal last) {
         if (current == null || last == null || last.signum() <= 0) {
+            return false;
+        }
+        // ponytail: 0 между опросами — шум, не power-on reset (иначе 120→0→120 = +120 м)
+        if (current.signum() <= 0) {
             return false;
         }
         return current.compareTo(last.multiply(WIRE_COUNTER_RESET_MAX_RATIO)) < 0;

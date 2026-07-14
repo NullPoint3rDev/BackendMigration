@@ -130,6 +130,16 @@ class WeldingMachineDailyStatsGasTest {
                 java.util.List.of(bd("100"))).compareTo(BigDecimal.ZERO));
         assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
                 java.util.List.of()).compareTo(BigDecimal.ZERO));
+        // Цикл 120→0→120 (телеметрия) не должен накручивать: last остаётся 120.
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of(bd("120"), bd("0"), bd("120"), bd("0"), bd("120")))
+                .compareTo(BigDecimal.ZERO));
+        // Ведущие нули + рост: 0 → 0 → 17.1 → 17.5 = +0.4 м.
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of(bd("0"), bd("0"), bd("17.1"), bd("17.5"))).compareTo(bd("0.4")));
+        // Реальный сброс после нулевого шума: 120 → 0(шум) → 50(reset) → 80 = 50+30.
+        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
+                java.util.List.of(bd("120"), bd("0"), bd("50"), bd("80"))).compareTo(bd("80")));
     }
 
     private static org.alloy.models.entities.WeldingMachineState state(Long id, java.time.LocalDateTime created) {
