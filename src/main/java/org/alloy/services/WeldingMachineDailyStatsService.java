@@ -270,7 +270,7 @@ public class WeldingMachineDailyStatsService {
 
     /**
      * Границы календарных суток statDate в displayZone → naive UTC для date_created в БД.
-     * ponytail: date_created пишется LocalDateTime.now() в Docker (UTC wall-clock).
+     * ponytail: date_created обязан быть UTC wall (см. WeldingMachineState без @CreationTimestamp).
      */
     static DayBoundsUtc dayBoundsForStatDate(LocalDate statDate, ZoneId displayZone, ZonedDateTime nowInDisplayZone) {
         ZonedDateTime dayStartZ = statDate.atTime(0, 1).atZone(displayZone);

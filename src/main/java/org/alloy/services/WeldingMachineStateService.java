@@ -220,13 +220,15 @@ public class WeldingMachineStateService {
             }
 
             // Сохраняем состояние
-            weldingMachineStateRepository.save(state);
+            WeldingMachineState saved = weldingMachineStateRepository.save(state);
             weldingMachineLastPoweredOnService.updateFromTelemetry(
                     machine,
                     prevOpt.orElse(null),
                     stateSummary,
                     now);
-            System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата ID=" + machine.getId() + " (MAC=" + mac + "), дата=" + now);
+            // после снятия @CreationTimestamp date_created в БД должен совпадать с UTC now (~05:xx, не 08:xx MSK)
+            System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата ID=" + machine.getId()
+                    + " (MAC=" + mac + "), дата=" + saved.getDateCreated());
 
             // Сохраняем параметры (State.I, State.U и др.)
             if (stateSummary.getProperties() != null && !stateSummary.getProperties().isEmpty()) {
@@ -328,8 +330,11 @@ public class WeldingMachineStateService {
             throw new IllegalArgumentException("Status is required");
         }
 
-        // Set creation date
-        state.setDateCreated(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        state.setDateCreated(now);
+        if (state.getDateUpdated() == null) {
+            state.setDateUpdated(now);
+        }
 
         return weldingMachineStateRepository.save(state);
     }
@@ -346,6 +351,9 @@ public class WeldingMachineStateService {
 
         // Preserve creation date
         state.setDateCreated(existingState.getDateCreated());
+        if (state.getDateUpdated() == null) {
+            state.setDateUpdated(LocalDateTime.now(ZoneOffset.UTC));
+        }
 
         return weldingMachineStateRepository.save(state);
     }

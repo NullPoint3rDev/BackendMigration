@@ -3,9 +3,6 @@ package org.alloy.models.entities;
 import org.alloy.models.WeldingMachineStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-import io.swagger.v3.oas.annotations.media.Schema;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
@@ -27,11 +24,11 @@ public class WeldingMachineState {
     @Column(name = "welding_machineid", nullable = false)
     private Integer weldingMachineId;
 
-    @CreationTimestamp
+    // ponytail: без @CreationTimestamp — иначе Hibernate (VM) затирает явный UTC локальным JVM now (MSK на Windows),
+    // и daily-stats режет таймеры в 0 относительно dayBounds (UTC).
     @Column(name = "date_created", nullable = false, updatable = false)
     private LocalDateTime dateCreated;
 
-    @UpdateTimestamp
     @Column(name = "date_updated", nullable = false)
     private LocalDateTime dateUpdated;
 
