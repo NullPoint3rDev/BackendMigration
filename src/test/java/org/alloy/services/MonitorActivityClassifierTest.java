@@ -67,6 +67,18 @@ class MonitorActivityClassifierTest {
     }
 
     @Test
+    void weldingCurrentAboveSetpointCountsAsWelding() {
+        WeldingMachineState state = new WeldingMachineState();
+        state.setWeldingMachineStatus(WeldingMachineStatus.Idle);
+        Map<String, String> props = new HashMap<>();
+        props.put("Current", "152");
+        props.put("WeldingCurrent", "180");
+        assertTrue(MonitorActivityClassifier.isWelding(state, "Аппарат включен", new BigDecimal("152"), props));
+        assertEquals(MonitorActivityMode.welding,
+                MonitorActivityClassifier.classify(state, "Аппарат включен", new BigDecimal("152"), props));
+    }
+
+    @Test
     void pickVoltagePrefersVoltageOverZeroStateU() {
         Map<String, String> props = new HashMap<>();
         props.put("State.U", "0");

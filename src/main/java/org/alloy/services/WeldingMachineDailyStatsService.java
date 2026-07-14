@@ -46,7 +46,7 @@ public class WeldingMachineDailyStatsService {
     private static final String GAS_CUMULATIVE_PARAM = "Core.GasConsumptionSincePowerOn";
     private static final List<String> STATE_TEXT_KEYS = List.of(
             "Состояние аппарата", "WeldingMachineState", "State.WeldingMachineState");
-    private static final List<String> CURRENT_KEYS = List.of("State.I", "Ток", "Current", "current");
+    private static final List<String> CURRENT_KEYS = List.of("State.I", "Ток", "Current", "current", "WeldingCurrent");
     private static final List<String> VOLTAGE_KEYS = List.of("State.U", "Напряжение", "Voltage", "voltage");
     private static final List<String> GAS_FLOW_KEYS = List.of("State.GasFlow", "GasFlow", "gasFlow");
 
@@ -164,8 +164,15 @@ public class WeldingMachineDailyStatsService {
         Map<Long, Map<String, String>> propsByStateId = loadPropsByStateId(states);
         Map<Long, BigDecimal> wireFeedByStateId = loadWireFeedByStateId(states);
 
-        // ponytail: не тянем последний poll до now() — таймеры скачут при смене статуса на последнем опросе
+        // Сегодня + свежий последний пакет: хвост до effectiveEnd (иначе Вкл./Сварка = 0, хвост → Выкл.).
+        // Если пакетов давно нет — не тянем (машина могла уйти без Offline-стейта).
         LocalDateTime openEndIfLast = null;
+        if (isOpenStatDate(statDate) && !states.isEmpty()) {
+            LocalDateTime lastCreated = states.get(states.size() - 1).getDateCreated();
+            if (lastCreated != null && !lastCreated.isBefore(effectiveEnd.minusSeconds(90))) {
+                openEndIfLast = effectiveEnd;
+            }
+        }
 
         for (WeldingMachineState s : states) {
             long overlapMs = WeldingStateDurationUtil.overlapDurationMs(
@@ -176,7 +183,7 @@ public class WeldingMachineDailyStatsService {
             Map<String, String> props = propsByStateId.getOrDefault(s.getId(), Collections.emptyMap());
             String stateText = MonitorActivityClassifier.pickMachineStateText(props);
             BigDecimal current = MonitorActivityClassifier.pickCurrentAmps(props);
-            MonitorActivityMode mode = MonitorActivityClassifier.classify(s, stateText, current);
+            MonitorActivityMode mode = MonitorActivityClassifier.classify(s, stateText, current, props);
             switch (mode) {
                 case welding:
                     weldingMs += overlapMs;

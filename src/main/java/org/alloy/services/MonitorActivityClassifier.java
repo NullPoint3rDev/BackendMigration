@@ -20,10 +20,18 @@ public final class MonitorActivityClassifier {
             WeldingMachineState state,
             String machineStateText,
             BigDecimal currentAmps) {
+        return classify(state, machineStateText, currentAmps, null);
+    }
+
+    public static MonitorActivityMode classify(
+            WeldingMachineState state,
+            String machineStateText,
+            BigDecimal currentAmps,
+            Map<String, String> propsByCode) {
         if (state == null) {
             return MonitorActivityMode.off;
         }
-        if (isWelding(state, machineStateText, currentAmps)) {
+        if (isWelding(state, machineStateText, currentAmps, propsByCode)) {
             return MonitorActivityMode.welding;
         }
         String stateLower = normalize(machineStateText);
@@ -58,7 +66,7 @@ public final class MonitorActivityClassifier {
             BigDecimal currentAmps,
             BigDecimal gasFlowLpm,
             BigDecimal voltageVolts) {
-        return classify(state, machineStateText, currentAmps);
+        return classify(state, machineStateText, currentAmps, null);
     }
 
     private static boolean isErrorState(WeldingMachineState state, String stateLower) {
