@@ -164,15 +164,9 @@ public class WeldingMachineDailyStatsService {
         Map<Long, Map<String, String>> propsByStateId = loadPropsByStateId(states);
         Map<Long, BigDecimal> wireFeedByStateId = loadWireFeedByStateId(states);
 
-        // Сегодня + свежий последний пакет: хвост до effectiveEnd (иначе Вкл./Сварка = 0, хвост → Выкл.).
-        // Если пакетов давно нет — не тянем (машина могла уйти без Offline-стейта).
+        // ponytail: не тянем последний poll до now() — таймеры скачут при смене статуса на последнем опросе
+        // (как staging: длительность = gap до следующего стейта; хвост → Выкл.)
         LocalDateTime openEndIfLast = null;
-        if (isOpenStatDate(statDate) && !states.isEmpty()) {
-            LocalDateTime lastCreated = states.get(states.size() - 1).getDateCreated();
-            if (lastCreated != null && !lastCreated.isBefore(effectiveEnd.minusSeconds(90))) {
-                openEndIfLast = effectiveEnd;
-            }
-        }
 
         for (WeldingMachineState s : states) {
             long overlapMs = WeldingStateDurationUtil.overlapDurationMs(

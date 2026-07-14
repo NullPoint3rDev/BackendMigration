@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -70,8 +71,14 @@ public class WeldingMachineStateService {
             if (DeviceModelService.isDebugMac(mac)) {
                 return;
             }
-            // Ищем сварочный аппарат по MAC
-            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findActiveByMac(mac);
+            // Ищем сварочный аппарат по MAC (как staging: findByMac, не только Active)
+            Optional<WeldingMachine> machineOpt = weldingMachineRepository.findByMac(mac);
+            if (!machineOpt.isPresent() && mac != null) {
+                machineOpt = weldingMachineRepository.findByMac(mac.toUpperCase());
+            }
+            if (!machineOpt.isPresent() && mac != null) {
+                machineOpt = weldingMachineRepository.findByMac(mac.toLowerCase());
+            }
             WeldingMachine machine;
 
             if (!machineOpt.isPresent()) {
@@ -162,7 +169,8 @@ public class WeldingMachineStateService {
                 }
             }
 
-            LocalDateTime now = LocalDateTime.now();
+            // Naive LocalDateTime в БД = UTC (как DisplayTimeZones.STORAGE / dayBounds daily-stats).
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
             if (machine.getId() != null) {
                 touchLastOnlineIfDue(machine, now);
             }

@@ -149,7 +149,7 @@ report:
 monitor:
   daily-stats:
     timezone: Europe/Moscow
-    stale-seconds: 15
+    stale-seconds: 60
     scheduler-delay-ms: 180000
     recompute-debounce-ms: 15000
   weld-segments:
