@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -93,6 +94,10 @@ public class ArchiveStyleTcpListener {
 
     @Autowired
     private DeviceModelService deviceModelService;
+
+    @Autowired
+    @Lazy
+    private MacAddressRegistryService macAddressRegistryService;
 
     @Value("${welding.archive.allowed.macs:}")
     private String archiveAllowedMacsConfig;
@@ -256,6 +261,7 @@ public class ArchiveStyleTcpListener {
 
                     // Проверяем разрешенные MAC-адреса
                     if (isAllowedMac(macAddress)) {
+                        macAddressRegistryService.recordPacket(macAddress);
                         deviceManager.touchInboundTelemetry(macAddress);
 
                         // Немедленно отвечаем на запрос синхронизации времени от Core
@@ -393,19 +399,18 @@ public class ArchiveStyleTcpListener {
     }
 
     /**
-     * Проверка разрешенных MAC-адресов по базе данных (с TTL-кэшем).
-     * MAC-адрес разрешен, если существует сварочный аппарат с таким MAC в базе данных
+     * Проверка разрешённых MAC по реестру (с TTL-кэшем).
+     * Разрешены WAITING и ACTIVE; BLOCKED и отсутствующие в реестре — отклоняются.
+     * Fallback: welding.core.macs и welding.archive.allowed.macs.
      */
     private boolean isAllowedMac(String mac) {
         if (mac == null || mac.isEmpty()) {
             return false;
         }
-        // Отладочный MAC не принимает TCP/телеметрию, даже если аппарат есть в БД
         if (DeviceModelService.isDebugMac(mac)) {
             return false;
         }
 
-        // Нормализуем MAC-адрес: убираем все не-шестнадцатеричные символы и приводим к верхнему регистру
         String normalizedMac = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
 
         long now = System.currentTimeMillis();
@@ -416,11 +421,10 @@ public class ArchiveStyleTcpListener {
 
         boolean allowed;
         try {
-            allowed = weldingMachineRepository.findActiveByMac(normalizedMac).isPresent();
+            allowed = macAddressRegistryService.isAllowedForTcp(normalizedMac);
         } catch (Exception e) {
-            log.warn("[ARCHIVE-TCP-LISTENER] MAC allowlist DB lookup failed for {}: {}", normalizedMac, e.getMessage());
-            allowed = deviceModelService.isCoreMacInConfig(normalizedMac)
-                    || isMacInArchiveAllowedConfig(normalizedMac);
+            log.warn("[ARCHIVE-TCP-LISTENER] MAC registry lookup failed for {}: {}", normalizedMac, e.getMessage());
+            allowed = false;
         }
         if (!allowed) {
             allowed = deviceModelService.isCoreMacInConfig(normalizedMac)
@@ -428,6 +432,16 @@ public class ArchiveStyleTcpListener {
         }
         macAllowCache.put(normalizedMac, new CachedMacAllow(allowed, now));
         return allowed;
+    }
+
+    /** Сброс TTL-кэша после изменений в реестре MAC. */
+    public void invalidateMacAllowCache(String mac) {
+        if (mac == null || mac.isEmpty()) {
+            macAllowCache.clear();
+            return;
+        }
+        String normalizedMac = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
+        macAllowCache.remove(normalizedMac);
     }
 
     private boolean isMacInArchiveAllowedConfig(String normalizedMac) {

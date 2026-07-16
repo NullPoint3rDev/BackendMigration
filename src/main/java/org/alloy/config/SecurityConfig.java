@@ -110,6 +110,7 @@ public class SecurityConfig {
                         .requestMatchers("/devices/**").authenticated()
                         .requestMatchers("/welding-devices/**").authenticated()
                         .requestMatchers("/welding-machines/**").authenticated()
+                        .requestMatchers("/mac-address-registry/**").authenticated()
                         .requestMatchers("/device-test/**").authenticated()
                         .requestMatchers("/employees/**").authenticated()
                         .requestMatchers("/welders/**").authenticated()

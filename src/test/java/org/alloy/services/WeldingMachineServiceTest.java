@@ -50,6 +50,9 @@ public class WeldingMachineServiceTest {
     @MockBean
     private org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
+    @MockBean
+    private MacAddressRegistryService macAddressRegistryService;
+
     private WeldingMachineService weldingMachineService;
     private WeldingMachine testWeldingMachine;
     private WeldingMachineType testType;
@@ -65,7 +68,8 @@ public class WeldingMachineServiceTest {
                 weldingMachineParameterValueRepository,
                 weldingMachineLastWeldService,
                 purgeAsyncExecutor,
-                transactionTemplate
+                transactionTemplate,
+                macAddressRegistryService
         );
 
         // Создаем тестовый тип сварочной машины

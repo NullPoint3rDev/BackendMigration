@@ -12,6 +12,7 @@ import org.alloy.repositories.OrganizationRepository;
 import org.alloy.logging.UnknownMacLog;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +51,10 @@ public class WeldingMachineStateService {
     @Autowired
     private WeldingMachineLastPoweredOnService weldingMachineLastPoweredOnService;
 
+    @Autowired
+    @Lazy
+    private MacAddressRegistryService macAddressRegistryService;
+
     @Value("${welding.machine.auto-create-on-unknown-mac:true}")
     private boolean autoCreateOnUnknownMac;
 
@@ -82,10 +87,13 @@ public class WeldingMachineStateService {
             WeldingMachine machine;
 
             if (!machineOpt.isPresent()) {
-                // Проверяем, не находится ли MAC в черном списке
                 if (mac != null && BLOCKED_MAC_ADDRESSES.contains(mac.toUpperCase())) {
                     System.out.println("[STATE-SERVICE] ⚠️ Попытка создать аппарат с заблокированным MAC: " + mac + " - пропускаем");
-                    return; // Не создаем аппарат для заблокированных MAC-адресов
+                    return;
+                }
+
+                if (macAddressRegistryService.isMacInRegistry(mac)) {
+                    return;
                 }
 
                 if (!autoCreateOnUnknownMac) {

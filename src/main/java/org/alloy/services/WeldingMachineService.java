@@ -12,6 +12,7 @@ import org.alloy.repositories.OrganizationUnitRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -38,6 +39,7 @@ public class WeldingMachineService {
     private final WeldingMachineLastWeldService weldingMachineLastWeldService;
     private final WeldingMachinePurgeAsyncExecutor purgeAsyncExecutor;
     private final TransactionTemplate transactionTemplate;
+    private final MacAddressRegistryService macAddressRegistryService;
 
     @Value("${welding.machine.purge.batch-size:10000}")
     private int purgeBatchSize = 10000;
@@ -53,7 +55,8 @@ public class WeldingMachineService {
                                  WeldingMachineParameterValueRepository weldingMachineParameterValueRepository,
                                  WeldingMachineLastWeldService weldingMachineLastWeldService,
                                  @Lazy WeldingMachinePurgeAsyncExecutor purgeAsyncExecutor,
-                                 TransactionTemplate transactionTemplate) {
+                                 TransactionTemplate transactionTemplate,
+                                 @Lazy MacAddressRegistryService macAddressRegistryService) {
         this.weldingMachineRepository = weldingMachineRepository;
         this.weldingMachineTypeRepository = weldingMachineTypeRepository;
         this.organizationUnitRepository = organizationUnitRepository;
@@ -62,6 +65,7 @@ public class WeldingMachineService {
         this.weldingMachineLastWeldService = weldingMachineLastWeldService;
         this.purgeAsyncExecutor = purgeAsyncExecutor;
         this.transactionTemplate = transactionTemplate;
+        this.macAddressRegistryService = macAddressRegistryService;
     }
 
     public static boolean isVisibleInUi(GeneralStatus status) {
@@ -331,6 +335,7 @@ public class WeldingMachineService {
         machine.setStatus(GeneralStatus.Purging);
         machine.setPurgingSince(now);
         if (originalMac != null && !originalMac.isBlank()) {
+            macAddressRegistryService.releaseWeldingMachineMac(originalMac);
             machine.setMac(tombstoneMac(id, originalMac));
         }
         weldingMachineRepository.save(machine);

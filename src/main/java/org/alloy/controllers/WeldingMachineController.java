@@ -11,10 +11,12 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.alloy.models.entities.WeldingMachine;
 import org.alloy.models.dto.WeldingMachineDTO;
 import org.alloy.models.dto.mapper.WeldingMachineMapper;
+import org.alloy.services.MacAddressRegistryService;
 import org.alloy.services.WeldingMachineService;
 import org.alloy.services.DeviceModelService;
 import org.alloy.services.Wt2AccessService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,15 +48,20 @@ public class WeldingMachineController {
     private final WeldingMachineService weldingMachineService;
     private final DeviceModelService deviceModelService;
     private final Wt2AccessService wt2AccessService;
+    private final MacAddressRegistryService macAddressRegistryService;
 
     @Autowired
     private org.alloy.services.DeviceLivenessRegistry deviceLivenessRegistry;
 
     @Autowired
-    public WeldingMachineController(WeldingMachineService weldingMachineService, DeviceModelService deviceModelService, Wt2AccessService wt2AccessService) {
+    public WeldingMachineController(WeldingMachineService weldingMachineService,
+                                    DeviceModelService deviceModelService,
+                                    Wt2AccessService wt2AccessService,
+                                    @Lazy MacAddressRegistryService macAddressRegistryService) {
         this.weldingMachineService = weldingMachineService;
         this.deviceModelService = deviceModelService;
         this.wt2AccessService = wt2AccessService;
+        this.macAddressRegistryService = macAddressRegistryService;
     }
 
     @Operation(
@@ -363,10 +370,12 @@ public class WeldingMachineController {
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
         wt2AccessService.assertCanWriteEquipment(principal);
         String normalizedMac = deviceModelService.normalizeMac(mac);
-        boolean exists = weldingMachineService.isMacInUse(normalizedMac, excludeId);
+        boolean machineExists = weldingMachineService.isMacInUse(normalizedMac, excludeId);
+        boolean inRegistry = macAddressRegistryService.isMacInRegistry(normalizedMac);
         java.util.Map<String, Object> body = new java.util.HashMap<>();
         body.put("mac", normalizedMac);
-        body.put("exists", exists);
+        body.put("exists", machineExists);
+        body.put("inRegistry", inRegistry);
         return ResponseEntity.ok(body);
     }
 
@@ -442,6 +451,15 @@ public class WeldingMachineController {
             return ResponseEntity.badRequest().body(error);
         }
 
+        try {
+            macAddressRegistryService.assertMacAvailableForEquipmentCreate(normalizedMac);
+        } catch (IllegalArgumentException e) {
+            ErrorResponse error = new ErrorResponse();
+            error.setError("VALIDATION_ERROR");
+            error.setMessage(e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+
         // Устанавливаем нормализованный MAC
         machineDTO.setMac(normalizedMac);
 
@@ -457,7 +475,9 @@ public class WeldingMachineController {
             wt2AccessService.assertCanWriteEquipment(principal);
             WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
             wt2AccessService.assertEnterpriseCanManageMachineOrgUnit(entity.getOrganizationUnitId(), principal);
-            return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineMapper.toDTO(weldingMachineService.createWeldingMachine(entity)));
+            WeldingMachine created = weldingMachineService.createWeldingMachine(entity);
+            macAddressRegistryService.activateForWeldingMachine(normalizedMac, created.getId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(WeldingMachineMapper.toDTO(created));
         } catch (Exception e) {
             ErrorResponse error = new ErrorResponse();
             error.setError("CREATION_ERROR");
@@ -515,6 +535,9 @@ public class WeldingMachineController {
             return ResponseEntity.notFound().build();
         }
 
+        WeldingMachine existingMachine = weldingMachineService.getWeldingMachineById(id).get();
+        String previousMac = existingMachine.getMac();
+
         String principal = SecurityContextHolder.getContext().getAuthentication().getName();
         wt2AccessService.assertCanWriteEquipment(principal);
         wt2AccessService.assertCanAccessWeldingMachine(id, principal);
@@ -552,6 +575,18 @@ public class WeldingMachineController {
             return ResponseEntity.badRequest().body(error);
         }
 
+        String normalizedPrevious = previousMac != null ? deviceModelService.normalizeMac(previousMac) : null;
+        if (!normalizedMac.equals(normalizedPrevious)) {
+            try {
+                macAddressRegistryService.assertMacAvailableForEquipmentCreate(normalizedMac);
+            } catch (IllegalArgumentException e) {
+                ErrorResponse error = new ErrorResponse();
+                error.setError("VALIDATION_ERROR");
+                error.setMessage(e.getMessage());
+                return ResponseEntity.badRequest().body(error);
+            }
+        }
+
         // Устанавливаем нормализованный MAC
         machineDTO.setMac(normalizedMac);
 
@@ -566,7 +601,11 @@ public class WeldingMachineController {
             WeldingMachine entity = WeldingMachineMapper.toEntity(machineDTO);
             entity.setId(id);
             wt2AccessService.assertEnterpriseCanManageMachineOrgUnit(entity.getOrganizationUnitId(), principal);
-            return ResponseEntity.ok(WeldingMachineMapper.toDTO(weldingMachineService.updateWeldingMachine(entity)));
+            WeldingMachine updated = weldingMachineService.updateWeldingMachine(entity);
+            if (previousMac != null && !normalizedMac.equals(deviceModelService.normalizeMac(previousMac))) {
+                macAddressRegistryService.onWeldingMachineMacChanged(previousMac, normalizedMac, id);
+            }
+            return ResponseEntity.ok(WeldingMachineMapper.toDTO(updated));
         } catch (Exception e) {
             ErrorResponse error = new ErrorResponse();
             error.setError("UPDATE_ERROR");

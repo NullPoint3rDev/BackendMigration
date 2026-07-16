@@ -122,6 +122,40 @@ public class Wt2AccessService {
                 "Нет прав на изменение оборудования");
     }
 
+    public void assertCanReadMacRegistry(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (uaOpt.isPresent() && isAdminAlloy(uaOpt.get())) {
+            return;
+        }
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав на просмотр MAC-адресов");
+        }
+        if (!AllowedUserActionsHelper.canReadMacRegistry(allowedActionsFor(principalName), false)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав на просмотр MAC-адресов");
+        }
+    }
+
+    public void assertCanAddMacRegistry(String principalName) {
+        Optional<UserAccount> uaOpt = requireActor(principalName);
+        if (uaOpt.isPresent() && isAdminAlloy(uaOpt.get())) {
+            return;
+        }
+        if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав на добавление MAC-адресов");
+        }
+        denyWriteIfViewOnly(
+                AllowedUserActionsHelper.canAddMacRegistry(allowedActionsFor(principalName), false),
+                "Нет прав на добавление MAC-адресов");
+    }
+
+    public void assertCanAdminMacRegistry(String principalName) {
+        UserAccount ua = requireActor(principalName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Пользователь не найден"));
+        if (!isAdminAlloy(ua)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Только администратор Эллой");
+        }
+    }
+
     public void assertCanReadWelders(String principalName) {
         Optional<UserAccount> uaOpt = requireActor(principalName);
         if (!uaOpt.isPresent() || !enforceUserAlloyGrants(uaOpt.get())) {

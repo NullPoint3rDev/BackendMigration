@@ -20,6 +20,7 @@ public final class AllowedUserActionsHelper {
     public static final String VIEW_ONLY_ORGANIZATIONS = "view_only_organizations";
 
     public static final String WORK_WITH_REPORTS = "work_with_reports";
+    public static final String WIFI_MODULES_WT2 = "wifi_modules_wt2";
 
     private static final Set<String> EQUIPMENT_DOMAIN = Set.of(
             VIEW_ONLY_EQUIPMENT,
@@ -211,6 +212,23 @@ public final class AllowedUserActionsHelper {
             return true;
         }
         return hasAction(actions, WORK_WITH_REPORTS);
+    }
+
+    public static boolean canReadMacRegistry(Set<String> actions, boolean adminAlloy) {
+        if (adminAlloy) {
+            return true;
+        }
+        return hasAction(actions, WIFI_MODULES_WT2);
+    }
+
+    public static boolean canAddMacRegistry(Set<String> actions, boolean adminAlloy) {
+        if (adminAlloy) {
+            return true;
+        }
+        if (hasAction(actions, VIEW_ONLY_EQUIPMENT)) {
+            return false;
+        }
+        return hasAction(actions, WIFI_MODULES_WT2);
     }
 
     /** Удаляет write-ключи домена, если включён соответствующий view_only. */
