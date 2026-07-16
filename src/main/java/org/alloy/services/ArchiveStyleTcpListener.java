@@ -115,10 +115,10 @@ public class ArchiveStyleTcpListener {
         System.out.println("[ARCHIVE-TCP-LISTENER] 🚀 Запуск TCP сервера в стиле archive");
         System.out.println("[ARCHIVE-TCP-LISTENER] Порт: " + serverPort);
         System.out.println("[ARCHIVE-TCP-LISTENER] IP: " + serverIp);
-        System.out.println("[ARCHIVE-TCP-LISTENER] Проверка MAC-адресов: по базе данных (WeldingMachine)");
+        System.out.println("[ARCHIVE-TCP-LISTENER] Проверка MAC-адресов: по реестру MAC (MacAddressRegistry)");
         System.out.println("[ARCHIVE-TCP-LISTENER] Таймаут: " + TIMEOUT_SECONDS + " секунд");
 
-        log.info("[ARCHIVE-TCP-LISTENER] Запуск сервера. Порт: {}, IP: {}, Проверка MAC: по БД (кэш {}ms)",
+        log.info("[ARCHIVE-TCP-LISTENER] Запуск сервера. Порт: {}, IP: {}, Проверка MAC: реестр (кэш {}ms)",
                 serverPort, serverIp, MAC_ALLOW_CACHE_TTL_MS);
 
         AtomicInteger poolThreadNo = new AtomicInteger(0);
@@ -261,7 +261,12 @@ public class ArchiveStyleTcpListener {
 
                     // Проверяем разрешенные MAC-адреса
                     if (isAllowedMac(macAddress)) {
-                        macAddressRegistryService.recordPacket(macAddress);
+                        try {
+                            macAddressRegistryService.recordPacket(macAddress);
+                        } catch (Exception ex) {
+                            log.warn("[ARCHIVE-TCP-LISTENER] MAC registry recordPacket failed for {}: {}",
+                                    macAddress, ex.getMessage());
+                        }
                         deviceManager.touchInboundTelemetry(macAddress);
 
                         // Немедленно отвечаем на запрос синхронизации времени от Core
