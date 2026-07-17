@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -91,7 +92,7 @@ public class WeldingDeviceManagerService {
             connectionStatus.put(normalizedMac, true);
 
             weldingMachineLastWeldService.updateFromPanelState(
-                    normalizedMac, previous, stateSummary, LocalDateTime.now());
+                    normalizedMac, previous, stateSummary, LocalDateTime.now(ZoneOffset.UTC));
 
             // WebSocket отключен - все устройства работают через polling API (как в archive проекте)
             // deviceController.sendDeviceState(stateSummary, mac);
@@ -179,7 +180,7 @@ public class WeldingDeviceManagerService {
         }
         StateSummary state = deviceStates.get(normalizedMac);
         if (state != null) {
-            state.setLastDatetimeUpdate(LocalDateTime.now());
+            state.setLastDatetimeUpdate(LocalDateTime.now(ZoneOffset.UTC));
         }
     }
 
