@@ -7,9 +7,11 @@ import org.alloy.models.dto.MacAddressRegistryPageDTO;
 import org.alloy.models.dto.MacEquipmentTypeDTO;
 import org.alloy.models.entities.MacAddressRegistry;
 import org.alloy.models.entities.MacEquipmentType;
+import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.repositories.MacAddressRegistryRepository;
 import org.alloy.repositories.MacEquipmentTypeRepository;
+import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -45,6 +47,7 @@ public class MacAddressRegistryService {
     private final MacAddressRegistryRepository registryRepository;
     private final MacEquipmentTypeRepository equipmentTypeRepository;
     private final WeldingMachineRepository weldingMachineRepository;
+    private final OrganizationUnitRepository organizationUnitRepository;
     private final DeviceModelService deviceModelService;
     private final ArchiveStyleTcpListener archiveStyleTcpListener;
 
@@ -52,11 +55,13 @@ public class MacAddressRegistryService {
     public MacAddressRegistryService(MacAddressRegistryRepository registryRepository,
                                      MacEquipmentTypeRepository equipmentTypeRepository,
                                      WeldingMachineRepository weldingMachineRepository,
+                                     OrganizationUnitRepository organizationUnitRepository,
                                      DeviceModelService deviceModelService,
                                      @Lazy ArchiveStyleTcpListener archiveStyleTcpListener) {
         this.registryRepository = registryRepository;
         this.equipmentTypeRepository = equipmentTypeRepository;
         this.weldingMachineRepository = weldingMachineRepository;
+        this.organizationUnitRepository = organizationUnitRepository;
         this.deviceModelService = deviceModelService;
         this.archiveStyleTcpListener = archiveStyleTcpListener;
     }
@@ -348,6 +353,12 @@ public class MacAddressRegistryService {
         dto.setEnteredByName(row.getEnteredByName());
         dto.setSessionCount(row.getSessionCount());
         dto.setWeldingMachineId(row.getWeldingMachineId());
+        if (row.getWeldingMachineId() != null) {
+            weldingMachineRepository.findById(row.getWeldingMachineId()).ifPresent(machine -> {
+                dto.setWeldingMachineName(machine.getName());
+                dto.setOrganizationUnitName(resolveOrganizationUnitName(machine.getOrganizationUnitId()));
+            });
+        }
         if (row.getEquipmentType() != null) {
             dto.setEquipmentTypeName(row.getEquipmentType().getName());
         } else {
@@ -355,6 +366,14 @@ public class MacAddressRegistryService {
                     .ifPresent(t -> dto.setEquipmentTypeName(t.getName()));
         }
         return dto;
+    }
+
+    private String resolveOrganizationUnitName(Integer organizationUnitId) {
+        if (organizationUnitId == null) {
+            return null;
+        }
+        Optional<OrganizationUnit> unit = organizationUnitRepository.findById(organizationUnitId);
+        return unit.map(OrganizationUnit::getName).orElse(null);
     }
 
     private MacEquipmentTypeDTO toTypeDto(MacEquipmentType type) {

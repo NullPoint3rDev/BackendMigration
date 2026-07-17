@@ -19,4 +19,6 @@ public class MacAddressRegistryDTO {
     private String enteredByName;
     private Long sessionCount;
     private Integer weldingMachineId;
+    private String weldingMachineName;
+    private String organizationUnitName;
 }

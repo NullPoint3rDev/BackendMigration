@@ -27,6 +27,12 @@ class MacAddressRegistryServiceTest {
     private org.alloy.repositories.MacEquipmentTypeRepository equipmentTypeRepository;
 
     @Mock
+    private org.alloy.repositories.WeldingMachineRepository weldingMachineRepository;
+
+    @Mock
+    private org.alloy.repositories.OrganizationUnitRepository organizationUnitRepository;
+
+    @Mock
     private DeviceModelService deviceModelService;
 
     @Mock
