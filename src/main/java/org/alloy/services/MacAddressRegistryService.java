@@ -7,10 +7,12 @@ import org.alloy.models.dto.MacAddressRegistryPageDTO;
 import org.alloy.models.dto.MacEquipmentTypeDTO;
 import org.alloy.models.entities.MacAddressRegistry;
 import org.alloy.models.entities.MacEquipmentType;
+import org.alloy.models.entities.Organization;
 import org.alloy.models.entities.OrganizationUnit;
 import org.alloy.models.entities.UserAccount;
 import org.alloy.repositories.MacAddressRegistryRepository;
 import org.alloy.repositories.MacEquipmentTypeRepository;
+import org.alloy.repositories.OrganizationRepository;
 import org.alloy.repositories.OrganizationUnitRepository;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +50,7 @@ public class MacAddressRegistryService {
     private final MacEquipmentTypeRepository equipmentTypeRepository;
     private final WeldingMachineRepository weldingMachineRepository;
     private final OrganizationUnitRepository organizationUnitRepository;
+    private final OrganizationRepository organizationRepository;
     private final DeviceModelService deviceModelService;
     private final ArchiveStyleTcpListener archiveStyleTcpListener;
 
@@ -56,12 +59,14 @@ public class MacAddressRegistryService {
                                      MacEquipmentTypeRepository equipmentTypeRepository,
                                      WeldingMachineRepository weldingMachineRepository,
                                      OrganizationUnitRepository organizationUnitRepository,
+                                     OrganizationRepository organizationRepository,
                                      DeviceModelService deviceModelService,
                                      @Lazy ArchiveStyleTcpListener archiveStyleTcpListener) {
         this.registryRepository = registryRepository;
         this.equipmentTypeRepository = equipmentTypeRepository;
         this.weldingMachineRepository = weldingMachineRepository;
         this.organizationUnitRepository = organizationUnitRepository;
+        this.organizationRepository = organizationRepository;
         this.deviceModelService = deviceModelService;
         this.archiveStyleTcpListener = archiveStyleTcpListener;
     }
@@ -357,6 +362,7 @@ public class MacAddressRegistryService {
             weldingMachineRepository.findById(row.getWeldingMachineId()).ifPresent(machine -> {
                 dto.setWeldingMachineName(machine.getName());
                 dto.setOrganizationUnitName(resolveOrganizationUnitName(machine.getOrganizationUnitId()));
+                dto.setOrganizationName(resolveOrganizationName(machine.getOrganizationUnitId()));
             });
         }
         if (row.getEquipmentType() != null) {
@@ -374,6 +380,16 @@ public class MacAddressRegistryService {
         }
         Optional<OrganizationUnit> unit = organizationUnitRepository.findById(organizationUnitId);
         return unit.map(OrganizationUnit::getName).orElse(null);
+    }
+
+    private String resolveOrganizationName(Integer organizationUnitId) {
+        if (organizationUnitId == null) {
+            return null;
+        }
+        return organizationUnitRepository.findById(organizationUnitId)
+                .flatMap(unit -> organizationRepository.findById(unit.getOrganizationId()))
+                .map(Organization::getName)
+                .orElse(null);
     }
 
     private MacEquipmentTypeDTO toTypeDto(MacEquipmentType type) {

@@ -21,4 +21,5 @@ public class MacAddressRegistryDTO {
     private Integer weldingMachineId;
     private String weldingMachineName;
     private String organizationUnitName;
+    private String organizationName;
 }

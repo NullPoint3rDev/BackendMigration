@@ -33,6 +33,9 @@ class MacAddressRegistryServiceTest {
     private org.alloy.repositories.OrganizationUnitRepository organizationUnitRepository;
 
     @Mock
+    private org.alloy.repositories.OrganizationRepository organizationRepository;
+
+    @Mock
     private DeviceModelService deviceModelService;
 
     @Mock
