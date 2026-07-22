@@ -31,12 +31,12 @@ public final class MonitorActivityClassifier {
         if (state == null) {
             return MonitorActivityMode.off;
         }
-        if (isWelding(state, machineStateText, currentAmps, propsByCode)) {
-            return MonitorActivityMode.welding;
-        }
         String stateLower = normalize(machineStateText);
         if (isErrorState(state, stateLower)) {
             return MonitorActivityMode.error;
+        }
+        if (isWelding(state, machineStateText, currentAmps, propsByCode)) {
+            return MonitorActivityMode.welding;
         }
         if (stateLower.contains("выключ") || "off".equals(stateLower) || stateLower.contains("offline")
                 || stateLower.contains("не в сети")) {
@@ -105,6 +105,9 @@ public final class MonitorActivityClassifier {
             return false;
         }
         String stateLower = normalize(machineStateText);
+        if (isErrorState(state, stateLower)) {
+            return false;
+        }
         if (stateLower.equals("сварка") || stateLower.equals("welding")
                 || stateLower.contains("сварка") || stateLower.contains("welding")) {
             return true;
