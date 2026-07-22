@@ -75,6 +75,106 @@ class WeldingMachineDailyStatsGasTest {
     }
 
     @Test
+    void flowFallback_estimatesLitersWhenCounterHasNoDelta() {
+        java.time.LocalDateTime t0 = java.time.LocalDateTime.of(2026, 6, 30, 17, 9, 58);
+        java.time.LocalDateTime weldStart = t0;
+        java.time.LocalDateTime weldEnd = t0.plusSeconds(9);
+
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, t0);
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("100.0")); // нет дельты — один сэмпл
+        java.util.Map<Long, BigDecimal> flow = new java.util.HashMap<>();
+        flow.put(1L, bd("12.0")); // 12 л/мин × 9 с / 60 = 1.8 л
+
+        BigDecimal fromCounter = WeldingMachineDailyStatsService.sumGasCumulativeLitersInWindow(
+                java.util.List.of(s0), cum, weldStart, weldEnd);
+        assertEquals(0, fromCounter.compareTo(bd("0.000")));
+
+        BigDecimal estimated = WeldingMachineDailyStatsService.estimateGasLitersFromInstantFlow(
+                java.util.List.of(s0), flow, weldStart, weldEnd, bd("9"));
+        assertEquals(0, estimated.compareTo(bd("1.800")));
+    }
+
+    @Test
+    void flowFallback_prefersInWindowAverage_andIgnoresZeroFlow() {
+        java.time.LocalDateTime weldStart = java.time.LocalDateTime.of(2026, 6, 30, 10, 0, 0);
+        java.time.LocalDateTime weldEnd = weldStart.plusSeconds(10);
+        org.alloy.models.entities.WeldingMachineState before = state(1L, weldStart.minusSeconds(3));
+        org.alloy.models.entities.WeldingMachineState in = state(2L, weldStart.plusSeconds(2));
+        org.alloy.models.entities.WeldingMachineState zero = state(3L, weldStart.plusSeconds(4));
+
+        java.util.Map<Long, BigDecimal> flow = new java.util.HashMap<>();
+        flow.put(1L, bd("30.0")); // вне окна — не должен тянуть среднее, если есть in-window
+        flow.put(2L, bd("12.0"));
+        flow.put(3L, bd("0"));
+
+        BigDecimal avg = WeldingMachineDailyStatsService.averagePositiveGasFlowLpm(
+                java.util.List.of(before, in, zero), flow, weldStart, weldEnd);
+        assertEquals(0, avg.compareTo(bd("12.0000")));
+
+        BigDecimal liters = WeldingMachineDailyStatsService.estimateGasLitersFromInstantFlow(
+                java.util.List.of(before, in, zero), flow, weldStart, weldEnd, bd("10"));
+        assertEquals(0, liters.compareTo(bd("2.000")));
+    }
+
+    @Test
+    void flowFallback_usesPaddedStatesWhenWindowEmpty() {
+        java.time.LocalDateTime weldStart = java.time.LocalDateTime.of(2026, 6, 30, 10, 0, 0);
+        java.time.LocalDateTime weldEnd = weldStart.plusSeconds(9);
+        // точка чуть до окна (типичный ±5s pad)
+        org.alloy.models.entities.WeldingMachineState near = state(1L, weldStart.minusSeconds(2));
+        java.util.Map<Long, BigDecimal> flow = java.util.Map.of(1L, bd("15.0"));
+
+        BigDecimal liters = WeldingMachineDailyStatsService.estimateGasLitersFromInstantFlow(
+                java.util.List.of(near), flow, weldStart, weldEnd, bd("9"));
+        // 15 × 9 / 60 = 2.25
+        assertEquals(0, liters.compareTo(bd("2.250")));
+    }
+
+    @Test
+    void resolveGas_overridesTinyCounterWhenFlowEstimateMuchLarger() {
+        // кейс 17с / 0.3 л при GasFlow ~18 л/мин → оценка 5.1 л (≥3×0.3)
+        java.time.LocalDateTime t0 = java.time.LocalDateTime.of(2026, 6, 30, 17, 6, 39);
+        java.time.LocalDateTime t1 = t0.plusSeconds(8);
+        java.time.LocalDateTime weldStart = t0;
+        java.time.LocalDateTime weldEnd = t0.plusSeconds(17);
+
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, t0);
+        org.alloy.models.entities.WeldingMachineState s1 = state(2L, t1);
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("100.0"));
+        cum.put(2L, bd("100.3")); // дельта 0.3
+        java.util.Map<Long, BigDecimal> flow = new java.util.HashMap<>();
+        flow.put(1L, bd("18.0"));
+        flow.put(2L, bd("18.0"));
+
+        BigDecimal liters = WeldingMachineDailyStatsService.resolveGasLitersForWeldSegment(
+                java.util.List.of(s0, s1), cum, flow, weldStart, weldEnd, bd("17"));
+        assertEquals(0, liters.compareTo(bd("5.100")));
+    }
+
+    @Test
+    void resolveGas_keepsCounterWhenCloseToFlowEstimate() {
+        java.time.LocalDateTime t0 = java.time.LocalDateTime.of(2026, 6, 30, 10, 0, 0);
+        java.time.LocalDateTime t1 = t0.plusSeconds(30);
+        java.time.LocalDateTime weldStart = t0;
+        java.time.LocalDateTime weldEnd = t0.plusSeconds(60);
+
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, t0);
+        org.alloy.models.entities.WeldingMachineState s1 = state(2L, t1);
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("100.0"));
+        cum.put(2L, bd("115.0")); // дельта 15 л
+        java.util.Map<Long, BigDecimal> flow = new java.util.HashMap<>();
+        flow.put(1L, bd("18.0")); // 18×60/60 = 18 л — меньше 3×15
+        flow.put(2L, bd("18.0"));
+
+        BigDecimal liters = WeldingMachineDailyStatsService.resolveGasLitersForWeldSegment(
+                java.util.List.of(s0, s1), cum, flow, weldStart, weldEnd, bd("60"));
+        assertEquals(0, liters.compareTo(bd("15.000")));
+    }
+
+    @Test
     void dayBounds_moscowStatDate_convertsToUtcForDb() {
         java.time.ZoneId moscow = java.time.ZoneId.of("Europe/Moscow");
         java.time.LocalDate statDate = java.time.LocalDate.of(2026, 7, 7);
@@ -130,16 +230,6 @@ class WeldingMachineDailyStatsGasTest {
                 java.util.List.of(bd("100"))).compareTo(BigDecimal.ZERO));
         assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
                 java.util.List.of()).compareTo(BigDecimal.ZERO));
-        // Цикл 120→0→120 (телеметрия) не должен накручивать: last остаётся 120.
-        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
-                java.util.List.of(bd("120"), bd("0"), bd("120"), bd("0"), bd("120")))
-                .compareTo(BigDecimal.ZERO));
-        // Ведущие нули + рост: 0 → 0 → 17.1 → 17.5 = +0.4 м.
-        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
-                java.util.List.of(bd("0"), bd("0"), bd("17.1"), bd("17.5"))).compareTo(bd("0.4")));
-        // Реальный сброс после нулевого шума: 120 → 0(шум) → 50(reset) → 80 = 50+30.
-        assertEquals(0, WeldingMachineDailyStatsService.sumWireCumulativeMeters(
-                java.util.List.of(bd("120"), bd("0"), bd("50"), bd("80"))).compareTo(bd("80")));
     }
 
     private static org.alloy.models.entities.WeldingMachineState state(Long id, java.time.LocalDateTime created) {

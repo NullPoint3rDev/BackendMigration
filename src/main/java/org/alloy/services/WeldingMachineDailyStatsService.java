@@ -46,7 +46,7 @@ public class WeldingMachineDailyStatsService {
     private static final String GAS_CUMULATIVE_PARAM = "Core.GasConsumptionSincePowerOn";
     private static final List<String> STATE_TEXT_KEYS = List.of(
             "Состояние аппарата", "WeldingMachineState", "State.WeldingMachineState");
-    private static final List<String> CURRENT_KEYS = List.of("State.I", "Ток", "Current", "current", "WeldingCurrent");
+    private static final List<String> CURRENT_KEYS = List.of("State.I", "Ток", "Current", "current");
     private static final List<String> VOLTAGE_KEYS = List.of("State.U", "Напряжение", "Voltage", "voltage");
     private static final List<String> GAS_FLOW_KEYS = List.of("State.GasFlow", "GasFlow", "gasFlow");
 
@@ -165,7 +165,6 @@ public class WeldingMachineDailyStatsService {
         Map<Long, BigDecimal> wireFeedByStateId = loadWireFeedByStateId(states);
 
         // ponytail: не тянем последний poll до now() — таймеры скачут при смене статуса на последнем опросе
-        // (как staging: длительность = gap до следующего стейта; хвост → Выкл.)
         LocalDateTime openEndIfLast = null;
 
         for (WeldingMachineState s : states) {
@@ -177,7 +176,7 @@ public class WeldingMachineDailyStatsService {
             Map<String, String> props = propsByStateId.getOrDefault(s.getId(), Collections.emptyMap());
             String stateText = MonitorActivityClassifier.pickMachineStateText(props);
             BigDecimal current = MonitorActivityClassifier.pickCurrentAmps(props);
-            MonitorActivityMode mode = MonitorActivityClassifier.classify(s, stateText, current, props);
+            MonitorActivityMode mode = MonitorActivityClassifier.classify(s, stateText, current);
             switch (mode) {
                 case welding:
                     weldingMs += overlapMs;
@@ -270,7 +269,7 @@ public class WeldingMachineDailyStatsService {
 
     /**
      * Границы календарных суток statDate в displayZone → naive UTC для date_created в БД.
-     * ponytail: date_created обязан быть UTC wall (см. WeldingMachineState без @CreationTimestamp).
+     * ponytail: date_created пишется LocalDateTime.now() в Docker (UTC wall-clock).
      */
     static DayBoundsUtc dayBoundsForStatDate(LocalDate statDate, ZoneId displayZone, ZonedDateTime nowInDisplayZone) {
         ZonedDateTime dayStartZ = statDate.atTime(0, 1).atZone(displayZone);
@@ -352,8 +351,8 @@ public class WeldingMachineDailyStatsService {
     /**
      * Сумма прироста накопительного счётчика проволоки (метры за период), как в логике газа:
      * рост → плюс дельта; крупное падение (перезагрузка) → плюс само новое значение;
-     * мелкая просадка / нули (шум/обрыв) → игнор, last не двигаем вниз, иначе
-     * цикл 120→0→120 накручивает +120 м за круг (сотни кг в сутки).
+     * мелкая просадка (шум/обрыв) → игнор, а last не двигаем вниз, иначе шумовой «отскок»
+     * даст ложный прирост (это и раздувало сумму до сотен кг).
      */
     static BigDecimal sumWireCumulativeMeters(List<BigDecimal> orderedValues) {
         if (orderedValues == null) {
@@ -366,10 +365,6 @@ public class WeldingMachineDailyStatsService {
                 continue;
             }
             if (last == null) {
-                // ponytail: ведущие нули — шум телеметрии, не baseline
-                if (cur.signum() <= 0) {
-                    continue;
-                }
                 last = cur;
                 continue;
             }
@@ -380,17 +375,13 @@ public class WeldingMachineDailyStatsService {
                 meters = meters.add(cur);
                 last = cur;
             }
-            // иначе мелкая просадка / ноль — пропускаем, last оставляем прежним
+            // иначе мелкая просадка — пропускаем, last оставляем прежним
         }
         return meters;
     }
 
     static boolean isWireCounterReset(BigDecimal current, BigDecimal last) {
         if (current == null || last == null || last.signum() <= 0) {
-            return false;
-        }
-        // ponytail: 0 между опросами — шум, не power-on reset (иначе 120→0→120 = +120 м)
-        if (current.signum() <= 0) {
             return false;
         }
         return current.compareTo(last.multiply(WIRE_COUNTER_RESET_MAX_RATIO)) < 0;
@@ -633,6 +624,97 @@ public class WeldingMachineDailyStatsService {
             }
         }
         return sumDelta.setScale(3, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Fallback/оценка: средний мгновенный GasFlow (л/мин) × длительность (с) / 60.
+     * ponytail: среднее по точкам в окне; если в окне пусто — по всему переданному списку состояний (±pad).
+     */
+    static BigDecimal estimateGasLitersFromInstantFlow(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> gasFlowLpmByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd,
+            BigDecimal durationSec) {
+        if (durationSec == null || durationSec.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        }
+        BigDecimal avgFlow = averagePositiveGasFlowLpm(states, gasFlowLpmByStateId, windowStart, windowEnd);
+        if (avgFlow == null || avgFlow.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        }
+        return avgFlow.multiply(durationSec)
+                .divide(BigDecimal.valueOf(60), 3, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Расход газа за шов: счётчик, если он правдоподобен; иначе оценка GasFlow×время.
+     * ponytail: оценка побеждает только при дельте 0 или если она ≥3× дельты счётчика
+     * (типичный бред короткого окна: 0.3 л при ~17 с и живом GasFlow).
+     */
+    static final BigDecimal GAS_FLOW_OVERRIDE_MIN_RATIO = new BigDecimal("3");
+
+    static BigDecimal resolveGasLitersForWeldSegment(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> gasCumulativeByStateId,
+            Map<Long, BigDecimal> gasFlowLpmByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd,
+            BigDecimal durationSec) {
+        BigDecimal fromCounter = sumGasCumulativeLitersInWindow(
+                states, gasCumulativeByStateId, windowStart, windowEnd);
+        if (fromCounter == null) {
+            fromCounter = BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        }
+        BigDecimal fromFlow = estimateGasLitersFromInstantFlow(
+                states, gasFlowLpmByStateId, windowStart, windowEnd, durationSec);
+        if (fromFlow == null || fromFlow.compareTo(BigDecimal.ZERO) <= 0) {
+            return fromCounter;
+        }
+        if (fromCounter.compareTo(BigDecimal.ZERO) <= 0) {
+            return fromFlow;
+        }
+        BigDecimal threshold = fromCounter.multiply(GAS_FLOW_OVERRIDE_MIN_RATIO);
+        if (fromFlow.compareTo(threshold) >= 0) {
+            return fromFlow;
+        }
+        return fromCounter;
+    }
+
+    static BigDecimal averagePositiveGasFlowLpm(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> gasFlowLpmByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd) {
+        if (states == null || states.isEmpty() || gasFlowLpmByStateId == null || gasFlowLpmByStateId.isEmpty()) {
+            return null;
+        }
+        List<BigDecimal> inWindow = new ArrayList<>();
+        List<BigDecimal> any = new ArrayList<>();
+        for (WeldingMachineState s : states) {
+            if (s.getId() == null || s.getDateCreated() == null) {
+                continue;
+            }
+            BigDecimal flow = gasFlowLpmByStateId.get(s.getId());
+            if (flow == null || flow.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            any.add(flow);
+            LocalDateTime t = s.getDateCreated();
+            if (windowStart != null && windowEnd != null
+                    && !t.isBefore(windowStart) && t.isBefore(windowEnd)) {
+                inWindow.add(flow);
+            }
+        }
+        List<BigDecimal> use = !inWindow.isEmpty() ? inWindow : any;
+        if (use.isEmpty()) {
+            return null;
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal v : use) {
+            sum = sum.add(v);
+        }
+        return sum.divide(BigDecimal.valueOf(use.size()), 4, RoundingMode.HALF_UP);
     }
 
     private static final class GasDayTotals {

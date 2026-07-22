@@ -86,6 +86,8 @@ public class ReportDataService {
 
     private static final List<String> GAS_CUMULATIVE_PROPERTY_CODES = List.of(
             "Core.GasConsumptionSincePowerOn", "Расход газа с включения");
+    private static final List<String> GAS_FLOW_PROPERTY_CODES = List.of(
+            "State.GasFlow", "GasFlow", "gasFlow");
 
     public List<WireConsumptionReportDTO> getWireConsumptionData(ReportRequestDTO request) {
         // Моковые данные для демонстрации (старый формат для обратной совместимости)
@@ -563,6 +565,8 @@ public class ReportDataService {
             loadWireFeedByStateId(allStateIds, wireFeedByStateId);
             Map<Long, BigDecimal> gasCumulativeByStateId = new HashMap<>();
             loadGasCumulativeByStateId(allStateIds, gasCumulativeByStateId);
+            Map<Long, BigDecimal> gasFlowByStateId = new HashMap<>();
+            loadGasFlowByStateId(allStateIds, gasFlowByStateId);
             // Дата и время из посылки аппарата (CORE: Date.*, Time.*) — чтобы в отчёте было «когда аппарат сказал, что идёт сварка»
             Map<Long, LocalDateTime> deviceDateTimeByStateId = buildDeviceDateTimeByStateId(allStateIds);
 
@@ -584,7 +588,8 @@ public class ReportDataService {
                 String workMode = getWorkModeFromCache(segmentStates, r.startTime, segmentEnd, workModeByStateId);
                 BigDecimal wireFeedMpm = getWireFeedFromCache(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
                 BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
-                BigDecimal gasL = calculateGasConsumptionLForWeldSegment(segmentStates, r.startTime, segmentEnd, gasCumulativeByStateId);
+                BigDecimal gasL = calculateGasConsumptionLForWeldSegment(
+                        segmentStates, r.startTime, segmentEnd, gasCumulativeByStateId, gasFlowByStateId, r.durationSec);
                 BigDecimal energyKwh = calculateEnergyPerWeld(r.avgVoltage, r.avgCurrent, r.durationSec);
 
                 WelderWorkReportDTO dto = new WelderWorkReportDTO();
@@ -796,6 +801,8 @@ public class ReportDataService {
             }
             Map<Long, BigDecimal> gasCumulativeByStateId = new HashMap<>();
             loadGasCumulativeByStateId(allStateIds, gasCumulativeByStateId);
+            Map<Long, BigDecimal> gasFlowByStateId = new HashMap<>();
+            loadGasFlowByStateId(allStateIds, gasFlowByStateId);
             boolean needWelderColumns = templateNeedsWelderColumns(template);
             Map<Long, String> rfidByStateId = needWelderColumns
                     ? (!allStateIds.isEmpty()
@@ -854,7 +861,8 @@ public class ReportDataService {
                 String workMode = getWorkModeFromCache(segmentStates, r.startTime, segmentEnd, workModeByStateId);
                 BigDecimal wireFeedMpm = getWireFeedFromCache(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
                 BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
-                BigDecimal gasL = calculateGasConsumptionLForWeldSegment(segmentStates, r.startTime, segmentEnd, gasCumulativeByStateId);
+                BigDecimal gasL = calculateGasConsumptionLForWeldSegment(
+                        segmentStates, r.startTime, segmentEnd, gasCumulativeByStateId, gasFlowByStateId, r.durationSec);
 
                 String welderFullName = "";
                 String welderTabNumber = "";
@@ -1543,16 +1551,19 @@ public class ReportDataService {
     }
 
     /**
-     * Расход газа за шов (л): дельты Core.GasConsumptionSincePowerOn в [segmentStart, segmentEnd),
-     * с защитой от ложных просадок счётчика (как на плитке «Газ за сутки»).
+     * Расход газа за шов (л): дельты Core.GasConsumptionSincePowerOn;
+     * если дельта 0 или занижена относительно GasFlow×время (≥3×) — берём оценку по мгновенному расходу.
      */
     private BigDecimal calculateGasConsumptionLForWeldSegment(
             List<WeldingMachineState> machineStates,
             LocalDateTime segmentStart,
             LocalDateTime segmentEnd,
-            Map<Long, BigDecimal> gasCumulativeByStateId) {
-        return WeldingMachineDailyStatsService.sumGasCumulativeLitersInWindow(
-                machineStates, gasCumulativeByStateId, segmentStart, segmentEnd);
+            Map<Long, BigDecimal> gasCumulativeByStateId,
+            Map<Long, BigDecimal> gasFlowByStateId,
+            BigDecimal durationSec) {
+        return WeldingMachineDailyStatsService.resolveGasLitersForWeldSegment(
+                machineStates, gasCumulativeByStateId, gasFlowByStateId,
+                segmentStart, segmentEnd, durationSec);
     }
 
     /**
@@ -2611,34 +2622,58 @@ public class ReportDataService {
             if (missing.isEmpty()) break;
             List<WeldingMachineParameterValue> jpaRows = getParameterValuesInBatches(missing, code);
             for (WeldingMachineParameterValue pv : jpaRows) {
-                putGasCumulativeValue(gasCumulativeByStateId, pv);
+                putGasDecimalValue(gasCumulativeByStateId, pv);
             }
             missing = stateIds.stream()
                     .filter(id -> !gasCumulativeByStateId.containsKey(id))
                     .collect(Collectors.toList());
             if (missing.isEmpty()) break;
-            final int batchSize = 10_000;
-            for (int i = 0; i < missing.size(); i += batchSize) {
-                List<Long> batch = missing.subList(i, Math.min(i + batchSize, missing.size()));
-                try {
-                    List<Object[]> rows = parameterValueRepository.findStateIdAndValueNativeCoalesce(batch, code);
-                    for (Object[] row : rows) {
-                        if (row == null || row.length < 2 || row[0] == null || row[1] == null) continue;
-                        try {
-                            long stateId = ((Number) row[0]).longValue();
-                            String valueStr = row[1].toString().trim().replace(",", ".");
-                            if (valueStr.isEmpty()) continue;
-                            gasCumulativeByStateId.putIfAbsent(stateId, new BigDecimal(valueStr));
-                        } catch (NumberFormatException ignored) { }
-                    }
-                } catch (Exception e) {
-                    System.err.println("[REPORT-DATA] loadGasCumulativeByStateId " + code + " batch " + i + ": " + e.getMessage());
+            loadGasDecimalNative(missing, code, gasCumulativeByStateId);
+        }
+    }
+
+    /** Мгновенный расход газа (л/мин) по stateId — State.GasFlow. */
+    private void loadGasFlowByStateId(List<Long> stateIds, Map<Long, BigDecimal> gasFlowByStateId) {
+        if (stateIds == null || stateIds.isEmpty() || gasFlowByStateId == null) return;
+        for (String code : GAS_FLOW_PROPERTY_CODES) {
+            List<Long> missing = stateIds.stream()
+                    .filter(id -> !gasFlowByStateId.containsKey(id))
+                    .collect(Collectors.toList());
+            if (missing.isEmpty()) break;
+            List<WeldingMachineParameterValue> jpaRows = getParameterValuesInBatches(missing, code);
+            for (WeldingMachineParameterValue pv : jpaRows) {
+                putGasDecimalValue(gasFlowByStateId, pv);
+            }
+            missing = stateIds.stream()
+                    .filter(id -> !gasFlowByStateId.containsKey(id))
+                    .collect(Collectors.toList());
+            if (missing.isEmpty()) break;
+            loadGasDecimalNative(missing, code, gasFlowByStateId);
+        }
+    }
+
+    private void loadGasDecimalNative(List<Long> stateIds, String code, Map<Long, BigDecimal> out) {
+        final int batchSize = 10_000;
+        for (int i = 0; i < stateIds.size(); i += batchSize) {
+            List<Long> batch = stateIds.subList(i, Math.min(i + batchSize, stateIds.size()));
+            try {
+                List<Object[]> rows = parameterValueRepository.findStateIdAndValueNativeCoalesce(batch, code);
+                for (Object[] row : rows) {
+                    if (row == null || row.length < 2 || row[0] == null || row[1] == null) continue;
+                    try {
+                        long stateId = ((Number) row[0]).longValue();
+                        String valueStr = row[1].toString().trim().replace(",", ".");
+                        if (valueStr.isEmpty()) continue;
+                        out.putIfAbsent(stateId, new BigDecimal(valueStr));
+                    } catch (NumberFormatException ignored) { }
                 }
+            } catch (Exception e) {
+                System.err.println("[REPORT-DATA] loadGasDecimalNative " + code + " batch " + i + ": " + e.getMessage());
             }
         }
     }
 
-    private static void putGasCumulativeValue(Map<Long, BigDecimal> out, WeldingMachineParameterValue pv) {
+    private static void putGasDecimalValue(Map<Long, BigDecimal> out, WeldingMachineParameterValue pv) {
         if (pv == null || pv.getWeldingMachineStateId() == null || out == null) return;
         String s = pv.getValue();
         if (s == null || s.isBlank()) s = pv.getRawValue();

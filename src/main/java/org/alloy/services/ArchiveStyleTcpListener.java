@@ -2,6 +2,9 @@ package org.alloy.services;
 
 import org.alloy.logging.UnknownMacLog;
 import org.alloy.metrics.WeldingMetrics;
+import org.alloy.protocol.v2.V2ConnectionState;
+import org.alloy.protocol.v2.V2ProtocolConstants;
+import org.alloy.protocol.v2.V2ProtocolService;
 import org.alloy.repositories.WeldingMachineRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +24,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -98,6 +102,9 @@ public class ArchiveStyleTcpListener {
     @Autowired
     @Lazy
     private MacAddressRegistryService macAddressRegistryService;
+
+    @Autowired(required = false)
+    private V2ProtocolService v2ProtocolService;
 
     @Value("${welding.archive.allowed.macs:}")
     private String archiveAllowedMacsConfig;
@@ -208,6 +215,8 @@ public class ArchiveStyleTcpListener {
 
             byte[] buffer = new byte[BUFFER_SIZE];
             boolean connected = true;
+            // ponytail: только TEST_MAC; остальные соединения не трогаем
+            V2ConnectionState v2Conn = new V2ConnectionState();
 
             // Основной цикл обработки данных
             while (connected && running) {
@@ -230,8 +239,44 @@ public class ArchiveStyleTcpListener {
                 }
 
                 if (bytesRead > 0) {
+                    byte[] rawChunk = Arrays.copyOf(buffer, bytesRead);
+
+                    // Protocol v2 (raw binary) — только hardcoded TEST_MAC, ASCII-путь не ломаем
+                    if (v2ProtocolService != null
+                            && rawChunk.length > 0
+                            && rawChunk[0] != ':'
+                            && v2ProtocolService.shouldHandleAsV2(v2Conn, rawChunk)) {
+                        String v2Mac = (v2Conn.mac != null && !v2Conn.mac.isEmpty())
+                                ? v2Conn.mac
+                                : V2ProtocolConstants.TEST_MAC;
+                        deviceLivenessRegistry.markSeen(v2Mac);
+                        if (isAllowedMac(v2Mac)) {
+                            try {
+                                macAddressRegistryService.recordPacket(v2Mac);
+                            } catch (Exception ex) {
+                                log.warn("[ARCHIVE-TCP-LISTENER] MAC registry recordPacket failed for {}: {}",
+                                        v2Mac, ex.getMessage());
+                            }
+                            deviceManager.touchInboundTelemetry(v2Mac);
+                            try {
+                                v2ProtocolService.onBytes(v2Conn, rawChunk, out);
+                                if (v2Conn.mac != null && !v2Conn.mac.isEmpty()) {
+                                    macAddress = v2Conn.mac;
+                                }
+                                timeoutTime = LocalDateTime.now().plusSeconds(TIMEOUT_SECONDS);
+                            } catch (Exception ex) {
+                                log.error("[ARCHIVE-TCP-LISTENER] V2 handle failed mac={}", v2Mac, ex);
+                            }
+                        } else {
+                            weldingMetrics.recordUnknownMac();
+                            UnknownMacLog.unknownMac("ArchiveStyleTcpListener", v2Mac,
+                                    "clientIp=" + clientIp + ", v2 packet rejected");
+                        }
+                        continue;
+                    }
+
                     // Преобразуем данные в строку
-                    String data = new String(buffer, 0, bytesRead, StandardCharsets.US_ASCII);
+                    String data = new String(rawChunk, StandardCharsets.US_ASCII);
 
                     log.debug("[ARCHIVE-TCP-LISTENER] Thread {}, IP={}, MAC={}: {}",
                             threadId, clientIp, macAddress, data);
