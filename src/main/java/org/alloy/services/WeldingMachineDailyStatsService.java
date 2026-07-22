@@ -626,6 +626,64 @@ public class WeldingMachineDailyStatsService {
         return sumDelta.setScale(3, RoundingMode.HALF_UP);
     }
 
+    /**
+     * Fallback для коротких швов: средний мгновенный GasFlow (л/мин) × длительность (с) / 60.
+     * Используется только когда {@link #sumGasCumulativeLitersInWindow} дал 0.
+     * ponytail: среднее по точкам в окне; если в окне пусто — по всему переданному списку состояний (±pad).
+     */
+    static BigDecimal estimateGasLitersFromInstantFlow(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> gasFlowLpmByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd,
+            BigDecimal durationSec) {
+        if (durationSec == null || durationSec.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        }
+        BigDecimal avgFlow = averagePositiveGasFlowLpm(states, gasFlowLpmByStateId, windowStart, windowEnd);
+        if (avgFlow == null || avgFlow.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        }
+        return avgFlow.multiply(durationSec)
+                .divide(BigDecimal.valueOf(60), 3, RoundingMode.HALF_UP);
+    }
+
+    static BigDecimal averagePositiveGasFlowLpm(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> gasFlowLpmByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd) {
+        if (states == null || states.isEmpty() || gasFlowLpmByStateId == null || gasFlowLpmByStateId.isEmpty()) {
+            return null;
+        }
+        List<BigDecimal> inWindow = new ArrayList<>();
+        List<BigDecimal> any = new ArrayList<>();
+        for (WeldingMachineState s : states) {
+            if (s.getId() == null || s.getDateCreated() == null) {
+                continue;
+            }
+            BigDecimal flow = gasFlowLpmByStateId.get(s.getId());
+            if (flow == null || flow.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            any.add(flow);
+            LocalDateTime t = s.getDateCreated();
+            if (windowStart != null && windowEnd != null
+                    && !t.isBefore(windowStart) && t.isBefore(windowEnd)) {
+                inWindow.add(flow);
+            }
+        }
+        List<BigDecimal> use = !inWindow.isEmpty() ? inWindow : any;
+        if (use.isEmpty()) {
+            return null;
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal v : use) {
+            sum = sum.add(v);
+        }
+        return sum.divide(BigDecimal.valueOf(use.size()), 4, RoundingMode.HALF_UP);
+    }
+
     private static final class GasDayTotals {
         final BigDecimal consumptionL;
         final BigDecimal baselineAtDayStartL;
