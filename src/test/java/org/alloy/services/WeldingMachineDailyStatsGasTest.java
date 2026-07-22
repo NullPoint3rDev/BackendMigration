@@ -132,6 +132,49 @@ class WeldingMachineDailyStatsGasTest {
     }
 
     @Test
+    void resolveGas_overridesTinyCounterWhenFlowEstimateMuchLarger() {
+        // кейс 17с / 0.3 л при GasFlow ~18 л/мин → оценка 5.1 л (≥3×0.3)
+        java.time.LocalDateTime t0 = java.time.LocalDateTime.of(2026, 6, 30, 17, 6, 39);
+        java.time.LocalDateTime t1 = t0.plusSeconds(8);
+        java.time.LocalDateTime weldStart = t0;
+        java.time.LocalDateTime weldEnd = t0.plusSeconds(17);
+
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, t0);
+        org.alloy.models.entities.WeldingMachineState s1 = state(2L, t1);
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("100.0"));
+        cum.put(2L, bd("100.3")); // дельта 0.3
+        java.util.Map<Long, BigDecimal> flow = new java.util.HashMap<>();
+        flow.put(1L, bd("18.0"));
+        flow.put(2L, bd("18.0"));
+
+        BigDecimal liters = WeldingMachineDailyStatsService.resolveGasLitersForWeldSegment(
+                java.util.List.of(s0, s1), cum, flow, weldStart, weldEnd, bd("17"));
+        assertEquals(0, liters.compareTo(bd("5.100")));
+    }
+
+    @Test
+    void resolveGas_keepsCounterWhenCloseToFlowEstimate() {
+        java.time.LocalDateTime t0 = java.time.LocalDateTime.of(2026, 6, 30, 10, 0, 0);
+        java.time.LocalDateTime t1 = t0.plusSeconds(30);
+        java.time.LocalDateTime weldStart = t0;
+        java.time.LocalDateTime weldEnd = t0.plusSeconds(60);
+
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, t0);
+        org.alloy.models.entities.WeldingMachineState s1 = state(2L, t1);
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("100.0"));
+        cum.put(2L, bd("115.0")); // дельта 15 л
+        java.util.Map<Long, BigDecimal> flow = new java.util.HashMap<>();
+        flow.put(1L, bd("18.0")); // 18×60/60 = 18 л — меньше 3×15
+        flow.put(2L, bd("18.0"));
+
+        BigDecimal liters = WeldingMachineDailyStatsService.resolveGasLitersForWeldSegment(
+                java.util.List.of(s0, s1), cum, flow, weldStart, weldEnd, bd("60"));
+        assertEquals(0, liters.compareTo(bd("15.000")));
+    }
+
+    @Test
     void dayBounds_moscowStatDate_convertsToUtcForDb() {
         java.time.ZoneId moscow = java.time.ZoneId.of("Europe/Moscow");
         java.time.LocalDate statDate = java.time.LocalDate.of(2026, 7, 7);

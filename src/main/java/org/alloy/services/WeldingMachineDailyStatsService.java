@@ -627,8 +627,7 @@ public class WeldingMachineDailyStatsService {
     }
 
     /**
-     * Fallback для коротких швов: средний мгновенный GasFlow (л/мин) × длительность (с) / 60.
-     * Используется только когда {@link #sumGasCumulativeLitersInWindow} дал 0.
+     * Fallback/оценка: средний мгновенный GasFlow (л/мин) × длительность (с) / 60.
      * ponytail: среднее по точкам в окне; если в окне пусто — по всему переданному списку состояний (±pad).
      */
     static BigDecimal estimateGasLitersFromInstantFlow(
@@ -646,6 +645,40 @@ public class WeldingMachineDailyStatsService {
         }
         return avgFlow.multiply(durationSec)
                 .divide(BigDecimal.valueOf(60), 3, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Расход газа за шов: счётчик, если он правдоподобен; иначе оценка GasFlow×время.
+     * ponytail: оценка побеждает только при дельте 0 или если она ≥3× дельты счётчика
+     * (типичный бред короткого окна: 0.3 л при ~17 с и живом GasFlow).
+     */
+    static final BigDecimal GAS_FLOW_OVERRIDE_MIN_RATIO = new BigDecimal("3");
+
+    static BigDecimal resolveGasLitersForWeldSegment(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> gasCumulativeByStateId,
+            Map<Long, BigDecimal> gasFlowLpmByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd,
+            BigDecimal durationSec) {
+        BigDecimal fromCounter = sumGasCumulativeLitersInWindow(
+                states, gasCumulativeByStateId, windowStart, windowEnd);
+        if (fromCounter == null) {
+            fromCounter = BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        }
+        BigDecimal fromFlow = estimateGasLitersFromInstantFlow(
+                states, gasFlowLpmByStateId, windowStart, windowEnd, durationSec);
+        if (fromFlow == null || fromFlow.compareTo(BigDecimal.ZERO) <= 0) {
+            return fromCounter;
+        }
+        if (fromCounter.compareTo(BigDecimal.ZERO) <= 0) {
+            return fromFlow;
+        }
+        BigDecimal threshold = fromCounter.multiply(GAS_FLOW_OVERRIDE_MIN_RATIO);
+        if (fromFlow.compareTo(threshold) >= 0) {
+            return fromFlow;
+        }
+        return fromCounter;
     }
 
     static BigDecimal averagePositiveGasFlowLpm(

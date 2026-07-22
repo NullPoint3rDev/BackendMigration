@@ -1551,8 +1551,8 @@ public class ReportDataService {
     }
 
     /**
-     * Расход газа за шов (л): сначала дельты Core.GasConsumptionSincePowerOn в [segmentStart, segmentEnd);
-     * если дельта 0 — fallback: средний State.GasFlow (л/мин) × длительность шва (с) / 60.
+     * Расход газа за шов (л): дельты Core.GasConsumptionSincePowerOn;
+     * если дельта 0 или занижена относительно GasFlow×время (≥3×) — берём оценку по мгновенному расходу.
      */
     private BigDecimal calculateGasConsumptionLForWeldSegment(
             List<WeldingMachineState> machineStates,
@@ -1561,13 +1561,9 @@ public class ReportDataService {
             Map<Long, BigDecimal> gasCumulativeByStateId,
             Map<Long, BigDecimal> gasFlowByStateId,
             BigDecimal durationSec) {
-        BigDecimal fromCounter = WeldingMachineDailyStatsService.sumGasCumulativeLitersInWindow(
-                machineStates, gasCumulativeByStateId, segmentStart, segmentEnd);
-        if (fromCounter != null && fromCounter.compareTo(BigDecimal.ZERO) > 0) {
-            return fromCounter;
-        }
-        return WeldingMachineDailyStatsService.estimateGasLitersFromInstantFlow(
-                machineStates, gasFlowByStateId, segmentStart, segmentEnd, durationSec);
+        return WeldingMachineDailyStatsService.resolveGasLitersForWeldSegment(
+                machineStates, gasCumulativeByStateId, gasFlowByStateId,
+                segmentStart, segmentEnd, durationSec);
     }
 
     /**
