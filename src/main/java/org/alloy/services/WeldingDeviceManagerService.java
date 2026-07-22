@@ -3,6 +3,7 @@ package org.alloy.services;
 import org.alloy.models.WeldingMachineStatus;
 import org.alloy.models.weldingmachine.StateSummary;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
+import org.alloy.protocol.v2.V2ProtocolConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +68,10 @@ public class WeldingDeviceManagerService {
         try {
             String normalizedMac = deviceModelService.normalizeMac(mac);
             if (normalizedMac == null || normalizedMac.isEmpty()) {
+                return;
+            }
+            // Protocol v2 test MAC — только /v2-protocol-test, не боевой мониторинг
+            if (V2ProtocolConstants.isTestMac(normalizedMac)) {
                 return;
             }
 
@@ -175,7 +180,7 @@ public class WeldingDeviceManagerService {
     /** Продлевает свежесть panel-state, пока пакет в очереди воркера (TCP уже принял). */
     public void touchInboundTelemetry(String mac) {
         String normalizedMac = deviceModelService.normalizeMac(mac);
-        if (normalizedMac == null) {
+        if (normalizedMac == null || V2ProtocolConstants.isTestMac(normalizedMac)) {
             return;
         }
         StateSummary state = deviceStates.get(normalizedMac);

@@ -257,7 +257,7 @@ public class ArchiveStyleTcpListener {
                                 log.warn("[ARCHIVE-TCP-LISTENER] MAC registry recordPacket failed for {}: {}",
                                         v2Mac, ex.getMessage());
                             }
-                            deviceManager.touchInboundTelemetry(v2Mac);
+                            // без touchInboundTelemetry / deviceManager — не светим на боевом мониторе
                             try {
                                 v2ProtocolService.onBytes(v2Conn, rawChunk, out);
                                 if (v2Conn.mac != null && !v2Conn.mac.isEmpty()) {
@@ -296,6 +296,46 @@ public class ArchiveStyleTcpListener {
                         if (macAddress != null) {
                             log.debug("[ARCHIVE-TCP-LISTENER] MAC определен по IP {}: {}", clientIp, macAddress);
                         }
+                    }
+
+                    // TEST_MAC: не кормим боевой мониторинг (очередь/Core echo/deviceManager).
+                    // Пока плата шлёт ASCII Core — только timesync + лента на /v2-protocol-test.
+                    if (V2ProtocolConstants.isTestMac(macAddress)) {
+                        if (macAddress != null && !macAddress.isEmpty()) {
+                            deviceLivenessRegistry.markSeen(macAddress);
+                        }
+                        if (isAllowedMac(macAddress)) {
+                            try {
+                                macAddressRegistryService.recordPacket(macAddress);
+                            } catch (Exception ex) {
+                                log.warn("[ARCHIVE-TCP-LISTENER] MAC registry recordPacket failed for {}: {}",
+                                        macAddress, ex.getMessage());
+                            }
+                            if (v2ProtocolService != null) {
+                                v2ProtocolService.publishLegacyAscii(macAddress, data, "IN");
+                            }
+                            if (isTimeSyncRequest(data, macAddress) && coreOutboundService != null) {
+                                try {
+                                    String ts = coreOutboundService.buildTimeSyncMessage(macAddress, true);
+                                    if (ts != null && !ts.isEmpty()) {
+                                        out.write(ts.getBytes(StandardCharsets.US_ASCII));
+                                        out.flush();
+                                        if (v2ProtocolService != null) {
+                                            v2ProtocolService.publishLegacyAscii(macAddress, ts, "OUT");
+                                        }
+                                        log.debug("[ARCHIVE-TCP-LISTENER] ⏱️ V2-test timesync {}", ts);
+                                    }
+                                } catch (Exception ex) {
+                                    log.error("[ARCHIVE-TCP-LISTENER] V2-test timesync failed", ex);
+                                }
+                            }
+                            timeoutTime = LocalDateTime.now().plusSeconds(TIMEOUT_SECONDS);
+                        } else {
+                            weldingMetrics.recordUnknownMac();
+                            UnknownMacLog.unknownMac("ArchiveStyleTcpListener", macAddress,
+                                    "clientIp=" + clientIp + ", test MAC rejected");
+                        }
+                        continue;
                     }
 
                     // Фиксируем «живость» ЛЮБОГО MAC до проверки разрешённых — чтобы можно было
