@@ -85,4 +85,17 @@ class MonitorActivityClassifierTest {
         props.put("Voltage", "304");
         assertEquals(0, new BigDecimal("30.4").compareTo(MonitorActivityClassifier.pickVoltageVolts(props)));
     }
+
+    @Test
+    void activeErrorBlocksWelding_evenWithSvarkaTextAndHighCurrent() {
+        WeldingMachineState state = new WeldingMachineState();
+        state.setWeldingMachineStatus(WeldingMachineStatus.Idle);
+        state.setErrorCode("4");
+        Map<String, String> props = new HashMap<>();
+        props.put("Current", "152");
+        props.put("WeldingCurrent", "388");
+        assertFalse(MonitorActivityClassifier.isWelding(state, "Сварка", new BigDecimal("152"), props));
+        assertEquals(MonitorActivityMode.error,
+                MonitorActivityClassifier.classify(state, "Сварка", new BigDecimal("152"), props));
+    }
 }
