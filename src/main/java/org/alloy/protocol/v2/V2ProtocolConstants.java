@@ -20,10 +20,6 @@ public final class V2ProtocolConstants {
     public static final byte ERR_UNKNOWN = (byte) 0xFF;
 
     public static boolean isTestMac(String mac) {
-        if (mac == null || mac.isEmpty()) {
-            return false;
-        }
-        String cleaned = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
-        return TEST_MAC.equals(cleaned);
+        return TEST_MAC.equals(mac);
     }
 }

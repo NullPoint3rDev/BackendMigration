@@ -2,7 +2,6 @@ package org.alloy.controllers;
 
 import org.alloy.services.*;
 import org.alloy.models.weldingmachine.StateSummary;
-import org.alloy.protocol.v2.V2ProtocolConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -45,11 +44,6 @@ public class ArchiveDeviceController {
     @GetMapping("/panel-state")
     public ResponseEntity<Object> getPanelState(@RequestParam String mac) {
         try {
-            // Тестовый MAC протокола v2 — не отдаём на боевой мониторинг
-            if (V2ProtocolConstants.isTestMac(mac != null ? mac.trim().toUpperCase() : null)) {
-                return ResponseEntity.ok(null);
-            }
-
             // Получаем состояние устройства (как в archive проекте)
             StateSummary state = deviceManager.getDeviceState(mac);
 
