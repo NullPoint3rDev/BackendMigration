@@ -68,14 +68,15 @@ public class V2InboundHandler {
 
         for (byte[] one : split.frames) {
             V2Frame frame = reader.read(one);
-            if (!frame.crcOk) {
-                log.warn("[V2] CRC fail type={} len={}", one.length > 0 ? one[0] : -1, one.length);
-                continue;
-            }
-
             String macHint = resolveMacHint(state, frame);
             if (debugHub != null) {
                 debugHub.publish(new V2DebugEvent("IN", macHint, bytesToHex(one), V2FrameJson.fromInbound(frame)));
+            }
+            if (!frame.crcOk) {
+                log.warn("[V2] CRC fail type=0x{} hex={}",
+                        Integer.toHexString(one.length > 0 ? one[0] & 0xFF : -1),
+                        bytesToHex(one));
+                continue;
             }
 
             byte[] response = dispatch(frame);
@@ -114,7 +115,8 @@ public class V2InboundHandler {
     /**
      * Отдать chunk в v2?
      * — уже active / есть хвост v2
-     * — или первый байт 0x01 и (неполный кадр | version==0x02)
+     * — или первый байт 0x01 (sync): всегда в v2, даже при битом CRC —
+     *   иначе кадр уходит в ASCII и тестовая страница пустая.
      * ':' никогда не сюда.
      */
     public boolean shouldHandleAsV2(V2ConnectionState state, byte[] chunk) {
@@ -127,34 +129,8 @@ public class V2InboundHandler {
         if (chunk == null || chunk.length == 0 || chunk[0] == ':') {
             return false;
         }
-        // Новые устройства начинают с sync 0x01; иначе — не наш протокол
-        if (chunk[0] != V2ProtocolConstants.TYPE_SYNC) {
-            return false;
-        }
-
-        byte[] buf = concat(state != null ? state.tail : new byte[0], chunk);
-        V2FrameSplitter.SplitResult split = splitter.split(buf);
-        if (split.frames.isEmpty()) {
-            // неполный sync — буферизуем в v2, не отдаём в ASCII
-            return true;
-        }
-
-        for (byte[] one : split.frames) {
-            V2Frame frame = reader.read(one);
-            if (!frame.crcOk) {
-                continue;
-            }
-            if (frame.type == V2ProtocolConstants.TYPE_SYNC
-                    && frame.payload != null
-                    && frame.payload.length >= SYNC_PAYLOAD_MIN) {
-                return V2ProtocolConstants.isSupportedProtocolVersion(frame.payload[0]);
-            }
-            if (frame.payload != null && frame.payload.length >= 2) {
-                V2Session s = store.getByToken(readU16BE(frame.payload, 0));
-                return s != null && V2ProtocolConstants.isSupportedProtocolVersion(s.protocolVersion);
-            }
-        }
-        return false;
+        // ponytail: не требуем CRC/version на роутинге — разбор в onBytes
+        return chunk[0] == V2ProtocolConstants.TYPE_SYNC;
     }
 
     private String resolveMacHint(V2ConnectionState state, V2Frame frame) {

@@ -28,6 +28,27 @@ public class V2ProtocolSelfCheck {
         assertFalse(conn.active);
     }
 
+    /** Живой sync с платы 188.169.147.80 (NUL в session в логах выглядели как пробелы). */
+    @Test
+    void realDeviceSyncCrcAndRouting() throws Exception {
+        byte[] sync = hex("010E02E072A1D43F18010000001442");
+        V2Frame parsed = new V2PacketReader().read(sync);
+        assertTrue(parsed.crcOk);
+        assertEquals(V2ProtocolConstants.TYPE_SYNC, parsed.type);
+        assertEquals(V2ProtocolConstants.PROTOCOL_VERSION, parsed.payload[0]);
+        assertEquals("E072A1D43F18", V2PacketReader.macToHex(Arrays.copyOfRange(parsed.payload, 1, 7)));
+
+        V2InboundHandler inbound = new V2InboundHandler();
+        V2ConnectionState conn = new V2ConnectionState();
+        assertTrue(inbound.shouldHandleAsV2(conn, sync));
+        ByteArrayOutputStream sock = new ByteArrayOutputStream();
+        inbound.onBytes(conn, sync, sock);
+        assertTrue(conn.active);
+        assertEquals("E072A1D43F18", conn.mac);
+        assertTrue(sock.size() > 0);
+        assertTrue(new V2PacketReader().read(sock.toByteArray()).crcOk);
+    }
+
     @Test
     void framingCrcSplitGapAndSyncWithVersion() throws Exception {
         V2PacketWriter writer = new V2PacketWriter();
@@ -118,6 +139,14 @@ public class V2ProtocolSelfCheck {
         byte[] out = new byte[a.length + b.length];
         System.arraycopy(a, 0, out, 0, a.length);
         System.arraycopy(b, 0, out, a.length, b.length);
+        return out;
+    }
+
+    private static byte[] hex(String s) {
+        byte[] out = new byte[s.length() / 2];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = (byte) Integer.parseInt(s.substring(i * 2, i * 2 + 2), 16);
+        }
         return out;
     }
 }
