@@ -2,6 +2,7 @@ package org.alloy.protocol.v2;
 
 public class V2Session {
     public String mac;
+    public byte protocolVersion;
     public byte deviceType;
     public int sessionNumber;
     public int token;            // 0..65535

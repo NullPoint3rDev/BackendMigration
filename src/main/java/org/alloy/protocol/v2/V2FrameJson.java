@@ -19,10 +19,12 @@ final class V2FrameJson {
         try {
             switch (frame.type) {
                 case V2ProtocolConstants.TYPE_SYNC -> {
-                    if (p.length >= 11) {
-                        m.put("mac", macToHex(Arrays.copyOfRange(p, 0, 6)));
-                        m.put("deviceType", p[6] & 0xFF);
-                        m.put("session", readU32BE(p, 7));
+                    // version(1) | MAC(6) | deviceType(1) | session(4)
+                    if (p.length >= 12) {
+                        m.put("protocolVersion", p[0] & 0xFF);
+                        m.put("mac", macToHex(Arrays.copyOfRange(p, 1, 7)));
+                        m.put("deviceType", p[7] & 0xFF);
+                        m.put("session", readU32BE(p, 8));
                     }
                 }
                 case V2ProtocolConstants.TYPE_STATE, V2ProtocolConstants.TYPE_HISTORY_RECORD -> {

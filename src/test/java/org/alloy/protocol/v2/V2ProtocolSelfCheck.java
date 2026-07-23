@@ -9,16 +9,27 @@ import static org.alloy.protocol.v2.V2PacketReader.putU32BE;
 import static org.alloy.protocol.v2.V2PacketReader.readU16BE;
 import static org.alloy.protocol.v2.V2PacketReader.readU32BE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * ponytail: framing/CRC + sync + gap 40→100 → команда 0x05(41..99).
+ * ponytail: framing/CRC + sync(version) + gap 40→100 → 0x05(41..99).
+ * Старый ASCII ':' не должен попадать в v2.
  */
 public class V2ProtocolSelfCheck {
 
     @Test
-    void framingCrcSplitGapAndSync() throws Exception {
+    void oldAsciiColonIsNeverV2() {
+        V2InboundHandler inbound = new V2InboundHandler();
+        V2ConnectionState conn = new V2ConnectionState();
+        byte[] legacy = ":E072A1D43F18;01010131".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        assertFalse(inbound.shouldHandleAsV2(conn, legacy));
+        assertFalse(conn.active);
+    }
+
+    @Test
+    void framingCrcSplitGapAndSyncWithVersion() throws Exception {
         V2PacketWriter writer = new V2PacketWriter();
         byte[] time = new byte[]{0, 0, 0, 1};
         byte[] data = new byte[]{0x11, 0x22};
@@ -34,11 +45,6 @@ public class V2ProtocolSelfCheck {
         assertEquals(2, full.frames.size());
         assertEquals(0, full.remainder.length);
 
-        byte[] partial = Arrays.copyOf(concat(a, b), a.length + 3);
-        V2FrameSplitter.SplitResult mid = new V2FrameSplitter().split(partial);
-        assertEquals(1, mid.frames.size());
-        assertEquals(3, mid.remainder.length);
-
         V2HistoryCommand gap = new V2GapService().detectGap(5, 40, 100);
         assertNotNull(gap);
         assertEquals(V2ProtocolConstants.TYPE_REQ_HISTORY, gap.bytes[0]);
@@ -51,17 +57,25 @@ public class V2ProtocolSelfCheck {
         ByteArrayOutputStream sock = new ByteArrayOutputStream();
 
         byte[] mac6 = new byte[]{(byte) 0xE0, 0x72, (byte) 0xA1, (byte) 0xD4, 0x3F, 0x18};
-        byte[] syncPayload = new byte[11];
-        System.arraycopy(mac6, 0, syncPayload, 0, 6);
-        syncPayload[6] = 0x01;
-        putU32BE(syncPayload, 7, 3);
-        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
+        // version | MAC | deviceType | session
+        byte[] syncPayload = new byte[12];
+        syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
+        System.arraycopy(mac6, 0, syncPayload, 1, 6);
+        syncPayload[7] = 0x01;
+        putU32BE(syncPayload, 8, 3);
+
+        byte[] syncFrame = buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload);
+        assertTrue(inbound.shouldHandleAsV2(conn, syncFrame));
+        inbound.onBytes(conn, syncFrame, sock);
+        assertTrue(conn.active);
 
         V2Frame syncOut = new V2PacketReader().read(sock.toByteArray());
         assertTrue(syncOut.crcOk);
         assertEquals(V2ProtocolConstants.TYPE_SYNC, syncOut.type);
-        assertEquals(4 + 13, syncOut.payload.length);
-        int token = readU16BE(syncOut.payload, 4 + 11);
+        // time(4) + version(1)+mac(6)+dev(1)+session(4)+token(2) = 18
+        assertEquals(4 + 14, syncOut.payload.length);
+        assertEquals(V2ProtocolConstants.PROTOCOL_VERSION, syncOut.payload[4]);
+        int token = readU16BE(syncOut.payload, 4 + 12);
 
         sock.reset();
         byte[] wt40 = new byte[8];

@@ -8,8 +8,13 @@ import org.slf4j.LoggerFactory;
 import static org.alloy.protocol.v2.V2PacketReader.macToHex;
 import static org.alloy.protocol.v2.V2PacketReader.readU32BE;
 
+/**
+ * Sync 0x01 inbound payload:
+ * version(1) | MAC(6) | deviceType(1) | session(4)
+ */
 public class V2SyncHandler {
     private static final Logger log = LoggerFactory.getLogger(V2SyncHandler.class);
+    private static final int SYNC_PAYLOAD_LEN = 1 + 6 + 1 + 4;
 
     private final V2SessionStore store;
     private final V2TokenService tokens;
@@ -29,24 +34,26 @@ public class V2SyncHandler {
 
     public byte[] handle(V2Frame frame) {
         byte[] p = frame.payload;
-        if (p == null || p.length < 11) {
+        if (p == null || p.length < SYNC_PAYLOAD_LEN) {
             log.warn("[V2] sync payload too short: {}", p == null ? -1 : p.length);
             return null;
         }
 
-        byte[] mac6 = Arrays.copyOfRange(p, 0, 6);
-        String mac = macToHex(mac6);
-        if (!V2ProtocolConstants.isTestMac(mac)) {
-            log.warn("[V2] sync from unexpected MAC {}", mac);
+        byte version = p[0];
+        if (!V2ProtocolConstants.isSupportedProtocolVersion(version)) {
+            log.warn("[V2] unsupported protocol version 0x{}", Integer.toHexString(version & 0xFF));
             return null;
         }
 
-        byte deviceType = p[6];
-        int session = readU32BE(p, 7);
+        byte[] mac6 = Arrays.copyOfRange(p, 1, 7);
+        String mac = macToHex(mac6);
+        byte deviceType = p[7];
+        int session = readU32BE(p, 8);
         int token = tokens.nextToken();
 
         V2Session s = new V2Session();
         s.mac = mac;
+        s.protocolVersion = version;
         s.deviceType = deviceType;
         s.sessionNumber = session;
         s.historySession = session;
@@ -54,7 +61,7 @@ public class V2SyncHandler {
         store.put(s);
 
         V2HistoryCommand cmd = commands != null ? commands.poll(mac) : null;
-        log.info("[V2] sync mac={} session={} token={}", mac, session, token);
-        return out.syncResponse(mac6, deviceType, session, token, cmd);
+        log.info("[V2] sync mac={} version={} session={} token={}", mac, version & 0xFF, session, token);
+        return out.syncResponse(version, mac6, deviceType, session, token, cmd);
     }
 }

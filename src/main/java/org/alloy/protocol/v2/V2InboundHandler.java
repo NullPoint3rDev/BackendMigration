@@ -13,9 +13,11 @@ import static org.alloy.protocol.v2.V2PacketReader.readU16BE;
 
 /**
  * Точка входа v2: хвост сокета → split → CRC → dispatch → ответ.
+ * Роутинг снаружи: первый байт 0x01 + version 0x02 (старый путь ':' сюда не попадает).
  */
 public class V2InboundHandler {
     private static final Logger log = LoggerFactory.getLogger(V2InboundHandler.class);
+    private static final int SYNC_PAYLOAD_MIN = 1 + 6 + 1 + 4;
 
     private final V2FrameSplitter splitter = new V2FrameSplitter();
     private final V2PacketReader reader = new V2PacketReader();
@@ -78,12 +80,20 @@ public class V2InboundHandler {
 
             byte[] response = dispatch(frame);
             if (response != null) {
-                if (frame.type == V2ProtocolConstants.TYPE_SYNC && frame.payload != null && frame.payload.length >= 6) {
-                    state.mac = macToHex(Arrays.copyOfRange(frame.payload, 0, 6));
-                    state.active = V2ProtocolConstants.isTestMac(state.mac);
+                if (frame.type == V2ProtocolConstants.TYPE_SYNC
+                        && frame.payload != null
+                        && frame.payload.length >= SYNC_PAYLOAD_MIN) {
+                    state.mac = macToHex(Arrays.copyOfRange(frame.payload, 1, 7));
+                    state.active = V2ProtocolConstants.isSupportedProtocolVersion(frame.payload[0]);
                 } else if (macHint != null && !macHint.isEmpty()) {
                     state.mac = macHint;
-                    state.active = V2ProtocolConstants.isTestMac(macHint);
+                    if (!state.active) {
+                        V2Session s = store.getByToken(
+                                frame.payload != null && frame.payload.length >= 2
+                                        ? readU16BE(frame.payload, 0) : -1);
+                        state.active = s != null
+                                && V2ProtocolConstants.isSupportedProtocolVersion(s.protocolVersion);
+                    }
                 }
 
                 if (debugHub != null) {
@@ -102,18 +112,33 @@ public class V2InboundHandler {
     }
 
     /**
-     * Можно ли отдать этот chunk в v2 (только TEST_MAC).
-     * Не активирует сокет для чужих MAC.
+     * Отдать chunk в v2?
+     * — уже active / есть хвост v2
+     * — или первый байт 0x01 и (неполный кадр | version==0x02)
+     * ':' никогда не сюда.
      */
     public boolean shouldHandleAsV2(V2ConnectionState state, byte[] chunk) {
         if (state != null && state.active) {
             return true;
         }
-        if (chunk == null || chunk.length < 3 || chunk[0] == ':') {
+        if (state != null && state.tail != null && state.tail.length > 0) {
+            return true;
+        }
+        if (chunk == null || chunk.length == 0 || chunk[0] == ':') {
             return false;
         }
+        // Новые устройства начинают с sync 0x01; иначе — не наш протокол
+        if (chunk[0] != V2ProtocolConstants.TYPE_SYNC) {
+            return false;
+        }
+
         byte[] buf = concat(state != null ? state.tail : new byte[0], chunk);
         V2FrameSplitter.SplitResult split = splitter.split(buf);
+        if (split.frames.isEmpty()) {
+            // неполный sync — буферизуем в v2, не отдаём в ASCII
+            return true;
+        }
+
         for (byte[] one : split.frames) {
             V2Frame frame = reader.read(one);
             if (!frame.crcOk) {
@@ -121,19 +146,12 @@ public class V2InboundHandler {
             }
             if (frame.type == V2ProtocolConstants.TYPE_SYNC
                     && frame.payload != null
-                    && frame.payload.length >= 6) {
-                String mac = macToHex(Arrays.copyOfRange(frame.payload, 0, 6));
-                return V2ProtocolConstants.isTestMac(mac);
+                    && frame.payload.length >= SYNC_PAYLOAD_MIN) {
+                return V2ProtocolConstants.isSupportedProtocolVersion(frame.payload[0]);
             }
-            if ((frame.type == V2ProtocolConstants.TYPE_STATE
-                    || frame.type == V2ProtocolConstants.TYPE_HISTORY_RECORD
-                    || frame.type == V2ProtocolConstants.TYPE_SESSION_INFO
-                    || frame.type == V2ProtocolConstants.TYPE_SET_HIST_SESSION)
-                    && frame.payload != null
-                    && frame.payload.length >= 2) {
-                int token = readU16BE(frame.payload, 0);
-                V2Session s = store.getByToken(token);
-                return s != null && V2ProtocolConstants.isTestMac(s.mac);
+            if (frame.payload != null && frame.payload.length >= 2) {
+                V2Session s = store.getByToken(readU16BE(frame.payload, 0));
+                return s != null && V2ProtocolConstants.isSupportedProtocolVersion(s.protocolVersion);
             }
         }
         return false;
@@ -145,8 +163,8 @@ public class V2InboundHandler {
         }
         if (frame.type == V2ProtocolConstants.TYPE_SYNC
                 && frame.payload != null
-                && frame.payload.length >= 6) {
-            return macToHex(Arrays.copyOfRange(frame.payload, 0, 6));
+                && frame.payload.length >= SYNC_PAYLOAD_MIN) {
+            return macToHex(Arrays.copyOfRange(frame.payload, 1, 7));
         }
         if (frame.payload != null && frame.payload.length >= 2) {
             V2Session s = store.getByToken(readU16BE(frame.payload, 0));
@@ -154,7 +172,7 @@ public class V2InboundHandler {
                 return s.mac;
             }
         }
-        return V2ProtocolConstants.TEST_MAC;
+        return "";
     }
 
     private byte[] dispatch(V2Frame frame) {

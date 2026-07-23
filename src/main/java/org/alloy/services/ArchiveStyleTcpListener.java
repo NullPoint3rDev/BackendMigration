@@ -241,27 +241,43 @@ public class ArchiveStyleTcpListener {
                 if (bytesRead > 0) {
                     byte[] rawChunk = Arrays.copyOf(buffer, bytesRead);
 
-                    // Protocol v2 (raw binary) — только hardcoded TEST_MAC, ASCII-путь не ломаем
-                    if (v2ProtocolService != null
+                    // Protocol v2 (binary): только если сокет уже v2, или копится хвост v2,
+                    // или первый байт = 0x01 (sync новых устройств). Кадры с ':' сюда НЕ попадают.
+                    boolean v2Candidate = v2ProtocolService != null
                             && rawChunk.length > 0
-                            && rawChunk[0] != ':'
-                            && v2ProtocolService.shouldHandleAsV2(v2Conn, rawChunk)) {
+                            && (v2Conn.active
+                                || (v2Conn.tail != null && v2Conn.tail.length > 0)
+                                || rawChunk[0] == V2ProtocolConstants.TYPE_SYNC);
+
+                    if (v2Candidate && v2ProtocolService.shouldHandleAsV2(v2Conn, rawChunk)) {
                         String v2Mac = (v2Conn.mac != null && !v2Conn.mac.isEmpty())
                                 ? v2Conn.mac
-                                : V2ProtocolConstants.TEST_MAC;
-                        deviceLivenessRegistry.markSeen(v2Mac);
-                        if (isAllowedMac(v2Mac)) {
-                            try {
-                                macAddressRegistryService.recordPacket(v2Mac);
-                            } catch (Exception ex) {
-                                log.warn("[ARCHIVE-TCP-LISTENER] MAC registry recordPacket failed for {}: {}",
-                                        v2Mac, ex.getMessage());
+                                : "";
+                        if (!v2Mac.isEmpty()) {
+                            deviceLivenessRegistry.markSeen(v2Mac);
+                        }
+                        boolean allowed = v2Mac.isEmpty() || isAllowedMac(v2Mac);
+                        // до sync MAC ещё неизвестен — принимаем кадр, allowlist проверим после sync по MAC в хендлере
+                        if (v2Mac.isEmpty() || allowed) {
+                            if (!v2Mac.isEmpty()) {
+                                try {
+                                    macAddressRegistryService.recordPacket(v2Mac);
+                                } catch (Exception ex) {
+                                    log.warn("[ARCHIVE-TCP-LISTENER] MAC registry recordPacket failed for {}: {}",
+                                            v2Mac, ex.getMessage());
+                                }
+                                deviceManager.touchInboundTelemetry(v2Mac);
                             }
-                            deviceManager.touchInboundTelemetry(v2Mac);
                             try {
                                 v2ProtocolService.onBytes(v2Conn, rawChunk, out);
                                 if (v2Conn.mac != null && !v2Conn.mac.isEmpty()) {
                                     macAddress = v2Conn.mac;
+                                    if (!isAllowedMac(macAddress)) {
+                                        weldingMetrics.recordUnknownMac();
+                                        UnknownMacLog.unknownMac("ArchiveStyleTcpListener", macAddress,
+                                                "clientIp=" + clientIp + ", v2 MAC rejected after sync");
+                                        v2Conn.active = false;
+                                    }
                                 }
                                 timeoutTime = LocalDateTime.now().plusSeconds(TIMEOUT_SECONDS);
                             } catch (Exception ex) {
@@ -275,6 +291,7 @@ public class ArchiveStyleTcpListener {
                         continue;
                     }
 
+                    // ===== Старый протокол (ASCII :MAC;…) — ниже без изменений логики =====
                     // Преобразуем данные в строку
                     String data = new String(rawChunk, StandardCharsets.US_ASCII);
 

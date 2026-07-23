@@ -2,9 +2,13 @@ package org.alloy.protocol.v2;
 
 public final class V2ProtocolConstants {
 
+    /** Тестовый MAC (отладка / страница /v2-protocol-test). Роутинг — по version, не по MAC. */
     public static final String TEST_MAC = "E072A1D43F18";
 
-    public static final byte TYPE_SYNC =  0x01;
+    /** Текущая версия бинарного протокола в sync 0x01. */
+    public static final byte PROTOCOL_VERSION = 0x02;
+
+    public static final byte TYPE_SYNC = 0x01;
     public static final byte TYPE_STATE = 0x02;
     public static final byte TYPE_REQ_SESSION_INFO = 0x03;
     public static final byte TYPE_SESSION_INFO = 0x04;
@@ -20,6 +24,14 @@ public final class V2ProtocolConstants {
     public static final byte ERR_UNKNOWN = (byte) 0xFF;
 
     public static boolean isTestMac(String mac) {
-        return TEST_MAC.equals(mac);
+        if (mac == null || mac.isEmpty()) {
+            return false;
+        }
+        String cleaned = mac.replaceAll("[^0-9A-Fa-f]", "").toUpperCase();
+        return TEST_MAC.equals(cleaned);
+    }
+
+    public static boolean isSupportedProtocolVersion(int version) {
+        return (version & 0xFF) == (PROTOCOL_VERSION & 0xFF);
     }
 }
