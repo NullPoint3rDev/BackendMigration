@@ -217,27 +217,31 @@ public class ArchiveStyleTcpListener {
             byte[] buffer = new byte[BUFFER_SIZE];
             boolean connected = true;
             V2ConnectionState v2Conn = new V2ConnectionState();
-            // ponytail: blocking read только для v2; ASCII остаётся на available()+sleep
-            boolean v2BlockingRead = false;
+            // ponytail: по умолчанию blocking (v2 0x01 сразу). ASCII ':' → available()+sleep как раньше.
+            boolean asciiPollMode = false;
 
             // Основной цикл обработки данных
             while (connected && running) {
                 int bytesRead = 0;
 
                 try {
-                    if (v2BlockingRead) {
-                        bytesRead = in.read(buffer);
-                    } else if (in.available() > 0) {
-                        bytesRead = in.read(buffer);
+                    if (asciiPollMode) {
+                        if (in.available() > 0) {
+                            bytesRead = in.read(buffer);
+                        } else {
+                            Thread.sleep(SLEEP_MS);
+                        }
                     } else {
-                        Thread.sleep(SLEEP_MS);
+                        bytesRead = in.read(buffer);
                     }
                 } catch (SocketTimeoutException e) {
-                    // только v2 blocking: SoTimeout = idle disconnect
-                    connected = false;
-                    log.info("[ARCHIVE-TCP-LISTENER] Таймаут для {}", clientIp);
-                    sendConnectionEvent(clientIp, macAddress, "timeout", null);
-                    break;
+                    if (!asciiPollMode) {
+                        connected = false;
+                        log.info("[ARCHIVE-TCP-LISTENER] Таймаут для {}", clientIp);
+                        sendConnectionEvent(clientIp, macAddress, "timeout", null);
+                        break;
+                    }
+                    // ASCII: SoTimeout на редком read — ниже проверим timeoutTime
                 } catch (IOException e) {
                     log.error("[ARCHIVE-TCP-LISTENER] Ошибка чтения потока для {}", clientIp, e);
                     connected = false;
@@ -246,13 +250,17 @@ public class ArchiveStyleTcpListener {
                     connected = false;
                 }
 
-                if (v2BlockingRead && bytesRead < 0) {
+                if (bytesRead < 0) {
                     connected = false;
                     break;
                 }
 
                 if (bytesRead > 0) {
                     byte[] rawChunk = Arrays.copyOf(buffer, bytesRead);
+
+                    if (!asciiPollMode && rawChunk[0] == ':') {
+                        asciiPollMode = true;
+                    }
 
                     // Protocol v2 (binary): только если сокет уже v2, или копится хвост v2,
                     // или первый байт = 0x01 (sync новых устройств). Кадры с ':' сюда НЕ попадают.
@@ -263,7 +271,6 @@ public class ArchiveStyleTcpListener {
                                 || rawChunk[0] == V2ProtocolConstants.TYPE_SYNC);
 
                     if (v2Candidate && v2ProtocolService.shouldHandleAsV2(v2Conn, rawChunk)) {
-                        v2BlockingRead = true;
                         String v2Mac = (v2Conn.mac != null && !v2Conn.mac.isEmpty())
                                 ? v2Conn.mac
                                 : "";
@@ -413,8 +420,8 @@ public class ArchiveStyleTcpListener {
                                 "clientIp=" + clientIp + ", packet rejected");
                         sendConnectionEvent(clientIp, macAddress, "unauthorized", data);
                     }
-                } else if (!v2BlockingRead) {
-                    // ASCII: проверяем таймаут (v2 idle ловится SocketTimeoutException)
+                } else if (asciiPollMode) {
+                    // ASCII: проверяем таймаут (v2/unclassified idle — SocketTimeoutException)
                     if (LocalDateTime.now().isAfter(timeoutTime)) {
                         connected = false;
                         log.info("[ARCHIVE-TCP-LISTENER] Таймаут для {}", clientIp);
