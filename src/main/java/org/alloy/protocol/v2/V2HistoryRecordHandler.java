@@ -44,7 +44,7 @@ public class V2HistoryRecordHandler {
         V2Session s = store.getByToken(token);
         if (s == null) {
             log.warn("[V2] history-record invalid token {}", token);
-            return null;
+            return out.error(V2ProtocolConstants.ERR_INVALID_TOKEN, null);
         }
 
         byte[] wtinfo = Arrays.copyOfRange(p, 2, p.length);

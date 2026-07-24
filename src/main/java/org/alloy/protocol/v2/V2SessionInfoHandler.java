@@ -30,7 +30,7 @@ public class V2SessionInfoHandler {
         V2Session s = store.getByToken(token);
         if (s == null) {
             log.warn("[V2] session-info invalid token {}", token);
-            return null;
+            return out.error(V2ProtocolConstants.ERR_INVALID_TOKEN, null);
         }
 
         int session = readU32BE(p, 2);

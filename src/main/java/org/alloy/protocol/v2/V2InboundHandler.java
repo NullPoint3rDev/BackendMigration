@@ -22,6 +22,7 @@ public class V2InboundHandler {
     private final V2FrameSplitter splitter = new V2FrameSplitter();
     private final V2PacketReader reader = new V2PacketReader();
     private final V2SessionStore store;
+    private final V2OutboundBuilder out;
     private final V2SyncHandler syncHandler;
     private final V2StateHandler stateHandler;
     private final V2SessionInfoHandler sessionInfoHandler;
@@ -39,6 +40,7 @@ public class V2InboundHandler {
             V2CommandQueue commands,
             V2DebugHub debugHub) {
         this.store = store;
+        this.out = out;
         this.debugHub = debugHub;
         this.syncHandler = new V2SyncHandler(store, tokens, out, commands);
         this.stateHandler = new V2StateHandler(store, out, gap, telemetry, indexService, commands);
@@ -76,6 +78,7 @@ public class V2InboundHandler {
                 log.warn("[V2] CRC fail type=0x{} hex={}",
                         Integer.toHexString(one.length > 0 ? one[0] & 0xFF : -1),
                         bytesToHex(one));
+                emit(state, macHint, out.error(V2ProtocolConstants.ERR_CRC, null), socketOut);
                 continue;
             }
 
@@ -97,18 +100,26 @@ public class V2InboundHandler {
                     }
                 }
 
-                if (debugHub != null) {
-                    debugHub.publish(new V2DebugEvent(
-                            "OUT",
-                            state.mac != null ? state.mac : macHint,
-                            bytesToHex(response),
-                            V2FrameJson.fromOutbound(response)));
-                }
-                if (socketOut != null) {
-                    socketOut.write(response);
-                    socketOut.flush();
-                }
+                emit(state, macHint, response, socketOut);
             }
+        }
+    }
+
+    private void emit(V2ConnectionState state, String macHint, byte[] response, OutputStream socketOut)
+            throws IOException {
+        if (response == null) {
+            return;
+        }
+        if (debugHub != null) {
+            debugHub.publish(new V2DebugEvent(
+                    "OUT",
+                    state != null && state.mac != null ? state.mac : macHint,
+                    bytesToHex(response),
+                    V2FrameJson.fromOutbound(response)));
+        }
+        if (socketOut != null) {
+            socketOut.write(response);
+            socketOut.flush();
         }
     }
 

@@ -56,6 +56,15 @@ public class V2OutboundBuilder {
         return indexAck(V2ProtocolConstants.TYPE_HISTORY_RECORD, packetIndex, cmd);
     }
 
+    /** type 0xFF | time(4) | errorCode(1) | [cmd] | crc */
+    public byte[] error(byte errorCode, V2HistoryCommand cmd) {
+        return writer.write(
+                V2ProtocolConstants.TYPE_ERROR,
+                V2PacketWriter.nowTime4(),
+                new byte[]{errorCode},
+                cmd == null ? null : cmd.bytes);
+    }
+
     private byte[] indexAck(byte type, int packetIndex, V2HistoryCommand cmd) {
         byte[] data = new byte[4];
         putU32BE(data, 0, packetIndex);

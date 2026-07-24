@@ -117,6 +117,26 @@ public class V2ProtocolSelfCheck {
         assertEquals(99, readU32BE(ack100.payload, 17));
     }
 
+    @Test
+    void invalidTokenSendsErrorFf02() throws Exception {
+        V2InboundHandler inbound = new V2InboundHandler();
+        V2ConnectionState conn = new V2ConnectionState();
+        ByteArrayOutputStream sock = new ByteArrayOutputStream();
+
+        byte[] wt = new byte[8];
+        putU32BE(wt, 0, 1);
+        // token 0xAABB not in store
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_STATE, tokenPayload(0xAABB, wt)), sock);
+
+        assertTrue(sock.size() > 0);
+        V2Frame err = new V2PacketReader().read(sock.toByteArray());
+        assertTrue(err.crcOk);
+        assertEquals(V2ProtocolConstants.TYPE_ERROR, err.type);
+        // time(4) + errorCode(1)
+        assertEquals(5, err.payload.length);
+        assertEquals(V2ProtocolConstants.ERR_INVALID_TOKEN, err.payload[4]);
+    }
+
     private static byte[] tokenPayload(int token, byte[] wtinfo) {
         byte[] p = new byte[2 + wtinfo.length];
         p[0] = (byte) (token >>> 8);

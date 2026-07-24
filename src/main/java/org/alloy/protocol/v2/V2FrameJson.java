@@ -74,9 +74,11 @@ final class V2FrameJson {
             m.put("serverTime", readU32BE(p, 0));
             byte[] dataAndCmd = Arrays.copyOfRange(p, 4, p.length);
             m.put("dataHex", bytesToHex(dataAndCmd));
+            if ((f.type & 0xFF) == (V2ProtocolConstants.TYPE_ERROR & 0xFF) && dataAndCmd.length >= 1) {
+                m.put("errorCode", dataAndCmd[0] & 0xFF);
+                m.put("errorCodeHex", String.format("0x%02X", dataAndCmd[0] & 0xFF));
+            }
             if (dataAndCmd.length >= 1) {
-                int maybeCmd = dataAndCmd[dataAndCmd.length - 1] & 0xFF;
-                // better: detect known command prefixes near end
                 for (int i = 0; i < dataAndCmd.length; i++) {
                     int t = dataAndCmd[i] & 0xFF;
                     if (t == 0x03 || t == 0x05 || t == 0x08 || t == 0x09) {
