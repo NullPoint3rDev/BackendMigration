@@ -40,4 +40,18 @@ class CorePacketArcTest {
         assertFalse(p.isArcActive());
         assertEquals(152, p.getDisplayCurrent(), 0.01);
     }
+
+    @Test
+    void notArc_whenStandbyStateDespiteHighWeldingCurrent() {
+        CorePacket p = new CorePacket();
+        p.weldingMachineState = 4;
+        p.weldingCurrent = 337;
+        p.current = 270;
+        p.weldingVoltage = 307;
+        p.voltage = 50;
+        assertTrue(p.isStandbyState());
+        assertFalse(p.isArcActive());
+        assertEquals(270, p.getDisplayCurrent(), 0.01);
+        assertEquals(5.0, p.getDisplayVoltage(), 0.01);
+    }
 }

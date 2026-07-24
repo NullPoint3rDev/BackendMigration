@@ -69,8 +69,16 @@ public class CorePacket {
     /** true, если в пакете присутствуют поля 39–40 хвоста (газ). */
     public boolean hasExtendedGasMetrics;
 
+    /** state=4 — дежурный режим; сварки быть не может, эвристика по току не применяется. */
+    public boolean isStandbyState() {
+        return weldingMachineState == 4;
+    }
+
     /** Дуга: явный state=1 или weldingCurrent заметно выше уставки при state=0. */
     public boolean isArcActive() {
+        if (isStandbyState()) {
+            return false;
+        }
         if (weldingMachineState == 1) {
             return true;
         }

@@ -87,6 +87,19 @@ class MonitorActivityClassifierTest {
     }
 
     @Test
+    void standbyBlocksWelding_evenWithHighWeldingCurrent() {
+        WeldingMachineState state = new WeldingMachineState();
+        state.setWeldingMachineStatus(WeldingMachineStatus.Idle);
+        Map<String, String> props = new HashMap<>();
+        props.put("Current", "270");
+        props.put("WeldingCurrent", "337");
+        assertFalse(MonitorActivityClassifier.isWelding(
+                state, "Аппарат включен в дежурном режиме", new BigDecimal("270"), props));
+        assertEquals(MonitorActivityMode.off, MonitorActivityClassifier.classify(
+                state, "Аппарат включен в дежурном режиме", new BigDecimal("270"), props));
+    }
+
+    @Test
     void activeErrorBlocksWelding_evenWithSvarkaTextAndHighCurrent() {
         WeldingMachineState state = new WeldingMachineState();
         state.setWeldingMachineStatus(WeldingMachineStatus.Welding);

@@ -108,6 +108,9 @@ public final class MonitorActivityClassifier {
         if (isErrorState(state, stateLower)) {
             return false;
         }
+        if (stateLower.contains("дежур") || stateLower.contains("standby")) {
+            return false;
+        }
         if (stateLower.equals("сварка") || stateLower.equals("welding")
                 || stateLower.contains("сварка") || stateLower.contains("welding")) {
             return true;
