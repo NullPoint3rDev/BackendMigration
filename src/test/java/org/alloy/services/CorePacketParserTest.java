@@ -68,7 +68,8 @@ class CorePacketParserTest {
         assertTrue(p.hasExtendedGasMetrics);
         assertEquals(35, p.instantGasFlowLpm);
         assertEquals(1234L, p.gasConsumptionSincePowerOnLiters);
-        assertEquals(18.0, p.getDisplayVoltage(), 0.01);
+        // arc active → weldingVoltage/10
+        assertEquals(27.0, p.getDisplayVoltage(), 0.01);
         assertEquals(180, p.getDisplayCurrent(), 0.01);
     }
 
