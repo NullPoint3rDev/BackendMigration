@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -196,7 +197,7 @@ public class ArchiveStyleTcpListener {
         // Время начала подключения
         LocalDateTime connectionStartTime = LocalDateTime.now();
 
-        // Время таймаута (обновляется при каждом пакете)
+        // Время таймаута (обновляется при каждом пакете) — ASCII-путь
         LocalDateTime timeoutTime = connectionStartTime.plusSeconds(TIMEOUT_SECONDS);
 
         // Пытаемся определить MAC по IP адресу
@@ -215,27 +216,39 @@ public class ArchiveStyleTcpListener {
 
             byte[] buffer = new byte[BUFFER_SIZE];
             boolean connected = true;
-            // ponytail: только TEST_MAC; остальные соединения не трогаем
             V2ConnectionState v2Conn = new V2ConnectionState();
+            // ponytail: blocking read только для v2; ASCII остаётся на available()+sleep
+            boolean v2BlockingRead = false;
 
             // Основной цикл обработки данных
             while (connected && running) {
                 int bytesRead = 0;
 
                 try {
-                    // Проверяем доступность данных
-                    if (in.available() > 0) {
+                    if (v2BlockingRead) {
+                        bytesRead = in.read(buffer);
+                    } else if (in.available() > 0) {
                         bytesRead = in.read(buffer);
                     } else {
-                        // Если данных нет, ждем немного
                         Thread.sleep(SLEEP_MS);
                     }
+                } catch (SocketTimeoutException e) {
+                    // только v2 blocking: SoTimeout = idle disconnect
+                    connected = false;
+                    log.info("[ARCHIVE-TCP-LISTENER] Таймаут для {}", clientIp);
+                    sendConnectionEvent(clientIp, macAddress, "timeout", null);
+                    break;
                 } catch (IOException e) {
                     log.error("[ARCHIVE-TCP-LISTENER] Ошибка чтения потока для {}", clientIp, e);
                     connected = false;
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     connected = false;
+                }
+
+                if (v2BlockingRead && bytesRead < 0) {
+                    connected = false;
+                    break;
                 }
 
                 if (bytesRead > 0) {
@@ -250,6 +263,7 @@ public class ArchiveStyleTcpListener {
                                 || rawChunk[0] == V2ProtocolConstants.TYPE_SYNC);
 
                     if (v2Candidate && v2ProtocolService.shouldHandleAsV2(v2Conn, rawChunk)) {
+                        v2BlockingRead = true;
                         String v2Mac = (v2Conn.mac != null && !v2Conn.mac.isEmpty())
                                 ? v2Conn.mac
                                 : "";
@@ -399,8 +413,8 @@ public class ArchiveStyleTcpListener {
                                 "clientIp=" + clientIp + ", packet rejected");
                         sendConnectionEvent(clientIp, macAddress, "unauthorized", data);
                     }
-                } else {
-                    // Проверяем таймаут
+                } else if (!v2BlockingRead) {
+                    // ASCII: проверяем таймаут (v2 idle ловится SocketTimeoutException)
                     if (LocalDateTime.now().isAfter(timeoutTime)) {
                         connected = false;
                         log.info("[ARCHIVE-TCP-LISTENER] Таймаут для {}", clientIp);
