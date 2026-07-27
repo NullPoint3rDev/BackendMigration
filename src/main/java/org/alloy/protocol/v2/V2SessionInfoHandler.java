@@ -21,7 +21,9 @@ public class V2SessionInfoHandler {
 
     public byte[] handle(V2Frame frame) {
         byte[] p = frame.payload;
-        if (p == null || p.length < 2 + 4 * 5) {
+        // full: token(2)+session(4)+first/last idx+time (22);
+        // short: token(2)+session(4) (6) — сессия не найдена на плате
+        if (p == null || p.length < 6) {
             log.warn("[V2] session-info payload too short");
             return null;
         }
@@ -34,14 +36,18 @@ public class V2SessionInfoHandler {
         }
 
         int session = readU32BE(p, 2);
-        int firstIdx = readU32BE(p, 6);
-        int firstTime = readU32BE(p, 10);
-        int lastIdx = readU32BE(p, 14);
-        int lastTime = readU32BE(p, 18);
-
-        log.info(
-                "[V2] session-info mac={} session={} first={}/{} last={}/{}",
-                s.mac, session, firstIdx, firstTime, lastIdx, lastTime);
+        boolean found = p.length >= 22;
+        if (found) {
+            int firstIdx = readU32BE(p, 6);
+            int firstTime = readU32BE(p, 10);
+            int lastIdx = readU32BE(p, 14);
+            int lastTime = readU32BE(p, 18);
+            log.info(
+                    "[V2] session-info mac={} session={} first={}/{} last={}/{}",
+                    s.mac, session, firstIdx, firstTime, lastIdx, lastTime);
+        } else {
+            log.info("[V2] session-info mac={} session={} notFound", s.mac, session);
+        }
 
         V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
         return out.sessionInfoAck(session, cmd);

@@ -137,6 +137,35 @@ public class V2ProtocolSelfCheck {
         assertEquals(V2ProtocolConstants.ERR_INVALID_TOKEN, err.payload[4]);
     }
 
+    @Test
+    void sessionInfoNotFoundShortFormStillAcks() throws Exception {
+        V2InboundHandler inbound = new V2InboundHandler();
+        V2ConnectionState conn = new V2ConnectionState();
+        ByteArrayOutputStream sock = new ByteArrayOutputStream();
+
+        byte[] mac6 = new byte[]{(byte) 0xE0, 0x72, (byte) 0xA1, (byte) 0xD4, 0x3F, 0x18};
+        byte[] syncPayload = new byte[12];
+        syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
+        System.arraycopy(mac6, 0, syncPayload, 1, 6);
+        syncPayload[7] = 0x01;
+        putU32BE(syncPayload, 8, 1);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
+        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 12);
+
+        sock.reset();
+        // short 0x04: token(2) + session(4) only — session not found
+        byte[] shortInfo = new byte[6];
+        shortInfo[0] = (byte) (token >>> 8);
+        shortInfo[1] = (byte) token;
+        putU32BE(shortInfo, 2, 99);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SESSION_INFO, shortInfo), sock);
+
+        V2Frame ack = new V2PacketReader().read(sock.toByteArray());
+        assertTrue(ack.crcOk);
+        assertEquals(V2ProtocolConstants.TYPE_SESSION_INFO, ack.type);
+        assertEquals(99, readU32BE(ack.payload, 4));
+    }
+
     private static byte[] tokenPayload(int token, byte[] wtinfo) {
         byte[] p = new byte[2 + wtinfo.length];
         p[0] = (byte) (token >>> 8);

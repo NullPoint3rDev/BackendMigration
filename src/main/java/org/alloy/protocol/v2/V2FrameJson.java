@@ -35,13 +35,17 @@ final class V2FrameJson {
                     }
                 }
                 case V2ProtocolConstants.TYPE_SESSION_INFO -> {
-                    if (p.length >= 22) {
+                    if (p.length >= 6) {
                         m.put("token", readU16BE(p, 0));
                         m.put("session", readU32BE(p, 2));
-                        m.put("firstIndex", readU32BE(p, 6));
-                        m.put("firstTime", readU32BE(p, 10));
-                        m.put("lastIndex", readU32BE(p, 14));
-                        m.put("lastTime", readU32BE(p, 18));
+                        // short form (6): session not found on device
+                        m.put("sessionFound", p.length >= 22);
+                        if (p.length >= 22) {
+                            m.put("firstIndex", readU32BE(p, 6));
+                            m.put("firstTime", readU32BE(p, 10));
+                            m.put("lastIndex", readU32BE(p, 14));
+                            m.put("lastTime", readU32BE(p, 18));
+                        }
                     }
                 }
                 case V2ProtocolConstants.TYPE_SET_HIST_SESSION -> {
