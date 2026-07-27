@@ -166,6 +166,26 @@ class ArchiveLegacyAsciiInboundTest {
         assertEquals(0xABABABABL, parsed.index);
     }
 
+    @Test
+    void tcpListener_connectBurst_enqueuesAndAsciiPollMode() throws Exception {
+        ArchiveStyleTcpListener listener = wiredListener();
+        when(macAddressRegistryService.isAllowedForTcp(CORE_MAC)).thenReturn(true);
+
+        String frame2 = ":C82B9620E506;00001CAF0B1A031B071A00460003000000000000003500DC00F500000000000000000190019001910108010A0000000000000000000000000000000004010004000000000000000000001C5E00000000000000000000F7";
+        String connectBlob = "CONNECT Core4Machine:" + CORE_FRAME.substring(1) + "\n" + frame2;
+
+        invokeHandleClient(listener, connectBlob);
+
+        ArchivePacket queued = ArchiveIncomingPacketsQueue.tryDequeue();
+        assertNotNull(queued);
+        assertEquals(CORE_MAC, queued.getMac());
+        assertTrue(queued.getData().startsWith("CONNECT "));
+
+        String picked = CoreAsciiFrameExtractor.pickLastParseableFrame(queued.getData());
+        assertEquals(frame2, picked);
+        assertNotNull(CorePacketParser.parse(picked));
+    }
+
     private ArchiveStylePacketParser newParser() throws Exception {
         ArchiveStylePacketParser parser = new ArchiveStylePacketParser();
         setField(parser, "deviceModelService", deviceModelService);

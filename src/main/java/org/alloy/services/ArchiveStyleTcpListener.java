@@ -258,7 +258,7 @@ public class ArchiveStyleTcpListener {
                 if (bytesRead > 0) {
                     byte[] rawChunk = Arrays.copyOf(buffer, bytesRead);
 
-                    if (!asciiPollMode && rawChunk[0] == ':') {
+                    if (!asciiPollMode && CoreAsciiFrameExtractor.looksLikeAsciiCoreChunk(rawChunk)) {
                         asciiPollMode = true;
                     }
 

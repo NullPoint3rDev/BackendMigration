@@ -59,7 +59,8 @@ public class WeldingDataParserService {
 
         // Для плат Core разбираем специализированным парсером и сразу выставляем ток/напряжение
         if (deviceModelService.shouldUseCoreParser(mac, data)) {
-            CorePacket core = CorePacketParser.parse(data);
+            String frame = CoreAsciiFrameExtractor.pickLastParseableFrame(data);
+            CorePacket core = CorePacketParser.parse(frame);
             if (core != null) {
                 Map<String, StateSummaryPropertyValue> props = new HashMap<>();
                 boolean arcActive = core.isArcActive();
