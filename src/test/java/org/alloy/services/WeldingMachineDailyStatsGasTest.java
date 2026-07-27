@@ -226,6 +226,42 @@ class WeldingMachineDailyStatsGasTest {
     }
 
     @Test
+    void resolveWire_usesSlopeEstimateWhenWindowDeltaZero() {
+        // в окне шва счётчик не сдвинулся, но рядом есть наклон ~12 м/мин
+        java.time.LocalDateTime weldStart = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 0);
+        java.time.LocalDateTime weldEnd = weldStart.plusSeconds(10);
+        org.alloy.models.entities.WeldingMachineState before0 = state(1L, weldStart.minusSeconds(40));
+        org.alloy.models.entities.WeldingMachineState before1 = state(2L, weldStart.minusSeconds(10));
+        org.alloy.models.entities.WeldingMachineState in = state(3L, weldStart.plusSeconds(3));
+
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("1000"));
+        cum.put(2L, bd("1006")); // +6 м за 30 с = 12 м/мин
+        cum.put(3L, bd("1006")); // в окне дельта 0
+
+        BigDecimal meters = WeldingMachineDailyStatsService.resolveWireMetersForWeldSegment(
+                java.util.List.of(before0, before1, in), cum, weldStart, weldEnd, bd("10"));
+        // 12 м/мин × 10 с / 60 = 2 м
+        assertEquals(0, meters.compareTo(bd("2.00000")));
+    }
+
+    @Test
+    void resolveWire_keepsCounterWhenCloseToEstimate() {
+        java.time.LocalDateTime weldStart = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 0);
+        java.time.LocalDateTime weldEnd = weldStart.plusSeconds(60);
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, weldStart.minusSeconds(1));
+        org.alloy.models.entities.WeldingMachineState s1 = state(2L, weldStart.plusSeconds(30));
+
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("100"));
+        cum.put(2L, bd("110")); // +10 м за шов; наклон ~20 м/мин → оценка 20 м, < 3×10
+
+        BigDecimal meters = WeldingMachineDailyStatsService.resolveWireMetersForWeldSegment(
+                java.util.List.of(s0, s1), cum, weldStart, weldEnd, bd("60"));
+        assertEquals(0, meters.compareTo(bd("10")));
+    }
+
+    @Test
     void dayBounds_moscowStatDate_convertsToUtcForDb() {
         java.time.ZoneId moscow = java.time.ZoneId.of("Europe/Moscow");
         java.time.LocalDate statDate = java.time.LocalDate.of(2026, 7, 7);
