@@ -387,6 +387,65 @@ public class WeldingMachineDailyStatsService {
         return current.compareTo(last.multiply(WIRE_COUNTER_RESET_MAX_RATIO)) < 0;
     }
 
+    static BigDecimal sumWireCumulativeDelta(BigDecimal lastCumulative, BigDecimal current) {
+        if (lastCumulative == null || current == null) {
+            return BigDecimal.ZERO;
+        }
+        if (current.compareTo(lastCumulative) >= 0) {
+            return current.subtract(lastCumulative);
+        }
+        if (isWireCounterReset(current, lastCumulative)) {
+            return current;
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * Прирост накопительного счётчика проволоки (м) за полуинтервал [windowStart, windowEnd).
+     * Логика как у {@link #sumGasCumulativeLitersInWindow}: база до окна + дельты внутри.
+     */
+    static BigDecimal sumWireCumulativeMetersInWindow(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> wireCumulativeByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd) {
+        if (states == null || states.isEmpty()
+                || wireCumulativeByStateId == null || wireCumulativeByStateId.isEmpty()
+                || windowStart == null || windowEnd == null) {
+            return BigDecimal.ZERO;
+        }
+        List<WeldingMachineState> sorted = new ArrayList<>(states);
+        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated, Comparator.nullsLast(Comparator.naturalOrder())));
+        BigDecimal lastCumulative = null;
+        BigDecimal sumDelta = BigDecimal.ZERO;
+        for (WeldingMachineState s : sorted) {
+            if (s.getId() == null || s.getDateCreated() == null) {
+                continue;
+            }
+            BigDecimal current = wireCumulativeByStateId.get(s.getId());
+            if (current == null) {
+                continue;
+            }
+            LocalDateTime t = s.getDateCreated();
+            if (t.isBefore(windowStart)) {
+                lastCumulative = current;
+                continue;
+            }
+            if (!t.isBefore(windowEnd)) {
+                break;
+            }
+            if (lastCumulative != null) {
+                sumDelta = sumDelta.add(sumWireCumulativeDelta(lastCumulative, current));
+                if (current.compareTo(lastCumulative) >= 0 || isWireCounterReset(current, lastCumulative)) {
+                    lastCumulative = current;
+                }
+            } else {
+                lastCumulative = current;
+            }
+        }
+        return sumDelta;
+    }
+
     private Map<Long, Map<String, String>> loadPropsByStateId(List<WeldingMachineState> states) {
         Map<Long, Map<String, String>> out = new HashMap<>();
         if (states == null || states.isEmpty()) {
