@@ -32,7 +32,7 @@ public class TcpCoreDeviceClient {
     @Value("${welding.core.connection.retry_interval_ms:5000}")
     private int retryIntervalMs;
     
-    @Value("${welding.core.connection.max_retries:5}")
+    @Value("${welding.core.connection.max_retries:0}")
     private int maxRetries;
     
     private volatile boolean running = true;
@@ -102,8 +102,11 @@ public class TcpCoreDeviceClient {
                     retryCount++;
                     System.err.println("[TCP-CORE] ❌ Ошибка подключения: " + e.getMessage());
                     log.error("[TCP-CORE] Ошибка подключения", e);
-                    System.err.println("[TCP-CORE] 🔄 Повторная попытка через " + retryIntervalMs + "мс (попытка " + retryCount + "/" + maxRetries + ")");
-                    if (retryCount >= maxRetries) {
+                    String retryLabel = maxRetries > 0 ? retryCount + "/" + maxRetries : String.valueOf(retryCount);
+                    System.err.println("[TCP-CORE] 🔄 Повторная попытка через " + retryIntervalMs + "мс (попытка " + retryLabel + ")");
+                    deviceManager.markDeviceDisconnected(coreMac);
+                    // ponytail: maxRetries <= 0 — бесконечный retry
+                    if (maxRetries > 0 && retryCount >= maxRetries) {
                         System.err.println("[TCP-CORE] ⚠️ Достигнуто максимальное количество попыток. Останавливаемся.");
                         break;
                     }

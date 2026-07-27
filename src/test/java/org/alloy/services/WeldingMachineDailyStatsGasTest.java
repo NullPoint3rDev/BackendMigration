@@ -175,6 +175,93 @@ class WeldingMachineDailyStatsGasTest {
     }
 
     @Test
+    void wireWindow_sumsCumulativeMetersLikeGas() {
+        java.time.LocalDateTime t0 = java.time.LocalDateTime.of(2026, 7, 8, 9, 59, 0);
+        java.time.LocalDateTime t1 = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 5);
+        java.time.LocalDateTime t2 = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 15);
+        java.time.LocalDateTime weldStart = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 0);
+        java.time.LocalDateTime weldEnd = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 20);
+
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, t0);
+        org.alloy.models.entities.WeldingMachineState s1 = state(2L, t1);
+        org.alloy.models.entities.WeldingMachineState s2 = state(3L, t2);
+
+        // накопленные метры: 1000 → 1003 → 1006.5 за окно = +6.5 м (не «скорость × время»)
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("1000"));
+        cum.put(2L, bd("1003"));
+        cum.put(3L, bd("1006.5"));
+
+        BigDecimal meters = WeldingMachineDailyStatsService.sumWireCumulativeMetersInWindow(
+                java.util.List.of(s0, s1, s2), cum, weldStart, weldEnd);
+        assertEquals(0, meters.compareTo(bd("6.5")));
+    }
+
+    @Test
+    void wireWindow_sameDurationDoesNotScaleWithAbsoluteCounterLevel() {
+        // баг: одинаковые 20 с давали 0.2 vs 10 кг из‑за уровня счётчика; дельта должна быть одной
+        java.time.LocalDateTime startA = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 0);
+        java.time.LocalDateTime endA = startA.plusSeconds(20);
+        org.alloy.models.entities.WeldingMachineState a0 = state(1L, startA.minusSeconds(2));
+        org.alloy.models.entities.WeldingMachineState a1 = state(2L, startA.plusSeconds(10));
+        java.util.Map<Long, BigDecimal> early = new java.util.HashMap<>();
+        early.put(1L, bd("50"));
+        early.put(2L, bd("53.5")); // +3.5 м
+
+        java.time.LocalDateTime startB = java.time.LocalDateTime.of(2026, 7, 8, 18, 0, 0);
+        java.time.LocalDateTime endB = startB.plusSeconds(20);
+        org.alloy.models.entities.WeldingMachineState b0 = state(3L, startB.minusSeconds(2));
+        org.alloy.models.entities.WeldingMachineState b1 = state(4L, startB.plusSeconds(10));
+        java.util.Map<Long, BigDecimal> late = new java.util.HashMap<>();
+        late.put(3L, bd("9000"));
+        late.put(4L, bd("9003.5")); // +3.5 м — тот же прирост при огромном уровне
+
+        BigDecimal mEarly = WeldingMachineDailyStatsService.sumWireCumulativeMetersInWindow(
+                java.util.List.of(a0, a1), early, startA, endA);
+        BigDecimal mLate = WeldingMachineDailyStatsService.sumWireCumulativeMetersInWindow(
+                java.util.List.of(b0, b1), late, startB, endB);
+        assertEquals(0, mEarly.compareTo(bd("3.5")));
+        assertEquals(0, mLate.compareTo(bd("3.5")));
+        assertEquals(0, mEarly.compareTo(mLate));
+    }
+
+    @Test
+    void resolveWire_usesSlopeEstimateWhenWindowDeltaZero() {
+        // в окне шва счётчик не сдвинулся, но рядом есть наклон ~12 м/мин
+        java.time.LocalDateTime weldStart = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 0);
+        java.time.LocalDateTime weldEnd = weldStart.plusSeconds(10);
+        org.alloy.models.entities.WeldingMachineState before0 = state(1L, weldStart.minusSeconds(40));
+        org.alloy.models.entities.WeldingMachineState before1 = state(2L, weldStart.minusSeconds(10));
+        org.alloy.models.entities.WeldingMachineState in = state(3L, weldStart.plusSeconds(3));
+
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("1000"));
+        cum.put(2L, bd("1006")); // +6 м за 30 с = 12 м/мин
+        cum.put(3L, bd("1006")); // в окне дельта 0
+
+        BigDecimal meters = WeldingMachineDailyStatsService.resolveWireMetersForWeldSegment(
+                java.util.List.of(before0, before1, in), cum, weldStart, weldEnd, bd("10"));
+        // 12 м/мин × 10 с / 60 = 2 м
+        assertEquals(0, meters.compareTo(bd("2.00000")));
+    }
+
+    @Test
+    void resolveWire_keepsCounterWhenCloseToEstimate() {
+        java.time.LocalDateTime weldStart = java.time.LocalDateTime.of(2026, 7, 8, 10, 0, 0);
+        java.time.LocalDateTime weldEnd = weldStart.plusSeconds(60);
+        org.alloy.models.entities.WeldingMachineState s0 = state(1L, weldStart.minusSeconds(1));
+        org.alloy.models.entities.WeldingMachineState s1 = state(2L, weldStart.plusSeconds(30));
+
+        java.util.Map<Long, BigDecimal> cum = new java.util.HashMap<>();
+        cum.put(1L, bd("100"));
+        cum.put(2L, bd("110")); // +10 м за шов; наклон ~20 м/мин → оценка 20 м, < 3×10
+
+        BigDecimal meters = WeldingMachineDailyStatsService.resolveWireMetersForWeldSegment(
+                java.util.List.of(s0, s1), cum, weldStart, weldEnd, bd("60"));
+        assertEquals(0, meters.compareTo(bd("10")));
+    }
+
+    @Test
     void dayBounds_moscowStatDate_convertsToUtcForDb() {
         java.time.ZoneId moscow = java.time.ZoneId.of("Europe/Moscow");
         java.time.LocalDate statDate = java.time.LocalDate.of(2026, 7, 7);

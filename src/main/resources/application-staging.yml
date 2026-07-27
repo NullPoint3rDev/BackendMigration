@@ -39,6 +39,11 @@ app:
 welding:
   machine:
     auto-create-on-unknown-mac: false
+  connection:
+    max_retries: 0
+  core:
+    connection:
+      max_retries: 0
   archive:
     server:
       port: ${WELDING_ARCHIVE_SERVER_PORT:3003}

@@ -387,6 +387,164 @@ public class WeldingMachineDailyStatsService {
         return current.compareTo(last.multiply(WIRE_COUNTER_RESET_MAX_RATIO)) < 0;
     }
 
+    static BigDecimal sumWireCumulativeDelta(BigDecimal lastCumulative, BigDecimal current) {
+        if (lastCumulative == null || current == null) {
+            return BigDecimal.ZERO;
+        }
+        if (current.compareTo(lastCumulative) >= 0) {
+            return current.subtract(lastCumulative);
+        }
+        if (isWireCounterReset(current, lastCumulative)) {
+            return current;
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * Прирост накопительного счётчика проволоки (м) за полуинтервал [windowStart, windowEnd).
+     * Логика как у {@link #sumGasCumulativeLitersInWindow}: база до окна + дельты внутри.
+     */
+    static BigDecimal sumWireCumulativeMetersInWindow(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> wireCumulativeByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd) {
+        if (states == null || states.isEmpty()
+                || wireCumulativeByStateId == null || wireCumulativeByStateId.isEmpty()
+                || windowStart == null || windowEnd == null) {
+            return BigDecimal.ZERO;
+        }
+        List<WeldingMachineState> sorted = new ArrayList<>(states);
+        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated, Comparator.nullsLast(Comparator.naturalOrder())));
+        BigDecimal lastCumulative = null;
+        BigDecimal sumDelta = BigDecimal.ZERO;
+        for (WeldingMachineState s : sorted) {
+            if (s.getId() == null || s.getDateCreated() == null) {
+                continue;
+            }
+            BigDecimal current = wireCumulativeByStateId.get(s.getId());
+            if (current == null) {
+                continue;
+            }
+            LocalDateTime t = s.getDateCreated();
+            if (t.isBefore(windowStart)) {
+                lastCumulative = current;
+                continue;
+            }
+            if (!t.isBefore(windowEnd)) {
+                break;
+            }
+            if (lastCumulative != null) {
+                sumDelta = sumDelta.add(sumWireCumulativeDelta(lastCumulative, current));
+                if (current.compareTo(lastCumulative) >= 0 || isWireCounterReset(current, lastCumulative)) {
+                    lastCumulative = current;
+                }
+            } else {
+                lastCumulative = current;
+            }
+        }
+        return sumDelta;
+    }
+
+    /** Как у газа: оценка побеждает при дельте 0 или если оценка ≥3× дельты. */
+    static final BigDecimal WIRE_FEED_OVERRIDE_MIN_RATIO = new BigDecimal("3");
+
+    /** Правдоподобный диапазон скорости подачи MIG (м/мин) для оценки по наклону счётчика. */
+    private static final BigDecimal WIRE_FEED_MPM_MIN = new BigDecimal("0.5");
+    private static final BigDecimal WIRE_FEED_MPM_MAX = new BigDecimal("30");
+
+    /**
+     * Оценка скорости подачи (м/мин) по наклону накопительного счётчика на соседних точках.
+     * ponytail: нет отдельного мгновенного м/мин — только «Расход проволоки» как кумулятив.
+     */
+    static BigDecimal estimateWireFeedMpmFromCounterSlope(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> wireCumulativeByStateId) {
+        if (states == null || states.isEmpty()
+                || wireCumulativeByStateId == null || wireCumulativeByStateId.isEmpty()) {
+            return null;
+        }
+        List<WeldingMachineState> sorted = new ArrayList<>(states);
+        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated, Comparator.nullsLast(Comparator.naturalOrder())));
+        List<BigDecimal> rates = new ArrayList<>();
+        WeldingMachineState prev = null;
+        BigDecimal prevCum = null;
+        for (WeldingMachineState s : sorted) {
+            if (s.getId() == null || s.getDateCreated() == null) {
+                continue;
+            }
+            BigDecimal cur = wireCumulativeByStateId.get(s.getId());
+            if (cur == null) {
+                continue;
+            }
+            if (prev != null && prevCum != null) {
+                long dtMs = java.time.Duration.between(prev.getDateCreated(), s.getDateCreated()).toMillis();
+                if (dtMs >= 500L && dtMs <= 180_000L) {
+                    BigDecimal delta = sumWireCumulativeDelta(prevCum, cur);
+                    if (delta.compareTo(BigDecimal.ZERO) > 0
+                            && cur.compareTo(prevCum) >= 0) {
+                        BigDecimal minutes = BigDecimal.valueOf(dtMs)
+                                .divide(BigDecimal.valueOf(60_000L), 8, RoundingMode.HALF_UP);
+                        if (minutes.compareTo(BigDecimal.ZERO) > 0) {
+                            BigDecimal mpm = delta.divide(minutes, 4, RoundingMode.HALF_UP);
+                            if (mpm.compareTo(WIRE_FEED_MPM_MIN) >= 0 && mpm.compareTo(WIRE_FEED_MPM_MAX) <= 0) {
+                                rates.add(mpm);
+                            }
+                        }
+                    }
+                }
+            }
+            if (prevCum == null || cur.compareTo(prevCum) >= 0 || isWireCounterReset(cur, prevCum)) {
+                prev = s;
+                prevCum = cur;
+            }
+        }
+        if (rates.isEmpty()) {
+            return null;
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal r : rates) {
+            sum = sum.add(r);
+        }
+        return sum.divide(BigDecimal.valueOf(rates.size()), 4, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Метры проволоки за шов: дельта счётчика в окне; если 0 или занижена (≥3×) —
+     * оценка feedMpm×durationSec/60 по наклону счётчика на соседних точках.
+     */
+    static BigDecimal resolveWireMetersForWeldSegment(
+            List<WeldingMachineState> states,
+            Map<Long, BigDecimal> wireCumulativeByStateId,
+            LocalDateTime windowStart,
+            LocalDateTime windowEnd,
+            BigDecimal durationSec) {
+        BigDecimal fromCounter = sumWireCumulativeMetersInWindow(
+                states, wireCumulativeByStateId, windowStart, windowEnd);
+        if (fromCounter == null) {
+            fromCounter = BigDecimal.ZERO;
+        }
+        BigDecimal feedMpm = estimateWireFeedMpmFromCounterSlope(states, wireCumulativeByStateId);
+        BigDecimal fromEstimate = BigDecimal.ZERO;
+        if (feedMpm != null && durationSec != null
+                && feedMpm.compareTo(BigDecimal.ZERO) > 0
+                && durationSec.compareTo(BigDecimal.ZERO) > 0) {
+            fromEstimate = feedMpm.multiply(durationSec)
+                    .divide(BigDecimal.valueOf(60), 5, RoundingMode.HALF_UP);
+        }
+        if (fromEstimate.compareTo(BigDecimal.ZERO) <= 0) {
+            return fromCounter;
+        }
+        if (fromCounter.compareTo(BigDecimal.ZERO) <= 0) {
+            return fromEstimate;
+        }
+        BigDecimal threshold = fromCounter.multiply(WIRE_FEED_OVERRIDE_MIN_RATIO);
+        if (fromEstimate.compareTo(threshold) >= 0) {
+            return fromEstimate;
+        }
+        return fromCounter;
+    }
+
     private Map<Long, Map<String, String>> loadPropsByStateId(List<WeldingMachineState> states) {
         Map<Long, Map<String, String>> out = new HashMap<>();
         if (states == null || states.isEmpty()) {

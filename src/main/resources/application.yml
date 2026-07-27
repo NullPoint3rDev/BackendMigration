@@ -102,7 +102,10 @@ server:
   connection:
     timeout_ms: 10000
     retry_interval_ms: 5000
-    max_retries: 3
+    max_retries: 0  # 0 = бесконечный retry, не останавливать TCP-клиент после рестарта
+  core:
+    connection:
+      max_retries: 0
   parser:
     current_position: 36 # Позиция тока в payload (найдена автоматически как оптимальная)
     debug_mode: false # Отключить детальное логирование парсера (позиция найдена)
@@ -117,6 +120,8 @@ welding:
   machine:
     # Не трогать welding_machine.last_online_on на каждом poll (снимает lock storm)
     last-online-throttle-seconds: 30
+  connection:
+    max_retries: 0
   archive:
     server:
       port: 3003  # Порт для TCP сервера (принимает все устройства)
@@ -133,6 +138,8 @@ welding:
       enabled: true  # Включить синхронизацию времени
   core:
     macs: E09806083396,DC4F22763D5C,E098060B22D2,C82B9620E506,ECFABCC9703B
+    connection:
+      max_retries: 0
     voltage_scale_idle: 16   # Масштаб для напряжения без сварки (idle)
     voltage_scale_welding: 10  # Масштаб для напряжения при сварке (welding)
     voltage_offset_idle: 0    # Калибровочный сдвиг (отключен)

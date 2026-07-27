@@ -78,7 +78,7 @@ public class ReportDataService {
     private WeldingMachineWeldSegmentCacheService weldSegmentCacheService;
 
     /**
-     * Погонная масса проволоки (кг/м) для перевода скорости подачи (м/мин) в расход массы в отчётах.
+     * Погонная масса проволоки (кг/м) для перевода метров счётчика в кг в отчётах.
      * По умолчанию — сталь Ø1.2 мм (~0.0089). Переопределяется в {@code report.wire.linear-density-kg-per-meter}.
      */
     @Value("${report.wire.linear-density-kg-per-meter:0.000089}")
@@ -583,11 +583,18 @@ public class ReportDataService {
                 LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
                 List<WeldingMachineState> segmentStates = statesInTimeWindow(
                         statesByMachineId.get(r.machineId), r.startTime.minusSeconds(5), segmentEnd.plusSeconds(5));
+                List<WeldingMachineState> wireStates = statesInTimeWindow(
+                        statesByMachineId.get(r.machineId), r.startTime.minusSeconds(90), segmentEnd.plusSeconds(90));
                 LocalDateTime displayDateTime = getDeviceDateTimeFromCache(segmentStates, r.startTime, segmentEnd, deviceDateTimeByStateId);
                 if (displayDateTime == null) displayDateTime = r.startTime;
                 String workMode = getWorkModeFromCache(segmentStates, r.startTime, segmentEnd, workModeByStateId);
-                BigDecimal wireFeedMpm = getWireFeedFromCache(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
-                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
+                BigDecimal wireFeedMpm = WeldingMachineDailyStatsService.estimateWireFeedMpmFromCounterSlope(
+                        wireStates, wireFeedByStateId);
+                if (wireFeedMpm == null) {
+                    wireFeedMpm = getWireFeedFromCache(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
+                }
+                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(
+                        wireStates, r.startTime, segmentEnd, wireFeedByStateId, r.durationSec);
                 BigDecimal gasL = calculateGasConsumptionLForWeldSegment(
                         segmentStates, r.startTime, segmentEnd, gasCumulativeByStateId, gasFlowByStateId, r.durationSec);
                 BigDecimal energyKwh = calculateEnergyPerWeld(r.avgVoltage, r.avgCurrent, r.durationSec);
@@ -856,11 +863,18 @@ public class ReportDataService {
                 LocalDateTime segmentEnd = r.startTime.plusSeconds(r.durationSec.longValue());
                 List<WeldingMachineState> segmentStates = statesInTimeWindow(
                         statesByMachineId.get(r.machineId), r.startTime.minusSeconds(5), segmentEnd.plusSeconds(5));
+                List<WeldingMachineState> wireStates = statesInTimeWindow(
+                        statesByMachineId.get(r.machineId), r.startTime.minusSeconds(90), segmentEnd.plusSeconds(90));
                 LocalDateTime displayDateTime = getDeviceDateTimeFromCache(segmentStates, r.startTime, segmentEnd, deviceDateTimeByStateId);
                 if (displayDateTime == null) displayDateTime = r.startTime;
                 String workMode = getWorkModeFromCache(segmentStates, r.startTime, segmentEnd, workModeByStateId);
-                BigDecimal wireFeedMpm = getWireFeedFromCache(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
-                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
+                BigDecimal wireFeedMpm = WeldingMachineDailyStatsService.estimateWireFeedMpmFromCounterSlope(
+                        wireStates, wireFeedByStateId);
+                if (wireFeedMpm == null) {
+                    wireFeedMpm = getWireFeedFromCache(segmentStates, r.startTime, segmentEnd, wireFeedByStateId);
+                }
+                BigDecimal wireKg = calculateWireConsumptionKgForWeldSegment(
+                        wireStates, r.startTime, segmentEnd, wireFeedByStateId, r.durationSec);
                 BigDecimal gasL = calculateGasConsumptionLForWeldSegment(
                         segmentStates, r.startTime, segmentEnd, gasCumulativeByStateId, gasFlowByStateId, r.durationSec);
 
@@ -1520,34 +1534,24 @@ public class ReportDataService {
     }
 
     /**
-     * Масса проволоки за шов (кг): только состояния Welding,
-     * скорость подачи из БД (м/мин), погонная масса из настройки (кг/м).
+     * Масса проволоки за шов (кг): дельты накопительного «Расход проволоки» (м) × плотность;
+     * если дельта 0/занижена — оценка по наклону счётчика (м/мин) × время шва × плотность.
      */
     private BigDecimal calculateWireConsumptionKgForWeldSegment(
             List<WeldingMachineState> machineStates,
             LocalDateTime segmentStart,
             LocalDateTime segmentEnd,
-            Map<Long, BigDecimal> wireFeedByStateId) {
-        if (machineStates == null || machineStates.isEmpty()
-                || wireFeedByStateId == null || wireFeedByStateId.isEmpty()
-                || wireLinearDensityKgPerMeter == null) {
+            Map<Long, BigDecimal> wireCumulativeByStateId,
+            BigDecimal durationSec) {
+        if (wireLinearDensityKgPerMeter == null) {
             return BigDecimal.ZERO;
         }
-        BigDecimal density = wireLinearDensityKgPerMeter;
-        BigDecimal sum = BigDecimal.ZERO;
-        List<WeldingMachineState> sorted = new ArrayList<>(machineStates);
-        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-        for (WeldingMachineState s : sorted) {
-            if (s.getWeldingMachineStatus() != WeldingMachineStatus.Welding) continue;
-            long overlapMs = overlapDurationMs(s, segmentStart, segmentEnd, sorted);
-            if (overlapMs <= 0) continue;
-            BigDecimal mpm = wireFeedByStateId.get(s.getId());
-            if (mpm == null || mpm.compareTo(BigDecimal.ZERO) <= 0) continue;
-            BigDecimal minutes = BigDecimal.valueOf(overlapMs)
-                    .divide(BigDecimal.valueOf(60_000), 8, RoundingMode.HALF_UP);
-            sum = sum.add(mpm.multiply(density).multiply(minutes));
+        BigDecimal meters = WeldingMachineDailyStatsService.resolveWireMetersForWeldSegment(
+                machineStates, wireCumulativeByStateId, segmentStart, segmentEnd, durationSec);
+        if (meters == null || meters.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(5, RoundingMode.HALF_UP);
         }
-        return sum.setScale(5, RoundingMode.HALF_UP);
+        return meters.multiply(wireLinearDensityKgPerMeter).setScale(5, RoundingMode.HALF_UP);
     }
 
     /**
@@ -1567,31 +1571,26 @@ public class ReportDataService {
     }
 
     /**
-     * Суммарный расход проволоки (кг) за период по состояниям сварки: м/мин × кг/м × мин.
+     * Суммарный расход проволоки (кг) за период: дельты накопительного счётчика (м) × кг/м.
      */
     private BigDecimal calculateWireConsumptionKgFromWeldingStates(
             List<WeldingMachineState> states,
-            Map<Long, BigDecimal> wireFeedByStateId) {
+            Map<Long, BigDecimal> wireCumulativeByStateId) {
         if (states == null || states.isEmpty()
-                || wireFeedByStateId == null || wireFeedByStateId.isEmpty()
+                || wireCumulativeByStateId == null || wireCumulativeByStateId.isEmpty()
                 || wireLinearDensityKgPerMeter == null) {
             return BigDecimal.ZERO;
         }
-        BigDecimal density = wireLinearDensityKgPerMeter;
-        BigDecimal sum = BigDecimal.ZERO;
         List<WeldingMachineState> sorted = new ArrayList<>(states);
-        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated));
-        for (WeldingMachineState s : states) {
-            if (s.getWeldingMachineStatus() != WeldingMachineStatus.Welding) continue;
-            long durMs = effectiveStateDurationMs(s, sorted);
-            if (durMs <= 0) continue;
-            BigDecimal mpm = wireFeedByStateId.get(s.getId());
-            if (mpm == null || mpm.compareTo(BigDecimal.ZERO) <= 0) continue;
-            BigDecimal minutes = BigDecimal.valueOf(durMs)
-                    .divide(BigDecimal.valueOf(60_000), 8, RoundingMode.HALF_UP);
-            sum = sum.add(mpm.multiply(density).multiply(minutes));
+        sorted.sort(Comparator.comparing(WeldingMachineState::getDateCreated, Comparator.nullsLast(Comparator.naturalOrder())));
+        List<BigDecimal> ordered = new ArrayList<>();
+        for (WeldingMachineState s : sorted) {
+            if (s.getId() == null) continue;
+            BigDecimal v = wireCumulativeByStateId.get(s.getId());
+            if (v != null) ordered.add(v);
         }
-        return sum.setScale(5, RoundingMode.HALF_UP);
+        BigDecimal meters = WeldingMachineDailyStatsService.sumWireCumulativeMeters(ordered);
+        return meters.multiply(wireLinearDensityKgPerMeter).setScale(5, RoundingMode.HALF_UP);
     }
 
     /**
@@ -2570,8 +2569,8 @@ public class ReportDataService {
     }
 
     /**
-     * Скорость подачи проволоки (м/мин) по stateId: сначала JPA (Value и при пустом — RawValue),
-     * затем нативный запрос COALESCE(value, raw_value) для недостающих id (совместимость со схемой БД).
+     * Накопительная длина проволоки (м «с включения») по stateId — параметр «Расход проволоки».
+     * Сначала JPA (Value / RawValue), затем native COALESCE для недостающих id.
      */
     private void loadWireFeedByStateId(List<Long> stateIds, Map<Long, BigDecimal> wireFeedByStateId) {
         if (stateIds == null || stateIds.isEmpty()) return;
