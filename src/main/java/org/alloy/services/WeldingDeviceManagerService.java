@@ -86,6 +86,7 @@ public class WeldingDeviceManagerService {
                 return;
             }
             preserveCoreGasMetrics(previous, stateSummary);
+            stateSummary = coalesceCoreParseFailure(previous, stateSummary);
 
             // Сначала in-memory — panel-state живёт от lastDatetimeUpdate, не ждём БД/lastWeld.
             deviceStates.put(normalizedMac, stateSummary);
@@ -184,6 +185,28 @@ public class WeldingDeviceManagerService {
         }
     }
 
+    /** Не затирать последний хороший Core-snapshot пустым Offline после failed parse CONNECT-blob. */
+    private static StateSummary coalesceCoreParseFailure(StateSummary previous, StateSummary incoming) {
+        if (previous == null || incoming == null || !isEmptyCoreParseFailure(incoming)) {
+            return incoming;
+        }
+        if (isEmptyCoreParseFailure(previous)) {
+            return incoming;
+        }
+        if (incoming.getLastDatetimeUpdate() != null) {
+            previous.setLastDatetimeUpdate(incoming.getLastDatetimeUpdate());
+        }
+        return previous;
+    }
+
+    private static boolean isEmptyCoreParseFailure(StateSummary state) {
+        if (state == null || state.getStatus() != WeldingMachineStatus.Offline) {
+            return false;
+        }
+        Map<String, StateSummaryPropertyValue> props = state.getProperties();
+        return props == null || props.isEmpty();
+    }
+
     private static void preserveCoreGasMetrics(StateSummary previous, StateSummary current) {
         if (previous == null || current == null || previous.getProperties() == null || current.getProperties() == null) {
             return;
@@ -202,11 +225,13 @@ public class WeldingDeviceManagerService {
         }
     }
 
+    private static final long PANEL_LIVENESS_MS = 60_000L;
+
     public boolean isDeviceConnected(String mac) {
         long now = System.currentTimeMillis();
 
         Long seenMs = deviceLivenessRegistry.getLastSeenMs(mac);
-        if (seenMs != null && now - seenMs < 30000) {
+        if (seenMs != null && now - seenMs < PANEL_LIVENESS_MS) {
             return resolveDeviceState(mac) != null;
         }
 

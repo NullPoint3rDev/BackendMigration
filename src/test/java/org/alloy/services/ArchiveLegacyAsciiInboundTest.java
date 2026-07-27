@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -257,8 +256,6 @@ class ArchiveLegacyAsciiInboundTest {
         Method m = ArchiveStyleTcpListener.class.getDeclaredMethod("handleClientConnection", Socket.class);
         m.setAccessible(true);
         m.invoke(listener, socket);
-
-        verify(deviceManager, atLeastOnce()).markDeviceDisconnected(anyString());
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {

@@ -43,8 +43,8 @@ public class ArchiveStyleTcpListener {
 
     private static final Logger log = LoggerFactory.getLogger(ArchiveStyleTcpListener.class);
 
-    // Константы из archive
-    private static final int TIMEOUT_SECONDS = 30;
+    // Константы из archive (idle ≥ CONNECT-цикл Core ~30s)
+    private static final int TIMEOUT_SECONDS = 60;
     private static final int BUFFER_SIZE = 4096;
     private static final int SLEEP_MS = 100;
     /** TTL кэша allowlist MAC — не бить БД на каждый TCP-пакет. */
@@ -217,15 +217,16 @@ public class ArchiveStyleTcpListener {
             byte[] buffer = new byte[BUFFER_SIZE];
             boolean connected = true;
             V2ConnectionState v2Conn = new V2ConnectionState();
-            // ponytail: по умолчанию blocking (v2 0x01 сразу). ASCII ':' → available()+sleep как раньше.
-            boolean asciiPollMode = false;
+            // ponytail: poll до классификации — ждём CONNECT/v2 sync без SoTimeout-disconnect.
+            // v2 active → blocking; legacy ASCII → poll (как staging).
+            boolean pollReadMode = true;
 
             // Основной цикл обработки данных
             while (connected && running) {
                 int bytesRead = 0;
 
                 try {
-                    if (asciiPollMode) {
+                    if (pollReadMode) {
                         if (in.available() > 0) {
                             bytesRead = in.read(buffer);
                         } else {
@@ -235,13 +236,13 @@ public class ArchiveStyleTcpListener {
                         bytesRead = in.read(buffer);
                     }
                 } catch (SocketTimeoutException e) {
-                    if (!asciiPollMode) {
+                    if (!pollReadMode) {
                         connected = false;
                         log.info("[ARCHIVE-TCP-LISTENER] Таймаут для {}", clientIp);
                         sendConnectionEvent(clientIp, macAddress, "timeout", null);
                         break;
                     }
-                    // ASCII: SoTimeout на редком read — ниже проверим timeoutTime
+                    // poll: SoTimeout на редком read — ниже проверим timeoutTime
                 } catch (IOException e) {
                     log.error("[ARCHIVE-TCP-LISTENER] Ошибка чтения потока для {}", clientIp, e);
                     connected = false;
@@ -258,8 +259,8 @@ public class ArchiveStyleTcpListener {
                 if (bytesRead > 0) {
                     byte[] rawChunk = Arrays.copyOf(buffer, bytesRead);
 
-                    if (!asciiPollMode && CoreAsciiFrameExtractor.looksLikeAsciiCoreChunk(rawChunk)) {
-                        asciiPollMode = true;
+                    if (CoreAsciiFrameExtractor.looksLikeAsciiCoreChunk(rawChunk)) {
+                        pollReadMode = true;
                     }
 
                     // Protocol v2 (binary): только если сокет уже v2, или копится хвост v2,
@@ -301,6 +302,9 @@ public class ArchiveStyleTcpListener {
                                     }
                                 }
                                 timeoutTime = LocalDateTime.now().plusSeconds(TIMEOUT_SECONDS);
+                                if (v2Conn.active) {
+                                    pollReadMode = false;
+                                }
                             } catch (Exception ex) {
                                 log.error("[ARCHIVE-TCP-LISTENER] V2 handle failed mac={}", v2Mac, ex);
                             }
@@ -420,8 +424,8 @@ public class ArchiveStyleTcpListener {
                                 "clientIp=" + clientIp + ", packet rejected");
                         sendConnectionEvent(clientIp, macAddress, "unauthorized", data);
                     }
-                } else if (asciiPollMode) {
-                    // ASCII: проверяем таймаут (v2/unclassified idle — SocketTimeoutException)
+                } else if (pollReadMode) {
+                    // poll: проверяем idle-таймаут (между CONNECT-пачками)
                     if (LocalDateTime.now().isAfter(timeoutTime)) {
                         connected = false;
                         log.info("[ARCHIVE-TCP-LISTENER] Таймаут для {}", clientIp);
@@ -550,10 +554,8 @@ public class ArchiveStyleTcpListener {
      */
     private void sendConnectionEvent(String ip, String mac, String eventType, String data) {
         // Обрабатываем отключение устройства
-        if ("disconnected".equals(eventType) && mac != null) {
-            deviceManager.markDeviceDisconnected(mac);
-            log.info("[ARCHIVE-TCP-LISTENER] Устройство {} отмечено как отключенное", mac);
-        }
+        // ponytail: не markDeviceDisconnected — один из параллельных TCP рвётся между CONNECT,
+        // panel-state живёт по свежести данных, не по факту закрытия сокета.
 
         // Если WebSocket отключен (нет SimpMessagingTemplate), просто выходим
         if (messagingTemplate == null) {
