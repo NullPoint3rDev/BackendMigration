@@ -19,16 +19,16 @@ class CorePacketArcTest {
     }
 
     @Test
-    void arcActive_whenWeldingCurrentAboveSetpointDespiteStateZero() {
+    void notArc_whenHighWeldingCurrentButStateZero() {
         CorePacket p = new CorePacket();
         p.weldingMachineState = 0;
         p.weldingCurrent = 180;
         p.current = 150;
         p.weldingVoltage = 180;
         p.voltage = 50;
-        assertTrue(p.isArcActive());
-        assertEquals(180, p.getDisplayCurrent(), 0.01);
-        assertEquals(18.0, p.getDisplayVoltage(), 0.01);
+        assertFalse(p.isArcActive());
+        assertEquals(150, p.getDisplayCurrent(), 0.01);
+        assertEquals(5.0, p.getDisplayVoltage(), 0.01);
     }
 
     @Test

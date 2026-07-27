@@ -82,8 +82,7 @@ public class WeldingDataParserService {
                 addProperty(props, "Date.Month", String.valueOf(core.month), "number");
                 addProperty(props, "Date.Year", String.valueOf(core.year), "number");
 
-                // Преобразуем состояние аппарата: при дуге без state=1 — «Сварка», иначе текст по stateVal
-                String machineStateText = arcActive ? "Сварка" : getMachineStateText(core.weldingMachineState);
+                String machineStateText = getMachineStateText(core.weldingMachineState);
                 addProperty(props, "Состояние аппарата", machineStateText, "text");
                 // Также добавляем под ключом WeldingMachineState для совместимости с фронтендом
                 addProperty(props, "WeldingMachineState", machineStateText, "text");

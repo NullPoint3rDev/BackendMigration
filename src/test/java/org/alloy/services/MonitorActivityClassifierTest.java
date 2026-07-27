@@ -67,14 +67,14 @@ class MonitorActivityClassifierTest {
     }
 
     @Test
-    void weldingCurrentAboveSetpointCountsAsWelding() {
+    void weldingCurrentAboveSetpointIsNotWelding_whenStateTextOn() {
         WeldingMachineState state = new WeldingMachineState();
         state.setWeldingMachineStatus(WeldingMachineStatus.Idle);
         Map<String, String> props = new HashMap<>();
         props.put("Current", "152");
         props.put("WeldingCurrent", "180");
-        assertTrue(MonitorActivityClassifier.isWelding(state, "Аппарат включен", new BigDecimal("152"), props));
-        assertEquals(MonitorActivityMode.welding,
+        assertFalse(MonitorActivityClassifier.isWelding(state, "Аппарат включен", new BigDecimal("152"), props));
+        assertEquals(MonitorActivityMode.on,
                 MonitorActivityClassifier.classify(state, "Аппарат включен", new BigDecimal("152"), props));
     }
 

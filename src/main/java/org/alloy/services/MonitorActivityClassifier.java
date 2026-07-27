@@ -93,9 +93,7 @@ public final class MonitorActivityClassifier {
         return isWelding(state, machineStateText, currentAmps, null);
     }
 
-    /**
-     * Сварка: текст «Сварка» / Welding или weldingCurrent >> уставки (Core state=0 при дуге).
-     */
+    /** Сварка: только текст «Сварка» / Welding или статус WeldingMachineStatus.Welding. */
     public static boolean isWelding(
             WeldingMachineState state,
             String machineStateText,
@@ -115,17 +113,7 @@ public final class MonitorActivityClassifier {
                 || stateLower.contains("сварка") || stateLower.contains("welding")) {
             return true;
         }
-        if (state.getWeldingMachineStatus() == WeldingMachineStatus.Welding) {
-            return true;
-        }
-        BigDecimal weldI = propsByCode != null ? parseDecimal(propsByCode.get("WeldingCurrent")) : null;
-        if (weldI != null && weldI.compareTo(new BigDecimal("10")) > 0) {
-            BigDecimal setI = currentAmps != null ? currentAmps : parseDecimal(propsByCode.get("Current"));
-            if (setI == null || weldI.compareTo(setI.add(new BigDecimal("5"))) > 0) {
-                return true;
-            }
-        }
-        return false;
+        return state.getWeldingMachineStatus() == WeldingMachineStatus.Welding;
     }
 
     private static String normalize(String text) {
