@@ -21,11 +21,21 @@ public class V2DebugHub {
 
     /** События с id > afterId, новые первыми не сортируем — по порядку записи. */
     public List<V2DebugEvent> since(long afterId) {
+        return since(afterId, null);
+    }
+
+    /** @param macFilter если не null/пусто — только события этого MAC (нормализованного). */
+    public List<V2DebugEvent> since(long afterId, String macFilter) {
+        String want = V2ProtocolConstants.normalizeMac(macFilter);
         List<V2DebugEvent> out = new ArrayList<>();
         for (V2DebugEvent e : events) {
-            if (e.id > afterId) {
-                out.add(e);
+            if (e.id <= afterId) {
+                continue;
             }
+            if (!want.isEmpty() && !want.equals(V2ProtocolConstants.normalizeMac(e.mac))) {
+                continue;
+            }
+            out.add(e);
         }
         return out;
     }

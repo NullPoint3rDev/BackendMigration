@@ -20,19 +20,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Test-only API for protocol v2 page. Does not affect production monitoring UI.
+ * Test API for hub-capable board. Separate from /v2-protocol-test (old test MAC).
  */
 @RestController
-@RequestMapping("/v2-protocol-test")
+@RequestMapping("/v2-protocol-test-with-hub")
 @CrossOrigin(origins = "*")
-public class V2ProtocolTestController {
+public class V2ProtocolTestWithHubController {
 
-    private final V2ProtocolService protocolService;
     private final V2DebugHub debugHub;
     private final V2CommandQueue commandQueue;
 
-    public V2ProtocolTestController(V2ProtocolService protocolService) {
-        this.protocolService = protocolService;
+    public V2ProtocolTestWithHubController(V2ProtocolService protocolService) {
         this.debugHub = protocolService.getDebugHub();
         this.commandQueue = protocolService.getCommandQueue();
     }
@@ -40,27 +38,21 @@ public class V2ProtocolTestController {
     @GetMapping("/meta")
     public Map<String, Object> meta() {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("testMac", V2ProtocolConstants.TEST_MAC);
-        m.put("pendingCommands", commandQueue.pendingCount(V2ProtocolConstants.TEST_MAC));
+        m.put("testMac", V2ProtocolConstants.TEST_MAC_HUB);
+        m.put("pendingCommands", commandQueue.pendingCount(V2ProtocolConstants.TEST_MAC_HUB));
+        m.put("hubPayload", true);
         return m;
     }
 
     @GetMapping("/events")
     public List<V2DebugEvent> events(@RequestParam(defaultValue = "0") long afterId) {
-        return debugHub.since(afterId, V2ProtocolConstants.TEST_MAC);
+        return debugHub.since(afterId, V2ProtocolConstants.TEST_MAC_HUB);
     }
 
-    /**
-     * Body examples:
-     * {"type":"REQ_SESSION_INFO","session":1}
-     * {"type":"REQ_HISTORY","session":1,"from":41,"to":99}
-     * {"type":"PRIO_HISTORY"}
-     * {"type":"STOP_HISTORY"}
-     */
     @PostMapping("/command")
     public ResponseEntity<?> enqueueCommand(@RequestBody Map<String, Object> body) {
         String type = String.valueOf(body.getOrDefault("type", "")).trim().toUpperCase();
-        String mac = V2ProtocolConstants.TEST_MAC;
+        String mac = V2ProtocolConstants.TEST_MAC_HUB;
         V2HistoryCommand cmd;
         try {
             cmd = switch (type) {
