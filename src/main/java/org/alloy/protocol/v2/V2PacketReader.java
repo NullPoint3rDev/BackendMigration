@@ -53,6 +53,40 @@ public class V2PacketReader {
         return ((p[off] & 0xFF) << 8) | (p[off + 1] & 0xFF);
     }
 
+    /** Hub blob inside v2 0x02/0x07 — little-endian. */
+    public static int readU16LE(byte[] p, int off) {
+        return (p[off] & 0xFF) | ((p[off + 1] & 0xFF) << 8);
+    }
+
+    public static int readU32LE(byte[] p, int off) {
+        return (p[off] & 0xFF)
+                | ((p[off + 1] & 0xFF) << 8)
+                | ((p[off + 2] & 0xFF) << 16)
+                | ((p[off + 3] & 0xFF) << 24);
+    }
+
+    public static void putU32LE(byte[] dest, int off, int value) {
+        dest[off] = (byte) value;
+        dest[off + 1] = (byte) (value >>> 8);
+        dest[off + 2] = (byte) (value >>> 16);
+        dest[off + 3] = (byte) (value >>> 24);
+    }
+
+    public static long readU64LE(byte[] p, int off) {
+        return (p[off] & 0xFFL)
+                | ((p[off + 1] & 0xFFL) << 8)
+                | ((p[off + 2] & 0xFFL) << 16)
+                | ((p[off + 3] & 0xFFL) << 24)
+                | ((p[off + 4] & 0xFFL) << 32)
+                | ((p[off + 5] & 0xFFL) << 40)
+                | ((p[off + 6] & 0xFFL) << 48)
+                | ((p[off + 7] & 0xFFL) << 56);
+    }
+
+    public static int readI16LE(byte[] p, int off) {
+        return (short) readU16LE(p, off);
+    }
+
     public static String macToHex(byte[] mac6) {
         StringBuilder sb = new StringBuilder(12);
         for (int i = 0; i < 6; i++) {

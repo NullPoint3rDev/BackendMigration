@@ -6,11 +6,13 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 import static org.alloy.protocol.v2.V2PacketReader.putU32BE;
+import static org.alloy.protocol.v2.V2PacketReader.putU32LE;
 import static org.alloy.protocol.v2.V2PacketReader.readU16BE;
 import static org.alloy.protocol.v2.V2PacketReader.readU32BE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -100,13 +102,13 @@ public class V2ProtocolSelfCheck {
 
         sock.reset();
         byte[] wt40 = new byte[8];
-        putU32BE(wt40, 0, 40);
+        putU32LE(wt40, 0, 40);
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_STATE, tokenPayload(token, wt40)), sock);
         assertTrue(sock.size() > 0);
 
         sock.reset();
         byte[] wt100 = new byte[8];
-        putU32BE(wt100, 0, 100);
+        putU32LE(wt100, 0, 100);
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_STATE, tokenPayload(token, wt100)), sock);
         V2Frame ack100 = new V2PacketReader().read(sock.toByteArray());
         assertTrue(ack100.crcOk);
@@ -124,7 +126,7 @@ public class V2ProtocolSelfCheck {
         ByteArrayOutputStream sock = new ByteArrayOutputStream();
 
         byte[] wt = new byte[8];
-        putU32BE(wt, 0, 1);
+        putU32LE(wt, 0, 1);
         // token 0xAABB not in store
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_STATE, tokenPayload(0xAABB, wt)), sock);
 
@@ -164,6 +166,46 @@ public class V2ProtocolSelfCheck {
         assertTrue(ack.crcOk);
         assertEquals(V2ProtocolConstants.TYPE_SESSION_INFO, ack.type);
         assertEquals(99, readU32BE(ack.payload, 4));
+    }
+
+    @Test
+    void hubPayloadLittleEndianParse() {
+        byte[] body = new byte[V2HubPayloadParser.BODY_LEN];
+        putU32LE(body, 0, 81);
+        putU32LE(body, 4, 1_700_000_000);
+        body[8] = 1; // сварка
+        body[9] = 7;
+        body[10] = 0; // job 7
+        body[11] = 3; // MIG/MAG
+        // set current 250 A LE
+        body[16] = (byte) 250;
+        body[17] = 0;
+        // set voltage 23.5 V → 235 LE
+        body[20] = (byte) 235;
+        body[21] = 0;
+        // inductance -3
+        body[23] = (byte) -3;
+        // radiator -199.9 → -1999 sentinel
+        body[46] = (byte) 0x31;
+        body[47] = (byte) 0xF8; // -1999 as i16 LE
+        // warnings3 bit0
+        body[78] = 0x01;
+        body[79] = 0x00;
+
+        assertNull(V2HubPayloadParser.parse(new byte[79]));
+        V2HubPayload h = V2HubPayloadParser.parse(body);
+        assertNotNull(h);
+        assertEquals(81, h.packetIndex);
+        assertEquals(1_700_000_000L, h.unixTime);
+        assertEquals(1, h.machineState);
+        assertEquals(7, h.jobNumber);
+        assertEquals(3, h.weldMode);
+        assertEquals(250, h.setCurrentA);
+        assertEquals(23.5, h.setVoltageV, 1e-9);
+        assertEquals(-3, h.setInductance);
+        assertEquals(-199.9, h.tempRadiatorC, 1e-9);
+        assertEquals(1, h.warnings3);
+        assertEquals(81, V2HubPayloadParser.readPacketIndex(body));
     }
 
     private static byte[] tokenPayload(int token, byte[] wtinfo) {

@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.alloy.protocol.v2.V2PacketReader.readU16BE;
-import static org.alloy.protocol.v2.V2PacketReader.readU32BE;
 
 public class V2HistoryRecordHandler {
     private static final Logger log = LoggerFactory.getLogger(V2HistoryRecordHandler.class);
@@ -47,12 +46,16 @@ public class V2HistoryRecordHandler {
             return out.error(V2ProtocolConstants.ERR_INVALID_TOKEN, null);
         }
 
-        byte[] wtinfo = Arrays.copyOfRange(p, 2, p.length);
-        int index = readU32BE(wtinfo, 0);
+        byte[] hubBody = Arrays.copyOfRange(p, 2, p.length);
+        int index = V2HubPayloadParser.readPacketIndex(hubBody);
+        if (index < 0) {
+            log.warn("[V2] history-record hub body too short for index");
+            return null;
+        }
 
         if (telemetry != null) {
             try {
-                telemetry.onTelemetry(s.mac, wtinfo);
+                telemetry.onTelemetry(s.mac, hubBody);
             } catch (Exception e) {
                 log.warn("[V2] telemetry sink failed mac={}: {}", s.mac, e.getMessage());
             }

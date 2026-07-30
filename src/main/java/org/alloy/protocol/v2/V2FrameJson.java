@@ -8,6 +8,7 @@ import static org.alloy.protocol.v2.V2PacketReader.bytesToHex;
 import static org.alloy.protocol.v2.V2PacketReader.macToHex;
 import static org.alloy.protocol.v2.V2PacketReader.readU16BE;
 import static org.alloy.protocol.v2.V2PacketReader.readU32BE;
+import static org.alloy.protocol.v2.V2PacketReader.readU32LE;
 
 final class V2FrameJson {
     private V2FrameJson() {}
@@ -30,8 +31,16 @@ final class V2FrameJson {
                 case V2ProtocolConstants.TYPE_STATE, V2ProtocolConstants.TYPE_HISTORY_RECORD -> {
                     if (p.length >= 6) {
                         m.put("token", readU16BE(p, 0));
-                        m.put("packetIndex", readU32BE(p, 2));
-                        m.put("wtinfoHex", bytesToHex(Arrays.copyOfRange(p, 2, p.length)));
+                        byte[] hub = Arrays.copyOfRange(p, 2, p.length);
+                        m.put("packetIndex", readU32LE(hub, 0));
+                        m.put("hubHex", bytesToHex(hub));
+                        m.put("wtinfoHex", bytesToHex(hub)); // alias for old UI
+                        V2HubPayload hubParsed = V2HubPayloadParser.parse(hub);
+                        if (hubParsed != null) {
+                            m.put("hub", hubParsed.toMap());
+                        } else {
+                            m.put("hubParseIncomplete", true);
+                        }
                     }
                 }
                 case V2ProtocolConstants.TYPE_SESSION_INFO -> {
