@@ -56,6 +56,10 @@ public class V2OutboundBuilder {
         return indexAck(V2ProtocolConstants.TYPE_HISTORY_RECORD, packetIndex, cmd);
     }
 
+    public byte[] historyNotFoundAck(int packetIndex, V2HistoryCommand cmd) {
+        return indexAck(V2ProtocolConstants.TYPE_HISTORY_NOT_FOUND, packetIndex, cmd);
+    }
+
     /** type 0xFF | time(4) | errorCode(1) | [cmd] | crc */
     public byte[] error(byte errorCode, V2HistoryCommand cmd) {
         return writer.write(

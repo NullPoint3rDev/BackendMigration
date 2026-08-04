@@ -208,6 +208,34 @@ public class V2ProtocolSelfCheck {
         assertEquals(81, V2HubPayloadParser.readPacketIndex(body));
     }
 
+    @Test
+    void historyNotFound0aAcksIndex() throws Exception {
+        V2InboundHandler inbound = new V2InboundHandler();
+        V2ConnectionState conn = new V2ConnectionState();
+        ByteArrayOutputStream sock = new ByteArrayOutputStream();
+
+        byte[] mac6 = new byte[]{(byte) 0x3C, 0x0F, 0x02, (byte) 0xC4, 0x05, (byte) 0x84};
+        byte[] syncPayload = new byte[12];
+        syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
+        System.arraycopy(mac6, 0, syncPayload, 1, 6);
+        syncPayload[7] = 0x01;
+        putU32BE(syncPayload, 8, 1);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
+        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 12);
+
+        sock.reset();
+        byte[] missing = new byte[6];
+        missing[0] = (byte) (token >>> 8);
+        missing[1] = (byte) token;
+        putU32BE(missing, 2, 42);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_HISTORY_NOT_FOUND, missing), sock);
+
+        V2Frame ack = new V2PacketReader().read(sock.toByteArray());
+        assertTrue(ack.crcOk);
+        assertEquals(V2ProtocolConstants.TYPE_HISTORY_NOT_FOUND, ack.type);
+        assertEquals(42, readU32BE(ack.payload, 4));
+    }
+
     private static byte[] tokenPayload(int token, byte[] wtinfo) {
         byte[] p = new byte[2 + wtinfo.length];
         p[0] = (byte) (token >>> 8);

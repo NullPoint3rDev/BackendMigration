@@ -63,6 +63,13 @@ final class V2FrameJson {
                         m.put("session", readU32BE(p, 2));
                     }
                 }
+                case V2ProtocolConstants.TYPE_HISTORY_NOT_FOUND -> {
+                    if (p.length >= 6) {
+                        m.put("token", readU16BE(p, 0));
+                        m.put("packetIndex", readU32BE(p, 2));
+                        m.put("historyNotFound", true);
+                    }
+                }
                 default -> {
                 }
             }

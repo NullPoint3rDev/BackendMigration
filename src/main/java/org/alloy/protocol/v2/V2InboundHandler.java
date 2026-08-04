@@ -28,6 +28,7 @@ public class V2InboundHandler {
     private final V2SessionInfoHandler sessionInfoHandler;
     private final V2SetHistorySessionHandler setHistSessionHandler;
     private final V2HistoryRecordHandler historyRecordHandler;
+    private final V2HistoryNotFoundHandler historyNotFoundHandler;
     private final V2DebugHub debugHub;
 
     public V2InboundHandler(
@@ -47,6 +48,7 @@ public class V2InboundHandler {
         this.sessionInfoHandler = new V2SessionInfoHandler(store, out, commands);
         this.setHistSessionHandler = new V2SetHistorySessionHandler(store, out, commands);
         this.historyRecordHandler = new V2HistoryRecordHandler(store, out, gap, telemetry, indexService, commands);
+        this.historyNotFoundHandler = new V2HistoryNotFoundHandler(store, out, commands);
     }
 
     /** Для unit-тестов без Spring/БД. */
@@ -169,6 +171,7 @@ public class V2InboundHandler {
             case V2ProtocolConstants.TYPE_SESSION_INFO -> sessionInfoHandler.handle(frame);
             case V2ProtocolConstants.TYPE_SET_HIST_SESSION -> setHistSessionHandler.handle(frame);
             case V2ProtocolConstants.TYPE_HISTORY_RECORD -> historyRecordHandler.handle(frame);
+            case V2ProtocolConstants.TYPE_HISTORY_NOT_FOUND -> historyNotFoundHandler.handle(frame);
             default -> {
                 log.warn("[V2] unknown type 0x{}", Integer.toHexString(frame.type & 0xFF));
                 yield null;
