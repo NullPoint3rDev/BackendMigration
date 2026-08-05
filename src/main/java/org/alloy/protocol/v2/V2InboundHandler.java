@@ -53,8 +53,9 @@ public class V2InboundHandler {
 
     /** Для unit-тестов без Spring/БД. */
     public V2InboundHandler() {
+        // ponytail: очередь нужна — иначе recover/prev 0x03 теряются без Spring
         this(new V2SessionStore(), new V2TokenService(), new V2OutboundBuilder(), new V2GapService(),
-                null, null, null, null);
+                null, null, new V2CommandQueue(), null);
     }
 
     public V2SessionStore getStore() {

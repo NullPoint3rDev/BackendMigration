@@ -64,13 +64,13 @@ public class V2SessionInfoHandler {
         if (commands == null) {
             return;
         }
-        s.historySession = session;
         int serverLast = -1;
         if (indexService != null) {
             int live = indexService.getLastIndex(s.mac, session, V2IndexService.CHANNEL_LIVE);
             int hist = indexService.getLastIndex(s.mac, session, V2IndexService.CHANNEL_HISTORY);
             serverLast = Math.max(live, hist);
-        } else {
+        } else if (session == s.sessionNumber) {
+            // in-memory last* относятся только к текущей live-сессии
             serverLast = Math.max(s.lastLiveIndex, s.lastHistoryIndex);
         }
         V2HistoryCommand recover = V2HistoryRecover.plan(session, serverLast, firstIdx, lastIdx);
@@ -79,6 +79,9 @@ public class V2SessionInfoHandler {
                     s.mac, session, serverLast, firstIdx, lastIdx);
             return;
         }
+        // bind 0x07 attribution to this pull (don't touch historySession on skip)
+        s.historySession = session;
+        s.lastHistoryIndex = -1;
         commands.enqueue(s.mac, recover);
         commands.enqueue(s.mac, V2HistoryCommand.priorityHistory());
         log.info("[V2] recover enqueue mac={} session={} serverLast={} → {}..{}",

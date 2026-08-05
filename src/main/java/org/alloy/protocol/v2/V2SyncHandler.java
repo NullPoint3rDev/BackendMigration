@@ -51,6 +51,11 @@ public class V2SyncHandler {
         int session = readU32BE(p, 8);
         int token = tokens.nextToken();
 
+        // power-cycle: новая session → сначала 0x03 на session-1 (оффлайн на SD), потом текущую
+        V2Session old = store.getByMac(mac);
+        boolean askPrev = session > 0 && (old == null || old.sessionNumber != session);
+        int prevSession = askPrev ? session - 1 : -1;
+
         V2Session s = new V2Session();
         s.mac = mac;
         s.protocolVersion = version;
@@ -60,16 +65,19 @@ public class V2SyncHandler {
         s.token = token;
         store.put(s);
 
-        // recover: спросить границы истории сессии (0x03)
+        // recover: 0x03. Power-cycle → только session-1 (current догонит live/gap).
         V2HistoryCommand cmd = commands != null ? commands.poll(mac) : null;
+        V2HistoryCommand recoverInfo = askPrev
+                ? V2HistoryCommand.requestSessionInfo(prevSession)
+                : V2HistoryCommand.requestSessionInfo(session);
         if (cmd == null) {
-            cmd = V2HistoryCommand.requestSessionInfo(session);
+            cmd = recoverInfo;
         } else if (commands != null) {
-            commands.enqueue(mac, V2HistoryCommand.requestSessionInfo(session));
+            commands.enqueue(mac, recoverInfo);
         }
 
-        log.info("[V2] sync mac={} version={} session={} token={} recoverSessionInfo=true",
-                mac, version & 0xFF, session, token);
+        log.info("[V2] sync mac={} version={} session={} token={} recoverSessionInfo=true recoverPrev={}",
+                mac, version & 0xFF, session, token, prevSession);
         return out.syncResponse(version, mac6, deviceType, session, token, cmd);
     }
 }
