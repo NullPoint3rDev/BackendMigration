@@ -252,26 +252,86 @@ public class V2ProtocolSelfCheck {
         assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 18]);
         assertEquals(69, readU32BE(syncOut.payload, 4 + 18 + 1));
 
-        // 0x04 session 69 → recover 0x05 enqueued after remaining walk 0x03(70)
+        // 0x04 session 69 → 0x05 идёт вперёд оставшегося обхода 0x03(70)
         sock.reset();
         byte[] info69 = fullSessionInfo(token, 69, 10, 50);
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SESSION_INFO, info69), sock);
         V2Frame ack1 = new V2PacketReader().read(sock.toByteArray());
-        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, ack1.payload[4 + 4]);
-        assertEquals(70, readU32BE(ack1.payload, 4 + 4 + 1));
+        assertEquals(V2ProtocolConstants.TYPE_REQ_HISTORY, ack1.payload[4 + 4]);
+        assertEquals(69, readU32BE(ack1.payload, 4 + 4 + 1));
+        assertEquals(10, readU32BE(ack1.payload, 4 + 4 + 5));
+        assertEquals(50, readU32BE(ack1.payload, 4 + 4 + 9));
 
-        // 0x04 session 70 notFound → next = 0x05(69)
-        sock.reset();
         byte[] short70 = new byte[6];
         short70[0] = (byte) (token >>> 8);
         short70[1] = (byte) token;
         putU32BE(short70, 2, 70);
+
+        sock.reset();
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SESSION_INFO, short70), sock);
-        V2Frame ack2 = new V2PacketReader().read(sock.toByteArray());
-        assertEquals(V2ProtocolConstants.TYPE_REQ_HISTORY, ack2.payload[4 + 4]);
-        assertEquals(69, readU32BE(ack2.payload, 4 + 4 + 1));
-        assertEquals(10, readU32BE(ack2.payload, 4 + 4 + 5));
-        assertEquals(50, readU32BE(ack2.payload, 4 + 4 + 9));
+        assertEquals(V2ProtocolConstants.TYPE_PRIO_HISTORY,
+                new V2PacketReader().read(sock.toByteArray()).payload[4 + 4]);
+
+        // обход не потерян — 0x03(70) приезжает следом
+        sock.reset();
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SESSION_INFO, short70), sock);
+        V2Frame ack3 = new V2PacketReader().read(sock.toByteArray());
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, ack3.payload[4 + 4]);
+        assertEquals(70, readU32BE(ack3.payload, 4 + 4 + 1));
+    }
+
+    /**
+     * Главный регресс: пока очередь занята обходом SD, дыра в live-индексах
+     * не должна теряться — last_index уезжает вперёд и второго шанса не будет.
+     */
+    @Test
+    void liveGapSurvivesBusyQueue() throws Exception {
+        V2InboundHandler inbound = new V2InboundHandler();
+        V2ConnectionState conn = new V2ConnectionState();
+        ByteArrayOutputStream sock = new ByteArrayOutputStream();
+
+        byte[] mac6 = new byte[]{0x3C, 0x0F, 0x02, (byte) 0xC4, 0x05, (byte) 0x84};
+        byte[] syncPayload = new byte[16];
+        syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
+        System.arraycopy(mac6, 0, syncPayload, 1, 6);
+        syncPayload[7] = 0x01;
+        putU32BE(syncPayload, 8, 74);
+        putU32BE(syncPayload, 12, 72); // обход 72..74 забивает очередь
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
+        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 16);
+
+        byte[] idx200 = new byte[8];
+        putU32LE(idx200, 0, 200);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_STATE, tokenPayload(token, idx200)), sock);
+
+        // обрыв связи: следующий live-пакет прилетает с 871
+        sock.reset();
+        byte[] idx871 = new byte[8];
+        putU32LE(idx871, 0, 871);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_STATE, tokenPayload(token, idx871)), sock);
+        // этот ACK уносит команду обхода, но дыра встала в голову очереди
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO,
+                new V2PacketReader().read(sock.toByteArray()).payload[8]);
+
+        sock.reset();
+        byte[] idx872 = new byte[8];
+        putU32LE(idx872, 0, 872);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_STATE, tokenPayload(token, idx872)), sock);
+        V2Frame ack = new V2PacketReader().read(sock.toByteArray());
+        assertEquals(V2ProtocolConstants.TYPE_REQ_HISTORY, ack.payload[8]);
+        assertEquals(74, readU32BE(ack.payload, 9));
+        assertEquals(201, readU32BE(ack.payload, 13));
+        assertEquals(870, readU32BE(ack.payload, 17));
+    }
+
+    /** Пачка sync подряд не должна множить обход SD. */
+    @Test
+    void duplicateWalkCommandsAreNotQueuedTwice() {
+        V2CommandQueue q = new V2CommandQueue();
+        for (int i = 0; i < 7; i++) {
+            V2SdRecover.begin(q, "AABB", 52, 74);
+        }
+        assertEquals(74 - 52, q.pendingCount("AABB"));
     }
 
     /**

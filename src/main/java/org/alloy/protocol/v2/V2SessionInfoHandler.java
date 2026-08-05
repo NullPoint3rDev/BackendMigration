@@ -79,9 +79,10 @@ public class V2SessionInfoHandler {
                     s.mac, session, serverLast, firstIdx, lastIdx);
             return;
         }
-        // historySession привяжется при poll 0x05 (см. V2CommandQueue.bindHistorySession)
-        commands.enqueue(s.mac, recover);
-        commands.enqueue(s.mac, V2HistoryCommand.priorityHistory());
+        // historySession выставит плата пакетом 0x06 перед выгрузкой
+        // вперёд оставшихся 0x03: реальная выгрузка важнее опроса каталога
+        commands.enqueueFirst(s.mac, V2HistoryCommand.priorityHistory());
+        commands.enqueueFirst(s.mac, recover);
         log.info("[V2] recover enqueue mac={} session={} serverLast={} → {}..{}",
                 s.mac, session, serverLast, serverLast < 0 ? firstIdx : serverLast + 1, lastIdx);
     }

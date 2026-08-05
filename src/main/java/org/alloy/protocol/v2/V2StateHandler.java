@@ -69,6 +69,9 @@ public class V2StateHandler {
         V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
         if (cmd == null) {
             cmd = gap;
+        } else if (gap != null && commands != null) {
+            // last_index ниже уедет вперёд и дыра станет невидимой — запрос нельзя терять
+            commands.enqueueFirst(s.mac, gap);
         }
 
         if (indexService != null) {

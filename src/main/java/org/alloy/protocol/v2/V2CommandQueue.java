@@ -1,7 +1,8 @@
 package org.alloy.protocol.v2;
 
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import org.springframework.stereotype.Service;
 
@@ -11,26 +12,58 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class V2CommandQueue {
-    private final ConcurrentHashMap<String, ConcurrentLinkedQueue<V2HistoryCommand>> byMac =
+    private final ConcurrentHashMap<String, ConcurrentLinkedDeque<V2HistoryCommand>> byMac =
             new ConcurrentHashMap<>();
 
+    /**
+     * Кладёт команду в хвост, если такой же ещё нет в очереди.
+     * Дедуп нужен из-за пачки sync подряд: каждый заводит обход SD и без него
+     * очередь распухает в N раз, вытесняя восстановление дыр.
+     * ponytail: сравнение линейным перебором, очередь порядка десятков команд.
+     */
     public void enqueue(String mac, V2HistoryCommand cmd) {
         if (mac == null || cmd == null) {
             return;
         }
-        byMac.computeIfAbsent(mac, m -> new ConcurrentLinkedQueue<>()).add(cmd);
+        ConcurrentLinkedDeque<V2HistoryCommand> q =
+                byMac.computeIfAbsent(mac, m -> new ConcurrentLinkedDeque<>());
+        synchronized (q) {
+            for (V2HistoryCommand pending : q) {
+                if (Arrays.equals(pending.bytes, cmd.bytes)) {
+                    return;
+                }
+            }
+            q.addLast(cmd);
+        }
+    }
+
+    /** Восстановление пропущенных записей важнее обхода каталога — идёт в голову очереди. */
+    public void enqueueFirst(String mac, V2HistoryCommand cmd) {
+        if (mac == null || cmd == null) {
+            return;
+        }
+        ConcurrentLinkedDeque<V2HistoryCommand> q =
+                byMac.computeIfAbsent(mac, m -> new ConcurrentLinkedDeque<>());
+        synchronized (q) {
+            for (V2HistoryCommand pending : q) {
+                if (Arrays.equals(pending.bytes, cmd.bytes)) {
+                    return;
+                }
+            }
+            q.addFirst(cmd);
+        }
     }
 
     public V2HistoryCommand poll(String mac) {
         if (mac == null) {
             return null;
         }
-        ConcurrentLinkedQueue<V2HistoryCommand> q = byMac.get(mac);
+        ConcurrentLinkedDeque<V2HistoryCommand> q = byMac.get(mac);
         return q == null ? null : q.poll();
     }
 
     public int pendingCount(String mac) {
-        ConcurrentLinkedQueue<V2HistoryCommand> q = byMac.get(mac);
+        ConcurrentLinkedDeque<V2HistoryCommand> q = byMac.get(mac);
         return q == null ? 0 : q.size();
     }
 }

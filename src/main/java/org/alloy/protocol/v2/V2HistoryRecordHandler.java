@@ -71,6 +71,8 @@ public class V2HistoryRecordHandler {
         V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
         if (cmd == null) {
             cmd = gap;
+        } else if (gap != null && commands != null) {
+            commands.enqueueFirst(s.mac, gap);
         }
 
         if (!alreadyStored) {
