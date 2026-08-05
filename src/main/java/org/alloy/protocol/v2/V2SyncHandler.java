@@ -9,12 +9,13 @@ import static org.alloy.protocol.v2.V2PacketReader.macToHex;
 import static org.alloy.protocol.v2.V2PacketReader.readU32BE;
 
 /**
- * Sync 0x01 inbound payload:
- * version(1) | MAC(6) | deviceType(1) | session(4)
+ * Sync 0x01 inbound:
+ * version(1) | MAC(6) | deviceType(1) | session(4) | [firstSession(4)]
  */
 public class V2SyncHandler {
     private static final Logger log = LoggerFactory.getLogger(V2SyncHandler.class);
-    private static final int SYNC_PAYLOAD_LEN = 1 + 6 + 1 + 4;
+    private static final int SYNC_PAYLOAD_MIN = 1 + 6 + 1 + 4;
+    private static final int SYNC_PAYLOAD_WITH_FIRST = SYNC_PAYLOAD_MIN + 4;
 
     private final V2SessionStore store;
     private final V2TokenService tokens;
@@ -34,7 +35,7 @@ public class V2SyncHandler {
 
     public byte[] handle(V2Frame frame) {
         byte[] p = frame.payload;
-        if (p == null || p.length < SYNC_PAYLOAD_LEN) {
+        if (p == null || p.length < SYNC_PAYLOAD_MIN) {
             log.warn("[V2] sync payload too short: {}", p == null ? -1 : p.length);
             return null;
         }
@@ -51,10 +52,16 @@ public class V2SyncHandler {
         int session = readU32BE(p, 8);
         int token = tokens.nextToken();
 
-        // power-cycle: новая session → сначала 0x03 на session-1 (оффлайн на SD), потом текущую
-        V2Session old = store.getByMac(mac);
-        boolean askPrev = session > 0 && (old == null || old.sessionNumber != session);
-        int prevSession = askPrev ? session - 1 : -1;
+        int firstSession;
+        if (p.length >= SYNC_PAYLOAD_WITH_FIRST) {
+            firstSession = readU32BE(p, 12);
+        } else {
+            // legacy без firstSession: текущая + prev (если есть)
+            firstSession = session > 0 ? session - 1 : session;
+        }
+        if (firstSession > session) {
+            firstSession = session;
+        }
 
         V2Session s = new V2Session();
         s.mac = mac;
@@ -62,22 +69,26 @@ public class V2SyncHandler {
         s.deviceType = deviceType;
         s.sessionNumber = session;
         s.historySession = session;
+        s.sdFirstSession = firstSession;
+        s.sdLastSession = session;
         s.token = token;
         store.put(s);
 
-        // recover: 0x03. Power-cycle → только session-1 (current догонит live/gap).
-        V2HistoryCommand cmd = commands != null ? commands.poll(mac) : null;
-        V2HistoryCommand recoverInfo = askPrev
-                ? V2HistoryCommand.requestSessionInfo(prevSession)
-                : V2HistoryCommand.requestSessionInfo(session);
-        if (cmd == null) {
-            cmd = recoverInfo;
-        } else if (commands != null) {
-            commands.enqueue(mac, recoverInfo);
+        V2HistoryCommand pending = commands != null ? commands.poll(mac, s) : null;
+        V2HistoryCommand walkFirst = V2SdRecover.begin(commands, mac, firstSession, session);
+        V2HistoryCommand cmd;
+        if (pending != null) {
+            cmd = pending;
+            if (walkFirst != null && commands != null) {
+                commands.enqueue(mac, walkFirst);
+            }
+        } else {
+            cmd = walkFirst;
         }
 
-        log.info("[V2] sync mac={} version={} session={} token={} recoverSessionInfo=true recoverPrev={}",
-                mac, version & 0xFF, session, token, prevSession);
-        return out.syncResponse(version, mac6, deviceType, session, token, cmd);
+        log.info(
+                "[V2] sync mac={} version={} session={} firstSession={} token={} sdWalk={}..{}",
+                mac, version & 0xFF, session, firstSession, token, firstSession, session);
+        return out.syncResponse(version, mac6, deviceType, session, firstSession, token, cmd);
     }
 }

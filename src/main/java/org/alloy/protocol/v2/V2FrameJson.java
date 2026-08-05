@@ -20,12 +20,15 @@ final class V2FrameJson {
         try {
             switch (frame.type) {
                 case V2ProtocolConstants.TYPE_SYNC -> {
-                    // version(1) | MAC(6) | deviceType(1) | session(4)
+                    // version(1) | MAC(6) | deviceType(1) | session(4) | [firstSession(4)]
                     if (p.length >= 12) {
                         m.put("protocolVersion", p[0] & 0xFF);
                         m.put("mac", macToHex(Arrays.copyOfRange(p, 1, 7)));
                         m.put("deviceType", p[7] & 0xFF);
                         m.put("session", readU32BE(p, 8));
+                        if (p.length >= 16) {
+                            m.put("firstSession", readU32BE(p, 12));
+                        }
                     }
                 }
                 case V2ProtocolConstants.TYPE_STATE, V2ProtocolConstants.TYPE_HISTORY_RECORD -> {
@@ -68,6 +71,13 @@ final class V2FrameJson {
                         m.put("token", readU16BE(p, 0));
                         m.put("packetIndex", readU32BE(p, 2));
                         m.put("historyNotFound", true);
+                    }
+                }
+                case V2ProtocolConstants.TYPE_SD_CATALOG -> {
+                    if (p.length >= 10) {
+                        m.put("token", readU16BE(p, 0));
+                        m.put("firstSession", readU32BE(p, 2));
+                        m.put("lastSession", readU32BE(p, 6));
                     }
                 }
                 default -> {

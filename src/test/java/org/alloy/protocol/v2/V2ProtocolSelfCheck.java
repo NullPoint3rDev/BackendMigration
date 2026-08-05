@@ -95,11 +95,13 @@ public class V2ProtocolSelfCheck {
         V2Frame syncOut = new V2PacketReader().read(sock.toByteArray());
         assertTrue(syncOut.crcOk);
         assertEquals(V2ProtocolConstants.TYPE_SYNC, syncOut.type);
-        // time(4) + version+mac+dev+session+token(14) + recover 0x03(5)
-        assertEquals(4 + 14 + 5, syncOut.payload.length);
+        // time(4) + version+mac+dev+session+firstSession+token(18) + recover 0x03(5)
+        assertEquals(4 + 18 + 5, syncOut.payload.length);
         assertEquals(V2ProtocolConstants.PROTOCOL_VERSION, syncOut.payload[4]);
-        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 14]);
-        int token = readU16BE(syncOut.payload, 4 + 12);
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 18]);
+        // legacy sync session=3 → walk first=2
+        assertEquals(2, readU32BE(syncOut.payload, 4 + 18 + 1));
+        int token = readU16BE(syncOut.payload, 4 + 16);
 
         sock.reset();
         byte[] wt40 = new byte[8];
@@ -153,7 +155,7 @@ public class V2ProtocolSelfCheck {
         syncPayload[7] = 0x01;
         putU32BE(syncPayload, 8, 1);
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
-        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 12);
+        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 16);
 
         sock.reset();
         // short 0x04: token(2) + session(4) only — session not found
@@ -210,58 +212,118 @@ public class V2ProtocolSelfCheck {
         ByteArrayOutputStream sock = new ByteArrayOutputStream();
 
         byte[] mac6 = new byte[]{0x3C, 0x0F, 0x02, (byte) 0xC4, 0x05, (byte) 0x84};
-        byte[] syncPayload = new byte[12];
+        // new sync: + firstSession
+        byte[] syncPayload = new byte[16];
         syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
         System.arraycopy(mac6, 0, syncPayload, 1, 6);
         syncPayload[7] = 0x01;
         putU32BE(syncPayload, 8, 69);
+        putU32BE(syncPayload, 12, 68);
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
 
         V2Frame syncOut = new V2PacketReader().read(sock.toByteArray());
         assertTrue(syncOut.crcOk);
-        // time(4) + sync data(14) + cmd 0x03(5) = 23; first sync → prev session-1
-        assertTrue(syncOut.payload.length >= 4 + 14 + 5);
-        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 14]);
-        assertEquals(68, readU32BE(syncOut.payload, 4 + 14 + 1));
+        assertEquals(4 + 18 + 5, syncOut.payload.length);
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 18]);
+        assertEquals(68, readU32BE(syncOut.payload, 4 + 18 + 1));
+        assertEquals(68, readU32BE(syncOut.payload, 4 + 12)); // echo firstSession
     }
 
-    /** ESP power-cycle: session N → 0x03(N-1), затем recover 0x05 по bounds прошлой. */
+    /** Sync firstSession..session → 0x03 walk → 0x05 на отстающей сессии. */
     @Test
-    void syncSessionChangeRecoversPrevSessionHistory() throws Exception {
+    void syncFirstSessionWalkRecoversHistory() throws Exception {
         V2InboundHandler inbound = new V2InboundHandler();
         V2ConnectionState conn = new V2ConnectionState();
         ByteArrayOutputStream sock = new ByteArrayOutputStream();
 
         byte[] mac6 = new byte[]{0x3C, 0x0F, 0x02, (byte) 0xC4, 0x05, (byte) 0x84};
-        byte[] syncPayload = new byte[12];
+        byte[] syncPayload = new byte[16];
         syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
         System.arraycopy(mac6, 0, syncPayload, 1, 6);
         syncPayload[7] = 0x01;
         putU32BE(syncPayload, 8, 70);
+        putU32BE(syncPayload, 12, 69);
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
 
         V2Frame syncOut = new V2PacketReader().read(sock.toByteArray());
-        int token = readU16BE(syncOut.payload, 4 + 12);
-        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 14]);
-        assertEquals(69, readU32BE(syncOut.payload, 4 + 14 + 1));
+        int token = readU16BE(syncOut.payload, 4 + 16);
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 18]);
+        assertEquals(69, readU32BE(syncOut.payload, 4 + 18 + 1));
 
-        // 0x04 prev: first=10 last=50 → ACK piggybacks 0x05(69,10..50)
+        // 0x04 session 69 → recover 0x05 enqueued after remaining walk 0x03(70)
         sock.reset();
-        byte[] info69 = new byte[22];
-        info69[0] = (byte) (token >>> 8);
-        info69[1] = (byte) token;
-        putU32BE(info69, 2, 69);
-        putU32BE(info69, 6, 10);
-        putU32BE(info69, 10, 100);
-        putU32BE(info69, 14, 50);
-        putU32BE(info69, 18, 200);
+        byte[] info69 = fullSessionInfo(token, 69, 10, 50);
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SESSION_INFO, info69), sock);
-        V2Frame ack = new V2PacketReader().read(sock.toByteArray());
-        assertEquals(V2ProtocolConstants.TYPE_REQ_HISTORY, ack.payload[4 + 4]);
-        assertEquals(69, readU32BE(ack.payload, 4 + 4 + 1));
-        assertEquals(10, readU32BE(ack.payload, 4 + 4 + 5));
-        assertEquals(50, readU32BE(ack.payload, 4 + 4 + 9));
+        V2Frame ack1 = new V2PacketReader().read(sock.toByteArray());
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, ack1.payload[4 + 4]);
+        assertEquals(70, readU32BE(ack1.payload, 4 + 4 + 1));
+
+        // 0x04 session 70 notFound → next = 0x05(69)
+        sock.reset();
+        byte[] short70 = new byte[6];
+        short70[0] = (byte) (token >>> 8);
+        short70[1] = (byte) token;
+        putU32BE(short70, 2, 70);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SESSION_INFO, short70), sock);
+        V2Frame ack2 = new V2PacketReader().read(sock.toByteArray());
+        assertEquals(V2ProtocolConstants.TYPE_REQ_HISTORY, ack2.payload[4 + 4]);
+        assertEquals(69, readU32BE(ack2.payload, 4 + 4 + 1));
+        assertEquals(10, readU32BE(ack2.payload, 4 + 4 + 5));
+        assertEquals(50, readU32BE(ack2.payload, 4 + 4 + 9));
         assertEquals(69, inbound.getStore().getByMac("3C0F02C40584").historySession);
+    }
+
+    @Test
+    void sdCatalog0cWalksSessionsAndAcks() throws Exception {
+        V2InboundHandler inbound = new V2InboundHandler();
+        V2ConnectionState conn = new V2ConnectionState();
+        ByteArrayOutputStream sock = new ByteArrayOutputStream();
+
+        byte[] mac6 = new byte[]{0x3C, 0x0F, 0x02, (byte) 0xC4, 0x05, (byte) 0x84};
+        byte[] syncPayload = new byte[16];
+        syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
+        System.arraycopy(mac6, 0, syncPayload, 1, 6);
+        syncPayload[7] = 0x01;
+        putU32BE(syncPayload, 8, 10);
+        putU32BE(syncPayload, 12, 10); // walk only current on sync
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
+        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 16);
+
+        // drain sync's 0x03(10)
+        sock.reset();
+        byte[] short10 = new byte[6];
+        short10[0] = (byte) (token >>> 8);
+        short10[1] = (byte) token;
+        putU32BE(short10, 2, 10);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SESSION_INFO, short10), sock);
+
+        sock.reset();
+        byte[] cat = new byte[10];
+        cat[0] = (byte) (token >>> 8);
+        cat[1] = (byte) token;
+        putU32BE(cat, 2, 50);
+        putU32BE(cat, 6, 52);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SD_CATALOG, cat), sock);
+
+        V2Frame ack = new V2PacketReader().read(sock.toByteArray());
+        assertTrue(ack.crcOk);
+        assertEquals(V2ProtocolConstants.TYPE_SD_CATALOG, ack.type);
+        assertEquals(50, readU32BE(ack.payload, 4));
+        assertEquals(52, readU32BE(ack.payload, 8));
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, ack.payload[4 + 8]);
+        assertEquals(50, readU32BE(ack.payload, 4 + 8 + 1));
+        assertEquals(50, inbound.getStore().getByMac("3C0F02C40584").sdFirstSession);
+        assertEquals(52, inbound.getStore().getByMac("3C0F02C40584").sdLastSession);
+    }
+
+    @Test
+    void sdRecoverCapsLongRange() {
+        V2CommandQueue q = new V2CommandQueue();
+        V2HistoryCommand first = V2SdRecover.begin(q, "AABB", 1, 100);
+        assertNotNull(first);
+        assertEquals(100 - V2SdRecover.MAX_SESSIONS + 1, readU32BE(first.bytes, 1));
+        // first returned + (MAX-1) queued
+        assertEquals(V2SdRecover.MAX_SESSIONS - 1, q.pendingCount("AABB"));
     }
 
     @Test
@@ -317,7 +379,7 @@ public class V2ProtocolSelfCheck {
         syncPayload[7] = 0x01;
         putU32BE(syncPayload, 8, 1);
         inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
-        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 12);
+        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 16);
 
         sock.reset();
         byte[] missing = new byte[6];
@@ -330,6 +392,18 @@ public class V2ProtocolSelfCheck {
         assertTrue(ack.crcOk);
         assertEquals(V2ProtocolConstants.TYPE_HISTORY_NOT_FOUND, ack.type);
         assertEquals(42, readU32BE(ack.payload, 4));
+    }
+
+    private static byte[] fullSessionInfo(int token, int session, int firstIdx, int lastIdx) {
+        byte[] info = new byte[22];
+        info[0] = (byte) (token >>> 8);
+        info[1] = (byte) token;
+        putU32BE(info, 2, session);
+        putU32BE(info, 6, firstIdx);
+        putU32BE(info, 10, 100);
+        putU32BE(info, 14, lastIdx);
+        putU32BE(info, 18, 200);
+        return info;
     }
 
     private static byte[] tokenPayload(int token, byte[] wtinfo) {

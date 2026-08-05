@@ -39,7 +39,7 @@ public class V2HistoryNotFoundHandler {
         int index = readU32BE(p, 2);
         log.info("[V2] history-not-found mac={} session={} index={}", s.mac, s.historySession, index);
 
-        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
+        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac, s) : null;
         return out.historyNotFoundAck(index, cmd);
     }
 }

@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.springframework.stereotype.Service;
 
+import static org.alloy.protocol.v2.V2PacketReader.readU32BE;
+
 /**
  * Очередь команд сервера → плата (одна на ответ).
  * UI кладёт команду; хендлер забирает при следующем ACK.
@@ -27,6 +29,27 @@ public class V2CommandQueue {
         }
         ConcurrentLinkedQueue<V2HistoryCommand> q = byMac.get(mac);
         return q == null ? null : q.poll();
+    }
+
+    /** Poll + если уходит 0x05 — привязать historySession к сессии из команды. */
+    public V2HistoryCommand poll(String mac, V2Session session) {
+        V2HistoryCommand cmd = poll(mac);
+        bindHistorySession(cmd, session);
+        return cmd;
+    }
+
+    static void bindHistorySession(V2HistoryCommand cmd, V2Session session) {
+        if (cmd == null || session == null || cmd.bytes == null || cmd.bytes.length < 5) {
+            return;
+        }
+        if ((cmd.bytes[0] & 0xFF) != (V2ProtocolConstants.TYPE_REQ_HISTORY & 0xFF)) {
+            return;
+        }
+        int sess = readU32BE(cmd.bytes, 1);
+        if (session.historySession != sess) {
+            session.historySession = sess;
+            session.lastHistoryIndex = -1;
+        }
     }
 
     public int pendingCount(String mac) {

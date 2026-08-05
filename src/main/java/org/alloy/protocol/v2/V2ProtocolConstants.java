@@ -22,6 +22,8 @@ public final class V2ProtocolConstants {
     public static final byte TYPE_STOP_HISTORY = 0x09;
     /** ESP → server: запрошенная историческая запись отсутствует на SD. */
     public static final byte TYPE_HISTORY_NOT_FOUND = 0x0A;
+    /** ESP → server: границы сессий на SD (firstSession..lastSession). */
+    public static final byte TYPE_SD_CATALOG = 0x0C;
     /** Сервер → ESP: пакет с ошибкой. */
     public static final byte TYPE_ERROR = (byte) 0xFF;
 

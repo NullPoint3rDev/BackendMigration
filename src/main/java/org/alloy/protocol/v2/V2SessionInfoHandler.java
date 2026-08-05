@@ -56,7 +56,7 @@ public class V2SessionInfoHandler {
             log.info("[V2] session-info mac={} session={} notFound", s.mac, session);
         }
 
-        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
+        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac, s) : null;
         return out.sessionInfoAck(session, cmd);
     }
 
@@ -79,9 +79,7 @@ public class V2SessionInfoHandler {
                     s.mac, session, serverLast, firstIdx, lastIdx);
             return;
         }
-        // bind 0x07 attribution to this pull (don't touch historySession on skip)
-        s.historySession = session;
-        s.lastHistoryIndex = -1;
+        // historySession привяжется при poll 0x05 (см. V2CommandQueue.bindHistorySession)
         commands.enqueue(s.mac, recover);
         commands.enqueue(s.mac, V2HistoryCommand.priorityHistory());
         log.info("[V2] recover enqueue mac={} session={} serverLast={} → {}..{}",
