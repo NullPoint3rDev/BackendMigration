@@ -178,13 +178,17 @@ public class WeldingMachineStateService {
             }
 
             // Naive LocalDateTime в БД = UTC (как DisplayTimeZones.STORAGE / dayBounds daily-stats).
+            // Hub history: dateCreated из unix платы (isOfflineData).
             LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-            if (machine.getId() != null) {
+            LocalDateTime eventTime = (stateSummary.isOfflineData() && stateSummary.getDateCreated() != null)
+                    ? stateSummary.getDateCreated()
+                    : now;
+            if (machine.getId() != null && !stateSummary.isOfflineData()) {
                 touchLastOnlineIfDue(machine, now);
             }
             // Закрываем длительность предыдущего состояния с ошибкой (до следующей телеметрии)
             Optional<WeldingMachineState> prevOpt = weldingMachineStateRepository.findTopByWeldingMachineIdOrderByDateCreatedDesc(machine.getId());
-            if (prevOpt.isPresent()) {
+            if (prevOpt.isPresent() && !stateSummary.isOfflineData()) {
                 WeldingMachineState prev = prevOpt.get();
                 if (prev.getWeldingMachineStatus() == WeldingMachineStatus.Error
                         && (prev.getStateDurationMs() == null || prev.getStateDurationMs() == 0)) {
@@ -199,7 +203,7 @@ public class WeldingMachineStateService {
             // Создаем состояние
             WeldingMachineState state = new WeldingMachineState();
             state.setWeldingMachineId(machine.getId());
-            state.setDateCreated(now);
+            state.setDateCreated(eventTime);
             state.setDateUpdated(now);
             state.setWeldingMachineStatus(stateSummary.getStatus());
             state.setControl(stateSummary.getControl());
@@ -229,11 +233,13 @@ public class WeldingMachineStateService {
 
             // Сохраняем состояние
             WeldingMachineState saved = weldingMachineStateRepository.save(state);
-            weldingMachineLastPoweredOnService.updateFromTelemetry(
-                    machine,
-                    prevOpt.orElse(null),
-                    stateSummary,
-                    now);
+            if (!stateSummary.isOfflineData()) {
+                weldingMachineLastPoweredOnService.updateFromTelemetry(
+                        machine,
+                        prevOpt.orElse(null),
+                        stateSummary,
+                        now);
+            }
             // после снятия @CreationTimestamp date_created в БД должен совпадать с UTC now (~05:xx, не 08:xx MSK)
             System.out.println("[STATE-SERVICE] ✅ Состояние сохранено для аппарата ID=" + machine.getId()
                     + " (MAC=" + mac + "), дата=" + saved.getDateCreated());

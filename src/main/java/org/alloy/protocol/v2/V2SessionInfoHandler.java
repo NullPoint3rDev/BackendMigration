@@ -12,11 +12,17 @@ public class V2SessionInfoHandler {
     private final V2SessionStore store;
     private final V2OutboundBuilder out;
     private final V2CommandQueue commands;
+    private final V2IndexService indexService;
 
-    public V2SessionInfoHandler(V2SessionStore store, V2OutboundBuilder out, V2CommandQueue commands) {
+    public V2SessionInfoHandler(
+            V2SessionStore store,
+            V2OutboundBuilder out,
+            V2CommandQueue commands,
+            V2IndexService indexService) {
         this.store = store;
         this.out = out;
         this.commands = commands;
+        this.indexService = indexService;
     }
 
     public byte[] handle(V2Frame frame) {
@@ -45,11 +51,37 @@ public class V2SessionInfoHandler {
             log.info(
                     "[V2] session-info mac={} session={} first={}/{} last={}/{}",
                     s.mac, session, firstIdx, firstTime, lastIdx, lastTime);
+            enqueueRecover(s, session, firstIdx, lastIdx);
         } else {
             log.info("[V2] session-info mac={} session={} notFound", s.mac, session);
         }
 
         V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
         return out.sessionInfoAck(session, cmd);
+    }
+
+    private void enqueueRecover(V2Session s, int session, int firstIdx, int lastIdx) {
+        if (commands == null) {
+            return;
+        }
+        s.historySession = session;
+        int serverLast = -1;
+        if (indexService != null) {
+            int live = indexService.getLastIndex(s.mac, session, V2IndexService.CHANNEL_LIVE);
+            int hist = indexService.getLastIndex(s.mac, session, V2IndexService.CHANNEL_HISTORY);
+            serverLast = Math.max(live, hist);
+        } else {
+            serverLast = Math.max(s.lastLiveIndex, s.lastHistoryIndex);
+        }
+        V2HistoryCommand recover = V2HistoryRecover.plan(session, serverLast, firstIdx, lastIdx);
+        if (recover == null) {
+            log.info("[V2] recover skip mac={} session={} serverLast={} device={}-{}",
+                    s.mac, session, serverLast, firstIdx, lastIdx);
+            return;
+        }
+        commands.enqueue(s.mac, recover);
+        commands.enqueue(s.mac, V2HistoryCommand.priorityHistory());
+        log.info("[V2] recover enqueue mac={} session={} serverLast={} → {}..{}",
+                s.mac, session, serverLast, serverLast < 0 ? firstIdx : serverLast + 1, lastIdx);
     }
 }

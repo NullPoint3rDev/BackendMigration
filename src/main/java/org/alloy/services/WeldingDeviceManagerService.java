@@ -3,6 +3,9 @@ package org.alloy.services;
 import org.alloy.models.WeldingMachineStatus;
 import org.alloy.models.weldingmachine.StateSummary;
 import org.alloy.models.weldingmachine.StateSummaryPropertyValue;
+import org.alloy.protocol.v2.V2HubPayload;
+import org.alloy.protocol.v2.V2HubPayloadParser;
+import org.alloy.protocol.v2.V2HubStateMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +61,54 @@ public class WeldingDeviceManagerService {
     @PostConstruct
     public void init() {
         log.info("Сервис управления аппаратами инициализирован");
+    }
+
+    /**
+     * Hub telemetry from protocol v2 (0x02 live / 0x07 history). Bypasses ASCII Core parser.
+     */
+    public void processHubTelemetry(String mac, byte[] hubBody, boolean historyRecord) {
+        try {
+            String normalizedMac = deviceModelService.normalizeMac(mac);
+            if (normalizedMac == null || normalizedMac.isEmpty() || hubBody == null) {
+                return;
+            }
+            V2HubPayload hub = V2HubPayloadParser.parse(hubBody);
+            if (hub == null) {
+                log.debug("[DEVICE-MANAGER] hub body incomplete mac={} len={}",
+                        normalizedMac, hubBody.length);
+                return;
+            }
+            StateSummary stateSummary = V2HubStateMapper.toStateSummary(hub, historyRecord);
+            if (stateSummary == null) {
+                return;
+            }
+
+            if (!historyRecord) {
+                StateSummary previous = deviceStates.get(normalizedMac);
+                deviceStates.put(normalizedMac, stateSummary);
+                connectionStatus.put(normalizedMac, true);
+                weldingMachineLastWeldService.updateFromPanelState(
+                        normalizedMac, previous, stateSummary, LocalDateTime.now(ZoneOffset.UTC));
+                long nowMs = System.currentTimeMillis();
+                Long lastSaved = lastSaveTimestampMs.getOrDefault(normalizedMac, 0L);
+                if (nowMs - lastSaved >= 400) {
+                    lastSaveTimestampMs.put(normalizedMac, nowMs);
+                    scheduleCoalescedDbSave(normalizedMac, stateSummary);
+                }
+            } else {
+                // history: каждый кадр в БД с unix-временем, panel не затираем
+                dbExecutor.execute(() -> {
+                    try {
+                        stateService.saveMachineState(normalizedMac, stateSummary);
+                    } catch (Exception dbError) {
+                        log.warn("[DEVICE-MANAGER] hub history save failed mac={}: {}",
+                                normalizedMac, dbError.getMessage());
+                    }
+                });
+            }
+        } catch (Exception e) {
+            log.warn("[DEVICE-MANAGER] hub telemetry failed mac={}: {}", mac, e.getMessage());
+        }
     }
 
     /**

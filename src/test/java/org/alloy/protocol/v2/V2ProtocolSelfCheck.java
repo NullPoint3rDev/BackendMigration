@@ -95,9 +95,10 @@ public class V2ProtocolSelfCheck {
         V2Frame syncOut = new V2PacketReader().read(sock.toByteArray());
         assertTrue(syncOut.crcOk);
         assertEquals(V2ProtocolConstants.TYPE_SYNC, syncOut.type);
-        // time(4) + version(1)+mac(6)+dev(1)+session(4)+token(2) = 18
-        assertEquals(4 + 14, syncOut.payload.length);
+        // time(4) + version+mac+dev+session+token(14) + recover 0x03(5)
+        assertEquals(4 + 14 + 5, syncOut.payload.length);
         assertEquals(V2ProtocolConstants.PROTOCOL_VERSION, syncOut.payload[4]);
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 14]);
         int token = readU16BE(syncOut.payload, 4 + 12);
 
         sock.reset();
@@ -166,6 +167,62 @@ public class V2ProtocolSelfCheck {
         assertTrue(ack.crcOk);
         assertEquals(V2ProtocolConstants.TYPE_SESSION_INFO, ack.type);
         assertEquals(99, readU32BE(ack.payload, 4));
+    }
+
+    @Test
+    void historyRecoverPlansGapFromSessionInfo() {
+        assertNull(V2HistoryRecover.plan(1, 100, 1, 100));
+        V2HistoryCommand full = V2HistoryRecover.plan(5, -1, 10, 50);
+        assertNotNull(full);
+        assertEquals(V2ProtocolConstants.TYPE_REQ_HISTORY, full.bytes[0]);
+        assertEquals(5, readU32BE(full.bytes, 1));
+        assertEquals(10, readU32BE(full.bytes, 5));
+        assertEquals(50, readU32BE(full.bytes, 9));
+
+        V2HistoryCommand partial = V2HistoryRecover.plan(5, 20, 1, 50);
+        assertNotNull(partial);
+        assertEquals(21, readU32BE(partial.bytes, 5));
+        assertEquals(50, readU32BE(partial.bytes, 9));
+    }
+
+    @Test
+    void hubStateMapperMapsWeldingAndUnix() {
+        V2HubPayload h = new V2HubPayload();
+        h.machineState = 1;
+        h.unixTime = 1_700_000_000L;
+        h.actualCurrentA = 120;
+        h.actualVoltageV = 22.5;
+        h.packetIndex = 9;
+        var s = V2HubStateMapper.toStateSummary(h, true);
+        assertNotNull(s);
+        assertEquals(org.alloy.models.WeldingMachineStatus.Welding, s.getStatus());
+        assertTrue(s.isOfflineData());
+        assertEquals("120", s.getProperties().get("State.I").getValue());
+        assertEquals(java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochSecond(1_700_000_000L), java.time.ZoneOffset.UTC),
+                s.getDateCreated());
+    }
+
+    @Test
+    void syncPiggybacksSessionInfoRecover() throws Exception {
+        V2InboundHandler inbound = new V2InboundHandler();
+        V2ConnectionState conn = new V2ConnectionState();
+        ByteArrayOutputStream sock = new ByteArrayOutputStream();
+
+        byte[] mac6 = new byte[]{0x3C, 0x0F, 0x02, (byte) 0xC4, 0x05, (byte) 0x84};
+        byte[] syncPayload = new byte[12];
+        syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
+        System.arraycopy(mac6, 0, syncPayload, 1, 6);
+        syncPayload[7] = 0x01;
+        putU32BE(syncPayload, 8, 69);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
+
+        V2Frame syncOut = new V2PacketReader().read(sock.toByteArray());
+        assertTrue(syncOut.crcOk);
+        // time(4) + sync data(14) + cmd 0x03(5) = 23
+        assertTrue(syncOut.payload.length >= 4 + 14 + 5);
+        assertEquals(V2ProtocolConstants.TYPE_REQ_SESSION_INFO, syncOut.payload[4 + 14]);
+        assertEquals(69, readU32BE(syncOut.payload, 4 + 14 + 1));
     }
 
     @Test

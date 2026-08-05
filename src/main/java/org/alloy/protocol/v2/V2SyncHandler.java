@@ -60,8 +60,16 @@ public class V2SyncHandler {
         s.token = token;
         store.put(s);
 
+        // recover: спросить границы истории сессии (0x03)
         V2HistoryCommand cmd = commands != null ? commands.poll(mac) : null;
-        log.info("[V2] sync mac={} version={} session={} token={}", mac, version & 0xFF, session, token);
+        if (cmd == null) {
+            cmd = V2HistoryCommand.requestSessionInfo(session);
+        } else if (commands != null) {
+            commands.enqueue(mac, V2HistoryCommand.requestSessionInfo(session));
+        }
+
+        log.info("[V2] sync mac={} version={} session={} token={} recoverSessionInfo=true",
+                mac, version & 0xFF, session, token);
         return out.syncResponse(version, mac6, deviceType, session, token, cmd);
     }
 }

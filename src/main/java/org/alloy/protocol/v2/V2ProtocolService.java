@@ -8,10 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import static org.alloy.protocol.v2.V2PacketReader.bytesToHex;
-
 /**
- * Spring-обёртка v2: телеметрия в deviceManager, debug hub, индексы, команды.
+ * Spring-обёртка v2: hub → deviceManager, debug hub, индексы, команды, post-sync recover.
  */
 @Service
 public class V2ProtocolService {
@@ -28,8 +26,7 @@ public class V2ProtocolService {
             V2DebugHub debugHub) {
         this.commandQueue = commandQueue;
         this.debugHub = debugHub;
-        V2TelemetrySink sink = (mac, wtinfo) ->
-                deviceManager.processDeviceData(":" + mac + ";" + bytesToHex(wtinfo), mac);
+        V2TelemetrySink sink = deviceManager::processHubTelemetry;
         this.inbound = new V2InboundHandler(
                 new V2SessionStore(),
                 new V2TokenService(),
@@ -39,7 +36,8 @@ public class V2ProtocolService {
                 indexService,
                 commandQueue,
                 debugHub);
-        log.info("[V2] protocol service ready, test MAC={}", V2ProtocolConstants.TEST_MAC);
+        log.info("[V2] protocol service ready, test MAC={} hubMAC={}",
+                V2ProtocolConstants.TEST_MAC, V2ProtocolConstants.TEST_MAC_HUB);
     }
 
     public boolean shouldHandleAsV2(V2ConnectionState state, byte[] chunk) {

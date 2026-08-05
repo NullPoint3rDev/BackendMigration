@@ -45,7 +45,7 @@ public class V2InboundHandler {
         this.debugHub = debugHub;
         this.syncHandler = new V2SyncHandler(store, tokens, out, commands);
         this.stateHandler = new V2StateHandler(store, out, gap, telemetry, indexService, commands);
-        this.sessionInfoHandler = new V2SessionInfoHandler(store, out, commands);
+        this.sessionInfoHandler = new V2SessionInfoHandler(store, out, commands, indexService);
         this.setHistSessionHandler = new V2SetHistorySessionHandler(store, out, commands);
         this.historyRecordHandler = new V2HistoryRecordHandler(store, out, gap, telemetry, indexService, commands);
         this.historyNotFoundHandler = new V2HistoryNotFoundHandler(store, out, commands);

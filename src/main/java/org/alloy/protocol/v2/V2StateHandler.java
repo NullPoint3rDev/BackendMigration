@@ -55,7 +55,7 @@ public class V2StateHandler {
 
         if (telemetry != null) {
             try {
-                telemetry.onTelemetry(s.mac, hubBody);
+                telemetry.onTelemetry(s.mac, hubBody, false);
             } catch (Exception e) {
                 log.warn("[V2] telemetry sink failed mac={}: {}", s.mac, e.getMessage());
             }

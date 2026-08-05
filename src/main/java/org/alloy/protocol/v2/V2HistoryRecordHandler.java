@@ -55,7 +55,7 @@ public class V2HistoryRecordHandler {
 
         if (telemetry != null) {
             try {
-                telemetry.onTelemetry(s.mac, hubBody);
+                telemetry.onTelemetry(s.mac, hubBody, true);
             } catch (Exception e) {
                 log.warn("[V2] telemetry sink failed mac={}: {}", s.mac, e.getMessage());
             }
