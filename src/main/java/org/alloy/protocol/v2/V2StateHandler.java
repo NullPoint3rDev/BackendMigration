@@ -66,10 +66,9 @@ public class V2StateHandler {
                 : s.lastLiveIndex;
 
         V2HistoryCommand gap = gapService.detectGap(s.sessionNumber, lastInDb, index);
-        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac, s) : null;
+        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
         if (cmd == null) {
             cmd = gap;
-            V2CommandQueue.bindHistorySession(cmd, s);
         }
 
         if (indexService != null) {

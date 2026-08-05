@@ -41,14 +41,14 @@ public class V2SdCatalogHandler {
         int lastSession = readU32BE(p, 6);
         if (firstSession > lastSession) {
             log.warn("[V2] sd-catalog mac={} bad range {}..{}", s.mac, firstSession, lastSession);
-            V2HistoryCommand cmd = commands != null ? commands.poll(s.mac, s) : null;
+            V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
             return out.sdCatalogAck(firstSession, lastSession, cmd);
         }
 
         s.sdFirstSession = firstSession;
         s.sdLastSession = lastSession;
 
-        V2HistoryCommand pending = commands != null ? commands.poll(s.mac, s) : null;
+        V2HistoryCommand pending = commands != null ? commands.poll(s.mac) : null;
         V2HistoryCommand walkFirst = V2SdRecover.begin(commands, s.mac, firstSession, lastSession);
         V2HistoryCommand cmd;
         if (pending != null) {

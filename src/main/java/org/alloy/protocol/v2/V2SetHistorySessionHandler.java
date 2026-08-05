@@ -38,7 +38,7 @@ public class V2SetHistorySessionHandler {
         s.lastHistoryIndex = -1;
 
         log.info("[V2] set-hist-session mac={} historySession={}", s.mac, session);
-        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac, s) : null;
+        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
         return out.setHistSessionAck(session, cmd);
     }
 }

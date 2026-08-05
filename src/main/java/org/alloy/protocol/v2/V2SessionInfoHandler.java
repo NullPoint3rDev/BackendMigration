@@ -56,7 +56,7 @@ public class V2SessionInfoHandler {
             log.info("[V2] session-info mac={} session={} notFound", s.mac, session);
         }
 
-        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac, s) : null;
+        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
         return out.sessionInfoAck(session, cmd);
     }
 

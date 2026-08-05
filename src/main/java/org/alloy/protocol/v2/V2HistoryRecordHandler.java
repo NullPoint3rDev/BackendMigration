@@ -53,7 +53,13 @@ public class V2HistoryRecordHandler {
             return null;
         }
 
-        if (telemetry != null) {
+        int lastInDb = indexService != null
+                ? indexService.getLastIndex(s.mac, s.historySession, V2IndexService.CHANNEL_HISTORY)
+                : s.lastHistoryIndex;
+
+        // повторная выгрузка того же диапазона не должна плодить строки в БД
+        boolean alreadyStored = index <= lastInDb;
+        if (telemetry != null && !alreadyStored) {
             try {
                 telemetry.onTelemetry(s.mac, hubBody, true);
             } catch (Exception e) {
@@ -61,23 +67,21 @@ public class V2HistoryRecordHandler {
             }
         }
 
-        int lastInDb = indexService != null
-                ? indexService.getLastIndex(s.mac, s.historySession, V2IndexService.CHANNEL_HISTORY)
-                : s.lastHistoryIndex;
-
         V2HistoryCommand gap = gapService.detectGap(s.historySession, lastInDb, index);
-        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac, s) : null;
+        V2HistoryCommand cmd = commands != null ? commands.poll(s.mac) : null;
         if (cmd == null) {
             cmd = gap;
-            V2CommandQueue.bindHistorySession(cmd, s);
         }
 
-        if (indexService != null) {
-            indexService.saveLastIndex(s.mac, s.historySession, V2IndexService.CHANNEL_HISTORY, index);
+        if (!alreadyStored) {
+            if (indexService != null) {
+                indexService.saveLastIndex(s.mac, s.historySession, V2IndexService.CHANNEL_HISTORY, index);
+            }
+            s.lastHistoryIndex = index;
         }
-        s.lastHistoryIndex = index;
 
-        log.debug("[V2] history mac={} session={} index={}", s.mac, s.historySession, index);
+        log.debug("[V2] history mac={} session={} index={} dup={}",
+                s.mac, s.historySession, index, alreadyStored);
         return out.historyRecordAck(index, cmd);
     }
 }

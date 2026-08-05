@@ -1,7 +1,9 @@
 package org.alloy.protocol.v2;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -270,7 +272,51 @@ public class V2ProtocolSelfCheck {
         assertEquals(69, readU32BE(ack2.payload, 4 + 4 + 1));
         assertEquals(10, readU32BE(ack2.payload, 4 + 4 + 5));
         assertEquals(50, readU32BE(ack2.payload, 4 + 4 + 9));
-        assertEquals(69, inbound.getStore().getByMac("3C0F02C40584").historySession);
+    }
+
+    /**
+     * Сессия истории берётся из 0x06 (не из отправленного 0x05),
+     * повторно приехавший индекс в телеметрию не уходит.
+     */
+    @Test
+    void historySessionFromSetHistSessionAndDuplicateSkipped() throws Exception {
+        List<String> saved = new ArrayList<>();
+        V2TelemetrySink sink = (mac, body, history) ->
+                saved.add(history + ":" + V2HubPayloadParser.readPacketIndex(body));
+        V2InboundHandler inbound = new V2InboundHandler(
+                new V2SessionStore(), new V2TokenService(), new V2OutboundBuilder(),
+                new V2GapService(), sink, null, new V2CommandQueue(), null);
+        V2ConnectionState conn = new V2ConnectionState();
+        ByteArrayOutputStream sock = new ByteArrayOutputStream();
+
+        byte[] mac6 = new byte[]{0x3C, 0x0F, 0x02, (byte) 0xC4, 0x05, (byte) 0x84};
+        byte[] syncPayload = new byte[16];
+        syncPayload[0] = V2ProtocolConstants.PROTOCOL_VERSION;
+        System.arraycopy(mac6, 0, syncPayload, 1, 6);
+        syncPayload[7] = 0x01;
+        putU32BE(syncPayload, 8, 70);
+        putU32BE(syncPayload, 12, 70);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SYNC, syncPayload), sock);
+        int token = readU16BE(new V2PacketReader().read(sock.toByteArray()).payload, 4 + 16);
+
+        // плата объявляет, что выгружает сессию 61
+        byte[] setSession = new byte[6];
+        setSession[0] = (byte) (token >>> 8);
+        setSession[1] = (byte) token;
+        putU32BE(setSession, 2, 61);
+        inbound.onBytes(conn, buildDeviceFrame(V2ProtocolConstants.TYPE_SET_HIST_SESSION, setSession), sock);
+        assertEquals(61, inbound.getStore().getByMac("3C0F02C40584").historySession);
+
+        byte[] rec = new byte[V2HubPayloadParser.BODY_LEN];
+        putU32LE(rec, 0, 7);
+        putU32LE(rec, 4, 1_700_000_000);
+        inbound.onBytes(conn, buildDeviceFrame(
+                V2ProtocolConstants.TYPE_HISTORY_RECORD, tokenPayload(token, rec)), sock);
+        inbound.onBytes(conn, buildDeviceFrame(
+                V2ProtocolConstants.TYPE_HISTORY_RECORD, tokenPayload(token, rec)), sock);
+
+        assertEquals(List.of("true:7"), saved);
+        assertEquals(61, inbound.getStore().getByMac("3C0F02C40584").historySession);
     }
 
     @Test

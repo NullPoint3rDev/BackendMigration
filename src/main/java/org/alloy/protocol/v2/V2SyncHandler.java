@@ -74,7 +74,7 @@ public class V2SyncHandler {
         s.token = token;
         store.put(s);
 
-        V2HistoryCommand pending = commands != null ? commands.poll(mac, s) : null;
+        V2HistoryCommand pending = commands != null ? commands.poll(mac) : null;
         V2HistoryCommand walkFirst = V2SdRecover.begin(commands, mac, firstSession, session);
         V2HistoryCommand cmd;
         if (pending != null) {
