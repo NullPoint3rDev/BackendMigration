@@ -56,6 +56,10 @@ public final class V2HubStateMapper {
         add(props, "Packet.Index", String.valueOf(hub.packetIndex), "number");
         add(props, "Номер сварочного задания", String.valueOf(hub.jobNumber), "number");
         add(props, "JobNumber", String.valueOf(hub.jobNumber), "number");
+        if (hub.memoryCell > 0) {
+            add(props, "Номер ячейки памяти", String.valueOf(hub.memoryCell), "number");
+            add(props, "MemoryCellNumber", String.valueOf(hub.memoryCell), "number");
+        }
         add(props, "Inductance", String.valueOf(hub.setInductance), "number");
         add(props, "Метод сварки", mapWeldingMode(hub.weldMode), "enum");
         add(props, "Материал проволоки", mapWeldingMaterial(hub.wireMaterial), "enum");
@@ -79,11 +83,11 @@ public final class V2HubStateMapper {
         add(props, "Температура охлаждающей жидкости на входе", formatOneDecimal(hub.tempBvoInC), "number");
         add(props, "Температура охлаждающей жидкости на выходе", formatOneDecimal(hub.tempBvoOutC), "number");
         add(props, "Температура первичной обмотки", formatOneDecimal(hub.tempRadiatorC), "number");
-        add(props, "Температура вторичной обмотки", formatOneDecimal(hub.tempTerminalPlusC), "number");
+        add(props, "Температура вторичной обмотки", formatCoilTemperature(hub.tempTerminalPlusC), "text");
         add(props, "ChillerTemperature1", formatOneDecimal(hub.tempBvoInC), "number");
         add(props, "ChillerTemperature2", formatOneDecimal(hub.tempBvoOutC), "number");
         add(props, "PrimaryCoilTemperature", formatOneDecimal(hub.tempRadiatorC), "number");
-        add(props, "SecondaryCoilTemperature", formatOneDecimal(hub.tempTerminalPlusC), "number");
+        add(props, "SecondaryCoilTemperature", formatCoilTemperature(hub.tempTerminalPlusC), "text");
 
         add(props, "Ошибки", formatErrorsText(hub), "text");
         add(props, "Предупреждения", formatWarningsText(hub), "text");
@@ -101,23 +105,35 @@ public final class V2HubStateMapper {
             case 0 -> WeldingMachineStatus.Online;
             case 1 -> WeldingMachineStatus.Welding;
             case 2 -> WeldingMachineStatus.Error;
-            case 3, 4 -> WeldingMachineStatus.Idle;
+            case 3 -> WeldingMachineStatus.Offline;
+            case 4 -> WeldingMachineStatus.Idle;
             case 5 -> WeldingMachineStatus.Offline;
             default -> WeldingMachineStatus.Online;
         };
     }
 
-    /** Те же подписи, что WeldingDataParserService.getMachineStateText. */
+    /**
+     * Hub machineState ≠ Core weldingMachineState (см. V2ProtocolTestWithHubPage MACHINE_STATE).
+     * 3 = standby (деж.), 4 = duty (ожидание).
+     */
     static String machineStateText(int state) {
         return switch (state) {
             case 0 -> "Аппарат включен";
             case 1 -> "Сварка";
             case 2 -> "Авария";
-            case 3 -> "Аппарат в режиме ожидания";
-            case 4 -> "Аппарат включен в дежурном режиме";
+            case 3 -> "Аппарат включен в дежурном режиме";
+            case 4 -> "Аппарат в режиме ожидания";
             case 5 -> "Аппарат заблокирован";
             default -> "Неизвестное состояние (" + state + ")";
         };
+    }
+
+    /** -199 / -200 °C (и -199.9 с датчика) — датчик не подключён. */
+    static String formatCoilTemperature(double c) {
+        if (c <= -199.0) {
+            return "nc";
+        }
+        return formatOneDecimal(c);
     }
 
     private static String formatErrorCode(V2HubPayload hub) {

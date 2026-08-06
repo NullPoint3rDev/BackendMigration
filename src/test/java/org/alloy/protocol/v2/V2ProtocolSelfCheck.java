@@ -224,7 +224,7 @@ public class V2ProtocolSelfCheck {
     }
 
     @Test
-    void hubStateMapperIdlePutsSetpointIntoCurrentVoltage() {
+    void hubStateMapperStandbyPutsSetpointIntoCurrentVoltage() {
         V2HubPayload h = new V2HubPayload();
         h.machineState = 3;
         h.actualCurrentA = 126;
@@ -232,12 +232,35 @@ public class V2ProtocolSelfCheck {
         h.setCurrentA = 144;
         h.setVoltageV = 19.0;
         var s = V2HubStateMapper.toStateSummary(h, false);
-        assertEquals(org.alloy.models.WeldingMachineStatus.Idle, s.getStatus());
+        assertEquals(org.alloy.models.WeldingMachineStatus.Offline, s.getStatus());
         assertEquals("144", s.getProperties().get("Current").getValue());
         assertEquals("190", s.getProperties().get("Voltage").getValue());
         assertEquals("126", s.getProperties().get("WeldingCurrent").getValue());
-        assertEquals("Аппарат в режиме ожидания",
+        assertEquals("Аппарат включен в дежурном режиме",
                 s.getProperties().get("WeldingMachineState").getValue());
+    }
+
+    @Test
+    void hubStateMapperMapsMemoryCell() {
+        V2HubPayload h = new V2HubPayload();
+        h.machineState = 0;
+        h.memoryCell = 1;
+        h.tempBvoInC = 28.0;
+        h.tempBvoOutC = 27.8;
+        var s = V2HubStateMapper.toStateSummary(h, false);
+        assertEquals("1", s.getProperties().get("Номер ячейки памяти").getValue());
+        assertEquals("28.0", s.getProperties().get("ChillerTemperature1").getValue());
+        assertEquals("27.8", s.getProperties().get("ChillerTemperature2").getValue());
+    }
+
+    @Test
+    void hubStateMapperDisconnectedSecondaryTempIsNc() {
+        V2HubPayload h = new V2HubPayload();
+        h.machineState = 0;
+        h.tempTerminalPlusC = -199.9;
+        var s = V2HubStateMapper.toStateSummary(h, false);
+        assertEquals("nc", s.getProperties().get("SecondaryCoilTemperature").getValue());
+        assertEquals("nc", s.getProperties().get("Температура вторичной обмотки").getValue());
     }
 
     @Test
