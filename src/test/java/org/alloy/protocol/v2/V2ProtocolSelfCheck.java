@@ -196,15 +196,48 @@ public class V2ProtocolSelfCheck {
         h.unixTime = 1_700_000_000L;
         h.actualCurrentA = 120;
         h.actualVoltageV = 22.5;
+        h.setCurrentA = 144;
+        h.setVoltageV = 19.0;
         h.packetIndex = 9;
+        h.mainsPhaseAV = 220;
+        h.tempRadiatorC = 41.5;
+        h.gasFlowLPerMin = 12.3;
+        h.weldMode = 4;
         var s = V2HubStateMapper.toStateSummary(h, true);
         assertNotNull(s);
         assertEquals(org.alloy.models.WeldingMachineStatus.Welding, s.getStatus());
         assertTrue(s.isOfflineData());
-        assertEquals("120", s.getProperties().get("State.I").getValue());
+        // дуга → Current/Voltage = факт (Core-диалект); State.I не пишем (hex на фронте)
+        assertEquals("120", s.getProperties().get("Current").getValue());
+        assertEquals("225", s.getProperties().get("Voltage").getValue());
+        assertEquals("144", s.getProperties().get("State.I.set").getValue());
+        assertEquals("19.0", s.getProperties().get("State.U.set").getValue());
+        assertNull(s.getProperties().get("State.I"));
+        assertEquals("Сварка", s.getProperties().get("Состояние аппарата").getValue());
+        assertEquals("220", s.getProperties().get("Напряжение фазы А").getValue());
+        assertEquals("41.5", s.getProperties().get("Температура первичной обмотки").getValue());
+        assertEquals("12.3", s.getProperties().get("State.GasFlow").getValue());
+        assertEquals("MAG", s.getProperties().get("Метод сварки").getValue());
         assertEquals(java.time.LocalDateTime.ofInstant(
                 java.time.Instant.ofEpochSecond(1_700_000_000L), java.time.ZoneOffset.UTC),
                 s.getDateCreated());
+    }
+
+    @Test
+    void hubStateMapperIdlePutsSetpointIntoCurrentVoltage() {
+        V2HubPayload h = new V2HubPayload();
+        h.machineState = 3;
+        h.actualCurrentA = 126;
+        h.actualVoltageV = 19.2;
+        h.setCurrentA = 144;
+        h.setVoltageV = 19.0;
+        var s = V2HubStateMapper.toStateSummary(h, false);
+        assertEquals(org.alloy.models.WeldingMachineStatus.Idle, s.getStatus());
+        assertEquals("144", s.getProperties().get("Current").getValue());
+        assertEquals("190", s.getProperties().get("Voltage").getValue());
+        assertEquals("126", s.getProperties().get("WeldingCurrent").getValue());
+        assertEquals("Аппарат в режиме ожидания",
+                s.getProperties().get("WeldingMachineState").getValue());
     }
 
     @Test

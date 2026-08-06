@@ -6,7 +6,7 @@ public final class V2ProtocolConstants {
     public static final String TEST_MAC = "E072A1D43F18";
 
     /** Новая плата с hub-payload (/v2-protocol-test-with-hub). */
-    public static final String TEST_MAC_HUB = "3C0F02C40584";
+    public static final String TEST_MAC_HUB = "3C0F02C8B4D4";
 
     /** Текущая версия бинарного протокола в sync 0x01. */
     public static final byte PROTOCOL_VERSION = 0x02;
